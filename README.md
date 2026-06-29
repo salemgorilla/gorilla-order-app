@@ -24,4 +24,4 @@ After this test works, the endpoint will be upgraded to call Printavo using Verc
 PRINTAVO_EMAIL
 PRINTAVO_TOKEN
 
-Never put the Printavo token inside index.html. 
+Never put the Printavo token inside index.html.  

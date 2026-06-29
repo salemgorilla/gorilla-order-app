@@ -1,51 +1,30 @@
-# Gorilla Order — Deploy Ready Static Starter
+# Gorilla Order - Printavo Ready Static Prototype
 
-This version is intentionally simple to deploy and preview.
+This version prepares Gorilla Order for the current Printavo-first workflow.
 
-It does **not** require Node, npm, TypeScript, or a build step.
+## What changed
 
-## Preview on your computer
-
-Open `index.html` in a browser.
-
-## Deploy on Vercel
-
-1. Create a GitHub repo named `gorilla-order`.
-2. Upload the contents of this folder.
-3. In Vercel, import the GitHub repo.
-4. If Vercel asks for settings:
-   - Framework Preset: Other
-   - Build Command: leave blank
-   - Output Directory: leave blank
-5. Deploy.
-
-## Editable data files
-
-Sticker pricing:
-
-```txt
-data/sticker-pricing.js
-```
-
-Shipping pricing:
-
-```txt
-data/shipping-pricing.js
-```
-
-## Current features
-
-- Custom sticker builder
-- Live pricing
-- Shipping/pickup options calculated before purchase
-- Artwork file preview
 - Customer info fields
-- Structured order package from the Purchase button
+- Due date
+- Payment timing choice
+- Shipping included in grand total
+- Printavo handoff section
+- Purchase button creates a Printavo-ready order package
+- Copy JSON
+- Download JSON
+- Email order to shop
 
-## Next steps
+## Important
 
-- Replace placeholder pricing with real Gorilla Salem pricing
-- Add true checkout/payment
-- Add real artwork upload storage
-- Add Printavo work order integration
-- Add admin pricing editor
+This does not directly connect to Printavo yet.
+
+A real Printavo connection needs a secure server-side function so your Printavo API token is never exposed in the public website.
+
+## Next milestone
+
+Create a secure Vercel serverless function:
+
+/api/create-printavo-order
+
+The browser sends the order package there.
+The serverless function sends it to Printavo using your private API token stored in Vercel environment variables.

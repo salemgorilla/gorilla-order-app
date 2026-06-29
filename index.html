@@ -3,14 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Gorilla Order - Printavo Ready</title>
+<title>Gorilla Order - Endpoint Test</title>
 <style>
 :root{--ink:#171717;--cream:#fff6e4;--paper:#fffdf7;--green:#2f4f3a;--red:#b7352d;--border:#dfd0b8;--muted:#6f695e}
 *{box-sizing:border-box}body{margin:0;background:var(--cream);color:var(--ink);font-family:Arial,Helvetica,sans-serif}
 .wrap{max-width:1180px;margin:0 auto;padding:24px 18px 72px}
 header{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid var(--ink);padding-bottom:20px;margin-bottom:34px;gap:16px}
 .brand{font-size:24px;font-weight:950;letter-spacing:-.04em}.brand span{color:var(--red)}
-nav{display:flex;gap:16px;font-weight:900;font-size:14px}nav a{color:inherit;text-decoration:none}
 .hero{display:grid;grid-template-columns:1.15fr .85fr;gap:24px;align-items:center;border-bottom:3px solid var(--ink);padding-bottom:32px;margin-bottom:28px}
 .eyebrow{text-transform:uppercase;letter-spacing:.09em;color:var(--red);font-size:12px;font-weight:950;margin:0 0 10px}
 h1{font-size:clamp(44px,8vw,88px);line-height:.88;letter-spacing:-.075em;margin:0}.subhead{font-size:20px;line-height:1.45;color:var(--muted)}
@@ -43,12 +42,12 @@ pre{white-space:pre-wrap;background:#f7f1e6;border-radius:16px;padding:16px;over
 </head>
 <body>
 <div class="wrap">
-<header><div class="brand">GORILLA<span>ORDER</span></div><nav><a href="#builder">Stickers</a><a href="#customer">Customer</a><a href="#printavo">Printavo</a></nav></header>
+<header><div class="brand">GORILLA<span>ORDER</span></div></header>
 <section class="hero">
-<div><p class="eyebrow">Gorilla Salem Online Ordering</p><h1>Sticker orders ready for Printavo.</h1><p class="subhead">Customers configure, upload artwork, choose pickup or shipping, and submit a clean order package for your current Printavo workflow.</p></div>
+<div><p class="eyebrow">Gorilla Salem Online Ordering</p><h1>Sticker orders ready for Printavo.</h1><p class="subhead">This version tests the secure Vercel endpoint before we connect the real Printavo API.</p></div>
 <div class="card"><p class="eyebrow">Live Order Preview</p><div class="preview"><div class="sticker die-cut" id="heroSticker">GS</div></div><dl><div><dt id="heroTitle">500 Die Cut Stickers</dt><dd id="heroPrice">$143.00</dd></div></dl></div>
 </section>
-<section class="layout" id="builder">
+<section class="layout">
 <main>
 <section class="panel"><div class="title"><span class="step">1</span><h2>Sticker specs</h2></div>
 <label class="label">Shape</label><div class="grid" id="shapeOptions"></div>
@@ -56,8 +55,7 @@ pre{white-space:pre-wrap;background:#f7f1e6;border-radius:16px;padding:16px;over
 <label class="label">Material</label><div class="grid" id="materialOptions"></div>
 <label class="label">Finish</label><div class="grid" id="finishOptions"></div>
 <label class="label">Quantity</label><div class="grid seven" id="quantityOptions"></div></section>
-
-<section class="panel" id="customer"><div class="title"><span class="step">2</span><h2>Customer info</h2></div>
+<section class="panel"><div class="title"><span class="step">2</span><h2>Customer info</h2></div>
 <div class="form-grid">
 <label>Name<input id="customerName" placeholder="Customer name"></label>
 <label>Email<input id="customerEmail" type="email" placeholder="email@example.com"></label>
@@ -67,46 +65,38 @@ pre{white-space:pre-wrap;background:#f7f1e6;border-radius:16px;padding:16px;over
 <label>Payment timing<select id="paymentTiming"><option value="payment-request">Send Printavo payment request</option><option value="pay-after-review">Pay after artwork review</option><option value="already-paid">Already paid outside Printavo</option></select></label>
 <label class="full">Order notes<textarea id="orderNotes" placeholder="Deadline, artwork instructions, pickup/shipping notes, etc."></textarea></label>
 </div></section>
-
 <section class="panel"><div class="title"><span class="step">3</span><h2>Artwork upload</h2></div>
 <label class="upload"><input id="artwork" type="file" multiple accept=".ai,.eps,.pdf,.svg,.psd,.png,.jpg,.jpeg"><strong>Drop artwork here or choose files</strong><span>AI, EPS, PDF, SVG, PSD, PNG, JPG</span></label>
 <ul class="files" id="fileList"></ul></section>
-
-<section class="panel" id="printavo"><div class="title"><span class="step">4</span><h2>Printavo handoff</h2></div>
-<p class="muted">This version creates a structured Printavo-ready order package. The next step is a secure Vercel server function that sends this data to Printavo without exposing your API token.</p>
-<div class="notice"><strong>Integration mode</strong><br><span class="muted">Safe prototype: copy/download/email order package now; live API connection later.</span></div>
-</section>
 </main>
-
 <aside class="summary">
 <p class="eyebrow">Your Order</p><h2 id="summaryTitle">Custom Stickers</h2><div class="price" id="grandTotal">$0.00</div><p id="eachPrice">$0.00 each including shipping</p>
-<div class="pills"><span>✓ Printed locally in Salem</span><span>✓ Shipping calculated before purchase</span><span>✓ Printavo-ready package</span></div>
+<div class="pills"><span>✓ Shipping calculated before purchase</span><span>✓ Secure endpoint test</span><span>✓ Printavo-ready package</span></div>
 <dl id="summaryDetails"></dl>
 <label class="label">Shipping / Pickup</label><div class="grid" id="shippingOptions"></div>
-<button class="primary" id="purchaseBtn">Create Printavo Order Package</button>
+<button class="primary" id="purchaseBtn">Send Test Order to Secure Endpoint</button>
+<div class="notice" id="endpointStatus" style="display:none"></div>
 <button class="secondary" id="emailBtn">Email Order to Shop</button>
-<p class="fine">Later, this will create/update the customer and invoice/order in Printavo automatically.</p>
+<p class="fine">After this works, the endpoint will send this data to Printavo.</p>
 </aside>
 </section>
 </div>
-
-<div class="modal" id="orderModal"><div class="modal-card"><button class="close" id="closeModal">×</button><p class="eyebrow">Printavo Ready</p><h2>Order Package</h2><p class="muted">Copy or download this for now. This is the structure we will use for the Printavo API connection.</p><div class="two"><button class="primary" id="copyJson">Copy JSON</button><button class="secondary" id="downloadJson">Download JSON</button></div><pre id="orderOutput"></pre></div></div>
-
+<div class="modal" id="orderModal"><div class="modal-card"><button class="close" id="closeModal">×</button><p class="eyebrow">Endpoint Response</p><h2>Secure API Test</h2><div class="two"><button class="primary" id="copyJson">Copy Response</button><button class="secondary" id="downloadJson">Download Response</button></div><pre id="orderOutput"></pre></div></div>
 <script>
 const pricing={shapes:[{id:"circle",label:"Circle",sub:"Classic round",multiplier:1},{id:"square",label:"Square",sub:"Clean edges",multiplier:1},{id:"rectangle",label:"Rectangle",sub:"Great for labels",multiplier:1},{id:"die-cut",label:"Die Cut",sub:"Cut to shape",multiplier:1.18},{id:"kiss-cut",label:"Kiss Cut",sub:"Easy peel backing",multiplier:1.12},{id:"oval",label:"Oval",sub:"Soft shape",multiplier:1.05}],sizes:[{id:"2x2",label:'2" × 2"',sub:"Small logo",base:{50:24,100:34,250:58,500:95,1000:168,2500:365,5000:650}},{id:"3x3",label:'3" × 3"',sub:"Most popular",base:{50:29,100:41,250:72,500:116,1000:198,2500:445,5000:795}},{id:"4x4",label:'4" × 4"',sub:"Bold handout",base:{50:36,100:54,250:92,500:148,1000:255,2500:585,5000:1040}},{id:"5x5",label:'5" × 5"',sub:"Large sticker",base:{50:48,100:69,250:118,500:190,1000:325,2500:760,5000:1375}}],materials:[{id:"white-vinyl",label:"White Vinyl",sub:"Everyday choice",multiplier:1},{id:"clear-vinyl",label:"Clear Vinyl",sub:"+15%",multiplier:1.15},{id:"holographic",label:"Holographic",sub:"+35%",multiplier:1.35},{id:"chrome",label:"Chrome",sub:"+30%",multiplier:1.3}],finishes:[{id:"gloss",label:"Gloss",sub:"Shiny finish",multiplier:1},{id:"matte",label:"Matte",sub:"Soft finish",multiplier:1.05},{id:"uv",label:"UV Laminate",sub:"Extra durable",multiplier:1.12}],quantities:[50,100,250,500,1000,2500,5000],shipping:[{id:"pickup",label:"Pickup",sub:"Free",type:"flat",price:0},{id:"local-delivery",label:"Local Delivery",sub:"$15",type:"flat",price:15},{id:"standard-shipping",label:"Standard",sub:"Calculated",type:"tiered",tiers:[{max:75,price:8},{max:200,price:12},{max:500,price:18},{max:null,price:25}]},{id:"rush-shipping",label:"Rush",sub:"Calculated",type:"tiered",tiers:[{max:75,price:18},{max:200,price:25},{max:500,price:35},{max:null,price:50}]}]};
-const state={shape:"die-cut",size:"3x3",material:"white-vinyl",finish:"matte",quantity:500,shipping:"pickup",files:[]};let currentOrder=null;
+const state={shape:"die-cut",size:"3x3",material:"white-vinyl",finish:"matte",quantity:500,shipping:"pickup",files:[]};let currentResponse=null;
 const money=n=>"$"+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});const find=(l,id)=>l.find(x=>x.id===id);
 function subtotal(){const s=find(pricing.sizes,state.size);return Math.round(s.base[state.quantity]*find(pricing.shapes,state.shape).multiplier*find(pricing.materials,state.material).multiplier*find(pricing.finishes,state.finish).multiplier)}
 function shipCost(sub){const m=find(pricing.shipping,state.shipping);if(m.type==="flat")return m.price;const t=m.tiers.find(x=>x.max===null||sub<=x.max);return t?t.price:0}
 function grid(id,opts,key){const el=document.getElementById(id);el.innerHTML="";opts.forEach(o=>{const b=document.createElement("button");b.type="button";b.className="option"+(state[key]===o.id?" active":"");b.innerHTML=`<strong>${o.label}</strong><span>${o.sub||""}</span>`;b.onclick=()=>{state[key]=o.id;render()};el.appendChild(b)})}
 function qgrid(){const el=document.getElementById("quantityOptions");el.innerHTML="";pricing.quantities.forEach(q=>{const b=document.createElement("button");b.type="button";b.className="option qty"+(state.quantity===q?" active":"");b.innerHTML=`<strong>${q.toLocaleString()}</strong>`;b.onclick=()=>{state.quantity=q;render()};el.appendChild(b)})}
 function render(){grid("shapeOptions",pricing.shapes,"shape");grid("sizeOptions",pricing.sizes,"size");grid("materialOptions",pricing.materials,"material");grid("finishOptions",pricing.finishes,"finish");grid("shippingOptions",pricing.shipping,"shipping");qgrid();const sub=subtotal(),ship=shipCost(sub),total=sub+ship,shape=find(pricing.shapes,state.shape),size=find(pricing.sizes,state.size),mat=find(pricing.materials,state.material),fin=find(pricing.finishes,state.finish),del=find(pricing.shipping,state.shipping);document.getElementById("summaryTitle").textContent=`${state.quantity.toLocaleString()} ${shape.label} Stickers`;document.getElementById("heroTitle").textContent=`${state.quantity.toLocaleString()} ${shape.label} Stickers`;document.getElementById("heroPrice").textContent=money(total);document.getElementById("grandTotal").textContent=money(total);document.getElementById("eachPrice").textContent=`${money(total/state.quantity)} each including shipping`;document.getElementById("heroSticker").className=`sticker ${state.shape}`;document.getElementById("summaryDetails").innerHTML=`<div><dt>Subtotal</dt><dd>${money(sub)}</dd></div><div><dt>Shipping</dt><dd>${money(ship)}</dd></div><div><dt>Size</dt><dd>${size.label}</dd></div><div><dt>Material</dt><dd>${mat.label}</dd></div><div><dt>Finish</dt><dd>${fin.label}</dd></div><div><dt>Delivery</dt><dd>${del.label}</dd></div><div><dt>Artwork</dt><dd>${state.files.length||"None yet"}</dd></div>`}
-function pack(){const sub=subtotal(),ship=shipCost(sub),total=sub+ship,shape=find(pricing.shapes,state.shape),size=find(pricing.sizes,state.size),mat=find(pricing.materials,state.material),fin=find(pricing.finishes,state.finish),del=find(pricing.shipping,state.shipping),name=document.getElementById("customerName").value.trim(),company=document.getElementById("customerCompany").value.trim(),titleName=company||name||"Website Customer";return{source:"Gorilla Order",integrationTarget:"Printavo",printavoSuggestedOrderTitle:`${titleName} - ${state.quantity} ${shape.label} Stickers`,printavoSuggestedStatus:"Website Order - Needs Review",customer:{name,email:document.getElementById("customerEmail").value.trim(),phone:document.getElementById("customerPhone").value.trim(),company},order:{product:"Custom Stickers",quantity:state.quantity,shape:shape.label,size:size.label,material:mat.label,finish:fin.label,neededBy:document.getElementById("neededBy").value,notes:document.getElementById("orderNotes").value.trim()},pricing:{subtotal:sub,shippingMethod:del.label,shippingTotal:ship,grandTotal:total,unitPriceIncludingShipping:Number((total/state.quantity).toFixed(2)),paymentTiming:document.getElementById("paymentTiming").value},artworkFiles:state.files.map(f=>({name:f.name,sizeKb:Math.round(f.size/1024),type:f.type||"unknown"})),nextStep:"Secure server function sends this package to Printavo API; do not expose Printavo token in browser."}}
+function pack(){const sub=subtotal(),ship=shipCost(sub),total=sub+ship,shape=find(pricing.shapes,state.shape),size=find(pricing.sizes,state.size),mat=find(pricing.materials,state.material),fin=find(pricing.finishes,state.finish),del=find(pricing.shipping,state.shipping),name=document.getElementById("customerName").value.trim(),company=document.getElementById("customerCompany").value.trim(),titleName=company||name||"Website Customer";return{source:"Gorilla Order",integrationTarget:"Printavo",printavoSuggestedOrderTitle:`${titleName} - ${state.quantity} ${shape.label} Stickers`,printavoSuggestedStatus:"Website Order - Needs Review",customer:{name,email:document.getElementById("customerEmail").value.trim(),phone:document.getElementById("customerPhone").value.trim(),company},order:{product:"Custom Stickers",quantity:state.quantity,shape:shape.label,size:size.label,material:mat.label,finish:fin.label,neededBy:document.getElementById("neededBy").value,notes:document.getElementById("orderNotes").value.trim()},pricing:{subtotal:sub,shippingMethod:del.label,shippingTotal:ship,grandTotal:total,unitPriceIncludingShipping:Number((total/state.quantity).toFixed(2)),paymentTiming:document.getElementById("paymentTiming").value},artworkFiles:state.files.map(f=>({name:f.name,sizeKb:Math.round(f.size/1024),type:f.type||"unknown"}))}}
 document.getElementById("artwork").addEventListener("change",e=>{state.files=Array.from(e.target.files||[]);document.getElementById("fileList").innerHTML=state.files.map(f=>`<li>${f.name} — ${Math.round(f.size/1024)} KB</li>`).join("");render()});
-document.getElementById("purchaseBtn").onclick=()=>{currentOrder=pack();document.getElementById("orderOutput").textContent=JSON.stringify(currentOrder,null,2);document.getElementById("orderModal").classList.add("show")};
+document.getElementById("purchaseBtn").onclick=async()=>{const status=document.getElementById("endpointStatus");status.style.display="block";status.innerHTML="<strong>Sending...</strong><br><span class='muted'>Testing /api/create-printavo-order.</span>";try{const order=pack();const response=await fetch("/api/create-printavo-order",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(order)});const result=await response.json();currentResponse=result;document.getElementById("orderOutput").textContent=JSON.stringify(result,null,2);document.getElementById("orderModal").classList.add("show");if(response.ok&&result.success){status.innerHTML="<strong>Endpoint works ✓</strong><br><span class='muted'>The website successfully sent the order to the secure endpoint.</span>"}else{status.innerHTML="<strong>Endpoint returned an error</strong><br><span class='muted'>Open the response to see details.</span>"}}catch(error){currentResponse={success:false,error:String(error)};status.innerHTML="<strong>Connection failed</strong><br><span class='muted'>The site could not reach the secure endpoint.</span>";document.getElementById("orderOutput").textContent=JSON.stringify(currentResponse,null,2);document.getElementById("orderModal").classList.add("show")}};
 document.getElementById("emailBtn").onclick=()=>{const order=pack();window.location.href=`mailto:info@gorillasalem.com?subject=${encodeURIComponent("New Gorilla Order - Custom Stickers")}&body=${encodeURIComponent(JSON.stringify(order,null,2))}`};
-document.getElementById("copyJson").onclick=async()=>{if(!currentOrder)currentOrder=pack();await navigator.clipboard.writeText(JSON.stringify(currentOrder,null,2));alert("Order package copied.")};
-document.getElementById("downloadJson").onclick=()=>{if(!currentOrder)currentOrder=pack();const blob=new Blob([JSON.stringify(currentOrder,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="gorilla-order-printavo-package.json";a.click();URL.revokeObjectURL(url)};
+document.getElementById("copyJson").onclick=async()=>{await navigator.clipboard.writeText(JSON.stringify(currentResponse||pack(),null,2));alert("Copied.")};
+document.getElementById("downloadJson").onclick=()=>{const blob=new Blob([JSON.stringify(currentResponse||pack(),null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="gorilla-order-endpoint-response.json";a.click();URL.revokeObjectURL(url)};
 document.getElementById("closeModal").onclick=()=>document.getElementById("orderModal").classList.remove("show");
 render();
 </script>

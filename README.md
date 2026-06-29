@@ -1,30 +1,27 @@
-# Gorilla Order - Printavo Ready Static Prototype
+# Gorilla Order - Endpoint Test
 
-This version prepares Gorilla Order for the current Printavo-first workflow.
+This version connects the Purchase button to a secure Vercel API endpoint.
 
-## What changed
+## Upload these to GitHub
 
-- Customer info fields
-- Due date
-- Payment timing choice
-- Shipping included in grand total
-- Printavo handoff section
-- Purchase button creates a Printavo-ready order package
-- Copy JSON
-- Download JSON
-- Email order to shop
+- index.html
+- api/create-printavo-order.js
 
-## Important
+The `api` folder must be at the root of the repository.
 
-This does not directly connect to Printavo yet.
+## What it does
 
-A real Printavo connection needs a secure server-side function so your Printavo API token is never exposed in the public website.
-
-## Next milestone
-
-Create a secure Vercel serverless function:
+When you click the Purchase button, the website sends the order package to:
 
 /api/create-printavo-order
 
-The browser sends the order package there.
-The serverless function sends it to Printavo using your private API token stored in Vercel environment variables.
+For now, the endpoint sends back a success message.
+
+## Next
+
+After this test works, the endpoint will be upgraded to call Printavo using Vercel Environment Variables:
+
+PRINTAVO_EMAIL
+PRINTAVO_TOKEN
+
+Never put the Printavo token inside index.html.

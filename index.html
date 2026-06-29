@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gorilla Order</title>
+  <link rel="stylesheet" href="src/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#home">GORILLA<span>ORDER</span></a>
+    <nav>
+      <a href="#stickers">Stickers</a>
+      <a href="#workflow">Workflow</a>
+      <a href="#admin-notes">Roadmap</a>
+    </nav>
+  </header>
+
+  <main id="home">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Gorilla Salem Online Ordering</p>
+        <h1>Custom print ordering without the back-and-forth.</h1>
+        <p class="subhead">A deploy-ready starter for stickers now, and shirts, banners, signs, DTF, and more later.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#stickers">Start order</a>
+          <a class="button secondary" href="#workflow">See workflow</a>
+        </div>
+      </div>
+      <div class="preview-card" aria-label="Live order preview">
+        <p class="eyebrow">Live Preview</p>
+        <div class="sticker-stage">
+          <div id="visualSticker" class="visual-sticker die-cut">GS</div>
+        </div>
+        <div class="preview-row">
+          <strong id="heroOrderTitle">500 Die Cut Stickers</strong>
+          <span id="heroOrderPrice">$143.00</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="workflow" id="workflow">
+      <article><span>01</span><h2>Build</h2><p>Choose shape, size, material, finish, quantity, and shipping.</p></article>
+      <article><span>02</span><h2>Upload</h2><p>Attach artwork files before checkout or production review.</p></article>
+      <article><span>03</span><h2>Purchase</h2><p>Total includes shipping before the customer commits.</p></article>
+    </section>
+
+    <section class="builder-section" id="stickers">
+      <div class="section-heading">
+        <p class="eyebrow">Deploy-ready starter</p>
+        <h2>Custom Stickers</h2>
+        <p>All pricing and shipping rules live in editable data files.</p>
+      </div>
+
+      <div class="builder-layout">
+        <form class="builder" id="orderForm">
+          <section class="panel"><h3>Shape</h3><div class="option-grid" id="shapeOptions"></div></section>
+          <section class="panel"><h3>Size</h3><div class="option-grid" id="sizeOptions"></div></section>
+          <section class="panel"><h3>Material</h3><div class="option-grid" id="materialOptions"></div></section>
+          <section class="panel"><h3>Finish</h3><div class="option-grid" id="finishOptions"></div></section>
+          <section class="panel"><h3>Quantity</h3><div class="qty-grid" id="quantityOptions"></div></section>
+          <section class="panel"><h3>Shipping / Pickup</h3><div class="option-grid" id="shippingOptions"></div></section>
+
+          <section class="panel">
+            <h3>Artwork</h3>
+            <label class="upload-box" id="uploadBox">
+              <input id="artworkInput" type="file" multiple accept=".ai,.eps,.pdf,.svg,.psd,.png,.jpg,.jpeg" />
+              <strong>Choose artwork files</strong>
+              <span>AI, EPS, PDF, SVG, PSD, PNG, JPG</span>
+            </label>
+            <div class="file-grid" id="fileGrid"></div>
+          </section>
+
+          <section class="panel">
+            <h3>Customer Info</h3>
+            <div class="customer-grid">
+              <label>Name <input id="customerName" type="text" placeholder="Customer name" /></label>
+              <label>Email <input id="customerEmail" type="email" placeholder="email@example.com" /></label>
+              <label class="full">Notes <textarea id="orderNotes" placeholder="Deadline, pickup/shipping notes, artwork instructions, etc."></textarea></label>
+            </div>
+          </section>
+        </form>
+
+        <aside class="summary-card">
+          <p class="eyebrow">Your Order</p>
+          <h3 id="summaryTitle">Custom Stickers</h3>
+          <div class="price" id="grandTotal">$0.00</div>
+          <p id="eachPrice" class="muted">$0.00 each including shipping</p>
+          <dl id="summaryDetails"></dl>
+          <button class="purchase-button" id="purchaseButton" type="button">Purchase</button>
+          <p class="fine-print">Prototype: Purchase creates a structured order package. Next step is Printavo + payment connection.</p>
+        </aside>
+      </div>
+    </section>
+
+    <section class="admin-notes" id="admin-notes">
+      <p class="eyebrow">Roadmap</p>
+      <h2>Built to grow beyond stickers.</h2>
+      <p>Next steps: customer validation, real artwork uploads, admin pricing editor, payment link, and Printavo work order creation.</p>
+    </section>
+  </main>
+
+  <dialog id="orderDialog">
+    <button class="dialog-close" id="closeDialog" type="button">×</button>
+    <p class="eyebrow">Ready for integration</p>
+    <h2>Order Package</h2>
+    <pre id="orderPayload"></pre>
+  </dialog>
+
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>

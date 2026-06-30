@@ -1,14 +1,13 @@
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
+  if (req.method !== "POST" && req.method !== "GET") {
     return res.status(405).json({
       success: false,
-      error: "Method not allowed. Use POST from the Gorilla Order website."
+      error: "Method not allowed. Use GET or POST."
     });
   }
 
   const printavoEmail = process.env.PRINTAVO_EMAIL;
   const printavoToken = process.env.PRINTAVO_TOKEN;
-  const testCustomerId = process.env.PRINTAVO_TEST_CUSTOMER_ID;
 
   if (!printavoEmail || !printavoToken) {
     return res.status(500).json({
@@ -17,16 +16,7 @@ export default async function handler(req, res) {
     });
   }
 
-  if (!testCustomerId) {
-    return res.status(500).json({
-      success: false,
-      error: "Missing PRINTAVO_TEST_CUSTOMER_ID in Vercel Environment Variables."
-    });
-  }
-
-  const order = req.body || {};
-
-  async function printavoRequest({ query, variables }) {
+  async function printavoRequest(query) {
     const response = await fetch("https://www.printavo.com/api/v2", {
       method: "POST",
       headers: {
@@ -34,7 +24,7 @@ export default async function handler(req, res) {
         "email": printavoEmail,
         "token": printavoToken
       },
-      body: JSON.stringify({ query, variables })
+      body: JSON.stringify({ query })
     });
 
     const data = await response.json();
@@ -49,126 +39,184 @@ export default async function handler(req, res) {
     return data.data;
   }
 
-  try {
-    const customerData = await printavoRequest({
-      query: `
-        query GorillaOrderGetCustomer($id: ID!) {
-          customer(id: $id) {
-            id
-            companyName
-            publicUrl
-            primaryContact {
-              id
-              fullName
-              email
-              phone
+  const query = `
+    query GorillaOrderSchemaInspector {
+      mutationType: __type(name: "Mutation") {
+        fields {
+          name
+          args {
+            name
+            type {
+              kind
+              name
+              ofType {
+                kind
+                name
+                ofType {
+                  kind
+                  name
+                }
+              }
+            }
+          }
+          type {
+            kind
+            name
+            ofType {
+              kind
+              name
             }
           }
         }
-      `,
-      variables: {
-        id: testCustomerId
       }
-    });
 
-    const customer = customerData.customer;
-    const contact = customer?.primaryContact;
+      lineItemCreateInput: __type(name: "LineItemCreateInput") {
+        inputFields {
+          name
+          type {
+            kind
+            name
+            ofType {
+              kind
+              name
+              ofType {
+                kind
+                name
+              }
+            }
+          }
+          defaultValue
+        }
+      }
 
-    if (!customer || !contact?.id) {
-      return res.status(500).json({
-        success: false,
-        message: "Found the test customer ID, but could not find a primary contact on that customer.",
-        customer
-      });
+      lineItemGroupCreateInput: __type(name: "LineItemGroupCreateInput") {
+        inputFields {
+          name
+          type {
+            kind
+            name
+            ofType {
+              kind
+              name
+              ofType {
+                kind
+                name
+              }
+            }
+          }
+          defaultValue
+        }
+      }
+
+      lineItemPricingInput: __type(name: "LineItemPricingInput") {
+        inputFields {
+          name
+          type {
+            kind
+            name
+            ofType {
+              kind
+              name
+              ofType {
+                kind
+                name
+              }
+            }
+          }
+          defaultValue
+        }
+      }
+
+      lineItemSizeCountInput: __type(name: "LineItemSizeCountInput") {
+        inputFields {
+          name
+          type {
+            kind
+            name
+            ofType {
+              kind
+              name
+              ofType {
+                kind
+                name
+              }
+            }
+          }
+          defaultValue
+        }
+      }
+
+      lineItem: __type(name: "LineItem") {
+        fields {
+          name
+          type {
+            kind
+            name
+            ofType {
+              kind
+              name
+            }
+          }
+        }
+      }
+
+      lineItemGroup: __type(name: "LineItemGroup") {
+        fields {
+          name
+          type {
+            kind
+            name
+            ofType {
+              kind
+              name
+            }
+          }
+        }
+      }
     }
+  `;
 
-    const today = new Date();
-    const fallbackDue = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
+  try {
+    const data = await printavoRequest(query);
 
-    const requestedDate =
-      order?.order?.neededBy ||
-      fallbackDue.toISOString().slice(0, 10);
-
-    const dueAt = `${requestedDate}T17:00:00Z`;
-
-    const itemDescription = [
-      "GORILLA ORDER TEST QUOTE",
-      "",
-      `Product: ${order?.order?.product || "Custom Stickers"}`,
-      `Quantity: ${order?.order?.quantity || "N/A"}`,
-      `Shape: ${order?.order?.shape || "N/A"}`,
-      `Size: ${order?.order?.size || "N/A"}`,
-      `Material: ${order?.order?.material || "N/A"}`,
-      `Finish: ${order?.order?.finish || "N/A"}`,
-      `Shipping: ${order?.pricing?.shippingMethod || "N/A"} - $${order?.pricing?.shippingTotal ?? "N/A"}`,
-      `Subtotal: $${order?.pricing?.subtotal ?? "N/A"}`,
-      `Grand Total: $${order?.pricing?.grandTotal ?? "N/A"}`,
-      "",
-      "Customer Entered Info:",
-      `Name: ${order?.customer?.name || ""}`,
-      `Email: ${order?.customer?.email || ""}`,
-      `Phone: ${order?.customer?.phone || ""}`,
-      `Company: ${order?.customer?.company || ""}`,
-      "",
-      `Artwork Files: ${
-        Array.isArray(order?.artworkFiles) && order.artworkFiles.length
-          ? order.artworkFiles.map((file) => file.name).join(", ")
-          : "None uploaded in this test"
-      }`,
-      "",
-      `Notes: ${order?.order?.notes || ""}`
-    ].join("\n");
-
-    const quoteData = await printavoRequest({
-      query: `
-        mutation GorillaOrderCreateTestQuote($input: QuoteCreateInput!) {
-          quoteCreate(input: $input) {
-            id
-            visualId
-            publicUrl
-            workorderUrl
-            customerNote
-            productionNote
-            customerDueAt
-            dueAt
-            subtotal
-            total
-            contact {
-              id
-              fullName
-              email
-            }
-          }
-        }
-      `,
-      variables: {
-        input: {
-          contact: { id: contact.id },
-          customerDueAt: requestedDate,
-          dueAt,
-          nickname: `GORILLA ORDER TEST - ${order?.order?.quantity || ""} ${order?.order?.shape || ""} Stickers`,
-          customerNote: "This is a Gorilla Order test quote. Please ignore for production.",
-          productionNote: itemDescription,
-          tags: ["#gorilla-order-test", "#website-order-test"]
-        }
-      }
-    });
+    const mutationFields = data?.mutationType?.fields || [];
+    const relevantMutations = mutationFields
+      .filter((field) =>
+        [
+          "lineItemCreate",
+          "lineItemCreates",
+          "lineItemGroupCreate",
+          "lineItemGroupCreates",
+          "quoteUpdate",
+          "feeCreate",
+          "feeCreates"
+        ].includes(field.name)
+      )
+      .map((field) => ({
+        name: field.name,
+        args: field.args,
+        returnType: field.type
+      }));
 
     return res.status(200).json({
       success: true,
-      message: "Created a test quote in Printavo.",
-      customer: {
-        id: customer.id,
-        companyName: customer.companyName,
-        primaryContact: contact
+      message: "Schema details retrieved. Send this response back to ChatGPT.",
+      relevantMutations,
+      inputTypes: {
+        lineItemCreateInput: data.lineItemCreateInput,
+        lineItemGroupCreateInput: data.lineItemGroupCreateInput,
+        lineItemPricingInput: data.lineItemPricingInput,
+        lineItemSizeCountInput: data.lineItemSizeCountInput
       },
-      quote: quoteData.quoteCreate,
-      nextStep: "Next we will add a line item to the quote."
+      objectTypes: {
+        lineItem: data.lineItem,
+        lineItemGroup: data.lineItemGroup
+      }
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "Could not create the Printavo test quote.",
+      message: "Could not inspect Printavo schema.",
       error
     });
   }

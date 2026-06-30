@@ -66,9 +66,7 @@ export default async function handler(req, res) {
           }
         }
       `,
-      variables: {
-        id: testCustomerId
-      }
+      variables: { id: testCustomerId }
     });
 
     const customer = customerData.customer;
@@ -81,12 +79,18 @@ export default async function handler(req, res) {
       });
     }
 
-    const today = new Date();
-    const customerDueAt = order?.order?.neededBy || new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    const dueAt = `${customerDueAt}T17:00:00Z`;
-
     const item = order.order || {};
     const pricing = order.pricing || {};
+
+    const quantity = Number(item.quantity || 1);
+    const subtotal = Number(pricing.subtotal || 0);
+    const shippingTotal = Number(pricing.shippingTotal || 0);
+    const grandTotal = Number(pricing.grandTotal || subtotal + shippingTotal);
+    const stickerUnitPrice = quantity > 0 ? Number((subtotal / quantity).toFixed(4)) : subtotal;
+
+    const today = new Date();
+    const customerDueAt = item.neededBy || new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const dueAt = `${customerDueAt}T17:00:00Z`;
 
     const customerNote = [
       "GORILLA ORDER TEST QUOTE",
@@ -94,14 +98,14 @@ export default async function handler(req, res) {
       "This quote was created automatically from Gorilla Order.",
       "",
       `Product: ${item.product || "Custom Stickers"}`,
-      `Quantity: ${item.quantity || ""}`,
+      `Quantity: ${quantity}`,
       `Shape: ${item.shape || ""}`,
       `Size: ${item.size || ""}`,
       `Material: ${item.material || ""}`,
       `Finish: ${item.finish || ""}`,
       `Shipping Method: ${pricing.shippingMethod || ""}`,
-      `Shipping Total: ${pricing.shippingTotal ?? ""}`,
-      `Grand Total From Website: ${pricing.grandTotal ?? ""}`,
+      `Shipping Total: ${shippingTotal}`,
+      `Grand Total From Website: ${grandTotal}`,
       "",
       `Customer-entered name: ${order?.customer?.name || ""}`,
       `Customer-entered email: ${order?.customer?.email || ""}`,
@@ -113,18 +117,8 @@ export default async function handler(req, res) {
     const productionNote = [
       "Created by Gorilla Order test integration.",
       "Review pricing, shipping, and artwork before sending payment request.",
-      "No artwork files are uploaded to Printavo yet in this test version."
+      "Artwork upload to Printavo is not connected yet."
     ].join("\n");
-
-    const quoteInput = {
-      contact: { id: customer.primaryContact.id },
-      nickname: `GORILLA ORDER TEST - ${item.quantity || ""} ${item.shape || ""} Stickers`,
-      customerDueAt,
-      dueAt,
-      customerNote,
-      productionNote,
-      tags: ["#GorillaOrder", "#WebsiteTest", "#Stickers"]
-    };
 
     const quoteData = await printavoRequest({
       query: `
@@ -147,25 +141,128 @@ export default async function handler(req, res) {
         }
       `,
       variables: {
-        input: quoteInput
+        input: {
+          contact: { id: customer.primaryContact.id },
+          nickname: `GORILLA ORDER TEST - ${quantity} ${item.shape || ""} Stickers`,
+          customerDueAt,
+          dueAt,
+          customerNote,
+          productionNote,
+          tags: ["#GorillaOrder", "#WebsiteTest", "#Stickers"]
+        }
       }
+    });
+
+    const quote = quoteData.quoteCreate;
+
+    const lineItemDescription = [
+      `${quantity} ${item.shape || ""} Stickers`,
+      `${item.size || ""} / ${item.material || ""} / ${item.finish || ""}`
+    ].join("\n");
+
+    const groupData = await printavoRequest({
+      query: `
+        mutation GorillaOrderLineItemGroupCreate($parentId: ID!, $input: LineItemGroupCreateInput!) {
+          lineItemGroupCreate(parentId: $parentId, input: $input) {
+            id
+            position
+            order {
+              ... on Quote {
+                id
+                subtotal
+                total
+                publicUrl
+                publicPdf
+              }
+            }
+          }
+        }
+      `,
+      variables: {
+        parentId: quote.id,
+        input: {
+          position: 1,
+          lineItems: [
+            {
+              description: lineItemDescription,
+              itemNumber: "GORILLA-STICKER",
+              position: 1,
+              price: stickerUnitPrice,
+              sizes: [
+                { size: "size_other", count: quantity }
+              ],
+              taxed: true
+            },
+            {
+              description: `${pricing.shippingMethod || "Shipping"} - Shipping / Pickup`,
+              itemNumber: "GORILLA-SHIPPING",
+              position: 2,
+              price: shippingTotal,
+              sizes: [
+                { size: "size_other", count: 1 }
+              ],
+              taxed: false
+            }
+          ]
+        }
+      }
+    });
+
+    const refreshedQuoteData = await printavoRequest({
+      query: `
+        query GorillaOrderQuote($id: ID!) {
+          quote(id: $id) {
+            id
+            nickname
+            publicUrl
+            publicPdf
+            subtotal
+            total
+            customerDueAt
+            dueAt
+            lineItemGroups(first: 10) {
+              nodes {
+                id
+                lineItems(first: 10) {
+                  nodes {
+                    id
+                    description
+                    itemNumber
+                    items
+                    price
+                    taxed
+                  }
+                }
+              }
+            }
+          }
+        }
+      `,
+      variables: { id: quote.id }
     });
 
     return res.status(200).json({
       success: true,
-      message: "Created a safe Gorilla Order test quote in Printavo.",
+      message: "Created a Gorilla Order test quote with priced line items in Printavo.",
       testCustomer: {
         id: customer.id,
         companyName: customer.companyName,
         primaryContact: customer.primaryContact
       },
-      quote: quoteData.quoteCreate,
-      note: "This creates a quote only. It does not create a payment request or production order."
+      quote: refreshedQuoteData.quote,
+      createdLineItemGroup: groupData.lineItemGroupCreate,
+      websiteTotals: {
+        subtotal,
+        shippingTotal,
+        grandTotal,
+        stickerUnitPrice
+      },
+      note: "This creates a quote with line items. It does not request payment or create a production order."
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "Printavo quote creation failed.",
+      message: "Printavo priced quote creation failed.",
       error
     });
   }

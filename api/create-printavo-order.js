@@ -42,7 +42,7 @@ export default async function handler(req, res) {
     if (!response.ok || data.errors) {
       throw {
         status: response.status,
-        response: data
+        data
       };
     }
 
@@ -52,7 +52,7 @@ export default async function handler(req, res) {
   try {
     const customerData = await printavoRequest({
       query: `
-        query GorillaOrderGetCustomer($id: ID!) {
+        query GorillaOrderCustomer($id: ID!) {
           customer(id: $id) {
             id
             companyName
@@ -72,39 +72,72 @@ export default async function handler(req, res) {
     });
 
     const customer = customerData.customer;
-    const contact = customer && customer.primaryContact;
 
-    if (!customer || !contact || !contact.id) {
+    if (!customer?.primaryContact?.id) {
       return res.status(500).json({
         success: false,
-        message: "Found the test customer ID, but could not find a primary contact on that customer.",
+        message: "Found the test customer, but no primary contact ID was available.",
         customer
       });
     }
 
     const today = new Date();
-    const fallbackDue = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
+    const customerDueAt = order?.order?.neededBy || new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const dueAt = `${customerDueAt}T17:00:00Z`;
 
-    const requestedDate =
-      (order.order && order.order.neededBy) ||
-      fallbackDue.toISOString().slice(0, 10);
+    const item = order.order || {};
+    const pricing = order.pricing || {};
 
-    const dueAt = requestedDate + "T17:00:00Z";
+    const customerNote = [
+      "GORILLA ORDER TEST QUOTE",
+      "",
+      "This quote was created automatically from Gorilla Order.",
+      "",
+      `Product: ${item.product || "Custom Stickers"}`,
+      `Quantity: ${item.quantity || ""}`,
+      `Shape: ${item.shape || ""}`,
+      `Size: ${item.size || ""}`,
+      `Material: ${item.material || ""}`,
+      `Finish: ${item.finish || ""}`,
+      `Shipping Method: ${pricing.shippingMethod || ""}`,
+      `Shipping Total: ${pricing.shippingTotal ?? ""}`,
+      `Grand Total From Website: ${pricing.grandTotal ?? ""}`,
+      "",
+      `Customer-entered name: ${order?.customer?.name || ""}`,
+      `Customer-entered email: ${order?.customer?.email || ""}`,
+      `Customer-entered phone: ${order?.customer?.phone || ""}`,
+      "",
+      `Order Notes: ${item.notes || ""}`
+    ].join("\n");
+
+    const productionNote = [
+      "Created by Gorilla Order test integration.",
+      "Review pricing, shipping, and artwork before sending payment request.",
+      "No artwork files are uploaded to Printavo yet in this test version."
+    ].join("\n");
+
+    const quoteInput = {
+      contact: { id: customer.primaryContact.id },
+      nickname: `GORILLA ORDER TEST - ${item.quantity || ""} ${item.shape || ""} Stickers`,
+      customerDueAt,
+      dueAt,
+      customerNote,
+      productionNote,
+      tags: ["Gorilla Order", "Website Test", "Stickers"]
+    };
 
     const quoteData = await printavoRequest({
       query: `
-        mutation GorillaOrderCreateTestQuote($input: QuoteCreateInput!) {
+        mutation GorillaOrderQuoteCreate($input: QuoteCreateInput!) {
           quoteCreate(input: $input) {
             id
-            visualId
+            nickname
             publicUrl
-            workorderUrl
-            customerNote
-            productionNote
-            customerDueAt
-            dueAt
+            publicPdf
             subtotal
             total
+            customerDueAt
+            dueAt
             contact {
               id
               fullName
@@ -114,134 +147,26 @@ export default async function handler(req, res) {
         }
       `,
       variables: {
-        input: {
-          contact: { id: contact.id },
-          customerDueAt: requestedDate,
-          dueAt: dueAt,
-          nickname: "GORILLA ORDER TEST - Sticker + Shipping",
-          customerNote: "This is a Gorilla Order test quote. Please ignore for production.",
-          productionNote: [
-            "GORILLA ORDER TEST QUOTE",
-            "",
-            "Customer-entered name: " + ((order.customer && order.customer.name) || ""),
-            "Customer-entered email: " + ((order.customer && order.customer.email) || ""),
-            "Customer-entered phone: " + ((order.customer && order.customer.phone) || ""),
-            "",
-            "Notes: " + ((order.order && order.order.notes) || ""),
-            "",
-            "Artwork files: " + (
-              Array.isArray(order.artworkFiles) && order.artworkFiles.length
-                ? order.artworkFiles.map(function(file) { return file.name; }).join(", ")
-                : "None uploaded in this test"
-            )
-          ].join("\n"),
-          tags: ["#gorilla-order-test", "#website-order-test"]
-        }
+        input: quoteInput
       }
     });
-
-    const quote = quoteData.quoteCreate;
-
-    const stickerDescription = [
-      ((order.order && order.order.size) || "") + " " + ((order.order && order.order.shape) || "") + " Stickers",
-      "Material: " + ((order.order && order.order.material) || "N/A"),
-      "Finish: " + ((order.order && order.order.finish) || "N/A"),
-      "Quantity: " + ((order.order && order.order.quantity) || "N/A")
-    ].join("\n");
-
-    const lineItemGroupData = await printavoRequest({
-      query: `
-        mutation GorillaOrderCreateLineItemGroup($parentId: ID!, $input: LineItemGroupCreateInput!) {
-          lineItemGroupCreate(parentId: $parentId, input: $input) {
-            id
-            position
-            lineItems {
-              nodes {
-                id
-                description
-                price
-                taxed
-                position
-              }
-            }
-          }
-        }
-      `,
-      variables: {
-        parentId: quote.id,
-        input: {
-          position: 1,
-          lineItems: [
-            {
-              position: 1,
-              description: stickerDescription,
-              price: Number((order.pricing && order.pricing.subtotal) || 0),
-              taxed: true
-            }
-          ]
-        }
-      }
-    });
-
-    let shippingFee = null;
-    let shippingFeeError = null;
-    const shippingTotal = Number((order.pricing && order.pricing.shippingTotal) || 0);
-
-    if (shippingTotal > 0) {
-      try {
-        const feeData = await printavoRequest({
-          query: `
-            mutation GorillaOrderCreateShippingFee($parentId: ID!, $input: FeeInput!) {
-              feeCreate(parentId: $parentId, input: $input) {
-                id
-                description
-                amount
-                quantity
-                unitPrice
-                taxable
-              }
-            }
-          `,
-          variables: {
-            parentId: quote.id,
-            input: {
-              description: (order.pricing && order.pricing.shippingMethod) || "Shipping",
-              amount: shippingTotal,
-              quantity: 1,
-              unitPrice: shippingTotal,
-              taxable: false,
-              unitPriceAsPercentage: false
-            }
-          }
-        });
-
-        shippingFee = feeData.feeCreate;
-      } catch (error) {
-        shippingFeeError = error;
-      }
-    }
 
     return res.status(200).json({
       success: true,
-      message: "Created a Printavo test quote with sticker line item and shipping fee.",
-      customer: {
+      message: "Created a safe Gorilla Order test quote in Printavo.",
+      testCustomer: {
         id: customer.id,
         companyName: customer.companyName,
-        primaryContact: contact
+        primaryContact: customer.primaryContact
       },
-      quote: quote,
-      lineItemGroup: lineItemGroupData.lineItemGroupCreate,
-      shippingFee: shippingFee,
-      shippingFeeError: shippingFeeError,
-      nextStep: shippingFeeError
-        ? "Sticker line item worked. Shipping fee still needs adjustment."
-        : "Sticker line item and shipping fee both worked. Next we can replace JSON with a polished confirmation screen."
+      quote: quoteData.quoteCreate,
+      note: "This creates a quote only. It does not create a payment request or production order."
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "Could not create the Printavo quote with line item and shipping.",
-      error: error
+      message: "Printavo quote creation failed.",
+      error
     });
   }
 }

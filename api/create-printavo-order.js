@@ -123,7 +123,7 @@ export default async function handler(req, res) {
       dueAt,
       customerNote,
       productionNote,
-      tags: ["Gorilla Order", "Website Test", "Stickers"]
+      tags: ["#GorillaOrder", "#WebsiteTest", "#Stickers"]
     };
 
     const quoteData = await printavoRequest({

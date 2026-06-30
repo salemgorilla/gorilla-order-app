@@ -1,14 +1,13 @@
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
+  if (req.method !== "POST" && req.method !== "GET") {
     return res.status(405).json({
       success: false,
-      error: "Method not allowed. Use POST from the Gorilla Order website."
+      error: "Method not allowed. Use GET or POST."
     });
   }
 
   const printavoEmail = process.env.PRINTAVO_EMAIL;
   const printavoToken = process.env.PRINTAVO_TOKEN;
-  const testCustomerId = process.env.PRINTAVO_TEST_CUSTOMER_ID;
 
   if (!printavoEmail || !printavoToken) {
     return res.status(500).json({
@@ -17,16 +16,7 @@ export default async function handler(req, res) {
     });
   }
 
-  if (!testCustomerId) {
-    return res.status(500).json({
-      success: false,
-      error: "Missing PRINTAVO_TEST_CUSTOMER_ID in Vercel Environment Variables."
-    });
-  }
-
-  const order = req.body || {};
-
-  async function printavoRequest({ query, variables }) {
+  async function printavoRequest(query) {
     const response = await fetch("https://www.printavo.com/api/v2", {
       method: "POST",
       headers: {
@@ -34,7 +24,7 @@ export default async function handler(req, res) {
         "email": printavoEmail,
         "token": printavoToken
       },
-      body: JSON.stringify({ query, variables })
+      body: JSON.stringify({ query })
     });
 
     const data = await response.json();
@@ -49,192 +39,78 @@ export default async function handler(req, res) {
     return data.data;
   }
 
-  try {
-    const customerData = await printavoRequest({
-      query: `
-        query GorillaOrderGetCustomer($id: ID!) {
-          customer(id: $id) {
-            id
-            companyName
-            publicUrl
-            primaryContact {
-              id
-              fullName
-              email
-              phone
-            }
-          }
-        }
-      `,
-      variables: {
-        id: testCustomerId
-      }
-    });
-
-    const customer = customerData.customer;
-    const contact = customer && customer.primaryContact;
-
-    if (!customer || !contact || !contact.id) {
-      return res.status(500).json({
-        success: false,
-        message: "Found the test customer ID, but could not find a primary contact on that customer.",
-        customer
-      });
-    }
-
-    const today = new Date();
-    const fallbackDue = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
-
-    const requestedDate =
-      (order.order && order.order.neededBy) ||
-      fallbackDue.toISOString().slice(0, 10);
-
-    const dueAt = requestedDate + "T17:00:00Z";
-
-    const quoteData = await printavoRequest({
-      query: `
-        mutation GorillaOrderCreateTestQuote($input: QuoteCreateInput!) {
-          quoteCreate(input: $input) {
-            id
-            visualId
-            publicUrl
-            workorderUrl
-            customerNote
-            productionNote
-            customerDueAt
-            dueAt
-            subtotal
-            total
-            contact {
-              id
-              fullName
-              email
-            }
-          }
-        }
-      `,
-      variables: {
-        input: {
-          contact: { id: contact.id },
-          customerDueAt: requestedDate,
-          dueAt: dueAt,
-          nickname: "GORILLA ORDER TEST - Sticker Line Item",
-          customerNote: "This is a Gorilla Order test quote. Please ignore for production.",
-          productionNote: [
-            "GORILLA ORDER TEST QUOTE",
-            "",
-            "Customer-entered name: " + ((order.customer && order.customer.name) || ""),
-            "Customer-entered email: " + ((order.customer && order.customer.email) || ""),
-            "Customer-entered phone: " + ((order.customer && order.customer.phone) || ""),
-            "",
-            "Notes: " + ((order.order && order.order.notes) || ""),
-            "",
-            "Artwork files: " + (
-              Array.isArray(order.artworkFiles) && order.artworkFiles.length
-                ? order.artworkFiles.map(function(file) { return file.name; }).join(", ")
-                : "None uploaded in this test"
-            )
-          ].join("\n"),
-          tags: ["#gorilla-order-test", "#website-order-test"]
-        }
-      }
-    });
-
-    const quote = quoteData.quoteCreate;
-
-    const stickerDescription = [
-      ((order.order && order.order.size) || "") + " " + ((order.order && order.order.shape) || "") + " Stickers",
-      "Material: " + ((order.order && order.order.material) || "N/A"),
-      "Finish: " + ((order.order && order.order.finish) || "N/A"),
-      "Quantity: " + ((order.order && order.order.quantity) || "N/A")
-    ].join("\n");
-
-    const lineItemGroupData = await printavoRequest({
-      query: `
-        mutation GorillaOrderCreateLineItemGroup($parentId: ID!, $input: LineItemGroupCreateInput!) {
-          lineItemGroupCreate(parentId: $parentId, input: $input) {
-            id
-            position
-            lineItems {
-              nodes {
-                id
-                description
-                price
-                taxed
-                position
-              }
-            }
-          }
-        }
-      `,
-      variables: {
-        parentId: quote.id,
-        input: {
-          position: 1,
-          lineItems: [
-            {
-              position: 1,
-              description: stickerDescription,
-              price: Number((order.pricing && order.pricing.subtotal) || 0),
-              taxed: true
-            }
-          ]
-        }
-      }
-    });
-
-    let shippingFee = null;
-    let shippingFeeError = null;
-    const shippingTotal = Number((order.pricing && order.pricing.shippingTotal) || 0);
-
-    if (shippingTotal > 0) {
-      try {
-        const feeData = await printavoRequest({
-          query: `
-            mutation GorillaOrderCreateShippingFee($parentId: ID!, $input: FeeInput!) {
-              feeCreate(parentId: $parentId, input: $input) {
-                id
+  const query = `
+    query GorillaOrderFeeSchema {
+      feeInput: __type(name: "FeeInput") {
+        inputFields {
+          name
+          type {
+            kind
+            name
+            ofType {
+              kind
+              name
+              ofType {
+                kind
                 name
-                amount
               }
             }
-          `,
-          variables: {
-            parentId: quote.id,
-            input: {
-              name: (order.pricing && order.pricing.shippingMethod) || "Shipping",
-              amount: shippingTotal
+          }
+          defaultValue
+        }
+      }
+
+      fee: __type(name: "Fee") {
+        fields {
+          name
+          type {
+            kind
+            name
+            ofType {
+              kind
+              name
             }
           }
-        });
+        }
+      }
 
-        shippingFee = feeData.feeCreate;
-      } catch (error) {
-        shippingFeeError = error;
+      mutationType: __type(name: "Mutation") {
+        fields {
+          name
+          args {
+            name
+            type {
+              kind
+              name
+              ofType {
+                kind
+                name
+              }
+            }
+          }
+        }
       }
     }
+  `;
+
+  try {
+    const data = await printavoRequest(query);
+
+    const feeMutations = (data.mutationType?.fields || [])
+      .filter((field) => field.name === "feeCreate" || field.name === "feeCreates");
 
     return res.status(200).json({
       success: true,
-      message: "Created a Printavo test quote with a sticker line item.",
-      customer: {
-        id: customer.id,
-        companyName: customer.companyName,
-        primaryContact: contact
-      },
-      quote: quote,
-      lineItemGroup: lineItemGroupData.lineItemGroupCreate,
-      shippingFee: shippingFee,
-      shippingFeeError: shippingFeeError,
-      nextStep: shippingFeeError
-        ? "Line item worked. Shipping fee needs a FeeInput schema adjustment."
-        : "Next we can replace JSON with a polished customer confirmation screen."
+      message: "Fee schema retrieved. Send this response back to ChatGPT.",
+      feeInput: data.feeInput,
+      fee: data.fee,
+      feeMutations
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "Could not create the Printavo quote with line item.",
-      error: error
+      message: "Could not inspect Printavo fee schema.",
+      error
     });
   }
 }

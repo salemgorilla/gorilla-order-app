@@ -10,6 +10,7 @@ export type StickerOrder = {
   stickerPrice: number;
   total: number;
   needBy: string;
+  deadlineType: string;
   artwork: File | null;
 };
 
@@ -22,8 +23,9 @@ export const defaultOrder: StickerOrder = {
   finish: "Matte",
   shipping: "Standard",
   shippingPrice: 12,
-  stickerPrice: 144,
+  stickerPrice: 156,
   total: 156,
   needBy: "",
+  deadlineType: "Firm",
   artwork: null,
 };

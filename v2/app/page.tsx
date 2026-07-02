@@ -5,12 +5,33 @@ import { useState } from "react";
 import Header from "../components/Header";
 import PriceCard from "../components/PriceCard";
 import QuantitySelector from "../components/QuantitySelector";
+import OptionSelector from "../components/OptionSelector";
 
-import { defaultOrder } from "../lib/order";
 import { stickerCatalog } from "../lib/catalog";
+import { defaultOrder } from "../lib/order";
+import { getStickerPrice } from "../lib/pricing";
 
 export default function Home() {
   const [order, setOrder] = useState(defaultOrder);
+
+  function updateOrder(updates: Partial<typeof order>) {
+    const nextOrder = {
+      ...order,
+      ...updates,
+    };
+
+    const total = getStickerPrice(
+      nextOrder.quantity,
+      nextOrder.material,
+      nextOrder.finish
+    );
+
+    setOrder({
+      ...nextOrder,
+      stickerPrice: total,
+      total,
+    });
+  }
 
   return (
     <main className="min-h-screen bg-[#F8F5EE]">
@@ -29,12 +50,34 @@ export default function Home() {
               <QuantitySelector
                 quantities={stickerCatalog.quantities}
                 selected={order.quantity}
-                onSelect={(quantity) =>
-                  setOrder({
-                    ...order,
-                    quantity,
-                  })
-                }
+                onSelect={(quantity) => updateOrder({ quantity })}
+              />
+            </div>
+
+            <div className="mt-8">
+              <OptionSelector
+                title="Size"
+                options={stickerCatalog.sizes}
+                selected={order.size}
+                onSelect={(size) => updateOrder({ size })}
+              />
+            </div>
+
+            <div className="mt-8">
+              <OptionSelector
+                title="Material"
+                options={stickerCatalog.materials}
+                selected={order.material}
+                onSelect={(material) => updateOrder({ material })}
+              />
+            </div>
+
+            <div className="mt-8">
+              <OptionSelector
+                title="Finish"
+                options={stickerCatalog.finishes}
+                selected={order.finish}
+                onSelect={(finish) => updateOrder({ finish })}
               />
             </div>
           </section>

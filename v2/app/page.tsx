@@ -10,10 +10,12 @@ import NeedByDate from "../components/NeedByDate";
 import CustomerForm from "../components/CustomerForm";
 import SubmitButton from "../components/SubmitButton";
 import OrderSummary from "../components/summary/OrderSummary";
+import OrderValidation from "../components/summary/OrderValidation";
 
 import { stickerCatalog } from "../lib/catalog";
 import { defaultOrder } from "../lib/order";
 import { getStickerPrice } from "../lib/pricing";
+import { getOrderValidationErrors, isOrderReady } from "../lib/validation";
 
 export default function Home() {
   const [order, setOrder] = useState(defaultOrder);
@@ -80,16 +82,41 @@ export default function Home() {
     });
   }
 
-  function submitOrder() {
-    console.log("ORDER SUBMITTED");
-    console.log(order);
+  async function submitOrder() {
+    const errors = getOrderValidationErrors(order);
 
-    alert(
-      "Quote request captured!\n\nNext sprint we'll send this directly to Printavo."
-    );
+    if (errors.length > 0) {
+      alert("Please complete the missing information before requesting a quote.");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/quote", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(order),
+      });
+
+      if (!response.ok) {
+        throw new Error("Server returned an error.");
+      }
+
+      const result = await response.json();
+
+      console.log("QUOTE RESPONSE");
+      console.log(result);
+
+      alert("✅ Quote request submitted successfully!");
+    } catch (error) {
+      console.error(error);
+      alert("❌ Unable to submit your quote.\nPlease try again.");
+    }
   }
 
   const unitPrice = order.pricing.total / order.product.quantity;
+  const readyToSubmit = isOrderReady(order);
 
   return (
     <main className="min-h-screen bg-[#F8F5EE]">
@@ -255,8 +282,20 @@ export default function Home() {
 
             <OrderSummary order={order} />
 
+            <OrderValidation order={order} />
+
             <div className="mt-6">
-              <SubmitButton onSubmit={submitOrder} />
+              {readyToSubmit ? (
+                <SubmitButton onSubmit={submitOrder} />
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="w-full cursor-not-allowed rounded-2xl bg-gray-300 py-5 text-xl font-black text-gray-500"
+                >
+                  Complete Required Info
+                </button>
+              )}
             </div>
           </aside>
         </div>

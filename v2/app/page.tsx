@@ -3,11 +3,13 @@
 import { useState } from "react";
 
 import Header from "../components/Header";
-import PriceCard from "../components/PriceCard";
 import QuantitySelector from "../components/QuantitySelector";
 import OptionSelector from "../components/OptionSelector";
 import UploadBox from "../components/UploadBox";
 import NeedByDate from "../components/NeedByDate";
+import CustomerForm from "../components/CustomerForm";
+import SubmitButton from "../components/SubmitButton";
+import OrderSummary from "../components/summary/OrderSummary";
 
 import { stickerCatalog } from "../lib/catalog";
 import { defaultOrder } from "../lib/order";
@@ -17,19 +19,52 @@ export default function Home() {
   const [order, setOrder] = useState(defaultOrder);
   const [artworkPreview, setArtworkPreview] = useState<string | null>(null);
 
-  function updateOrder(updates: Partial<typeof order>) {
-    const nextOrder = { ...order, ...updates };
-
-    const total = getStickerPrice(
-      nextOrder.quantity,
-      nextOrder.material,
-      nextOrder.finish
+  function recalculateOrder(nextOrder: typeof order) {
+    const stickerPrice = getStickerPrice(
+      nextOrder.product.quantity,
+      nextOrder.product.material,
+      nextOrder.product.finish
     );
 
-    setOrder({
+    return {
       ...nextOrder,
-      stickerPrice: total,
-      total,
+      pricing: {
+        ...nextOrder.pricing,
+        stickerPrice,
+        total: stickerPrice,
+      },
+    };
+  }
+
+  function updateProduct(updates: Partial<typeof order.product>) {
+    const nextOrder = recalculateOrder({
+      ...order,
+      product: {
+        ...order.product,
+        ...updates,
+      },
+    });
+
+    setOrder(nextOrder);
+  }
+
+  function updateCustomer(updates: Partial<typeof order.customer>) {
+    setOrder({
+      ...order,
+      customer: {
+        ...order.customer,
+        ...updates,
+      },
+    });
+  }
+
+  function updateProduction(updates: Partial<typeof order.production>) {
+    setOrder({
+      ...order,
+      production: {
+        ...order.production,
+        ...updates,
+      },
     });
   }
 
@@ -37,12 +72,24 @@ export default function Home() {
     const previewUrl = URL.createObjectURL(file);
     setArtworkPreview(previewUrl);
 
-    updateOrder({
-      artwork: file,
+    setOrder({
+      ...order,
+      artwork: {
+        file,
+      },
     });
   }
 
-  const unitPrice = order.total / order.quantity;
+  function submitOrder() {
+    console.log("ORDER SUBMITTED");
+    console.log(order);
+
+    alert(
+      "Quote request captured!\n\nNext sprint we'll send this directly to Printavo."
+    );
+  }
+
+  const unitPrice = order.pricing.total / order.product.quantity;
 
   return (
     <main className="min-h-screen bg-[#F8F5EE]">
@@ -85,40 +132,51 @@ export default function Home() {
             <div className="space-y-8">
               <QuantitySelector
                 quantities={stickerCatalog.quantities}
-                selected={order.quantity}
-                onSelect={(quantity) => updateOrder({ quantity })}
+                selected={order.product.quantity}
+                onSelect={(quantity) => updateProduct({ quantity })}
               />
 
               <OptionSelector
                 title="Size"
                 options={stickerCatalog.sizes}
-                selected={order.size}
-                onSelect={(size) => updateOrder({ size })}
+                selected={order.product.size}
+                onSelect={(size) => updateProduct({ size })}
               />
 
               <OptionSelector
                 title="Material"
                 options={stickerCatalog.materials}
-                selected={order.material}
-                onSelect={(material) => updateOrder({ material })}
+                selected={order.product.material}
+                onSelect={(material) => updateProduct({ material })}
               />
 
               <OptionSelector
                 title="Finish"
                 options={stickerCatalog.finishes}
-                selected={order.finish}
-                onSelect={(finish) => updateOrder({ finish })}
+                selected={order.product.finish}
+                onSelect={(finish) => updateProduct({ finish })}
               />
 
               <UploadBox onFileSelected={handleArtworkUpload} />
 
               <NeedByDate
-                needBy={order.needBy}
-                deadlineType={order.deadlineType}
-                onNeedByChange={(needBy) => updateOrder({ needBy })}
+                needBy={order.production.needBy}
+                deadlineType={order.production.deadlineType}
+                onNeedByChange={(needBy) => updateProduction({ needBy })}
                 onDeadlineTypeChange={(deadlineType) =>
-                  updateOrder({ deadlineType })
+                  updateProduction({
+                    deadlineType: deadlineType as "Firm" | "Flexible",
+                  })
                 }
+              />
+
+              <CustomerForm
+                customerName={order.customer.customerName}
+                company={order.customer.company}
+                email={order.customer.email}
+                phone={order.customer.phone}
+                notes={order.customer.notes}
+                onChange={(updates) => updateCustomer(updates)}
               />
             </div>
           </section>
@@ -137,7 +195,7 @@ export default function Home() {
                 </div>
 
                 <div className="rounded-full bg-[#2E5037] px-4 py-2 text-sm font-bold text-white">
-                  {order.material}
+                  {order.product.material}
                 </div>
               </div>
 
@@ -162,14 +220,14 @@ export default function Home() {
                   <p className="text-xs font-bold uppercase text-[#6f695e]">
                     Size
                   </p>
-                  <p className="mt-1 font-black">{order.size}</p>
+                  <p className="mt-1 font-black">{order.product.size}</p>
                 </div>
 
                 <div className="rounded-2xl bg-[#F8F5EE] p-4">
                   <p className="text-xs font-bold uppercase text-[#6f695e]">
                     Finish
                   </p>
-                  <p className="mt-1 font-black">{order.finish}</p>
+                  <p className="mt-1 font-black">{order.product.finish}</p>
                 </div>
 
                 <div className="rounded-2xl bg-[#F8F5EE] p-4">
@@ -186,16 +244,20 @@ export default function Home() {
                 </p>
 
                 <p className="mt-1 font-black">
-                  {order.needBy || "Not entered yet"}
+                  {order.production.needBy || "Not entered yet"}
                 </p>
 
                 <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                  {order.deadlineType} deadline
+                  {order.production.deadlineType} deadline
                 </p>
               </div>
             </div>
 
-            <PriceCard order={order} />
+            <OrderSummary order={order} />
+
+            <div className="mt-6">
+              <SubmitButton onSubmit={submitOrder} />
+            </div>
           </aside>
         </div>
       </div>

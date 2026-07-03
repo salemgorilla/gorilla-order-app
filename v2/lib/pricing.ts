@@ -11,8 +11,8 @@ export const quantityPricing: Record<number, number> = {
 export const materialPricing: Record<string, number> = {
   "White Vinyl": 0,
   "Clear Vinyl": 8,
-  Chrome: 24,
   Holographic: 36,
+  Chrome: 24,
 };
 
 export const finishPricing: Record<string, number> = {

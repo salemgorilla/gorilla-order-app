@@ -5,7 +5,7 @@ import { useState } from "react";
 import Header from "../components/Header";
 import QuantitySelector from "../components/QuantitySelector";
 import OptionSelector from "../components/OptionSelector";
-import UploadBox from "../components/UploadBox";
+import UploadBox from "../components/upload/UploadBox";
 import NeedByDate from "../components/NeedByDate";
 import CustomerForm from "../components/CustomerForm";
 import SubmitButton from "../components/SubmitButton";

@@ -203,12 +203,12 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     }
   }
 
-  function emailQuoteDetails() {
+  function getEmailQuoteLink() {
     const quoteNumber = quoteConfirmation?.quoteNumber || "Gorilla Salem Quote";
     const subject = encodeURIComponent(`Gorilla Salem Quote Request ${quoteNumber}`);
     const body = encodeURIComponent(getQuoteDetailsText());
 
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    return `https://mail.google.com/mail/?view=cm&fs=1&to=quote@gorillasalem.com&su=${subject}&body=${body}`;
   }
 
   function startNewQuote() {
@@ -232,8 +232,8 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       <main className="min-h-screen bg-[#F8F5EE]">
         <Header />
 
-        <div className="mx-auto grid min-h-[80vh] max-w-5xl place-items-center px-8 py-16">
-          <div className="w-full rounded-[2rem] border border-[#dfd0b8] bg-white p-10 shadow-xl">
+        <div className="mx-auto grid min-h-[80vh] max-w-5xl place-items-center px-4 py-10 sm:px-8 sm:py-16">
+          <div className="w-full rounded-[2rem] border border-[#dfd0b8] bg-white p-6 shadow-xl sm:p-10">
             <div className="text-center">
               <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-[#2E5037] text-4xl text-white">
                 ✓
@@ -243,13 +243,13 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 Quote Received
               </p>
 
-              <h1 className="mt-3 text-5xl font-black tracking-[-0.06em] text-[#171717]">
+              <h1 className="mt-3 text-4xl font-black tracking-[-0.06em] text-[#171717] sm:text-5xl">
                 Your request was sent to Gorilla Salem.
               </h1>
 
               <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-[#6f695e]">
-                We received your quote request and will review your artwork,
-                details, and deadline before production.
+                We received your quote request. Gorilla Salem will review your artwork,
+                timeline, and details before production.
               </p>
             </div>
 
@@ -258,7 +258,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 Quote Number
               </p>
 
-              <p className="mt-2 text-4xl font-black tracking-[-0.05em] text-[#2E5037]">
+              <p className="mt-2 text-3xl font-black tracking-[-0.05em] text-[#2E5037] sm:text-4xl">
                 {quoteConfirmation?.quoteNumber || "Pending"}
               </p>
 
@@ -334,9 +334,14 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 confirm pricing, timeline, and artwork readiness before
                 production starts.
               </p>
+
+              <p className="mt-3 text-sm font-bold leading-6 text-[#6f695e]">
+                Use Copy Quote Details as a backup, or click Open Gmail Draft to
+                open a pre-filled Gmail compose window addressed to Gorilla Salem.
+              </p>
             </div>
 
-            <div className="mt-8 grid gap-3 md:grid-cols-3">
+            <div className="mt-8 grid gap-3 sm:grid-cols-3">
               <button
                 type="button"
                 onClick={copyQuoteDetails}
@@ -345,13 +350,14 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 Copy Quote Details
               </button>
 
-              <button
-                type="button"
-                onClick={emailQuoteDetails}
-                className="rounded-2xl bg-[#b7352d] px-6 py-4 font-black text-white transition hover:bg-[#982c25]"
+              <a
+                href={getEmailQuoteLink()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-2xl bg-[#b7352d] px-6 py-4 text-center font-black text-white transition hover:bg-[#982c25]"
               >
-                Email Gorilla Salem
-              </button>
+                Open Gmail Draft
+              </a>
 
               <button
                 type="button"
@@ -379,24 +385,36 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     <main className="min-h-screen bg-[#F8F5EE]">
       <Header />
 
-      <div className="mx-auto max-w-7xl px-8 py-10">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-8 sm:py-10">
         <div className="mb-10">
           <p className="text-sm font-black uppercase tracking-[0.2em] text-[#b7352d]">
-            Custom Sticker Builder
+            Printed Locally in Salem, MA
           </p>
 
-          <h1 className="mt-3 max-w-4xl text-6xl font-black tracking-[-0.08em] text-[#171717]">
-            Build, preview, and price your stickers instantly.
+          <h1 className="mt-3 max-w-4xl text-4xl font-black tracking-[-0.08em] text-[#171717] sm:text-5xl lg:text-6xl">
+            Custom stickers made simple.
           </h1>
 
           <p className="mt-5 max-w-2xl text-xl leading-8 text-[#6f695e]">
-            Configure your order, upload artwork, and get a live estimate before
-            sending it to Gorilla Salem.
+            Choose your sticker details, upload your artwork, and get a live estimate before
+            sending your quote request to Gorilla Salem.
           </p>
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-[#2E5037] shadow-sm">
+              Hand-printed locally
+            </span>
+            <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-[#2E5037] shadow-sm">
+              Salem, Massachusetts
+            </span>
+            <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-[#2E5037] shadow-sm">
+              Real proof review before production
+            </span>
+          </div>
         </div>
 
-        <div className="grid grid-cols-12 gap-8">
-          <section className="col-span-7 rounded-[2rem] border border-[#dfd0b8] bg-white p-8 shadow-xl">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+          <section className="rounded-[2rem] border border-[#dfd0b8] bg-white p-5 shadow-xl sm:p-8 lg:col-span-7">
             <div className="mb-8 flex items-center justify-between">
               <div>
                 <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
@@ -404,12 +422,12 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 </p>
 
                 <h2 className="mt-2 text-3xl font-black tracking-[-0.05em]">
-                  Configure Your Sticker
+                  Choose Your Sticker Details
                 </h2>
               </div>
 
               <div className="rounded-full bg-[#F8F5EE] px-4 py-2 text-sm font-bold text-[#6f695e]">
-                Live Pricing
+                Instant Estimate
               </div>
             </div>
 
@@ -472,8 +490,8 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             </div>
           </section>
 
-          <aside className="col-span-5 space-y-6">
-            <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-8 shadow-xl">
+          <aside className="space-y-6 lg:col-span-5">
+            <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-5 shadow-xl sm:p-8">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
@@ -498,7 +516,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 shape={order.product.shape}
               />
 
-              <div className="mt-6 grid grid-cols-4 gap-3 text-center">
+              <div className="mt-6 grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
                 <div className="rounded-2xl bg-[#F8F5EE] p-4">
                   <p className="text-xs font-bold uppercase text-[#6f695e]">
                     Size
@@ -543,6 +561,12 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               </div>
             </div>
 
+            <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-5 text-sm font-bold leading-6 text-[#6f695e] shadow-xl sm:p-6">
+              Not sure what to choose? Send the quote anyway. Gorilla Salem will
+              review the artwork and help confirm the best sticker setup before
+              anything goes to print.
+            </div>
+
             <OrderSummary order={order} />
 
             <ArtworkAnalysisCard analysis={artworkAnalysis} />
@@ -564,6 +588,17 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             </div>
           </aside>
         </div>
+        <footer className="mt-12 rounded-[2rem] border border-[#dfd0b8] bg-white p-6 text-center shadow-xl">
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+            Gorilla Salem
+          </p>
+          <p className="mt-2 text-lg font-black text-[#171717]">
+            Custom printing, local service, real people reviewing your order.
+          </p>
+          <p className="mt-2 text-sm font-bold text-[#6f695e]">
+            Salem, Massachusetts • quote@gorillasalem.com
+          </p>
+        </footer>
       </div>
     </main>
   );

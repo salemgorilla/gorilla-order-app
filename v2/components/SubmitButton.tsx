@@ -1,15 +1,26 @@
 type Props = {
   onSubmit: () => void;
+  disabled?: boolean;
+  isLoading?: boolean;
 };
 
-export default function SubmitButton({ onSubmit }: Props) {
+export default function SubmitButton({
+  onSubmit,
+  disabled = false,
+  isLoading = false,
+}: Props) {
   return (
     <button
       type="button"
       onClick={onSubmit}
-      className="w-full rounded-2xl bg-[#b7352d] py-5 text-xl font-black text-white transition hover:bg-[#a32d25] hover:scale-[1.01] active:scale-[0.99]"
+      disabled={disabled || isLoading}
+      className={`w-full rounded-2xl py-5 text-xl font-black transition ${
+        disabled || isLoading
+          ? "cursor-not-allowed bg-gray-300 text-gray-500"
+          : "bg-[#b7352d] text-white hover:scale-[1.01] hover:bg-[#a32d25] active:scale-[0.99]"
+      }`}
     >
-      Request Quote →
+      {isLoading ? "Requesting Quote..." : "Request Quote →"}
     </button>
   );
 }

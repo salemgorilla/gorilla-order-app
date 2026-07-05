@@ -13,6 +13,7 @@ export const defaultOrder: Order = {
     type: "Die Cut Stickers",
     quantity: 100,
     size: '3"',
+    shape: "Die Cut",
     material: "White Vinyl",
     finish: "Gloss",
   },

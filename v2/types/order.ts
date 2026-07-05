@@ -1,38 +1,41 @@
-export interface Customer {
+export type DeadlineType = "Firm" | "Flexible";
+
+export type Customer = {
   customerName: string;
   company: string;
   email: string;
   phone: string;
   notes: string;
-}
+};
 
-export interface Product {
+export type Product = {
   type: string;
   quantity: number;
   size: string;
+  shape: string;
   material: string;
   finish: string;
-}
+};
 
-export interface Artwork {
+export type Artwork = {
   file: File | null;
-}
+};
 
-export interface Production {
+export type Production = {
   needBy: string;
-  deadlineType: "Firm" | "Flexible";
-}
+  deadlineType: DeadlineType;
+};
 
-export interface Pricing {
+export type Pricing = {
   stickerPrice: number;
   shippingPrice: number;
   total: number;
-}
+};
 
-export interface Order {
+export type Order = {
   customer: Customer;
   product: Product;
   artwork: Artwork;
   production: Production;
   pricing: Pricing;
-}
+};

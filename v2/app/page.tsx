@@ -11,15 +11,22 @@ import CustomerForm from "../components/CustomerForm";
 import SubmitButton from "../components/SubmitButton";
 import OrderSummary from "../components/summary/OrderSummary";
 import OrderValidation from "../components/summary/OrderValidation";
+import ArtworkAnalysisCard from "../components/summary/ArtworkAnalysisCard";
+import StickerPreview from "../components/preview/StickerPreview";
 
 import { stickerCatalog } from "../lib/catalog";
 import { defaultOrder } from "../lib/order";
 import { getStickerPrice } from "../lib/pricing";
 import { getOrderValidationErrors, isOrderReady } from "../lib/validation";
+import { analyzeArtworkFile, ArtworkAnalysis } from "../lib/artwork";
 
 export default function Home() {
   const [order, setOrder] = useState(defaultOrder);
   const [artworkPreview, setArtworkPreview] = useState<string | null>(null);
+  const [artworkAnalysis, setArtworkAnalysis] =
+    useState<ArtworkAnalysis | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [quoteSubmitted, setQuoteSubmitted] = useState(false);
 
   function recalculateOrder(nextOrder: typeof order) {
     const stickerPrice = getStickerPrice(
@@ -70,9 +77,14 @@ export default function Home() {
     });
   }
 
-  function handleArtworkUpload(file: File) {
+  async function handleArtworkUpload(file: File) {
     const previewUrl = URL.createObjectURL(file);
+
     setArtworkPreview(previewUrl);
+
+    const analysis = await analyzeArtworkFile(file);
+
+    setArtworkAnalysis(analysis);
 
     setOrder({
       ...order,
@@ -89,6 +101,8 @@ export default function Home() {
       alert("Please complete the missing information before requesting a quote.");
       return;
     }
+
+    setIsSubmitting(true);
 
     try {
       const response = await fetch("/api/quote", {
@@ -108,15 +122,54 @@ export default function Home() {
       console.log("QUOTE RESPONSE");
       console.log(result);
 
-      alert("✅ Quote request submitted successfully!");
+      setQuoteSubmitted(true);
     } catch (error) {
       console.error(error);
       alert("❌ Unable to submit your quote.\nPlease try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
   const unitPrice = order.pricing.total / order.product.quantity;
   const readyToSubmit = isOrderReady(order);
+
+  if (quoteSubmitted) {
+    return (
+      <main className="min-h-screen bg-[#F8F5EE]">
+        <Header />
+
+        <div className="mx-auto grid min-h-[80vh] max-w-4xl place-items-center px-8 py-16">
+          <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-10 text-center shadow-xl">
+            <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-[#2E5037] text-4xl text-white">
+              ✓
+            </div>
+
+            <p className="mt-8 text-sm font-black uppercase tracking-[0.2em] text-[#b7352d]">
+              Quote Received
+            </p>
+
+            <h1 className="mt-3 text-5xl font-black tracking-[-0.06em] text-[#171717]">
+              Your request was sent to Gorilla Salem.
+            </h1>
+
+            <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-[#6f695e]">
+              We received your quote request and will review your artwork,
+              details, and deadline before production.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setQuoteSubmitted(false)}
+              className="mt-8 rounded-2xl bg-[#2E5037] px-8 py-4 font-black text-white transition hover:bg-[#24402c]"
+            >
+              Back to Builder
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[#F8F5EE]">
@@ -168,6 +221,13 @@ export default function Home() {
                 options={stickerCatalog.sizes}
                 selected={order.product.size}
                 onSelect={(size) => updateProduct({ size })}
+              />
+
+              <OptionSelector
+                title="Shape"
+                options={stickerCatalog.shapes}
+                selected={order.product.shape}
+                onSelect={(shape) => updateProduct({ shape })}
               />
 
               <OptionSelector
@@ -226,28 +286,27 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="mt-8 grid h-96 place-items-center rounded-[2rem] bg-gradient-to-br from-white to-[#f1e5cf] p-10">
-                <div className="grid h-64 w-64 place-items-center rounded-[2rem] bg-white p-6 shadow-2xl ring-8 ring-white">
-                  {artworkPreview ? (
-                    <img
-                      src={artworkPreview}
-                      alt="Uploaded artwork preview"
-                      className="max-h-full max-w-full object-contain"
-                    />
-                  ) : (
-                    <div className="grid h-full w-full place-items-center rounded-3xl bg-[#2E5037] text-6xl font-black text-white">
-                      GS
-                    </div>
-                  )}
-                </div>
-              </div>
+              <StickerPreview
+                artworkPreview={artworkPreview}
+                material={order.product.material}
+                finish={order.product.finish}
+                size={order.product.size}
+                shape={order.product.shape}
+              />
 
-              <div className="mt-6 grid grid-cols-3 gap-3 text-center">
+              <div className="mt-6 grid grid-cols-4 gap-3 text-center">
                 <div className="rounded-2xl bg-[#F8F5EE] p-4">
                   <p className="text-xs font-bold uppercase text-[#6f695e]">
                     Size
                   </p>
                   <p className="mt-1 font-black">{order.product.size}</p>
+                </div>
+
+                <div className="rounded-2xl bg-[#F8F5EE] p-4">
+                  <p className="text-xs font-bold uppercase text-[#6f695e]">
+                    Shape
+                  </p>
+                  <p className="mt-1 font-black">{order.product.shape}</p>
                 </div>
 
                 <div className="rounded-2xl bg-[#F8F5EE] p-4">
@@ -282,11 +341,13 @@ export default function Home() {
 
             <OrderSummary order={order} />
 
+            <ArtworkAnalysisCard analysis={artworkAnalysis} />
+
             <OrderValidation order={order} />
 
             <div className="mt-6">
               {readyToSubmit ? (
-                <SubmitButton onSubmit={submitOrder} />
+                <SubmitButton onSubmit={submitOrder} isLoading={isSubmitting} />
               ) : (
                 <button
                   type="button"

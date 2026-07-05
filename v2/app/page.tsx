@@ -15,6 +15,7 @@ import ArtworkAnalysisCard from "../components/summary/ArtworkAnalysisCard";
 import StickerPreview from "../components/preview/StickerPreview";
 
 import { stickerCatalog } from "../lib/catalog";
+import { productCategories } from "../lib/products";
 import { defaultOrder } from "../lib/order";
 import { getStickerPrice } from "../lib/pricing";
 import { getOrderValidationErrors, isOrderReady } from "../lib/validation";
@@ -412,6 +413,68 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             </span>
           </div>
         </div>
+
+        <section className="mb-8 rounded-[2rem] border border-[#dfd0b8] bg-white p-5 shadow-xl sm:p-8">
+          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+                Product Type
+              </p>
+              <h2 className="mt-2 text-3xl font-black tracking-[-0.05em] text-[#171717]">
+                Start with stickers. More products next.
+              </h2>
+            </div>
+
+            <p className="max-w-md text-sm font-bold leading-6 text-[#6f695e]">
+              This structure lets us add shirts, banners, and other Gorilla Salem
+              products without rebuilding the whole app later.
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            {productCategories.map((product) => {
+              const isActive = product.status === "active";
+
+              return (
+                <button
+                  key={product.id}
+                  type="button"
+                  disabled={!isActive}
+                  onClick={() => updateProduct({ type: product.title })}
+                  className={`rounded-[1.5rem] border p-5 text-left transition ${
+                    isActive
+                      ? "border-[#2E5037] bg-[#f4f8f1] shadow-sm hover:-translate-y-0.5"
+                      : "cursor-not-allowed border-[#dfd0b8] bg-[#F8F5EE] opacity-70"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-lg font-black text-[#171717]">
+                      {product.title}
+                    </p>
+
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-black ${
+                        isActive
+                          ? "bg-[#2E5037] text-white"
+                          : "bg-white text-[#6f695e]"
+                      }`}
+                    >
+                      {product.badge}
+                    </span>
+                  </div>
+
+                  <p className="mt-3 text-sm font-bold leading-6 text-[#6f695e]">
+                    {product.description}
+                  </p>
+
+                  <p className="mt-4 text-xs font-black uppercase tracking-[0.16em] text-[#b7352d]">
+                    {isActive ? "Available now" : "Coming soon"}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
           <section className="rounded-[2rem] border border-[#dfd0b8] bg-white p-5 shadow-xl sm:p-8 lg:col-span-7">

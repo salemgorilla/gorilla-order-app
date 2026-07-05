@@ -8,25 +8,21 @@ export const defaultOrder: Order = {
     phone: "",
     notes: "",
   },
-
   product: {
-    type: "Die Cut Stickers",
+    type: "Custom Stickers",
     quantity: 100,
     size: '3"',
     shape: "Die Cut",
     material: "White Vinyl",
     finish: "Gloss",
   },
-
   artwork: {
     file: null,
   },
-
   production: {
     needBy: "",
     deadlineType: "Flexible",
   },
-
   pricing: {
     stickerPrice: 0,
     shippingPrice: 12,

@@ -11,7 +11,13 @@ export const apparelCatalog = {
     "Custom / Not Sure",
   ],
   printLocations: ["Front", "Back", "Left Chest", "Sleeve"],
-  inkColors: ["1 color", "2 colors", "3 colors", "Full color / Not sure"],
+  inkColors: [
+    "1 color",
+    "2 colors",
+    "3 colors",
+    "4 colors",
+    "5+ colors / Full color / Not sure",
+  ],
 };
 
 export const defaultApparelQuote = {

@@ -101,6 +101,43 @@ export default function Home() {
     });
   }
 
+  function getEstimatedInkColorCount(
+    analysis: ArtworkAnalysis | null,
+    garmentColor: string
+  ) {
+    if (!analysis?.estimatedColorCount) {
+      return null;
+    }
+
+    const underbaseCount = garmentColor === "White" ? 0 : 1;
+
+    return analysis.estimatedColorCount + underbaseCount;
+  }
+
+  function formatInkColorOption(colorCount: number | null) {
+    if (!colorCount) {
+      return apparelQuote.inkColors;
+    }
+
+    if (colorCount <= 1) {
+      return "1 color";
+    }
+
+    if (colorCount === 2) {
+      return "2 colors";
+    }
+
+    if (colorCount === 3) {
+      return "3 colors";
+    }
+
+    if (colorCount === 4) {
+      return "4 colors";
+    }
+
+    return "5+ colors / Full color / Not sure";
+  }
+
   function togglePrintLocation(location: string) {
     const alreadySelected = apparelQuote.printLocations.includes(location);
 
@@ -121,6 +158,18 @@ export default function Home() {
     const analysis = await analyzeArtworkFile(file);
 
     setArtworkAnalysis(analysis);
+
+    if (isApparelSelected) {
+      const estimatedInkCount = getEstimatedInkColorCount(
+        analysis,
+        apparelQuote.garmentColor
+      );
+
+      setApparelQuote({
+        ...apparelQuote,
+        inkColors: formatInkColorOption(estimatedInkCount),
+      });
+    }
 
     setOrder({
       ...order,
@@ -259,11 +308,25 @@ Phone: ${order.customer.phone || "N/A"}`;
 Needed In Hand: ${order.production.needBy || "Not entered"}
 Deadline Type: ${order.production.deadlineType}`;
 
+    const estimatedInkCount = getEstimatedInkColorCount(
+      artworkAnalysis,
+      apparelQuote.garmentColor
+    );
+
     const artworkSection = `ARTWORK
 File Uploaded: ${order.artwork.file ? order.artwork.file.name : "No file uploaded"}
 File Type: ${artworkAnalysis?.fileType || "N/A"}
 File Size: ${artworkAnalysis?.fileSize || "N/A"}
-Image Dimensions: ${artworkAnalysis?.dimensions || "N/A"}`;
+Image Dimensions: ${artworkAnalysis?.dimensions || "N/A"}
+Estimated Artwork Colors: ${artworkAnalysis?.estimatedColorCount || "N/A"}
+Underbase White Added: ${
+      isApparelSubmitted && apparelQuote.garmentColor !== "White" ? "Yes (+1)" : "No"
+    }
+Suggested Ink Count: ${
+      isApparelSubmitted && estimatedInkCount
+        ? formatInkColorOption(estimatedInkCount)
+        : "N/A"
+    }`;
 
     const notesSection = `NOTES
 ${order.customer.notes || "No customer notes"}`;
@@ -685,7 +748,17 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     title="Garment Color"
                     options={apparelCatalog.garmentColors}
                     selected={apparelQuote.garmentColor}
-                    onSelect={(garmentColor) => updateApparelQuote({ garmentColor })}
+                    onSelect={(garmentColor) => {
+                      const estimatedInkCount = getEstimatedInkColorCount(
+                        artworkAnalysis,
+                        garmentColor
+                      );
+
+                      updateApparelQuote({
+                        garmentColor,
+                        inkColors: formatInkColorOption(estimatedInkCount),
+                      });
+                    }}
                   />
 
                   <div>
@@ -726,6 +799,50 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     selected={apparelQuote.inkColors}
                     onSelect={(inkColors) => updateApparelQuote({ inkColors })}
                   />
+
+                  {artworkAnalysis?.estimatedColorCount && (
+                    <div className="rounded-2xl border border-[#dfd0b8] bg-[#F8F5EE] p-4">
+                      <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+                        Auto Color Count
+                      </p>
+
+                      <div className="mt-3 grid gap-3 text-sm font-bold text-[#6f695e] sm:grid-cols-3">
+                        <div className="rounded-xl bg-white p-3">
+                          <p className="text-xs uppercase tracking-[0.12em]">
+                            Artwork
+                          </p>
+                          <p className="mt-1 text-lg font-black text-[#171717]">
+                            {artworkAnalysis.estimatedColorCount} colors
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl bg-white p-3">
+                          <p className="text-xs uppercase tracking-[0.12em]">
+                            Underbase
+                          </p>
+                          <p className="mt-1 text-lg font-black text-[#171717]">
+                            {apparelQuote.garmentColor === "White"
+                              ? "+0"
+                              : "+1 white"}
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl bg-white p-3">
+                          <p className="text-xs uppercase tracking-[0.12em]">
+                            Suggested
+                          </p>
+                          <p className="mt-1 text-lg font-black text-[#171717]">
+                            {apparelQuote.inkColors}
+                          </p>
+                        </div>
+                      </div>
+
+                      <p className="mt-3 text-xs font-bold leading-5 text-[#6f695e]">
+                        This is an estimate. If the shirt color is not white, the
+                        app adds one extra color for a white underbase.
+                      </p>
+                    </div>
+                  )}
 
                   <div>
                     <label className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
@@ -919,6 +1036,18 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     <span>Ink</span>
                     <span className="text-right text-[#171717]">{apparelQuote.inkColors}</span>
                   </div>
+
+                  {artworkAnalysis?.estimatedColorCount && (
+                    <div className="flex justify-between gap-4">
+                      <span>Auto Count</span>
+                      <span className="text-right text-[#171717]">
+                        {artworkAnalysis.estimatedColorCount}
+                        {apparelQuote.garmentColor === "White"
+                          ? ""
+                          : " + underbase"}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-5 rounded-2xl bg-[#F8F5EE] p-4">

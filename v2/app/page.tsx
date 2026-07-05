@@ -148,6 +148,82 @@ export default function Home() {
     }
   }
 
+  function getQuoteDetailsText() {
+    const quoteNumber = quoteConfirmation?.quoteNumber || "Pending";
+    const submittedAt = quoteConfirmation?.receivedAt
+      ? new Date(quoteConfirmation.receivedAt).toLocaleString()
+      : "Just submitted";
+
+    return `GORILLA SALEM QUOTE REQUEST
+
+Quote Number: ${quoteNumber}
+Submitted: ${submittedAt}
+
+CUSTOMER
+Name: ${order.customer.customerName}
+Company: ${order.customer.company || "N/A"}
+Email: ${order.customer.email}
+Phone: ${order.customer.phone || "N/A"}
+
+STICKER DETAILS
+Product: ${order.product.type}
+Quantity: ${order.product.quantity.toLocaleString()}
+Size: ${order.product.size}
+Shape: ${order.product.shape}
+Material: ${order.product.material}
+Finish: ${order.product.finish}
+
+TIMELINE
+Needed In Hand: ${order.production.needBy || "Not entered"}
+Deadline Type: ${order.production.deadlineType}
+
+ESTIMATE
+Estimated Total: $${order.pricing.total.toFixed(2)}
+Estimated Each: $${unitPrice.toFixed(2)}
+
+ARTWORK
+File Uploaded: ${order.artwork.file ? order.artwork.file.name : "No file uploaded"}
+File Type: ${artworkAnalysis?.fileType || "N/A"}
+File Size: ${artworkAnalysis?.fileSize || "N/A"}
+Image Dimensions: ${artworkAnalysis?.dimensions || "N/A"}
+
+NOTES
+${order.customer.notes || "No customer notes"}
+
+This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, timeline, and artwork readiness before production starts.`;
+  }
+
+  async function copyQuoteDetails() {
+    try {
+      await navigator.clipboard.writeText(getQuoteDetailsText());
+      alert("Quote details copied.");
+    } catch (error) {
+      console.error(error);
+      alert("Unable to copy quote details. You can still email the quote.");
+    }
+  }
+
+  function emailQuoteDetails() {
+    const quoteNumber = quoteConfirmation?.quoteNumber || "Gorilla Salem Quote";
+    const subject = encodeURIComponent(`Gorilla Salem Quote Request ${quoteNumber}`);
+    const body = encodeURIComponent(getQuoteDetailsText());
+
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  }
+
+  function startNewQuote() {
+    if (artworkPreview) {
+      URL.revokeObjectURL(artworkPreview);
+    }
+
+    setOrder(defaultOrder);
+    setArtworkPreview(null);
+    setArtworkAnalysis(null);
+    setQuoteConfirmation(null);
+    setQuoteSubmitted(false);
+    setIsSubmitting(false);
+  }
+
   const unitPrice = order.pricing.total / order.product.quantity;
   const readyToSubmit = isOrderReady(order);
 
@@ -260,10 +336,36 @@ export default function Home() {
               </p>
             </div>
 
+            <div className="mt-8 grid gap-3 md:grid-cols-3">
+              <button
+                type="button"
+                onClick={copyQuoteDetails}
+                className="rounded-2xl border border-[#2E5037] bg-white px-6 py-4 font-black text-[#2E5037] transition hover:bg-[#F8F5EE]"
+              >
+                Copy Quote Details
+              </button>
+
+              <button
+                type="button"
+                onClick={emailQuoteDetails}
+                className="rounded-2xl bg-[#b7352d] px-6 py-4 font-black text-white transition hover:bg-[#982c25]"
+              >
+                Email Gorilla Salem
+              </button>
+
+              <button
+                type="button"
+                onClick={startNewQuote}
+                className="rounded-2xl bg-[#2E5037] px-6 py-4 font-black text-white transition hover:bg-[#24402c]"
+              >
+                Start New Quote
+              </button>
+            </div>
+
             <button
               type="button"
               onClick={() => setQuoteSubmitted(false)}
-              className="mt-8 w-full rounded-2xl bg-[#2E5037] px-8 py-4 font-black text-white transition hover:bg-[#24402c]"
+              className="mt-4 w-full rounded-2xl bg-[#F8F5EE] px-8 py-4 font-black text-[#6f695e] transition hover:bg-[#efe4d4]"
             >
               Back to Builder
             </button>

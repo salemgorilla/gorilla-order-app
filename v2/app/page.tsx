@@ -20,6 +20,12 @@ import { getStickerPrice } from "../lib/pricing";
 import { getOrderValidationErrors, isOrderReady } from "../lib/validation";
 import { analyzeArtworkFile, ArtworkAnalysis } from "../lib/artwork";
 
+type QuoteConfirmation = {
+  quoteNumber: string;
+  receivedAt: string;
+  message: string;
+};
+
 export default function Home() {
   const [order, setOrder] = useState(defaultOrder);
   const [artworkPreview, setArtworkPreview] = useState<string | null>(null);
@@ -27,6 +33,8 @@ export default function Home() {
     useState<ArtworkAnalysis | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [quoteSubmitted, setQuoteSubmitted] = useState(false);
+  const [quoteConfirmation, setQuoteConfirmation] =
+    useState<QuoteConfirmation | null>(null);
 
   function recalculateOrder(nextOrder: typeof order) {
     const stickerPrice = getStickerPrice(
@@ -110,7 +118,10 @@ export default function Home() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(order),
+        body: JSON.stringify({
+          order,
+          artworkAnalysis,
+        }),
       });
 
       if (!response.ok) {
@@ -121,6 +132,12 @@ export default function Home() {
 
       console.log("QUOTE RESPONSE");
       console.log(result);
+
+      setQuoteConfirmation({
+        quoteNumber: result.quoteNumber,
+        receivedAt: result.receivedAt,
+        message: result.message,
+      });
 
       setQuoteSubmitted(true);
     } catch (error) {
@@ -139,29 +156,114 @@ export default function Home() {
       <main className="min-h-screen bg-[#F8F5EE]">
         <Header />
 
-        <div className="mx-auto grid min-h-[80vh] max-w-4xl place-items-center px-8 py-16">
-          <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-10 text-center shadow-xl">
-            <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-[#2E5037] text-4xl text-white">
-              ✓
+        <div className="mx-auto grid min-h-[80vh] max-w-5xl place-items-center px-8 py-16">
+          <div className="w-full rounded-[2rem] border border-[#dfd0b8] bg-white p-10 shadow-xl">
+            <div className="text-center">
+              <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-[#2E5037] text-4xl text-white">
+                ✓
+              </div>
+
+              <p className="mt-8 text-sm font-black uppercase tracking-[0.2em] text-[#b7352d]">
+                Quote Received
+              </p>
+
+              <h1 className="mt-3 text-5xl font-black tracking-[-0.06em] text-[#171717]">
+                Your request was sent to Gorilla Salem.
+              </h1>
+
+              <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-[#6f695e]">
+                We received your quote request and will review your artwork,
+                details, and deadline before production.
+              </p>
             </div>
 
-            <p className="mt-8 text-sm font-black uppercase tracking-[0.2em] text-[#b7352d]">
-              Quote Received
-            </p>
+            <div className="mt-8 rounded-[2rem] bg-[#F8F5EE] p-6 text-center">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-[#6f695e]">
+                Quote Number
+              </p>
 
-            <h1 className="mt-3 text-5xl font-black tracking-[-0.06em] text-[#171717]">
-              Your request was sent to Gorilla Salem.
-            </h1>
+              <p className="mt-2 text-4xl font-black tracking-[-0.05em] text-[#2E5037]">
+                {quoteConfirmation?.quoteNumber || "Pending"}
+              </p>
 
-            <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-[#6f695e]">
-              We received your quote request and will review your artwork,
-              details, and deadline before production.
-            </p>
+              <p className="mt-2 text-sm font-bold text-[#6f695e]">
+                Submitted{" "}
+                {quoteConfirmation?.receivedAt
+                  ? new Date(quoteConfirmation.receivedAt).toLocaleString()
+                  : "just now"}
+              </p>
+            </div>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              <div className="rounded-2xl border border-[#dfd0b8] p-5">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#b7352d]">
+                  Customer
+                </p>
+
+                <p className="mt-2 text-lg font-black text-[#171717]">
+                  {order.customer.customerName}
+                </p>
+
+                <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                  {order.customer.email}
+                </p>
+
+                {order.customer.company && (
+                  <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                    {order.customer.company}
+                  </p>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-[#dfd0b8] p-5">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#b7352d]">
+                  Sticker Details
+                </p>
+
+                <p className="mt-2 text-lg font-black text-[#171717]">
+                  {order.product.quantity.toLocaleString()} stickers
+                </p>
+
+                <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                  {order.product.size} • {order.product.shape}
+                </p>
+
+                <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                  {order.product.material} • {order.product.finish}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-[#dfd0b8] p-5">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#b7352d]">
+                  Estimate
+                </p>
+
+                <p className="mt-2 text-3xl font-black text-[#171717]">
+                  ${order.pricing.total.toFixed(2)}
+                </p>
+
+                <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                  ${unitPrice.toFixed(2)} each
+                </p>
+
+                <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                  Needed: {order.production.needBy || "Not entered"}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-2xl bg-[#fff7e8] p-5">
+              <p className="text-sm font-bold leading-6 text-[#6f695e]">
+                This is an estimate, not a final invoice. Gorilla Salem will
+                confirm pricing, timeline, and artwork readiness before
+                production starts.
+              </p>
+            </div>
 
             <button
               type="button"
               onClick={() => setQuoteSubmitted(false)}
-              className="mt-8 rounded-2xl bg-[#2E5037] px-8 py-4 font-black text-white transition hover:bg-[#24402c]"
+              className="mt-8 w-full rounded-2xl bg-[#2E5037] px-8 py-4 font-black text-white transition hover:bg-[#24402c]"
             >
               Back to Builder
             </button>

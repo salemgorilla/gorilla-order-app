@@ -18,10 +18,10 @@ export const productCategories: ProductCategory[] = [
   {
     id: "apparel",
     title: "T-Shirts & Apparel",
-    badge: "Next",
+    badge: "Beta",
     description:
-      "Future quote builder for tees, hoodies, crewnecks, hats, and bulk garment printing.",
-    status: "coming-soon",
+      "Quote requests for tees, hoodies, crewnecks, garment colors, print locations, ink colors, and size breakdowns.",
+    status: "active",
   },
   {
     id: "signs",

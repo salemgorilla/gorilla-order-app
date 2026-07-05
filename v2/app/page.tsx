@@ -15,6 +15,7 @@ import ArtworkAnalysisCard from "../components/summary/ArtworkAnalysisCard";
 import StickerPreview from "../components/preview/StickerPreview";
 
 import { stickerCatalog } from "../lib/catalog";
+import { apparelCatalog, defaultApparelQuote } from "../lib/apparel";
 import { productCategories } from "../lib/products";
 import { defaultOrder } from "../lib/order";
 import { getStickerPrice } from "../lib/pricing";
@@ -28,7 +29,10 @@ type QuoteConfirmation = {
 };
 
 export default function Home() {
+  const [selectedProductId, setSelectedProductId] = useState("stickers");
+  const [submittedProductId, setSubmittedProductId] = useState("stickers");
   const [order, setOrder] = useState(defaultOrder);
+  const [apparelQuote, setApparelQuote] = useState(defaultApparelQuote);
   const [artworkPreview, setArtworkPreview] = useState<string | null>(null);
   const [artworkAnalysis, setArtworkAnalysis] =
     useState<ArtworkAnalysis | null>(null);
@@ -36,6 +40,9 @@ export default function Home() {
   const [quoteSubmitted, setQuoteSubmitted] = useState(false);
   const [quoteConfirmation, setQuoteConfirmation] =
     useState<QuoteConfirmation | null>(null);
+
+  const isApparelSelected = selectedProductId === "apparel";
+  const isApparelSubmitted = submittedProductId === "apparel";
 
   function recalculateOrder(nextOrder: typeof order) {
     const stickerPrice = getStickerPrice(
@@ -86,6 +93,25 @@ export default function Home() {
     });
   }
 
+  function updateApparelQuote(updates: Partial<typeof apparelQuote>) {
+    setApparelQuote({
+      ...apparelQuote,
+      ...updates,
+    });
+  }
+
+  function togglePrintLocation(location: string) {
+    const alreadySelected = apparelQuote.printLocations.includes(location);
+
+    const nextLocations = alreadySelected
+      ? apparelQuote.printLocations.filter((item) => item !== location)
+      : [...apparelQuote.printLocations, location];
+
+    updateApparelQuote({
+      printLocations: nextLocations,
+    });
+  }
+
   async function handleArtworkUpload(file: File) {
     const previewUrl = URL.createObjectURL(file);
 
@@ -103,8 +129,74 @@ export default function Home() {
     });
   }
 
+  function getApparelValidationErrors() {
+    const errors: string[] = [];
+
+    if (!order.customer.customerName.trim()) {
+      errors.push("Customer name is required.");
+    }
+
+    if (!order.customer.email.trim()) {
+      errors.push("Customer email is required.");
+    }
+
+    if (!order.artwork.file) {
+      errors.push("Artwork upload is required.");
+    }
+
+    if (!order.production.needBy.trim()) {
+      errors.push("Needed-in-hand date is required.");
+    }
+
+    if (apparelQuote.printLocations.length === 0) {
+      errors.push("Choose at least one print location.");
+    }
+
+    if (!apparelQuote.sizeBreakdown.trim()) {
+      errors.push("Enter a size breakdown.");
+    }
+
+    return errors;
+  }
+
+  function getCurrentValidationErrors() {
+    if (isApparelSelected) {
+      return getApparelValidationErrors();
+    }
+
+    return getOrderValidationErrors(order);
+  }
+
+  function buildQuotePayload() {
+    if (isApparelSelected) {
+      return {
+        customer: order.customer,
+        product: {
+          type: "T-Shirts & Apparel",
+          garmentType: apparelQuote.garmentType,
+          quantity: apparelQuote.quantity,
+          garmentColor: apparelQuote.garmentColor,
+          printLocations: apparelQuote.printLocations,
+          inkColors: apparelQuote.inkColors,
+          sizeBreakdown: apparelQuote.sizeBreakdown,
+        },
+        artwork: {
+          fileName: order.artwork.file?.name || null,
+        },
+        production: order.production,
+        pricing: {
+          total: 0,
+          quoteRequired: true,
+          note: "Manual apparel pricing required.",
+        },
+      };
+    }
+
+    return order;
+  }
+
   async function submitOrder() {
-    const errors = getOrderValidationErrors(order);
+    const errors = getCurrentValidationErrors();
 
     if (errors.length > 0) {
       alert("Please complete the missing information before requesting a quote.");
@@ -120,7 +212,7 @@ export default function Home() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          order,
+          order: buildQuotePayload(),
           artworkAnalysis,
         }),
       });
@@ -140,6 +232,7 @@ export default function Home() {
         message: result.message,
       });
 
+      setSubmittedProductId(selectedProductId);
       setQuoteSubmitted(true);
     } catch (error) {
       console.error(error);
@@ -155,16 +248,60 @@ export default function Home() {
       ? new Date(quoteConfirmation.receivedAt).toLocaleString()
       : "Just submitted";
 
-    return `GORILLA SALEM QUOTE REQUEST
+    const customerSection = `CUSTOMER
+Name: ${order.customer.customerName}
+Company: ${order.customer.company || "N/A"}
+Email: ${order.customer.email}
+Phone: ${order.customer.phone || "N/A"}`;
+
+    const timelineSection = `TIMELINE
+Needed In Hand: ${order.production.needBy || "Not entered"}
+Deadline Type: ${order.production.deadlineType}`;
+
+    const artworkSection = `ARTWORK
+File Uploaded: ${order.artwork.file ? order.artwork.file.name : "No file uploaded"}
+File Type: ${artworkAnalysis?.fileType || "N/A"}
+File Size: ${artworkAnalysis?.fileSize || "N/A"}
+Image Dimensions: ${artworkAnalysis?.dimensions || "N/A"}`;
+
+    const notesSection = `NOTES
+${order.customer.notes || "No customer notes"}`;
+
+    if (isApparelSubmitted) {
+      return `GORILLA SALEM APPAREL QUOTE REQUEST
 
 Quote Number: ${quoteNumber}
 Submitted: ${submittedAt}
 
-CUSTOMER
-Name: ${order.customer.customerName}
-Company: ${order.customer.company || "N/A"}
-Email: ${order.customer.email}
-Phone: ${order.customer.phone || "N/A"}
+${customerSection}
+
+APPAREL DETAILS
+Product: T-Shirts & Apparel
+Garment Type: ${apparelQuote.garmentType}
+Quantity: ${apparelQuote.quantity.toLocaleString()}
+Garment Color: ${apparelQuote.garmentColor}
+Print Locations: ${apparelQuote.printLocations.join(", ")}
+Ink Colors: ${apparelQuote.inkColors}
+Size Breakdown: ${apparelQuote.sizeBreakdown}
+
+${timelineSection}
+
+ESTIMATE
+Manual quote required. Gorilla Salem will confirm apparel pricing after reviewing the order details and artwork.
+
+${artworkSection}
+
+${notesSection}
+
+This is an estimate request, not a final invoice. Gorilla Salem will confirm pricing, timeline, and artwork readiness before production starts.`;
+    }
+
+    return `GORILLA SALEM STICKER QUOTE REQUEST
+
+Quote Number: ${quoteNumber}
+Submitted: ${submittedAt}
+
+${customerSection}
 
 STICKER DETAILS
 Product: ${order.product.type}
@@ -174,22 +311,15 @@ Shape: ${order.product.shape}
 Material: ${order.product.material}
 Finish: ${order.product.finish}
 
-TIMELINE
-Needed In Hand: ${order.production.needBy || "Not entered"}
-Deadline Type: ${order.production.deadlineType}
+${timelineSection}
 
 ESTIMATE
 Estimated Total: $${order.pricing.total.toFixed(2)}
 Estimated Each: $${unitPrice.toFixed(2)}
 
-ARTWORK
-File Uploaded: ${order.artwork.file ? order.artwork.file.name : "No file uploaded"}
-File Type: ${artworkAnalysis?.fileType || "N/A"}
-File Size: ${artworkAnalysis?.fileSize || "N/A"}
-Image Dimensions: ${artworkAnalysis?.dimensions || "N/A"}
+${artworkSection}
 
-NOTES
-${order.customer.notes || "No customer notes"}
+${notesSection}
 
 This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, timeline, and artwork readiness before production starts.`;
   }
@@ -218,6 +348,9 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     }
 
     setOrder(defaultOrder);
+    setApparelQuote(defaultApparelQuote);
+    setSelectedProductId("stickers");
+    setSubmittedProductId("stickers");
     setArtworkPreview(null);
     setArtworkAnalysis(null);
     setQuoteConfirmation(null);
@@ -226,7 +359,10 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
   }
 
   const unitPrice = order.pricing.total / order.product.quantity;
-  const readyToSubmit = isOrderReady(order);
+  const currentValidationErrors = getCurrentValidationErrors();
+  const readyToSubmit = isApparelSelected
+    ? currentValidationErrors.length === 0
+    : isOrderReady(order);
 
   if (quoteSubmitted) {
     return (
@@ -294,20 +430,34 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
               <div className="rounded-2xl border border-[#dfd0b8] p-5">
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-[#b7352d]">
-                  Sticker Details
+                  {isApparelSubmitted ? "Apparel Details" : "Sticker Details"}
                 </p>
 
-                <p className="mt-2 text-lg font-black text-[#171717]">
-                  {order.product.quantity.toLocaleString()} stickers
-                </p>
-
-                <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                  {order.product.size} • {order.product.shape}
-                </p>
-
-                <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                  {order.product.material} • {order.product.finish}
-                </p>
+                {isApparelSubmitted ? (
+                  <>
+                    <p className="mt-2 text-lg font-black text-[#171717]">
+                      {apparelQuote.quantity.toLocaleString()} {apparelQuote.garmentType}
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                      {apparelQuote.garmentColor} • {apparelQuote.inkColors}
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                      {apparelQuote.printLocations.join(", ")}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-2 text-lg font-black text-[#171717]">
+                      {order.product.quantity.toLocaleString()} stickers
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                      {order.product.size} • {order.product.shape}
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                      {order.product.material} • {order.product.finish}
+                    </p>
+                  </>
+                )}
               </div>
 
               <div className="rounded-2xl border border-[#dfd0b8] p-5">
@@ -315,13 +465,25 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   Estimate
                 </p>
 
-                <p className="mt-2 text-3xl font-black text-[#171717]">
-                  ${order.pricing.total.toFixed(2)}
-                </p>
-
-                <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                  ${unitPrice.toFixed(2)} each
-                </p>
+                {isApparelSubmitted ? (
+                  <>
+                    <p className="mt-2 text-3xl font-black text-[#171717]">
+                      Manual Quote
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                      Pricing confirmed after review
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-2 text-3xl font-black text-[#171717]">
+                      ${order.pricing.total.toFixed(2)}
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                      ${unitPrice.toFixed(2)} each
+                    </p>
+                  </>
+                )}
 
                 <p className="mt-1 text-sm font-bold text-[#6f695e]">
                   Needed: {order.production.needBy || "Not entered"}
@@ -393,12 +555,12 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
           </p>
 
           <h1 className="mt-3 max-w-4xl text-4xl font-black tracking-[-0.08em] text-[#171717] sm:text-5xl lg:text-6xl">
-            Custom stickers made simple.
+            Custom print quotes made simple.
           </h1>
 
           <p className="mt-5 max-w-2xl text-xl leading-8 text-[#6f695e]">
-            Choose your sticker details, upload your artwork, and get a live estimate before
-            sending your quote request to Gorilla Salem.
+            Choose your details, upload your artwork, and get a live estimate or
+            quote request before sending it to Gorilla Salem.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-3">
@@ -421,29 +583,35 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 Product Type
               </p>
               <h2 className="mt-2 text-3xl font-black tracking-[-0.05em] text-[#171717]">
-                Start with stickers. More products next.
+                What do you want to quote?
               </h2>
             </div>
 
             <p className="max-w-md text-sm font-bold leading-6 text-[#6f695e]">
-              This structure lets us add shirts, banners, and other Gorilla Salem
-              products without rebuilding the whole app later.
+              Start with stickers or apparel. More Gorilla Salem products can be
+              added to this system without rebuilding the whole app.
             </p>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
             {productCategories.map((product) => {
               const isActive = product.status === "active";
+              const isSelected = selectedProductId === product.id;
 
               return (
                 <button
                   key={product.id}
                   type="button"
                   disabled={!isActive}
-                  onClick={() => updateProduct({ type: product.title })}
+                  onClick={() => {
+                    setSelectedProductId(product.id);
+                    updateProduct({ type: product.title });
+                  }}
                   className={`rounded-[1.5rem] border p-5 text-left transition ${
-                    isActive
-                      ? "border-[#2E5037] bg-[#f4f8f1] shadow-sm hover:-translate-y-0.5"
+                    isSelected
+                      ? "border-[#2E5037] bg-[#f4f8f1] shadow-md"
+                      : isActive
+                      ? "border-[#dfd0b8] bg-white shadow-sm hover:-translate-y-0.5"
                       : "cursor-not-allowed border-[#dfd0b8] bg-[#F8F5EE] opacity-70"
                   }`}
                 >
@@ -454,9 +622,9 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
                     <span
                       className={`rounded-full px-3 py-1 text-xs font-black ${
-                        isActive
+                        isSelected
                           ? "bg-[#2E5037] text-white"
-                          : "bg-white text-[#6f695e]"
+                          : "bg-[#F8F5EE] text-[#6f695e]"
                       }`}
                     >
                       {product.badge}
@@ -485,49 +653,131 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 </p>
 
                 <h2 className="mt-2 text-3xl font-black tracking-[-0.05em]">
-                  Choose Your Sticker Details
+                  {isApparelSelected
+                    ? "Build Your Apparel Quote"
+                    : "Choose Your Sticker Details"}
                 </h2>
               </div>
 
               <div className="rounded-full bg-[#F8F5EE] px-4 py-2 text-sm font-bold text-[#6f695e]">
-                Instant Estimate
+                {isApparelSelected ? "Manual Quote" : "Instant Estimate"}
               </div>
             </div>
 
             <div className="space-y-8">
-              <QuantitySelector
-                quantities={stickerCatalog.quantities}
-                selected={order.product.quantity}
-                onSelect={(quantity) => updateProduct({ quantity })}
-              />
+              {isApparelSelected ? (
+                <>
+                  <QuantitySelector
+                    quantities={apparelCatalog.quantities}
+                    selected={apparelQuote.quantity}
+                    onSelect={(quantity) => updateApparelQuote({ quantity })}
+                  />
 
-              <OptionSelector
-                title="Size"
-                options={stickerCatalog.sizes}
-                selected={order.product.size}
-                onSelect={(size) => updateProduct({ size })}
-              />
+                  <OptionSelector
+                    title="Garment Type"
+                    options={apparelCatalog.garmentTypes}
+                    selected={apparelQuote.garmentType}
+                    onSelect={(garmentType) => updateApparelQuote({ garmentType })}
+                  />
 
-              <OptionSelector
-                title="Shape"
-                options={stickerCatalog.shapes}
-                selected={order.product.shape}
-                onSelect={(shape) => updateProduct({ shape })}
-              />
+                  <OptionSelector
+                    title="Garment Color"
+                    options={apparelCatalog.garmentColors}
+                    selected={apparelQuote.garmentColor}
+                    onSelect={(garmentColor) => updateApparelQuote({ garmentColor })}
+                  />
 
-              <OptionSelector
-                title="Material"
-                options={stickerCatalog.materials}
-                selected={order.product.material}
-                onSelect={(material) => updateProduct({ material })}
-              />
+                  <div>
+                    <div className="mb-3">
+                      <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+                        Print Locations
+                      </p>
+                      <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                        Choose all that apply.
+                      </p>
+                    </div>
 
-              <OptionSelector
-                title="Finish"
-                options={stickerCatalog.finishes}
-                selected={order.product.finish}
-                onSelect={(finish) => updateProduct({ finish })}
-              />
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      {apparelCatalog.printLocations.map((location) => {
+                        const isSelected = apparelQuote.printLocations.includes(location);
+
+                        return (
+                          <button
+                            key={location}
+                            type="button"
+                            onClick={() => togglePrintLocation(location)}
+                            className={`rounded-2xl border px-4 py-4 text-sm font-black transition ${
+                              isSelected
+                                ? "border-[#2E5037] bg-[#2E5037] text-white"
+                                : "border-[#dfd0b8] bg-[#F8F5EE] text-[#171717] hover:bg-white"
+                            }`}
+                          >
+                            {location}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <OptionSelector
+                    title="Ink Colors"
+                    options={apparelCatalog.inkColors}
+                    selected={apparelQuote.inkColors}
+                    onSelect={(inkColors) => updateApparelQuote({ inkColors })}
+                  />
+
+                  <div>
+                    <label className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+                      Size Breakdown
+                    </label>
+
+                    <textarea
+                      value={apparelQuote.sizeBreakdown}
+                      onChange={(event) =>
+                        updateApparelQuote({ sizeBreakdown: event.target.value })
+                      }
+                      placeholder="Example: S-2, M-8, L-10, XL-4"
+                      className="mt-3 min-h-28 w-full rounded-2xl border border-[#dfd0b8] bg-[#F8F5EE] p-4 font-bold text-[#171717] outline-none transition focus:border-[#2E5037] focus:bg-white"
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <QuantitySelector
+                    quantities={stickerCatalog.quantities}
+                    selected={order.product.quantity}
+                    onSelect={(quantity) => updateProduct({ quantity })}
+                  />
+
+                  <OptionSelector
+                    title="Size"
+                    options={stickerCatalog.sizes}
+                    selected={order.product.size}
+                    onSelect={(size) => updateProduct({ size })}
+                  />
+
+                  <OptionSelector
+                    title="Shape"
+                    options={stickerCatalog.shapes}
+                    selected={order.product.shape}
+                    onSelect={(shape) => updateProduct({ shape })}
+                  />
+
+                  <OptionSelector
+                    title="Material"
+                    options={stickerCatalog.materials}
+                    selected={order.product.material}
+                    onSelect={(material) => updateProduct({ material })}
+                  />
+
+                  <OptionSelector
+                    title="Finish"
+                    options={stickerCatalog.finishes}
+                    selected={order.product.finish}
+                    onSelect={(finish) => updateProduct({ finish })}
+                  />
+                </>
+              )}
 
               <UploadBox onFileSelected={handleArtworkUpload} />
 
@@ -626,15 +876,73 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
             <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-5 text-sm font-bold leading-6 text-[#6f695e] shadow-xl sm:p-6">
               Not sure what to choose? Send the quote anyway. Gorilla Salem will
-              review the artwork and help confirm the best sticker setup before
-              anything goes to print.
+              review the artwork and help confirm the best setup before anything
+              goes to print.
             </div>
 
-            <OrderSummary order={order} />
+            {isApparelSelected ? (
+              <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-6 shadow-xl">
+                <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+                  Apparel Summary
+                </p>
+
+                <div className="mt-5 space-y-3 text-sm font-bold text-[#6f695e]">
+                  <div className="flex justify-between gap-4">
+                    <span>Product</span>
+                    <span className="text-right text-[#171717]">{apparelQuote.garmentType}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span>Quantity</span>
+                    <span className="text-right text-[#171717]">{apparelQuote.quantity}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span>Color</span>
+                    <span className="text-right text-[#171717]">{apparelQuote.garmentColor}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span>Locations</span>
+                    <span className="text-right text-[#171717]">{apparelQuote.printLocations.join(", ")}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span>Ink</span>
+                    <span className="text-right text-[#171717]">{apparelQuote.inkColors}</span>
+                  </div>
+                </div>
+
+                <div className="mt-5 rounded-2xl bg-[#fff7e8] p-4">
+                  <p className="text-sm font-bold leading-6 text-[#6f695e]">
+                    Apparel pricing is reviewed manually because garment brand,
+                    sizes, print locations, and artwork can change the final price.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <OrderSummary order={order} />
+            )}
 
             <ArtworkAnalysisCard analysis={artworkAnalysis} />
 
-            <OrderValidation order={order} />
+            {isApparelSelected ? (
+              <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-6 shadow-xl">
+                <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+                  Required Info
+                </p>
+
+                {currentValidationErrors.length === 0 ? (
+                  <p className="mt-4 rounded-2xl bg-[#eef7ee] p-4 text-sm font-black text-[#2E5037]">
+                    Apparel quote is ready to submit.
+                  </p>
+                ) : (
+                  <ul className="mt-4 space-y-2 text-sm font-bold text-[#6f695e]">
+                    {currentValidationErrors.map((error) => (
+                      <li key={error}>• {error}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : (
+              <OrderValidation order={order} />
+            )}
 
             <div className="mt-6">
               {readyToSubmit ? (

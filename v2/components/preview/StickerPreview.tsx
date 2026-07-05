@@ -1,3 +1,5 @@
+import StickerShape from "./StickerShape";
+
 type Props = {
   artworkPreview: string | null;
   material: string;
@@ -6,8 +8,6 @@ type Props = {
   shape: string;
 };
 
-import StickerShape from "./StickerShape";
-
 export default function StickerPreview({
   artworkPreview,
   material,
@@ -15,47 +15,69 @@ export default function StickerPreview({
   size,
   shape,
 }: Props) {
-  const isHolographic = material === "Holographic";
-  const isChrome = material === "Chrome";
-  const isClear = material === "Clear Vinyl";
-  const isGloss = finish === "Gloss";
+  const proofType = shape === "Die Cut" ? "Contour Cut Proof" : `${shape} Proof`;
 
   return (
-    <div className="mt-8 grid h-96 place-items-center rounded-[2rem] bg-gradient-to-br from-white to-[#f1e5cf] p-10">
-      <div className="text-center">
-        <div
-          className={`rounded-[2rem] p-4 ${
-            isHolographic
-              ? "bg-gradient-to-br from-pink-200 via-yellow-100 to-blue-200"
-              : isChrome
-                ? "bg-gradient-to-br from-gray-100 via-white to-gray-400"
-                : isClear
-                  ? "bg-white/40 backdrop-blur-sm"
-                  : "bg-white"
-          }`}
-        >
-          <StickerShape shape={shape}>
-            {isGloss && (
-              <div className="pointer-events-none absolute inset-0 z-20 bg-gradient-to-br from-white/60 via-transparent to-transparent" />
-            )}
+    <div className="mt-8 rounded-[2rem] bg-gradient-to-br from-white to-[#f1e5cf] p-5">
+      <div className="rounded-[1.5rem] border border-[#dfd0b8] bg-[#F8F5EE] p-5">
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#b7352d]">
+              {proofType}
+            </p>
+            <p className="mt-1 text-sm font-bold text-[#6f695e]">
+              Preview only — final proof reviewed by Gorilla Salem
+            </p>
+          </div>
 
+          <div className="rounded-full bg-white px-3 py-2 text-xs font-black text-[#2E5037] shadow-sm">
+            {size}
+          </div>
+        </div>
+
+        <div className="grid min-h-80 place-items-center rounded-[1.25rem] border border-white bg-[radial-gradient(circle_at_top,_#ffffff,_#efe4d4)] p-6">
+          <StickerShape shape={shape} material={material} finish={finish}>
             {artworkPreview ? (
               <img
                 src={artworkPreview}
                 alt="Uploaded artwork preview"
-                className="relative z-10 max-h-full max-w-full object-contain"
+                className="max-h-full max-w-full object-contain drop-shadow-lg"
               />
             ) : (
-              <div className="relative z-10 grid h-full w-full place-items-center rounded-3xl bg-[#2E5037] text-6xl font-black text-white">
-                GS
+              <div className="grid h-full w-full place-items-center rounded-3xl bg-[#2E5037] text-center text-white shadow-inner">
+                <div>
+                  <p className="text-6xl font-black tracking-[-0.08em]">GS</p>
+                  <p className="mt-2 text-xs font-black uppercase tracking-[0.2em]">
+                    Upload Art
+                  </p>
+                </div>
               </div>
             )}
           </StickerShape>
         </div>
 
-        <p className="mt-5 text-sm font-black uppercase tracking-[0.18em] text-[#6f695e]">
-          {size} • {shape} • {material} • {finish}
-        </p>
+        <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+          <div className="rounded-2xl bg-white p-3 shadow-sm">
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#6f695e]">
+              Shape
+            </p>
+            <p className="mt-1 text-sm font-black text-[#171717]">{shape}</p>
+          </div>
+
+          <div className="rounded-2xl bg-white p-3 shadow-sm">
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#6f695e]">
+              Material
+            </p>
+            <p className="mt-1 text-sm font-black text-[#171717]">{material}</p>
+          </div>
+
+          <div className="rounded-2xl bg-white p-3 shadow-sm">
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#6f695e]">
+              Finish
+            </p>
+            <p className="mt-1 text-sm font-black text-[#171717]">{finish}</p>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ import OrderSummary from "../components/summary/OrderSummary";
 import OrderValidation from "../components/summary/OrderValidation";
 import ArtworkAnalysisCard from "../components/summary/ArtworkAnalysisCard";
 import StickerPreview from "../components/preview/StickerPreview";
+import ApparelPreview from "../components/preview/ApparelPreview";
 
 import { stickerCatalog } from "../lib/catalog";
 import { apparelCatalog, defaultApparelQuote } from "../lib/apparel";
@@ -804,75 +805,86 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
           </section>
 
           <aside className="space-y-6 lg:col-span-5">
-            <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-5 shadow-xl sm:p-8">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
-                    Digital Proof
-                  </p>
-
-                  <h3 className="mt-2 text-3xl font-black tracking-[-0.05em]">
-                    Live Preview
-                  </h3>
-                </div>
-
-                <div className="rounded-full bg-[#2E5037] px-4 py-2 text-sm font-bold text-white">
-                  {order.product.material}
-                </div>
-              </div>
-
-              <StickerPreview
+            {isApparelSelected ? (
+              <ApparelPreview
                 artworkPreview={artworkPreview}
-                material={order.product.material}
-                finish={order.product.finish}
-                size={order.product.size}
-                shape={order.product.shape}
+                garmentType={apparelQuote.garmentType}
+                garmentColor={apparelQuote.garmentColor}
+                printLocations={apparelQuote.printLocations}
+                inkColors={apparelQuote.inkColors}
+                quantity={apparelQuote.quantity}
               />
+            ) : (
+              <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-5 shadow-xl sm:p-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+                      Digital Proof
+                    </p>
 
-              <div className="mt-6 grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
-                <div className="rounded-2xl bg-[#F8F5EE] p-4">
-                  <p className="text-xs font-bold uppercase text-[#6f695e]">
-                    Size
-                  </p>
-                  <p className="mt-1 font-black">{order.product.size}</p>
+                    <h3 className="mt-2 text-3xl font-black tracking-[-0.05em]">
+                      Live Preview
+                    </h3>
+                  </div>
+
+                  <div className="rounded-full bg-[#2E5037] px-4 py-2 text-sm font-bold text-white">
+                    {order.product.material}
+                  </div>
                 </div>
 
-                <div className="rounded-2xl bg-[#F8F5EE] p-4">
-                  <p className="text-xs font-bold uppercase text-[#6f695e]">
-                    Shape
-                  </p>
-                  <p className="mt-1 font-black">{order.product.shape}</p>
+                <StickerPreview
+                  artworkPreview={artworkPreview}
+                  material={order.product.material}
+                  finish={order.product.finish}
+                  size={order.product.size}
+                  shape={order.product.shape}
+                />
+
+                <div className="mt-6 grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
+                  <div className="rounded-2xl bg-[#F8F5EE] p-4">
+                    <p className="text-xs font-bold uppercase text-[#6f695e]">
+                      Size
+                    </p>
+                    <p className="mt-1 font-black">{order.product.size}</p>
+                  </div>
+
+                  <div className="rounded-2xl bg-[#F8F5EE] p-4">
+                    <p className="text-xs font-bold uppercase text-[#6f695e]">
+                      Shape
+                    </p>
+                    <p className="mt-1 font-black">{order.product.shape}</p>
+                  </div>
+
+                  <div className="rounded-2xl bg-[#F8F5EE] p-4">
+                    <p className="text-xs font-bold uppercase text-[#6f695e]">
+                      Finish
+                    </p>
+                    <p className="mt-1 font-black">{order.product.finish}</p>
+                  </div>
+
+                  <div className="rounded-2xl bg-[#F8F5EE] p-4">
+                    <p className="text-xs font-bold uppercase text-[#6f695e]">
+                      Each
+                    </p>
+                    <p className="mt-1 font-black">${unitPrice.toFixed(2)}</p>
+                  </div>
                 </div>
 
-                <div className="rounded-2xl bg-[#F8F5EE] p-4">
+                <div className="mt-3 rounded-2xl bg-[#F8F5EE] p-4 text-center">
                   <p className="text-xs font-bold uppercase text-[#6f695e]">
-                    Finish
+                    Needed In Hand
                   </p>
-                  <p className="mt-1 font-black">{order.product.finish}</p>
-                </div>
 
-                <div className="rounded-2xl bg-[#F8F5EE] p-4">
-                  <p className="text-xs font-bold uppercase text-[#6f695e]">
-                    Each
+                  <p className="mt-1 font-black">
+                    {order.production.needBy || "Not entered yet"}
                   </p>
-                  <p className="mt-1 font-black">${unitPrice.toFixed(2)}</p>
+
+                  <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                    {order.production.deadlineType} deadline
+                  </p>
                 </div>
               </div>
-
-              <div className="mt-3 rounded-2xl bg-[#F8F5EE] p-4 text-center">
-                <p className="text-xs font-bold uppercase text-[#6f695e]">
-                  Needed In Hand
-                </p>
-
-                <p className="mt-1 font-black">
-                  {order.production.needBy || "Not entered yet"}
-                </p>
-
-                <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                  {order.production.deadlineType} deadline
-                </p>
-              </div>
-            </div>
+            )}
 
             <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-5 text-sm font-bold leading-6 text-[#6f695e] shadow-xl sm:p-6">
               Not sure what to choose? Send the quote anyway. Gorilla Salem will
@@ -907,6 +919,15 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     <span>Ink</span>
                     <span className="text-right text-[#171717]">{apparelQuote.inkColors}</span>
                   </div>
+                </div>
+
+                <div className="mt-5 rounded-2xl bg-[#F8F5EE] p-4">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6f695e]">
+                    Size Breakdown
+                  </p>
+                  <p className="mt-2 text-sm font-bold text-[#171717]">
+                    {apparelQuote.sizeBreakdown || "Not entered yet"}
+                  </p>
                 </div>
 
                 <div className="mt-5 rounded-2xl bg-[#fff7e8] p-4">

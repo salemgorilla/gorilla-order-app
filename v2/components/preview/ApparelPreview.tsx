@@ -2,6 +2,7 @@ type Props = {
   artworkPreview: string | null;
   garmentType: string;
   garmentColor: string;
+  garmentImage?: string | null;
   printLocations: string[];
   inkColors: string;
   quantity: number;
@@ -37,6 +38,7 @@ export default function ApparelPreview({
   artworkPreview,
   garmentType,
   garmentColor,
+  garmentImage,
   printLocations,
   inkColors,
   quantity,
@@ -144,6 +146,14 @@ export default function ApparelPreview({
 
                 {isHoodie && (
                   <div className="absolute left-28 top-56 h-20 w-24 rounded-t-[1.5rem] rounded-b-[2rem] border-2 border-white/50 bg-black/10" />
+                )}
+
+                {garmentImage && (
+                  <img
+                    src={garmentImage}
+                    alt={`${garmentColor} ${garmentType}`}
+                    className="absolute inset-0 h-full w-full object-contain opacity-95"
+                  />
                 )}
 
                 {hasLocation(printLocations, "Front") && (

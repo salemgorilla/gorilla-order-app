@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import Header from "../components/Header";
 import QuantitySelector from "../components/QuantitySelector";
@@ -16,7 +16,7 @@ import StickerPreview from "../components/preview/StickerPreview";
 import ApparelPreview from "../components/preview/ApparelPreview";
 
 import { stickerCatalog } from "../lib/catalog";
-import { apparelCatalog, defaultApparelQuote } from "../lib/apparel";
+import { apparelCatalog, defaultApparelQuote } from "../lib/apparel.ts";
 import { productCategories } from "../lib/products";
 import { defaultOrder } from "../lib/order";
 import { getStickerPrice } from "../lib/pricing";
@@ -29,11 +29,52 @@ type QuoteConfirmation = {
   message: string;
 };
 
+type SsCatalogSize = {
+  sku: string;
+  sizeName: string;
+  markedUpPrice: number;
+  isAvailable: boolean;
+  outOfStock: boolean;
+};
+
+type SsCatalogColor = {
+  colorName: string;
+  colorHex: string | null;
+  swatchImage: string | null;
+  frontImage: string | null;
+  backImage: string | null;
+  sideImage: string | null;
+  isAvailable: boolean;
+  outOfStock: boolean;
+  sizes: SsCatalogSize[];
+};
+
+type SsCatalogProduct = {
+  id: string;
+  brandName: string;
+  styleName: string;
+  displayName: string;
+  colors: SsCatalogColor[];
+};
+
+type SsCatalogResponse = {
+  products: SsCatalogProduct[];
+  error?: string;
+};
+
 export default function Home() {
   const [selectedProductId, setSelectedProductId] = useState("stickers");
   const [submittedProductId, setSubmittedProductId] = useState("stickers");
   const [order, setOrder] = useState(defaultOrder);
   const [apparelQuote, setApparelQuote] = useState(defaultApparelQuote);
+  const [ssProducts, setSsProducts] = useState<SsCatalogProduct[]>([]);
+  const [selectedSsProductId, setSelectedSsProductId] = useState("");
+  const [selectedSsColorName, setSelectedSsColorName] = useState("");
+  const [selectedSsSizeName, setSelectedSsSizeName] = useState("");
+  const [ssCatalogStatus, setSsCatalogStatus] = useState<
+    "idle" | "loading" | "loaded" | "error"
+  >("idle");
+  const [ssCatalogError, setSsCatalogError] = useState("");
   const [artworkPreview, setArtworkPreview] = useState<string | null>(null);
   const [artworkAnalysis, setArtworkAnalysis] =
     useState<ArtworkAnalysis | null>(null);
@@ -44,6 +85,137 @@ export default function Home() {
 
   const isApparelSelected = selectedProductId === "apparel";
   const isApparelSubmitted = submittedProductId === "apparel";
+
+  const selectedSsProduct = useMemo(() => {
+    return (
+      ssProducts.find((product) => product.id === selectedSsProductId) ||
+      ssProducts[0] ||
+      null
+    );
+  }, [selectedSsProductId, ssProducts]);
+
+  const selectedSsColor = useMemo(() => {
+    return (
+      selectedSsProduct?.colors.find(
+        (color) => color.colorName === selectedSsColorName
+      ) ||
+      selectedSsProduct?.colors[0] ||
+      null
+    );
+  }, [selectedSsColorName, selectedSsProduct]);
+
+  const selectedSsSize = useMemo(() => {
+    return (
+      selectedSsColor?.sizes.find((size) => size.sizeName === selectedSsSizeName) ||
+      selectedSsColor?.sizes.find((size) => size.isAvailable) ||
+      selectedSsColor?.sizes[0] ||
+      null
+    );
+  }, [selectedSsColor, selectedSsSizeName]);
+
+  const selectedGarmentPrice = selectedSsSize?.markedUpPrice || 0;
+  const selectedGarmentImage = selectedSsColor?.frontImage || null;
+  const selectedGarmentIsOutOfStock = selectedSsColor?.outOfStock || false;
+
+  useEffect(() => {
+    async function loadSsCatalog() {
+      setSsCatalogStatus("loading");
+      setSsCatalogError("");
+
+      try {
+        const response = await fetch("/api/ss-catalog?style=00760");
+
+        if (!response.ok) {
+          throw new Error("S&S catalog did not load.");
+        }
+
+        const data = (await response.json()) as SsCatalogResponse;
+
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+        setSsProducts(data.products);
+        setSsCatalogStatus("loaded");
+
+        const firstProduct = data.products[0];
+        const firstColor =
+          firstProduct?.colors.find((color) => color.isAvailable) ||
+          firstProduct?.colors[0];
+        const firstSize =
+          firstColor?.sizes.find((size) => size.isAvailable) ||
+          firstColor?.sizes[0];
+
+        if (firstProduct) {
+          setSelectedSsProductId(firstProduct.id);
+        }
+
+        if (firstColor) {
+          setSelectedSsColorName(firstColor.colorName);
+        }
+
+        if (firstSize) {
+          setSelectedSsSizeName(firstSize.sizeName);
+        }
+
+        if (firstProduct || firstColor) {
+          setApparelQuote((current) => ({
+            ...current,
+            garmentType: firstProduct?.displayName || current.garmentType,
+            garmentColor: firstColor?.colorName || current.garmentColor,
+          }));
+        }
+      } catch (error) {
+        console.error(error);
+        setSsCatalogStatus("error");
+        setSsCatalogError(
+          error instanceof Error ? error.message : "Unable to load S&S catalog."
+        );
+      }
+    }
+
+    loadSsCatalog();
+  }, []);
+
+  function handleSsProductSelect(product: SsCatalogProduct) {
+    const firstColor =
+      product.colors.find((color) => color.isAvailable) || product.colors[0];
+    const firstSize =
+      firstColor?.sizes.find((size) => size.isAvailable) || firstColor?.sizes[0];
+
+    setSelectedSsProductId(product.id);
+    setSelectedSsColorName(firstColor?.colorName || "");
+    setSelectedSsSizeName(firstSize?.sizeName || "");
+
+    setApparelQuote((current) => ({
+      ...current,
+      garmentType: product.displayName,
+      garmentColor: firstColor?.colorName || current.garmentColor,
+    }));
+  }
+
+  function handleSsColorSelect(color: SsCatalogColor) {
+    const firstSize =
+      color.sizes.find((size) => size.isAvailable) || color.sizes[0];
+
+    const estimatedInkCount = getEstimatedInkColorCount(
+      artworkAnalysis,
+      color.colorName
+    );
+
+    setSelectedSsColorName(color.colorName);
+    setSelectedSsSizeName(firstSize?.sizeName || "");
+
+    setApparelQuote((current) => ({
+      ...current,
+      garmentColor: color.colorName,
+      inkColors: formatInkColorOption(estimatedInkCount),
+    }));
+  }
+
+  function handleSsSizeSelect(size: SsCatalogSize) {
+    setSelectedSsSizeName(size.sizeName);
+  }
 
   function recalculateOrder(nextOrder: typeof order) {
     const stickerPrice = getStickerPrice(
@@ -229,6 +401,16 @@ export default function Home() {
           printLocations: apparelQuote.printLocations,
           inkColors: apparelQuote.inkColors,
           sizeBreakdown: apparelQuote.sizeBreakdown,
+          supplier: {
+            source: "S&S Activewear",
+            productName: selectedSsProduct?.displayName || "Not selected",
+            colorName: selectedSsColor?.colorName || "Not selected",
+            sampleSize: selectedSsSize?.sizeName || "Not selected",
+            sku: selectedSsSize?.sku || "Not selected",
+            markedUpGarmentPrice: selectedGarmentPrice,
+            image: selectedGarmentImage,
+            outOfStock: selectedGarmentIsOutOfStock,
+          },
         },
         artwork: {
           fileName: order.artwork.file?.name || null,
@@ -347,6 +529,17 @@ Garment Color: ${apparelQuote.garmentColor}
 Print Locations: ${apparelQuote.printLocations.join(", ")}
 Ink Colors: ${apparelQuote.inkColors}
 Size Breakdown: ${apparelQuote.sizeBreakdown}
+
+S&S CATALOG DETAILS
+Product: ${selectedSsProduct?.displayName || "Not selected"}
+Color: ${selectedSsColor?.colorName || "Not selected"}
+Sample Size: ${selectedSsSize?.sizeName || "Not selected"}
+SKU: ${selectedSsSize?.sku || "Not selected"}
+Marked-Up Garment Price: ${
+        selectedGarmentPrice ? `$${selectedGarmentPrice.toFixed(2)}` : "N/A"
+      }
+Availability: ${selectedGarmentIsOutOfStock ? "Out of stock" : "Available"}
+Image: ${selectedGarmentImage || "N/A"}
 
 ${timelineSection}
 
@@ -500,10 +693,12 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 {isApparelSubmitted ? (
                   <>
                     <p className="mt-2 text-lg font-black text-[#171717]">
-                      {apparelQuote.quantity.toLocaleString()} {apparelQuote.garmentType}
+                      {apparelQuote.quantity.toLocaleString()}{" "}
+                      {selectedSsProduct?.displayName || apparelQuote.garmentType}
                     </p>
                     <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                      {apparelQuote.garmentColor} • {apparelQuote.inkColors}
+                      {selectedSsColor?.colorName || apparelQuote.garmentColor} •{" "}
+                      {apparelQuote.inkColors}
                     </p>
                     <p className="mt-1 text-sm font-bold text-[#6f695e]">
                       {apparelQuote.printLocations.join(", ")}
@@ -737,29 +932,203 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     onSelect={(quantity) => updateApparelQuote({ quantity })}
                   />
 
-                  <OptionSelector
-                    title="Garment Type"
-                    options={apparelCatalog.garmentTypes}
-                    selected={apparelQuote.garmentType}
-                    onSelect={(garmentType) => updateApparelQuote({ garmentType })}
-                  />
+                  <div className="rounded-[2rem] border border-[#dfd0b8] bg-[#F8F5EE] p-5">
+                    <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                      <div>
+                        <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+                          Live S&S Catalog
+                        </p>
+                        <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                          Products, colors, sizes, pricing, availability, and images
+                          are pulled from S&S.
+                        </p>
+                      </div>
 
-                  <OptionSelector
-                    title="Garment Color"
-                    options={apparelCatalog.garmentColors}
-                    selected={apparelQuote.garmentColor}
-                    onSelect={(garmentColor) => {
-                      const estimatedInkCount = getEstimatedInkColorCount(
-                        artworkAnalysis,
-                        garmentColor
-                      );
+                      <span className="rounded-full bg-white px-3 py-2 text-xs font-black text-[#2E5037]">
+                        {ssCatalogStatus === "loaded"
+                          ? "Loaded"
+                          : ssCatalogStatus === "loading"
+                          ? "Loading"
+                          : ssCatalogStatus === "error"
+                          ? "Error"
+                          : "Ready"}
+                      </span>
+                    </div>
 
-                      updateApparelQuote({
-                        garmentColor,
-                        inkColors: formatInkColorOption(estimatedInkCount),
-                      });
-                    }}
-                  />
+                    {ssCatalogStatus === "error" && (
+                      <div className="mb-4 rounded-2xl bg-white p-4 text-sm font-bold leading-6 text-[#b7352d]">
+                        {ssCatalogError}
+                      </div>
+                    )}
+
+                    {ssProducts.length > 0 ? (
+                      <div className="space-y-5">
+                        <div>
+                          <p className="mb-3 text-xs font-black uppercase tracking-[0.16em] text-[#6f695e]">
+                            Garment Style
+                          </p>
+
+                          <div className="grid gap-3">
+                            {ssProducts.map((product) => {
+                              const isSelected = selectedSsProduct?.id === product.id;
+
+                              return (
+                                <button
+                                  key={product.id}
+                                  type="button"
+                                  onClick={() => handleSsProductSelect(product)}
+                                  className={`rounded-2xl border p-4 text-left transition ${
+                                    isSelected
+                                      ? "border-[#2E5037] bg-white shadow-md"
+                                      : "border-[#dfd0b8] bg-white/70 hover:bg-white"
+                                  }`}
+                                >
+                                  <p className="font-black text-[#171717]">
+                                    {product.displayName}
+                                  </p>
+                                  <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                                    {product.colors.length} colors available
+                                  </p>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {selectedSsProduct && (
+                          <div>
+                            <p className="mb-3 text-xs font-black uppercase tracking-[0.16em] text-[#6f695e]">
+                              Garment Color
+                            </p>
+
+                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                              {selectedSsProduct.colors.map((color) => {
+                                const isSelected =
+                                  selectedSsColor?.colorName === color.colorName;
+
+                                return (
+                                  <button
+                                    key={color.colorName}
+                                    type="button"
+                                    onClick={() => handleSsColorSelect(color)}
+                                    disabled={color.outOfStock}
+                                    className={`rounded-2xl border p-3 text-left transition ${
+                                      isSelected
+                                        ? "border-[#2E5037] bg-white shadow-md"
+                                        : "border-[#dfd0b8] bg-white/70 hover:bg-white"
+                                    } ${
+                                      color.outOfStock
+                                        ? "cursor-not-allowed opacity-50"
+                                        : ""
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      {color.swatchImage ? (
+                                        <img
+                                          src={color.swatchImage}
+                                          alt={color.colorName}
+                                          className="h-7 w-7 rounded-full border border-black/10 object-cover"
+                                        />
+                                      ) : (
+                                        <span
+                                          className="h-7 w-7 rounded-full border border-black/10"
+                                          style={{
+                                            backgroundColor:
+                                              color.colorHex || "#ffffff",
+                                          }}
+                                        />
+                                      )}
+
+                                      <span className="text-sm font-black text-[#171717]">
+                                        {color.colorName}
+                                      </span>
+                                    </div>
+
+                                    <p className="mt-2 text-xs font-bold text-[#6f695e]">
+                                      {color.outOfStock ? "Out of stock" : "Available"}
+                                    </p>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {selectedSsColor && (
+                          <div>
+                            <p className="mb-3 text-xs font-black uppercase tracking-[0.16em] text-[#6f695e]">
+                              Sample Size / Garment Price
+                            </p>
+
+                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                              {selectedSsColor.sizes.map((size) => {
+                                const isSelected =
+                                  selectedSsSize?.sizeName === size.sizeName;
+
+                                return (
+                                  <button
+                                    key={size.sku}
+                                    type="button"
+                                    onClick={() => handleSsSizeSelect(size)}
+                                    disabled={size.outOfStock}
+                                    className={`rounded-2xl border p-3 text-center transition ${
+                                      isSelected
+                                        ? "border-[#2E5037] bg-white shadow-md"
+                                        : "border-[#dfd0b8] bg-white/70 hover:bg-white"
+                                    } ${
+                                      size.outOfStock
+                                        ? "cursor-not-allowed opacity-50"
+                                        : ""
+                                    }`}
+                                  >
+                                    <p className="text-sm font-black text-[#171717]">
+                                      {size.sizeName}
+                                    </p>
+                                    <p className="mt-1 text-xs font-bold text-[#6f695e]">
+                                      ${size.markedUpPrice.toFixed(2)}
+                                    </p>
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            <p className="mt-3 text-xs font-bold leading-5 text-[#6f695e]">
+                              This garment price includes the 40% markup over S&S
+                              customer pricing. Print/decorating costs are added later.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-5">
+                        <OptionSelector
+                          title="Garment Type"
+                          options={apparelCatalog.garmentTypes}
+                          selected={apparelQuote.garmentType}
+                          onSelect={(garmentType) =>
+                            updateApparelQuote({ garmentType })
+                          }
+                        />
+
+                        <OptionSelector
+                          title="Garment Color"
+                          options={apparelCatalog.garmentColors}
+                          selected={apparelQuote.garmentColor}
+                          onSelect={(garmentColor) => {
+                            const estimatedInkCount = getEstimatedInkColorCount(
+                              artworkAnalysis,
+                              garmentColor
+                            );
+
+                            updateApparelQuote({
+                              garmentColor,
+                              inkColors: formatInkColorOption(estimatedInkCount),
+                            });
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
 
                   <div>
                     <div className="mb-3">
@@ -925,8 +1294,9 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             {isApparelSelected ? (
               <ApparelPreview
                 artworkPreview={artworkPreview}
-                garmentType={apparelQuote.garmentType}
-                garmentColor={apparelQuote.garmentColor}
+                garmentType={selectedSsProduct?.displayName || apparelQuote.garmentType}
+                garmentColor={selectedSsColor?.colorName || apparelQuote.garmentColor}
+                garmentImage={selectedGarmentImage}
                 printLocations={apparelQuote.printLocations}
                 inkColors={apparelQuote.inkColors}
                 quantity={apparelQuote.quantity}
@@ -1036,6 +1406,24 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     <span>Ink</span>
                     <span className="text-right text-[#171717]">{apparelQuote.inkColors}</span>
                   </div>
+
+                  {selectedSsSize && (
+                    <div className="flex justify-between gap-4">
+                      <span>Garment Price</span>
+                      <span className="text-right text-[#171717]">
+                        ${selectedSsSize.markedUpPrice.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+
+                  {selectedSsSize && (
+                    <div className="flex justify-between gap-4">
+                      <span>SKU</span>
+                      <span className="text-right text-[#171717]">
+                        {selectedSsSize.sku}
+                      </span>
+                    </div>
+                  )}
 
                   {artworkAnalysis?.estimatedColorCount && (
                     <div className="flex justify-between gap-4">

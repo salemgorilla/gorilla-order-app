@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { fetchSsActivewearCatalog } from "../../../lib/ss-activewear";
+import { apparelCatalogStyles } from "../../../lib/apparel-catalog";
 
 export async function GET(request: Request) {
   try {
@@ -9,7 +10,7 @@ export async function GET(request: Request) {
     const styleParam =
       searchParams.get("style") ||
       process.env.SS_DEFAULT_STYLES ||
-      "3001CVC,5000";
+      apparelCatalogStyles.join(",");
 
     const styles = styleParam
       .split(",")

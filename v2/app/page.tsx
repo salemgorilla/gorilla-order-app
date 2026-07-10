@@ -16,10 +16,12 @@ import StickerPreview from "../components/preview/StickerPreview";
 import ApparelPreview from "../components/preview/ApparelPreview";
 
 import { stickerCatalog } from "../lib/catalog";
-import { apparelCatalog, defaultApparelQuote } from "../lib/apparel.ts";
+import { apparelCatalog, defaultApparelQuote } from "../lib/apparel";
 import { productCategories } from "../lib/products";
 import { defaultOrder } from "../lib/order";
 import { getStickerPrice } from "../lib/pricing";
+import { calculateApparelPricing } from "../lib/apparel-pricing";
+import { apparelCatalogStyles } from "../lib/apparel-catalog";
 import { getOrderValidationErrors, isOrderReady } from "../lib/validation";
 import { analyzeArtworkFile, ArtworkAnalysis } from "../lib/artwork";
 
@@ -117,13 +119,33 @@ export default function Home() {
   const selectedGarmentImage = selectedSsColor?.frontImage || null;
   const selectedGarmentIsOutOfStock = selectedSsColor?.outOfStock || false;
 
+  const apparelPricing = useMemo(() => {
+    return calculateApparelPricing({
+      quantity: apparelQuote.quantity,
+      garmentUnitPrice: selectedGarmentPrice,
+      printLocations: apparelQuote.printLocations,
+      inkColors: apparelQuote.inkColors,
+      hasUnderbase:
+        apparelQuote.garmentColor !== "White" &&
+        Boolean(artworkAnalysis?.estimatedColorCount),
+    });
+  }, [
+    apparelQuote.quantity,
+    apparelQuote.printLocations,
+    apparelQuote.inkColors,
+    apparelQuote.garmentColor,
+    selectedGarmentPrice,
+    artworkAnalysis?.estimatedColorCount,
+  ]);
+
   useEffect(() => {
     async function loadSsCatalog() {
       setSsCatalogStatus("loading");
       setSsCatalogError("");
 
       try {
-        const response = await fetch("/api/ss-catalog?style=00760");
+        const styleQuery = encodeURIComponent(apparelCatalogStyles.join(","));
+        const response = await fetch(`/api/ss-catalog?style=${styleQuery}`);
 
         if (!response.ok) {
           throw new Error("S&S catalog did not load.");
@@ -417,9 +439,9 @@ export default function Home() {
         },
         production: order.production,
         pricing: {
-          total: 0,
-          quoteRequired: true,
-          note: "Manual apparel pricing required.",
+          ...apparelPricing,
+          quoteRequired: false,
+          note: "Estimated apparel pricing. Final pricing reviewed by Gorilla Salem.",
         },
       };
     }
@@ -544,7 +566,13 @@ Image: ${selectedGarmentImage || "N/A"}
 ${timelineSection}
 
 ESTIMATE
-Manual quote required. Gorilla Salem will confirm apparel pricing after reviewing the order details and artwork.
+Estimated Apparel Total: $${apparelPricing.total.toFixed(2)}
+Estimated Each: $${apparelPricing.unitPrice.toFixed(2)}
+Garments: $${apparelPricing.garmentTotal.toFixed(2)}
+Printing: $${apparelPricing.printTotal.toFixed(2)}
+Setup / Screens: $${apparelPricing.setupTotal.toFixed(2)}
+Locations: ${apparelQuote.printLocations.length}
+Pricing Note: Final pricing reviewed by Gorilla Salem.
 
 ${artworkSection}
 
@@ -727,10 +755,13 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 {isApparelSubmitted ? (
                   <>
                     <p className="mt-2 text-3xl font-black text-[#171717]">
-                      Manual Quote
+                      ${apparelPricing.total.toFixed(2)}
                     </p>
                     <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                      Pricing confirmed after review
+                      ${apparelPricing.unitPrice.toFixed(2)} each estimated
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                      Final pricing reviewed by Gorilla Salem
                     </p>
                   </>
                 ) : (
@@ -1425,6 +1456,20 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     </div>
                   )}
 
+                  <div className="flex justify-between gap-4">
+                    <span>Estimated Each</span>
+                    <span className="text-right text-[#171717]">
+                      ${apparelPricing.unitPrice.toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between gap-4">
+                    <span>Estimated Total</span>
+                    <span className="text-right text-[#2E5037]">
+                      ${apparelPricing.total.toFixed(2)}
+                    </span>
+                  </div>
+
                   {artworkAnalysis?.estimatedColorCount && (
                     <div className="flex justify-between gap-4">
                       <span>Auto Count</span>
@@ -1447,10 +1492,56 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   </p>
                 </div>
 
+                <div className="mt-5 rounded-2xl bg-[#eef7ee] p-4">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#2E5037]">
+                    Estimated Apparel Pricing
+                  </p>
+
+                  <div className="mt-4 space-y-2 text-sm font-bold text-[#6f695e]">
+                    <div className="flex justify-between gap-4">
+                      <span>Garments</span>
+                      <span className="text-right text-[#171717]">
+                        ${apparelPricing.garmentTotal.toFixed(2)}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between gap-4">
+                      <span>Printing</span>
+                      <span className="text-right text-[#171717]">
+                        ${apparelPricing.printTotal.toFixed(2)}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between gap-4">
+                      <span>Setup / Screens</span>
+                      <span className="text-right text-[#171717]">
+                        ${apparelPricing.setupTotal.toFixed(2)}
+                      </span>
+                    </div>
+
+                    <div className="border-t border-[#cfe4cf] pt-3">
+                      <div className="flex justify-between gap-4">
+                        <span className="text-[#171717]">Estimated Total</span>
+                        <span className="text-right text-xl font-black text-[#2E5037]">
+                          ${apparelPricing.total.toFixed(2)}
+                        </span>
+                      </div>
+
+                      <div className="mt-1 flex justify-between gap-4">
+                        <span>Estimated Each</span>
+                        <span className="text-right text-[#171717]">
+                          ${apparelPricing.unitPrice.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="mt-5 rounded-2xl bg-[#fff7e8] p-4">
                   <p className="text-sm font-bold leading-6 text-[#6f695e]">
-                    Apparel pricing is reviewed manually because garment brand,
-                    sizes, print locations, and artwork can change the final price.
+                    Apparel pricing is an estimate. Gorilla Salem will review
+                    garment availability, artwork, print method, and timeline
+                    before confirming the final price.
                   </p>
                 </div>
               </div>

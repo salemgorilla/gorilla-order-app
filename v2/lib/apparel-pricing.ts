@@ -21,6 +21,40 @@ export type ApparelPricingResult = {
   underbaseFeePerPiece: number;
 };
 
+const fallbackApparelPricingConfig = {
+  basePrintPrices: [
+    {
+      minQuantity: 250,
+      pricePerPiece: 3.25,
+    },
+    {
+      minQuantity: 100,
+      pricePerPiece: 4.0,
+    },
+    {
+      minQuantity: 50,
+      pricePerPiece: 4.75,
+    },
+    {
+      minQuantity: 24,
+      pricePerPiece: 6.0,
+    },
+    {
+      minQuantity: 1,
+      pricePerPiece: 8.0,
+    },
+  ],
+
+  extraLocationFeePerPiece: 2.5,
+  extraInkColorFeePerPiece: 0.65,
+  underbaseFeePerPiece: 0.75,
+  setupFeePerColorPerLocation: 25,
+};
+
+function getPricingConfig() {
+  return apparelPricingConfig || fallbackApparelPricingConfig;
+}
+
 function getInkColorCount(inkColors: string) {
   if (inkColors.startsWith("1")) {
     return 1;
@@ -42,7 +76,9 @@ function getInkColorCount(inkColors: string) {
 }
 
 function getBasePrintPrice(quantity: number) {
-  const sortedPrices = [...apparelPricingConfig.basePrintPrices].sort(
+  const config = getPricingConfig();
+
+  const sortedPrices = [...config.basePrintPrices].sort(
     (a, b) => b.minQuantity - a.minQuantity
   );
 
@@ -60,6 +96,8 @@ export function calculateApparelPricing({
   inkColors,
   hasUnderbase,
 }: ApparelPricingInput): ApparelPricingResult {
+  const config = getPricingConfig();
+
   const safeQuantity = Math.max(1, quantity);
   const locationCount = Math.max(1, printLocations.length);
   const inkColorCount = getInkColorCount(inkColors);
@@ -68,14 +106,10 @@ export function calculateApparelPricing({
 
   const basePrintPrice = getBasePrintPrice(safeQuantity);
   const extraLocationFee =
-    Math.max(0, locationCount - 1) *
-    apparelPricingConfig.extraLocationFeePerPiece;
+    Math.max(0, locationCount - 1) * config.extraLocationFeePerPiece;
   const extraInkFee =
-    Math.max(0, inkColorCount - 1) *
-    apparelPricingConfig.extraInkColorFeePerPiece;
-  const underbaseFeePerPiece = hasUnderbase
-    ? apparelPricingConfig.underbaseFeePerPiece
-    : 0;
+    Math.max(0, inkColorCount - 1) * config.extraInkColorFeePerPiece;
+  const underbaseFeePerPiece = hasUnderbase ? config.underbaseFeePerPiece : 0;
 
   const printUnitPrice =
     basePrintPrice + extraLocationFee + extraInkFee + underbaseFeePerPiece;
@@ -83,9 +117,7 @@ export function calculateApparelPricing({
   const printTotal = printUnitPrice * safeQuantity;
 
   const setupTotal =
-    inkColorCount *
-    locationCount *
-    apparelPricingConfig.setupFeePerColorPerLocation;
+    inkColorCount * locationCount * config.setupFeePerColorPerLocation;
 
   const total = garmentTotal + printTotal + setupTotal;
   const unitPrice = total / safeQuantity;

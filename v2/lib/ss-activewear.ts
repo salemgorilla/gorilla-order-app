@@ -50,6 +50,7 @@ export type GorillaCatalogResponse = {
   generatedAt: string;
   markupRate: number;
   products: GorillaCatalogProduct[];
+  warnings?: string[];
 };
 
 function getRequiredEnv(name: string) {
@@ -109,7 +110,18 @@ function getMarkedUpPrice(customerPrice: number | undefined, markupRate: number)
 }
 
 function sortSizes(a: GorillaCatalogSize, b: GorillaCatalogSize) {
-  const sizeOrder = ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL", "6XL"];
+  const sizeOrder = [
+    "XS",
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL",
+    "3XL",
+    "4XL",
+    "5XL",
+    "6XL",
+  ];
 
   const aIndex = sizeOrder.indexOf(a.sizeName);
   const bIndex = sizeOrder.indexOf(b.sizeName);
@@ -139,7 +151,8 @@ function normalizeProducts(
   const productMap = new Map<string, GorillaCatalogProduct>();
 
   for (const product of products) {
-    const styleID = product.styleID?.toString() || product.styleName || product.sku || "unknown";
+    const styleID =
+      product.styleID?.toString() || product.styleName || product.sku || "unknown";
     const brandName = product.brandName || "Unknown Brand";
     const styleName = product.styleName || "Unknown Style";
     const productKey = `${brandName}-${styleName}-${styleID}`;
@@ -215,37 +228,28 @@ function normalizeProducts(
   );
 }
 
-export async function fetchSsActivewearCatalog(styles: string[]) {
-  const markupRate = getMarkupRate();
-  const exposeWholesale = process.env.SS_EXPOSE_WHOLESALE === "true";
+const productFields = [
+  "Sku",
+  "StyleID",
+  "BrandName",
+  "StyleName",
+  "ColorName",
+  "Color1",
+  "Color2",
+  "ColorSwatchImage",
+  "ColorFrontImage",
+  "ColorBackImage",
+  "ColorSideImage",
+  "SizeName",
+  "SizeOrder",
+  "CustomerPrice",
+  "Qty",
+].join(",");
 
-  const styleQuery = styles.map((style) => style.trim()).filter(Boolean).join(",");
-
-  if (!styleQuery) {
-    throw new Error("At least one S&S style or part number is required.");
-  }
-
-  const fields = [
-    "Sku",
-    "StyleID",
-    "BrandName",
-    "StyleName",
-    "ColorName",
-    "Color1",
-    "Color2",
-    "ColorSwatchImage",
-    "ColorFrontImage",
-    "ColorBackImage",
-    "ColorSideImage",
-    "SizeName",
-    "SizeOrder",
-    "CustomerPrice",
-    "Qty",
-  ].join(",");
-
+async function fetchProductsForStyle(style: string) {
   const url = new URL("https://api.ssactivewear.com/v2/products/");
-  url.searchParams.set("style", styleQuery);
-  url.searchParams.set("fields", fields);
+  url.searchParams.set("style", style);
+  url.searchParams.set("fields", productFields);
   url.searchParams.set("mediatype", "json");
 
   const response = await fetch(url.toString(), {
@@ -262,11 +266,52 @@ export async function fetchSsActivewearCatalog(styles: string[]) {
     const errorText = await response.text();
 
     throw new Error(
-      `S&S API request failed with ${response.status}: ${errorText}`
+      `Style ${style} failed with ${response.status}: ${errorText}`
     );
   }
 
-  const products = (await response.json()) as SsProduct[];
+  return (await response.json()) as SsProduct[];
+}
+
+export async function fetchSsActivewearCatalog(styles: string[]) {
+  const markupRate = getMarkupRate();
+  const exposeWholesale = process.env.SS_EXPOSE_WHOLESALE === "true";
+
+  const cleanStyles = Array.from(
+    new Set(styles.map((style) => style.trim()).filter(Boolean))
+  );
+
+  if (cleanStyles.length === 0) {
+    throw new Error("At least one S&S style or part number is required.");
+  }
+
+  const settledResults = await Promise.allSettled(
+    cleanStyles.map((style) => fetchProductsForStyle(style))
+  );
+
+  const products: SsProduct[] = [];
+  const warnings: string[] = [];
+
+  settledResults.forEach((result, index) => {
+    const style = cleanStyles[index];
+
+    if (result.status === "fulfilled") {
+      products.push(...result.value);
+      return;
+    }
+
+    warnings.push(
+      result.reason instanceof Error
+        ? result.reason.message
+        : `Style ${style} could not be loaded.`
+    );
+  });
+
+  if (products.length === 0) {
+    throw new Error(
+      warnings[0] || "S&S catalog did not return any products."
+    );
+  }
 
   return {
     source: "ss-activewear",
@@ -276,5 +321,6 @@ export async function fetchSsActivewearCatalog(styles: string[]) {
       markupRate,
       exposeWholesale,
     }),
+    ...(warnings.length > 0 ? { warnings } : {}),
   } satisfies GorillaCatalogResponse;
 }

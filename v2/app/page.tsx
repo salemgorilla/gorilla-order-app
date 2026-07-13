@@ -78,6 +78,7 @@ export default function Home() {
   const [selectedSsColorName, setSelectedSsColorName] = useState("");
   const [selectedSsSizeName, setSelectedSsSizeName] = useState("");
   const [selectedApparelCategory, setSelectedApparelCategory] = useState("All");
+  const [sizeQuantities, setSizeQuantities] = useState<Record<string, number>>({});
   const [ssCatalogStatus, setSsCatalogStatus] = useState<
     "idle" | "loading" | "loaded" | "error"
   >("idle");
@@ -127,6 +128,36 @@ export default function Home() {
     selectedSsProduct?.customerLabel ||
     selectedSsProduct?.displayName ||
     apparelQuote.garmentType;
+
+  const sizeOptionsForBreakdown = useMemo(() => {
+    const sizes =
+      selectedSsColor?.sizes
+        .map((size) => size.sizeName)
+        .filter(Boolean) || [];
+
+    if (sizes.length === 0) {
+      return ["S", "M", "L", "XL", "2XL"];
+    }
+
+    return Array.from(new Set(sizes));
+  }, [selectedSsColor]);
+
+  const sizeQuantityTotal = useMemo(() => {
+    return Object.values(sizeQuantities).reduce(
+      (total, quantity) => total + quantity,
+      0
+    );
+  }, [sizeQuantities]);
+
+  const sizeBreakdownFromButtons = useMemo(() => {
+    return Object.entries(sizeQuantities)
+      .filter(([, quantity]) => quantity > 0)
+      .map(([size, quantity]) => `${size}-${quantity}`)
+      .join(", ");
+  }, [sizeQuantities]);
+
+  const sizeBreakdownMatchesQuantity =
+    sizeQuantityTotal === apparelQuote.quantity;
 
   const apparelCategories = useMemo(() => {
     const categories = ssProducts
@@ -257,6 +288,40 @@ export default function Home() {
     if (firstProduct) {
       handleSsProductSelect(firstProduct);
     }
+  }
+
+  function updateSizeQuantity(sizeName: string, change: number) {
+    setSizeQuantities((current) => {
+      const nextQuantity = Math.max(0, (current[sizeName] || 0) + change);
+      const next = {
+        ...current,
+        [sizeName]: nextQuantity,
+      };
+
+      if (nextQuantity === 0) {
+        delete next[sizeName];
+      }
+
+      const nextBreakdown = Object.entries(next)
+        .filter(([, quantity]) => quantity > 0)
+        .map(([size, quantity]) => `${size}-${quantity}`)
+        .join(", ");
+
+      setApparelQuote((quote) => ({
+        ...quote,
+        sizeBreakdown: nextBreakdown,
+      }));
+
+      return next;
+    });
+  }
+
+  function resetSizeBreakdown() {
+    setSizeQuantities({});
+    setApparelQuote((current) => ({
+      ...current,
+      sizeBreakdown: "",
+    }));
   }
 
   function handleSsColorSelect(color: SsCatalogColor) {
@@ -441,6 +506,10 @@ export default function Home() {
 
     if (!apparelQuote.sizeBreakdown.trim()) {
       errors.push("Enter a size breakdown.");
+    } else if (sizeQuantityTotal !== apparelQuote.quantity) {
+      errors.push(
+        `Size breakdown must total ${apparelQuote.quantity}. Current total is ${sizeQuantityTotal}.`
+      );
     }
 
     return errors;
@@ -685,6 +754,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     setSubmittedProductId("stickers");
     setArtworkPreview(null);
     setArtworkAnalysis(null);
+    setSizeQuantities({});
     setQuoteConfirmation(null);
     setQuoteSubmitted(false);
     setIsSubmitting(false);
@@ -1357,19 +1427,119 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     </div>
                   )}
 
-                  <div>
-                    <label className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
-                      Size Breakdown
-                    </label>
+                  <div className="rounded-[2rem] border border-[#dfd0b8] bg-[#F8F5EE] p-5">
+                    <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                      <div>
+                        <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+                          Size Breakdown
+                        </p>
+                        <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                          Use the buttons to make the total match the order quantity.
+                        </p>
+                      </div>
 
-                    <textarea
-                      value={apparelQuote.sizeBreakdown}
-                      onChange={(event) =>
-                        updateApparelQuote({ sizeBreakdown: event.target.value })
-                      }
-                      placeholder="Example: S-2, M-8, L-10, XL-4"
-                      className="mt-3 min-h-28 w-full rounded-2xl border border-[#dfd0b8] bg-[#F8F5EE] p-4 font-bold text-[#171717] outline-none transition focus:border-[#2E5037] focus:bg-white"
-                    />
+                      <span
+                        className={`rounded-full px-4 py-2 text-sm font-black ${
+                          sizeBreakdownMatchesQuantity
+                            ? "bg-[#2E5037] text-white"
+                            : "bg-white text-[#b7352d]"
+                        }`}
+                      >
+                        {sizeQuantityTotal} / {apparelQuote.quantity}
+                      </span>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {sizeOptionsForBreakdown.map((sizeName) => {
+                        const quantity = sizeQuantities[sizeName] || 0;
+                        const sizeRecord = selectedSsColor?.sizes.find(
+                          (size) => size.sizeName === sizeName
+                        );
+                        const isAvailable = sizeRecord?.isAvailable ?? true;
+                        const canAdd =
+                          isAvailable && sizeQuantityTotal < apparelQuote.quantity;
+
+                        return (
+                          <div
+                            key={sizeName}
+                            className={`rounded-2xl border bg-white p-4 ${
+                              isAvailable
+                                ? "border-[#dfd0b8]"
+                                : "border-[#dfd0b8] opacity-50"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-lg font-black text-[#171717]">
+                                  {sizeName}
+                                </p>
+
+                                <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-[#6f695e]">
+                                  {isAvailable ? "Available" : "Out of stock"}
+                                </p>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => updateSizeQuantity(sizeName, -1)}
+                                  disabled={quantity === 0}
+                                  className="grid h-10 w-10 place-items-center rounded-full bg-[#F8F5EE] text-xl font-black text-[#2E5037] transition hover:bg-[#eef7ee] disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                  −
+                                </button>
+
+                                <span className="grid h-10 min-w-12 place-items-center rounded-xl bg-[#F8F5EE] px-3 text-lg font-black text-[#171717]">
+                                  {quantity}
+                                </span>
+
+                                <button
+                                  type="button"
+                                  onClick={() => updateSizeQuantity(sizeName, 1)}
+                                  disabled={!canAdd}
+                                  className="grid h-10 w-10 place-items-center rounded-full bg-[#2E5037] text-xl font-black text-white transition hover:bg-[#24402c] disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="mt-4 rounded-2xl bg-white p-4">
+                      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6f695e]">
+                        Current Breakdown
+                      </p>
+
+                      <p className="mt-2 text-sm font-black text-[#171717]">
+                        {sizeBreakdownFromButtons || "No sizes selected yet"}
+                      </p>
+
+                      {!sizeBreakdownMatchesQuantity && (
+                        <p className="mt-2 text-sm font-bold leading-6 text-[#b7352d]">
+                          Add or remove sizes until the total equals{" "}
+                          {apparelQuote.quantity}.
+                        </p>
+                      )}
+
+                      {sizeBreakdownMatchesQuantity && sizeQuantityTotal > 0 && (
+                        <p className="mt-2 text-sm font-bold leading-6 text-[#2E5037]">
+                          Size breakdown total matches the order quantity.
+                        </p>
+                      )}
+
+                      {sizeQuantityTotal > 0 && (
+                        <button
+                          type="button"
+                          onClick={resetSizeBreakdown}
+                          className="mt-3 rounded-full bg-[#F8F5EE] px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-[#6f695e] transition hover:bg-[#efe4d4]"
+                        >
+                          Reset Sizes
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </>
               ) : (

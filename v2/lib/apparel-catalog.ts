@@ -7,43 +7,43 @@ export type ApparelCatalogItem = {
 
 export const apparelCatalogItems: ApparelCatalogItem[] = [
   {
-    label: "Starter T-Shirt",
+    label: "Starter Tee",
     category: "T-Shirts",
     style: "00760",
     notes: "Known-good S&S API starter garment.",
   },
   {
-    label: "Basic T-Shirt",
+    label: "Basic Tee",
     category: "T-Shirts",
     style: "2000",
     notes: "Standard budget-friendly tee.",
   },
   {
-    label: "Premium Soft T-Shirt",
+    label: "Premium Soft Tee",
     category: "T-Shirts",
     style: "3001CVC",
     notes: "Softer retail-style tee option.",
   },
   {
-    label: "Hoodie",
+    label: "Classic Hoodie",
     category: "Sweatshirts",
     style: "18500",
     notes: "Classic pullover hoodie.",
   },
   {
-    label: "Crewneck",
+    label: "Classic Crewneck",
     category: "Sweatshirts",
     style: "18000",
     notes: "Classic crewneck sweatshirt.",
   },
   {
-    label: "Long Sleeve",
+    label: "Long Sleeve Tee",
     category: "Long Sleeves",
     style: "2400",
     notes: "Standard long sleeve tee.",
   },
   {
-    label: "Youth T-Shirt",
+    label: "Youth Soft Tee",
     category: "Youth",
     style: "3001YCVC",
     notes: "Youth soft tee option.",

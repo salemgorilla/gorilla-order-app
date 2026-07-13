@@ -56,6 +56,10 @@ type SsCatalogProduct = {
   brandName: string;
   styleName: string;
   displayName: string;
+  customerLabel: string;
+  customerCategory: string;
+  catalogStyle: string;
+  catalogNotes: string;
   colors: SsCatalogColor[];
 };
 
@@ -118,6 +122,10 @@ export default function Home() {
   const selectedGarmentPrice = selectedSsSize?.markedUpPrice || 0;
   const selectedGarmentImage = selectedSsColor?.frontImage || null;
   const selectedGarmentIsOutOfStock = selectedSsColor?.outOfStock || false;
+  const selectedGarmentLabel =
+    selectedSsProduct?.customerLabel ||
+    selectedSsProduct?.displayName ||
+    apparelQuote.garmentType;
 
   const apparelPricing = useMemo(() => {
     return calculateApparelPricing({
@@ -183,7 +191,10 @@ export default function Home() {
         if (firstProduct || firstColor) {
           setApparelQuote((current) => ({
             ...current,
-            garmentType: firstProduct?.displayName || current.garmentType,
+            garmentType:
+              firstProduct?.customerLabel ||
+              firstProduct?.displayName ||
+              current.garmentType,
             garmentColor: firstColor?.colorName || current.garmentColor,
           }));
         }
@@ -211,7 +222,7 @@ export default function Home() {
 
     setApparelQuote((current) => ({
       ...current,
-      garmentType: product.displayName,
+      garmentType: product.customerLabel || product.displayName,
       garmentColor: firstColor?.colorName || current.garmentColor,
     }));
   }
@@ -425,7 +436,9 @@ export default function Home() {
           sizeBreakdown: apparelQuote.sizeBreakdown,
           supplier: {
             source: "S&S Activewear",
-            productName: selectedSsProduct?.displayName || "Not selected",
+            productName: selectedGarmentLabel || "Not selected",
+            supplierProductName: selectedSsProduct?.displayName || "Not selected",
+            catalogStyle: selectedSsProduct?.catalogStyle || "Not selected",
             colorName: selectedSsColor?.colorName || "Not selected",
             sampleSize: selectedSsSize?.sizeName || "Not selected",
             sku: selectedSsSize?.sku || "Not selected",
@@ -553,7 +566,9 @@ Ink Colors: ${apparelQuote.inkColors}
 Size Breakdown: ${apparelQuote.sizeBreakdown}
 
 S&S CATALOG DETAILS
-Product: ${selectedSsProduct?.displayName || "Not selected"}
+Customer-Facing Product: ${selectedGarmentLabel || "Not selected"}
+S&S Product: ${selectedSsProduct?.displayName || "Not selected"}
+S&S Style: ${selectedSsProduct?.catalogStyle || "Not selected"}
 Color: ${selectedSsColor?.colorName || "Not selected"}
 Sample Size: ${selectedSsSize?.sizeName || "Not selected"}
 SKU: ${selectedSsSize?.sku || "Not selected"}
@@ -722,7 +737,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   <>
                     <p className="mt-2 text-lg font-black text-[#171717]">
                       {apparelQuote.quantity.toLocaleString()}{" "}
-                      {selectedSsProduct?.displayName || apparelQuote.garmentType}
+                      {selectedGarmentLabel}
                     </p>
                     <p className="mt-1 text-sm font-bold text-[#6f695e]">
                       {selectedSsColor?.colorName || apparelQuote.garmentColor} •{" "}
@@ -1014,12 +1029,24 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                                       : "border-[#dfd0b8] bg-white/70 hover:bg-white"
                                   }`}
                                 >
-                                  <p className="font-black text-[#171717]">
-                                    {product.displayName}
-                                  </p>
-                                  <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                                    {product.colors.length} colors available
-                                  </p>
+                                  <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                      <p className="font-black text-[#171717]">
+                                        {product.customerLabel || product.displayName}
+                                      </p>
+                                      <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                                        {product.customerCategory} • Style{" "}
+                                        {product.catalogStyle}
+                                      </p>
+                                      <p className="mt-1 text-xs font-bold text-[#8a8172]">
+                                        S&S: {product.displayName}
+                                      </p>
+                                    </div>
+
+                                    <span className="rounded-full bg-[#F8F5EE] px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-[#2E5037]">
+                                      {product.colors.length} colors
+                                    </span>
+                                  </div>
                                 </button>
                               );
                             })}
@@ -1325,7 +1352,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             {isApparelSelected ? (
               <ApparelPreview
                 artworkPreview={artworkPreview}
-                garmentType={selectedSsProduct?.displayName || apparelQuote.garmentType}
+                garmentType={selectedGarmentLabel}
                 garmentColor={selectedSsColor?.colorName || apparelQuote.garmentColor}
                 garmentImage={selectedGarmentImage}
                 printLocations={apparelQuote.printLocations}

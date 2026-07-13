@@ -77,6 +77,7 @@ export default function Home() {
   const [selectedSsProductId, setSelectedSsProductId] = useState("");
   const [selectedSsColorName, setSelectedSsColorName] = useState("");
   const [selectedSsSizeName, setSelectedSsSizeName] = useState("");
+  const [selectedApparelCategory, setSelectedApparelCategory] = useState("All");
   const [ssCatalogStatus, setSsCatalogStatus] = useState<
     "idle" | "loading" | "loaded" | "error"
   >("idle");
@@ -126,6 +127,24 @@ export default function Home() {
     selectedSsProduct?.customerLabel ||
     selectedSsProduct?.displayName ||
     apparelQuote.garmentType;
+
+  const apparelCategories = useMemo(() => {
+    const categories = ssProducts
+      .map((product) => product.customerCategory)
+      .filter(Boolean);
+
+    return ["All", ...Array.from(new Set(categories))];
+  }, [ssProducts]);
+
+  const filteredSsProducts = useMemo(() => {
+    if (selectedApparelCategory === "All") {
+      return ssProducts;
+    }
+
+    return ssProducts.filter(
+      (product) => product.customerCategory === selectedApparelCategory
+    );
+  }, [selectedApparelCategory, ssProducts]);
 
   const apparelPricing = useMemo(() => {
     return calculateApparelPricing({
@@ -225,6 +244,19 @@ export default function Home() {
       garmentType: product.customerLabel || product.displayName,
       garmentColor: firstColor?.colorName || current.garmentColor,
     }));
+  }
+
+  function handleApparelCategorySelect(category: string) {
+    setSelectedApparelCategory(category);
+
+    const firstProduct =
+      category === "All"
+        ? ssProducts[0]
+        : ssProducts.find((product) => product.customerCategory === category);
+
+    if (firstProduct) {
+      handleSsProductSelect(firstProduct);
+    }
   }
 
   function handleSsColorSelect(color: SsCatalogColor) {
@@ -1010,12 +1042,39 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     {ssProducts.length > 0 ? (
                       <div className="space-y-5">
                         <div>
-                          <p className="mb-3 text-xs font-black uppercase tracking-[0.16em] text-[#6f695e]">
-                            Garment Style
-                          </p>
+                          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6f695e]">
+                              Garment Style
+                            </p>
+
+                            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8a8172]">
+                              {filteredSsProducts.length} shown
+                            </p>
+                          </div>
+
+                          <div className="mb-4 flex flex-wrap gap-2">
+                            {apparelCategories.map((category) => {
+                              const isSelected = selectedApparelCategory === category;
+
+                              return (
+                                <button
+                                  key={category}
+                                  type="button"
+                                  onClick={() => handleApparelCategorySelect(category)}
+                                  className={`rounded-full px-4 py-2 text-sm font-black transition ${
+                                    isSelected
+                                      ? "bg-[#2E5037] text-white"
+                                      : "bg-white text-[#2E5037] hover:bg-[#eef7ee]"
+                                  }`}
+                                >
+                                  {category}
+                                </button>
+                              );
+                            })}
+                          </div>
 
                           <div className="grid gap-3">
-                            {ssProducts.map((product) => {
+                            {filteredSsProducts.map((product) => {
                               const isSelected = selectedSsProduct?.id === product.id;
 
                               return (

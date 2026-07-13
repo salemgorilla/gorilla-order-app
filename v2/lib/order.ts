@@ -9,7 +9,7 @@ export const defaultOrder: Order = {
     notes: "",
   },
   product: {
-    type: "Custom Stickers",
+    type: "Custom Decals",
     quantity: 100,
     size: '3"',
     shape: "Die Cut",

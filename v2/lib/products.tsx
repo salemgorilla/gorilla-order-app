@@ -9,10 +9,10 @@ export type ProductCategory = {
 export const productCategories: ProductCategory[] = [
   {
     id: "stickers",
-    title: "Custom Stickers",
+    title: "Custom Decals",
     badge: "Live",
     description:
-      "Die-cut, circle, square, rounded square, clear, chrome, holographic, gloss, and matte sticker quote requests.",
+      "Die-cut decals, logo decals, product labels, and custom vinyl decals.",
     status: "active",
   },
   {
@@ -20,7 +20,7 @@ export const productCategories: ProductCategory[] = [
     title: "T-Shirts & Apparel",
     badge: "Beta",
     description:
-      "Quote requests for tees, hoodies, crewnecks, garment colors, print locations, ink colors, and size breakdowns.",
+      "Quote requests for tees, hoodies, crewnecks, long sleeves, and youth apparel.",
     status: "active",
   },
   {
@@ -28,7 +28,7 @@ export const productCategories: ProductCategory[] = [
     title: "Banners & Signs",
     badge: "Soon",
     description:
-      "Future quote builder for banners, event signage, merch displays, and local business signs.",
+      "Future quote builder for banners, signs, posters, and larger-format print jobs.",
     status: "coming-soon",
   },
 ];

@@ -19,7 +19,7 @@ import { stickerCatalog } from "../lib/catalog";
 import { apparelCatalog, defaultApparelQuote } from "../lib/apparel";
 import { productCategories } from "../lib/products";
 import { defaultOrder } from "../lib/order";
-import { getStickerPrice } from "../lib/pricing";
+import { getDecalPrice } from "../lib/pricing";
 import { calculateApparelPricing } from "../lib/apparel-pricing";
 import { apparelCatalogStyles } from "../lib/apparel-catalog";
 import { getOrderValidationErrors, isOrderReady } from "../lib/validation";
@@ -347,7 +347,7 @@ export default function Home() {
     setSelectedSsSizeName(size.sizeName);
   }
 
-  function getStickerFinishFromMaterial(material: string) {
+  function getDecalFinishFromMaterial(material: string) {
     if (material.toLowerCase().includes("matte")) {
       return "Matte";
     }
@@ -356,9 +356,9 @@ export default function Home() {
   }
 
   function recalculateOrder(nextOrder: typeof order) {
-    const finish = getStickerFinishFromMaterial(nextOrder.product.material);
+    const finish = getDecalFinishFromMaterial(nextOrder.product.material);
 
-    const stickerPrice = getStickerPrice(
+    const stickerPrice = getDecalPrice(
       nextOrder.product.quantity,
       nextOrder.product.material,
       finish
@@ -711,15 +711,15 @@ ${notesSection}
 This is an estimate request, not a final invoice. Gorilla Salem will confirm pricing, timeline, and artwork readiness before production starts.`;
     }
 
-    return `GORILLA SALEM STICKER QUOTE REQUEST
+    return `GORILLA SALEM DECAL QUOTE REQUEST
 
 Quote Number: ${quoteNumber}
 Submitted: ${submittedAt}
 
 ${customerSection}
 
-STICKER DETAILS
-Product: ${order.product.type}
+DECAL DETAILS
+Product: Custom Decals
 Quantity: ${order.product.quantity.toLocaleString()}
 Size: ${order.product.size}
 Shape: ${order.product.shape}
@@ -845,7 +845,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
               <div className="rounded-2xl border border-[#dfd0b8] p-5">
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-[#b7352d]">
-                  {isApparelSubmitted ? "Apparel Details" : "Sticker Details"}
+                  {isApparelSubmitted ? "Apparel Details" : "Decal Details"}
                 </p>
 
                 {isApparelSubmitted ? (
@@ -865,7 +865,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 ) : (
                   <>
                     <p className="mt-2 text-lg font-black text-[#171717]">
-                      {order.product.quantity.toLocaleString()} stickers
+                      {order.product.quantity.toLocaleString()} decals
                     </p>
                     <p className="mt-1 text-sm font-bold text-[#6f695e]">
                       {order.product.size} • {order.product.shape}
@@ -1008,7 +1008,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             </div>
 
             <p className="max-w-md text-sm font-bold leading-6 text-[#6f695e]">
-              Start with stickers or apparel. More Gorilla Salem products can be
+              Start with decals or apparel. More Gorilla Salem products can be
               added to this system without rebuilding the whole app.
             </p>
           </div>
@@ -1075,12 +1075,12 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 <h2 className="mt-2 text-3xl font-black tracking-[-0.05em]">
                   {isApparelSelected
                     ? "Build Your Apparel Quote"
-                    : "Choose Your Sticker Details"}
+                    : "Choose Your Decal Details"}
                 </h2>
               </div>
 
               <div className="rounded-full bg-[#F8F5EE] px-4 py-2 text-sm font-bold text-[#6f695e]">
-                {isApparelSelected ? "Manual Quote" : "Instant Estimate"}
+                {isApparelSelected ? "Manual Quote" : "Decal Estimate"}
               </div>
             </div>
 
@@ -1584,7 +1584,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     onSelect={(material) =>
                       updateProduct({
                         material,
-                        finish: getStickerFinishFromMaterial(material),
+                        finish: getDecalFinishFromMaterial(material),
                       })
                     }
                   />
@@ -1851,7 +1851,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 </div>
 
                 <span className="rounded-full bg-[#F8F5EE] px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-[#2E5037]">
-                  {isApparelSelected ? "Apparel" : "Stickers"}
+                  {isApparelSelected ? "Apparel" : "Decals"}
                 </span>
               </div>
 
@@ -1910,7 +1910,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 ) : (
                   <>
                     <div className="flex justify-between gap-4">
-                      <span>Sticker</span>
+                      <span>Decal</span>
                       <span className="text-right text-[#171717]">
                         {order.product.size} • {order.product.shape}
                       </span>

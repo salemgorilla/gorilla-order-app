@@ -347,15 +347,29 @@ export default function Home() {
     setSelectedSsSizeName(size.sizeName);
   }
 
+  function getStickerFinishFromMaterial(material: string) {
+    if (material.toLowerCase().includes("matte")) {
+      return "Matte";
+    }
+
+    return "Gloss";
+  }
+
   function recalculateOrder(nextOrder: typeof order) {
+    const finish = getStickerFinishFromMaterial(nextOrder.product.material);
+
     const stickerPrice = getStickerPrice(
       nextOrder.product.quantity,
       nextOrder.product.material,
-      nextOrder.product.finish
+      finish
     );
 
     return {
       ...nextOrder,
+      product: {
+        ...nextOrder.product,
+        finish,
+      },
       pricing: {
         ...nextOrder.pricing,
         stickerPrice,
@@ -709,8 +723,7 @@ Product: ${order.product.type}
 Quantity: ${order.product.quantity.toLocaleString()}
 Size: ${order.product.size}
 Shape: ${order.product.shape}
-Material: ${order.product.material}
-Finish: ${order.product.finish}
+Decal Type: ${order.product.material}
 
 ${timelineSection}
 
@@ -858,7 +871,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                       {order.product.size} • {order.product.shape}
                     </p>
                     <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                      {order.product.material} • {order.product.finish}
+                      {order.product.material}
                     </p>
                   </>
                 )}
@@ -1565,17 +1578,15 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   />
 
                   <OptionSelector
-                    title="Material"
+                    title="Decal Type"
                     options={stickerCatalog.materials}
                     selected={order.product.material}
-                    onSelect={(material) => updateProduct({ material })}
-                  />
-
-                  <OptionSelector
-                    title="Finish"
-                    options={stickerCatalog.finishes}
-                    selected={order.product.finish}
-                    onSelect={(finish) => updateProduct({ finish })}
+                    onSelect={(material) =>
+                      updateProduct({
+                        material,
+                        finish: getStickerFinishFromMaterial(material),
+                      })
+                    }
                   />
                 </>
               )}
@@ -1641,7 +1652,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   shape={order.product.shape}
                 />
 
-                <div className="mt-6 grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
+                <div className="mt-6 grid grid-cols-2 gap-3 text-center sm:grid-cols-3">
                   <div className="rounded-2xl bg-[#F8F5EE] p-4">
                     <p className="text-xs font-bold uppercase text-[#6f695e]">
                       Size
@@ -1654,13 +1665,6 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                       Shape
                     </p>
                     <p className="mt-1 font-black">{order.product.shape}</p>
-                  </div>
-
-                  <div className="rounded-2xl bg-[#F8F5EE] p-4">
-                    <p className="text-xs font-bold uppercase text-[#6f695e]">
-                      Finish
-                    </p>
-                    <p className="mt-1 font-black">{order.product.finish}</p>
                   </div>
 
                   <div className="rounded-2xl bg-[#F8F5EE] p-4">
@@ -1833,6 +1837,150 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             )}
 
             <ArtworkAnalysisCard analysis={artworkAnalysis} />
+
+            <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-6 shadow-xl">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+                    Review Your Quote
+                  </p>
+
+                  <p className="mt-2 text-2xl font-black tracking-[-0.05em] text-[#171717]">
+                    Check everything before submitting.
+                  </p>
+                </div>
+
+                <span className="rounded-full bg-[#F8F5EE] px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-[#2E5037]">
+                  {isApparelSelected ? "Apparel" : "Stickers"}
+                </span>
+              </div>
+
+              <div className="mt-5 space-y-3 text-sm font-bold text-[#6f695e]">
+                {isApparelSelected ? (
+                  <>
+                    <div className="flex justify-between gap-4">
+                      <span>Garment</span>
+                      <span className="text-right text-[#171717]">
+                        {selectedGarmentLabel}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between gap-4">
+                      <span>Color</span>
+                      <span className="text-right text-[#171717]">
+                        {selectedSsColor?.colorName || apparelQuote.garmentColor}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between gap-4">
+                      <span>Quantity</span>
+                      <span className="text-right text-[#171717]">
+                        {apparelQuote.quantity.toLocaleString()}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between gap-4">
+                      <span>Sizes</span>
+                      <span className="text-right text-[#171717]">
+                        {apparelQuote.sizeBreakdown || "Not complete"}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between gap-4">
+                      <span>Print Locations</span>
+                      <span className="text-right text-[#171717]">
+                        {apparelQuote.printLocations.join(", ") || "Not selected"}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between gap-4">
+                      <span>Ink Colors</span>
+                      <span className="text-right text-[#171717]">
+                        {apparelQuote.inkColors}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between gap-4">
+                      <span>Estimate</span>
+                      <span className="text-right text-[#2E5037]">
+                        ${apparelPricing.total.toFixed(2)}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between gap-4">
+                      <span>Sticker</span>
+                      <span className="text-right text-[#171717]">
+                        {order.product.size} • {order.product.shape}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between gap-4">
+                      <span>Quantity</span>
+                      <span className="text-right text-[#171717]">
+                        {order.product.quantity.toLocaleString()}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between gap-4">
+                      <span>Decal Type</span>
+                      <span className="text-right text-[#171717]">
+                        {order.product.material}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between gap-4">
+                      <span>Estimate</span>
+                      <span className="text-right text-[#2E5037]">
+                        ${order.pricing.total.toFixed(2)}
+                      </span>
+                    </div>
+                  </>
+                )}
+
+                <div className="border-t border-[#dfd0b8] pt-3">
+                  <div className="flex justify-between gap-4">
+                    <span>Artwork</span>
+                    <span className="text-right text-[#171717]">
+                      {order.artwork.file?.name || "Not uploaded"}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 flex justify-between gap-4">
+                    <span>Needed By</span>
+                    <span className="text-right text-[#171717]">
+                      {order.production.needBy || "Not entered"}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 flex justify-between gap-4">
+                    <span>Customer</span>
+                    <span className="text-right text-[#171717]">
+                      {order.customer.customerName || "Not entered"}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 flex justify-between gap-4">
+                    <span>Email</span>
+                    <span className="text-right text-[#171717]">
+                      {order.customer.email || "Not entered"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {currentValidationErrors.length === 0 ? (
+                <p className="mt-5 rounded-2xl bg-[#eef7ee] p-4 text-sm font-black text-[#2E5037]">
+                  Everything required is complete. This quote is ready to submit.
+                </p>
+              ) : (
+                <p className="mt-5 rounded-2xl bg-[#fff7e8] p-4 text-sm font-bold leading-6 text-[#6f695e]">
+                  Complete the required info below before submitting.
+                </p>
+              )}
+            </div>
+
 
             {isApparelSelected ? (
               <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-6 shadow-xl">

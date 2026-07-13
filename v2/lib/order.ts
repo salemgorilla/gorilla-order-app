@@ -13,7 +13,7 @@ export const defaultOrder: Order = {
     quantity: 100,
     size: '3"',
     shape: "Die Cut",
-    material: "White Vinyl",
+    material: "Gloss White Vinyl",
     finish: "Gloss",
   },
   artwork: {

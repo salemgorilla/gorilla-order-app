@@ -1,33 +1,44 @@
-export const quantityPricing: Record<number, number> = {
-  50: 57,
-  100: 76,
+const baseStickerPrices: Record<number, number> = {
+  50: 65,
+  100: 89,
   250: 118,
   500: 156,
-  1000: 245,
-  2500: 496,
-  5000: 832,
+  1000: 278,
+  2500: 760,
+  5000: 1541,
 };
 
-export const materialPricing: Record<string, number> = {
-  "White Vinyl": 0,
-  "Clear Vinyl": 8,
-  Holographic: 36,
-  Chrome: 24,
-};
+function getMaterialMultiplier(material: string) {
+  if (material === "Clear Vinyl") {
+    return 1.15;
+  }
 
-export const finishPricing: Record<string, number> = {
-  Gloss: 0,
-  Matte: 6,
-};
+  if (material === "Holographic") {
+    return 1.35;
+  }
+
+  if (material === "Chrome") {
+    return 1.3;
+  }
+
+  return 1;
+}
+
+function getFinishMultiplier(finish: string) {
+  // White vinyl finish is now selected as the decal type:
+  // Gloss White Vinyl or Matte White Vinyl.
+  // Kept for compatibility with older order data.
+  return 1;
+}
 
 export function getStickerPrice(
   quantity: number,
-  material = "White Vinyl",
-  finish = "Gloss"
+  material: string,
+  finish: string
 ) {
-  return (
-    quantityPricing[quantity] +
-    materialPricing[material] +
-    finishPricing[finish]
-  );
+  const basePrice = baseStickerPrices[quantity] || baseStickerPrices[100];
+  const materialMultiplier = getMaterialMultiplier(material);
+  const finishMultiplier = getFinishMultiplier(finish);
+
+  return Math.round(basePrice * materialMultiplier * finishMultiplier);
 }

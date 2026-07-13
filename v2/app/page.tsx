@@ -1076,6 +1076,9 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                           <div className="grid gap-3">
                             {filteredSsProducts.map((product) => {
                               const isSelected = selectedSsProduct?.id === product.id;
+                              const thumbnailColor =
+                                product.colors.find((color) => color.frontImage) ||
+                                product.colors[0];
 
                               return (
                                 <button
@@ -1088,23 +1091,47 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                                       : "border-[#dfd0b8] bg-white/70 hover:bg-white"
                                   }`}
                                 >
-                                  <div className="flex flex-wrap items-start justify-between gap-3">
-                                    <div>
-                                      <p className="font-black text-[#171717]">
-                                        {product.customerLabel || product.displayName}
-                                      </p>
-                                      <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                                        {product.customerCategory} • Style{" "}
-                                        {product.catalogStyle}
-                                      </p>
-                                      <p className="mt-1 text-xs font-bold text-[#8a8172]">
-                                        S&S: {product.displayName}
-                                      </p>
+                                  <div className="flex gap-4">
+                                    <div className="grid h-24 w-20 shrink-0 place-items-center overflow-hidden rounded-2xl border border-[#dfd0b8] bg-[#F8F5EE]">
+                                      {thumbnailColor?.frontImage ? (
+                                        <img
+                                          src={thumbnailColor.frontImage}
+                                          alt={`${product.customerLabel || product.displayName} preview`}
+                                          className="h-full w-full object-contain p-2"
+                                        />
+                                      ) : (
+                                        <span className="px-2 text-center text-xs font-black uppercase tracking-[0.12em] text-[#8a8172]">
+                                          No Image
+                                        </span>
+                                      )}
                                     </div>
 
-                                    <span className="rounded-full bg-[#F8F5EE] px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-[#2E5037]">
-                                      {product.colors.length} colors
-                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex flex-wrap items-start justify-between gap-3">
+                                        <div>
+                                          <p className="font-black text-[#171717]">
+                                            {product.customerLabel || product.displayName}
+                                          </p>
+                                          <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                                            {product.customerCategory} • Style{" "}
+                                            {product.catalogStyle}
+                                          </p>
+                                          <p className="mt-1 text-xs font-bold text-[#8a8172]">
+                                            S&S: {product.displayName}
+                                          </p>
+                                        </div>
+
+                                        <span className="rounded-full bg-[#F8F5EE] px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-[#2E5037]">
+                                          {product.colors.length} colors
+                                        </span>
+                                      </div>
+
+                                      {thumbnailColor?.colorName && (
+                                        <p className="mt-3 text-xs font-bold text-[#8a8172]">
+                                          Preview shown in {thumbnailColor.colorName}
+                                        </p>
+                                      )}
+                                    </div>
                                   </div>
                                 </button>
                               );

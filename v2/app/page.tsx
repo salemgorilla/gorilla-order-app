@@ -19,7 +19,7 @@ import { stickerCatalog } from "../lib/catalog";
 import { apparelCatalog, defaultApparelQuote } from "../lib/apparel";
 import { productCategories } from "../lib/products";
 import { defaultOrder } from "../lib/order";
-import { getDecalPrice } from "../lib/pricing";
+import { getStickerPrice } from "../lib/pricing";
 import { calculateApparelPricing } from "../lib/apparel-pricing";
 import { apparelCatalogStyles } from "../lib/apparel-catalog";
 import { getOrderValidationErrors, isOrderReady } from "../lib/validation";
@@ -358,7 +358,7 @@ export default function Home() {
   function recalculateOrder(nextOrder: typeof order) {
     const finish = getDecalFinishFromMaterial(nextOrder.product.material);
 
-    const stickerPrice = getDecalPrice(
+    const stickerPrice = getStickerPrice(
       nextOrder.product.quantity,
       nextOrder.product.material,
       finish

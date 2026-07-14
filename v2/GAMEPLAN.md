@@ -24,12 +24,32 @@ _Living roadmap for the Gorilla Salem quote/order builder. Update this file as y
 ✅ **Quote submission** — `POST /api/quote` returns a quote number (`GS-YYYYMMDD-XXXXX`), shows a confirmation screen with **Copy Quote Details** + **Open Gmail Draft**.
 ✅ **Build is green** — `npx tsc --noEmit` and `npm run build` both pass with 0 errors.
 
-**Checkpoint:** `v2.6.2 — Fix decal pricing crash + repo cleanup` (see Section 2). Previous: `v2.6.1 — Rename stickers to decals`.
+**Checkpoint:** `v2.7.0 — Catalog labels + category filters + real S&S style numbers` (see Section 2). Previous: `v2.6.2`, `v2.6.1`.
 
 ---
 
 ## 2. What changed most recently (2026-07-14)
 
+### `v2.7.0` — Catalog labels, category filters, and real S&S style numbers _(pending commit)_
+Sprint A (below) is **done and verified in the browser**:
+1. **Merged customer-facing labels/categories into the API.** `app/api/ss-catalog/route.ts` now joins each S&S product to its `apparel-catalog.ts` entry (matched on the style code it was fetched under) and attaches `customerLabel`, `customerCategory`, `catalogStyle`, `catalogNotes`. `lib/ss-activewear.ts` was updated to thread the queried style code through to each product. This fixes Gap #1 — the apparel cards now show clean names ("Starter Tee") and the category filter shows real categories.
+2. **Fixed 6 dead style codes (root cause found).** The catalog used **manufacturer model names** (`2000`, `3001CVC`, `18500`, `18000`, `2400`, `3001YCVC`) which S&S 404s ("discontinued"). S&S wants its **own styleID**. Looked up the correct styleIDs against the live S&S `/v2/styles/` API and verified each returns products:
+
+   | Garment | Was (404) | Now (styleID) | Colors |
+   |---|---|---|---|
+   | Starter Tee (Gildan 2000) | `00760`* | `39` | 61 |
+   | Premium Soft Tee (Bella 3001CVC) | `3001CVC` | `7584` | 85 |
+   | Classic Hoodie (Gildan 18500) | `18500` | `395` | 47 |
+   | Classic Crewneck (Gildan 18000) | `18000` | `372` | 41 |
+   | Long Sleeve Tee (Gildan 2400) | `2400` | `135` | 28 |
+   | Youth Soft Tee (Bella 3001YCVC) | `3001YCVC` | `10628` | 34 |
+
+   _*`00760` (the partNumber) actually worked; the rest were manufacturer names and didn't._ Also removed the redundant "Basic Tee" entry — it pointed at the same Gildan 2000 as "Starter Tee" and was broken/invisible anyway.
+3. **Verified:** apparel flow now shows **6 garments across 4 categories** (T-Shirts, Sweatshirts, Long Sleeves, Youth); the category filter works; garment prices render; no console errors; `tsc` + `build` clean.
+
+> **To add a garment later:** put its S&S **styleID** in `apparel-catalog.ts` (not the manufacturer model number). Find styleIDs via the S&S catalog or `GET https://api.ssactivewear.com/v2/styles/`.
+
+### `v2.6.2` — Fix decal pricing crash + repo cleanup
 Two build-breaking bugs were fixed and dead files removed:
 
 1. **🔴 Decal pricing crash (critical).** `app/page.tsx` imported `getDecalPrice` from `lib/pricing.ts`, but that file only exports `getStickerPrice`. The moment a customer touched any decal option, the app threw `getDecalPrice is not a function` and pricing never computed. **Fix:** `page.tsx` now imports and calls `getStickerPrice` (kept the internal name `sticker` per the "customer-facing = decal, code = sticker" rule). Verified live: 100 Gloss White = **$89 / $0.89 each**; switching to Holographic recalculated to **$120 / $1.20 each** (×1.35). ✔
@@ -74,7 +94,7 @@ Direct S&S API test (should return JSON): http://localhost:3000/api/ss-catalog?s
 
 | # | Issue | Where | Impact | Priority |
 |---|-------|-------|--------|----------|
-| 1 | Catalog labels/categories **not merged** into API response. `customerLabel`, `customerCategory`, `catalogStyle` come out `undefined`, so the UI falls back to raw S&S names and only shows an **"All"** category filter. | `app/api/ss-catalog/route.ts` never joins `lib/apparel-catalog.ts` onto the S&S products | The "clean customer labels" (v2.1.0) and "category filters" (v2.2.0) features don't actually work | 🔴 High — see Sprint A |
+| 1 | ~~Catalog labels/categories not merged into API response.~~ **✅ FIXED in v2.7.0** (Section 2). Also fixed the 6 dead S&S style codes. | — | Apparel cards now show clean labels + working category filters | ✅ Done |
 | 2 | Quotes are **not stored anywhere**. `POST /api/quote` only `console.log`s and returns a number. Close the tab = quote is gone unless the customer clicks Gmail Draft. | `app/api/quote/route.ts` | No record of quote requests | 🔴 High — see Sprint C |
 | 3 | **No real email.** "Open Gmail Draft" just opens a pre-filled compose window; nothing sends automatically and it requires the customer to be logged into Gmail. | `getEmailQuoteLink()` in `page.tsx` | Quotes can be lost if customer doesn't hit send | 🟠 Med — see Sprint C |
 | 4 | **Shipping is defined but never charged.** `defaultOrder.pricing.shippingPrice = 12`, but `recalculateOrder()` sets `total = stickerPrice` only. Decal estimate excludes shipping. | `lib/order.ts`, `recalculateOrder()` in `page.tsx` | Estimate may be lower than real cost — *is this intended?* | 🟠 Med — Decision D1 |
@@ -88,18 +108,14 @@ Direct S&S API test (should return JSON): http://localhost:3000/api/ss-catalog?s
 
 Do these in order. Each is scoped to stay small and commit-ready.
 
-### Sprint A — Make catalog labels & category filters actually work `v2.7.0`
-**Goal:** Show clean names ("Starter Tee") and working category buttons (T-Shirts / Sweatshirts / Long Sleeves / Youth) instead of raw S&S names + only "All".
-**Why:** Fixes Gap #1 — the biggest "looks done but isn't" issue.
-**Files:** `app/api/ss-catalog/route.ts`, `lib/ss-activewear.ts`, `lib/apparel-catalog.ts`
-**Steps:**
-1. In `lib/ss-activewear.ts`, tag each normalized product with the S&S `style` it came from (thread the style code through `fetchProductsForStyle` → `normalizeProducts`).
-2. In `route.ts`, after fetching, join each product to its `apparelCatalogItems` entry by `style` and attach `customerLabel = item.label`, `customerCategory = item.category`, `catalogStyle = item.style`, `catalogNotes = item.notes`.
-3. Test http://localhost:3000/api/ss-catalog?style=00760 — the JSON should now include `customerLabel: "Starter Tee"`, `customerCategory: "T-Shirts"`.
-**Done when:**
-- [ ] Category buttons show T-Shirts, Sweatshirts, Long Sleeves, Youth (not just All)
-- [ ] Product cards show the clean label ("Starter Tee"), with the raw S&S name as the secondary line
-- [ ] Both flows still pass the Section 3 smoke test
+### ✅ Sprint A — Catalog labels & category filters `v2.7.0` — DONE 2026-07-14
+**Goal:** Show clean names ("Starter Tee") and working category buttons instead of raw S&S names + only "All".
+**Outcome (verified):** API merge implemented; 6 dead style codes replaced with real S&S styleIDs; apparel flow shows 6 garments across 4 categories; category filter works; both flows pass the smoke test; `tsc` + `build` clean. See Section 2 for details.
+- [x] Category buttons show T-Shirts, Sweatshirts, Long Sleeves, Youth (not just All)
+- [x] Product cards show the clean label ("Starter Tee"), raw S&S name as the secondary line
+- [x] Both flows still pass the Section 3 smoke test
+
+> **Optional polish (not blocking):** category chips currently order by product sort, not a fixed order; and the S&S `brandName` comes back as "Unknown Brand" for some styles (the clean customer label hides this, but the "S&S: …" secondary line shows it). Consider requesting/using the brand from the `/v2/styles/` endpoint later.
 
 ### Sprint B — Align validation + small UX polish `v2.7.1`
 **Goal:** Consistent required-field rules across both flows; tidy copy.
@@ -227,7 +243,8 @@ git push
 ---
 
 ## Version history
-- `v2.6.2` — Fix decal pricing crash (`getStickerPrice`), remove dead/junk files _(pending commit)_
+- `v2.7.0` — Catalog labels + category filters (API merge) + real S&S style numbers _(pending commit)_
+- `v2.6.2` — Fix decal pricing crash (`getStickerPrice`), remove dead/junk files
 - `v2.6.1` — Rename stickers to decals
 - `v2.6.0` — Simplify decal finish options
 - `v2.5.0` — Add quote review screen

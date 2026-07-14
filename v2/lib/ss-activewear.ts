@@ -14,6 +14,8 @@ type SsProduct = {
   sizeOrder?: string;
   customerPrice?: number;
   qty?: number;
+  // Injected by us (not from S&S): the style code this row was fetched under.
+  catalogStyle?: string;
 };
 
 export type GorillaCatalogSize = {
@@ -42,6 +44,7 @@ export type GorillaCatalogProduct = {
   brandName: string;
   styleName: string;
   displayName: string;
+  catalogStyle: string;
   colors: GorillaCatalogColor[];
 };
 
@@ -164,6 +167,7 @@ function normalizeProducts(
         brandName,
         styleName,
         displayName: `${brandName} ${styleName}`,
+        catalogStyle: product.catalogStyle || "",
         colors: [],
       });
     }
@@ -296,7 +300,9 @@ export async function fetchSsActivewearCatalog(styles: string[]) {
     const style = cleanStyles[index];
 
     if (result.status === "fulfilled") {
-      products.push(...result.value);
+      for (const product of result.value) {
+        products.push({ ...product, catalogStyle: style });
+      }
       return;
     }
 

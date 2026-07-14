@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { fetchSsActivewearCatalog } from "../../../lib/ss-activewear";
-import { apparelCatalogStyles } from "../../../lib/apparel-catalog";
+import {
+  apparelCatalogItems,
+  apparelCatalogStyles,
+} from "../../../lib/apparel-catalog";
 
 export async function GET(request: Request) {
   try {
@@ -19,11 +22,30 @@ export async function GET(request: Request) {
 
     const catalog = await fetchSsActivewearCatalog(styles);
 
-    return NextResponse.json(catalog, {
-      headers: {
-        "Cache-Control": "s-maxage=3600, stale-while-revalidate=86400",
-      },
+    // Merge Gorilla's customer-facing labels/categories onto the raw S&S
+    // products, matching on the style code each product was fetched under.
+    const products = catalog.products.map((product) => {
+      const catalogItem = apparelCatalogItems.find(
+        (item) => item.style === product.catalogStyle
+      );
+
+      return {
+        ...product,
+        customerLabel: catalogItem?.label ?? product.displayName,
+        customerCategory: catalogItem?.category ?? "Other",
+        catalogStyle: product.catalogStyle,
+        catalogNotes: catalogItem?.notes ?? "",
+      };
     });
+
+    return NextResponse.json(
+      { ...catalog, products },
+      {
+        headers: {
+          "Cache-Control": "s-maxage=3600, stale-while-revalidate=86400",
+        },
+      }
+    );
   } catch (error) {
     console.error("S&S CATALOG API ERROR");
     console.error(error);

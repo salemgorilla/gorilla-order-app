@@ -24,13 +24,22 @@ _Living roadmap for the Gorilla Salem quote/order builder. Update this file as y
 ✅ **Quote submission** — `POST /api/quote` returns a quote number (`GS-YYYYMMDD-XXXXX`), shows a confirmation screen with **Copy Quote Details** + **Open Gmail Draft**.
 ✅ **Build is green** — `npx tsc --noEmit` and `npm run build` both pass with 0 errors.
 
-**Checkpoint:** `v2.8.1 — Phone optional + inline messages (no more popups)` (see Section 2). Previous: `v2.8.0`, `v2.7.0`.
+**Checkpoint:** `v2.8.2 — Attach the uploaded artwork to the quote email` (see Section 2). Previous: `v2.8.1`, `v2.8.0`.
 
 ---
 
 ## 2. What changed most recently (2026-07-14)
 
-### `v2.8.1` — Consistent validation + inline messages _(pending commit)_
+### `v2.8.2` — Attach the uploaded artwork to the quote email _(pending commit)_
+Sprint D: the real artwork file now rides along with the quote and is **attached to the quote email**, so you can open the art directly — not just see a filename. Fixes Gap #7.
+- `app/page.tsx`: submit now sends `multipart/form-data` (order JSON + the actual file) instead of JSON-only.
+- `app/api/quote/route.ts`: parses multipart (still accepts JSON for backward compat), and attaches the file to the email when it's **under 15 MB**. Over that, it skips the attachment and the email says "Too large to attach (X MB) — ask the customer to email the file directly," so nothing silently breaks.
+- `lib/email.ts`: adds the attachment to the Resend send and an "Attachment" line in the email's Artwork section.
+- Verified end-to-end from the browser: uploaded file → multipart POST → server attaches it → confirmation screen; also tested the 16 MB "too large" path and the legacy JSON path.
+
+> ⚠️ **Hosting note:** attaching works great locally. If you later deploy to Vercel, serverless requests are capped at ~4.5 MB, so large uploads would fail before reaching the code. For big files on a hosted setup, switch to uploading the file to storage (S3/Supabase) and emailing a link — noted in Sprint D's follow-up.
+
+### `v2.8.1` — Consistent validation + inline messages
 Sprint B: fixes Gap #5 and removes the browser popups.
 - **Phone is now optional on both flows** (decision D2). Both decal and apparel now require the same core: name, email, artwork, and need-by date. Apparel still also requires ≥1 print location and a matching size breakdown. Changed in `lib/validation.ts`.
 - **Replaced all `alert()` popups with inline messages.** A failed/blocked submit now shows a red banner above the submit button; the confirmation screen's "Copy Quote Details" shows an inline "copied" confirmation instead of a popup. Changed in `app/page.tsx` (new `submitError` + `copyStatus` state). Zero `alert()` calls remain.
@@ -129,7 +138,7 @@ Quotes only email once you add a Resend key. Steps:
 | 4 | **Shipping is defined but never charged.** `defaultOrder.pricing.shippingPrice = 12`, but `recalculateOrder()` sets `total = stickerPrice` only. Decal estimate excludes shipping. | `lib/order.ts`, `recalculateOrder()` in `page.tsx` | Estimate may be lower than real cost — *is this intended?* | 🟠 Med — Decision D1 |
 | 5 | ~~Validation inconsistent (decals required phone, apparel didn't).~~ **✅ FIXED in v2.8.1** — phone is now optional on both; shared core is name/email/artwork/need-by. | — | Consistent required fields | ✅ Done |
 | 6 | `page.tsx` is **~2,030 lines** — one giant client component holding all state, pricing wiring, and both flows' markup. | `app/page.tsx` | Hard to edit safely; every change risks both flows | 🟡 Low — Sprint E (refactor) |
-| 7 | Artwork files are **analyzed in the browser only** (color estimate); the actual file is never uploaded/stored. The quote sends only the filename. | `lib/artwork.ts`, `/api/quote` | Shop can't see the art from the quote record | 🟡 Low — Sprint D |
+| 7 | ~~Artwork analyzed in-browser only; actual file never sent.~~ **✅ FIXED in v2.8.2** — the file is now sent on submit and attached to the quote email (under 15 MB). | — | Shop can open the art from the email | ✅ Done |
 
 ---
 
@@ -163,12 +172,12 @@ Do these in order. Each is scoped to stay small and commit-ready.
 
 > **Optional follow-up:** add a second sink (Google Sheet / Airtable) for a searchable record + status tracking. The code is structured so adding another sink alongside email is a small change in `route.ts`.
 
-### Sprint D — Attach the actual artwork to the quote `v2.8.1`
+### ✅ Sprint D — Attach the actual artwork to the quote `v2.8.2` — DONE 2026-07-14
 **Goal:** The shop can see the uploaded art, not just its filename.
-**Files:** `components/upload/UploadBox.tsx`, `app/api/quote/route.ts`, wherever quotes are stored (Sprint C)
-**Steps:** Upload the file (e.g. to the same backend / a storage bucket) on submit; store the link on the quote record.
-**Done when:**
-- [ ] The stored quote includes a viewable link to the uploaded artwork
+**Outcome (verified):** submit sends multipart; the server attaches the file to the quote email (<15 MB) with graceful "too large" handling; JSON path kept for backward compat. Verified end-to-end from the browser + the 16 MB and no-file edge cases. `tsc` + `build` clean.
+- [x] The quote email carries the uploaded artwork as an attachment
+
+> **Optional follow-up (hosted setups / large files):** upload the file to storage (S3/Supabase) and email a link instead of an attachment — removes the 15 MB cap and the Vercel 4.5 MB request limit. Pairs well with adding a Sheet/DB record (Sprint C follow-up).
 
 ### Sprint E — Refactor `page.tsx` (tech-debt, optional but recommended) `v2.9.0`
 **Goal:** Split the 2,000-line page into smaller pieces so future changes are safe.
@@ -264,7 +273,8 @@ git push
 ---
 
 ## Version history
-- `v2.8.1` — Phone optional on both flows + inline messages (no popups) _(pending commit)_
+- `v2.8.2` — Attach uploaded artwork to the quote email (multipart submit) _(pending commit)_
+- `v2.8.1` — Phone optional on both flows + inline messages (no popups)
 - `v2.8.0` — Auto-email each quote to the shop (Resend)
 - `v2.7.0` — Catalog labels + category filters (API merge) + real S&S style numbers
 - `v2.6.2` — Fix decal pricing crash (`getStickerPrice`), remove dead/junk files

@@ -596,15 +596,20 @@ export default function Home() {
     setIsSubmitting(true);
 
     try {
+      // Send as multipart so the actual artwork file rides along with the quote
+      // (the server attaches it to the quote email). No Content-Type header —
+      // the browser sets the multipart boundary automatically.
+      const formData = new FormData();
+      formData.append("order", JSON.stringify(buildQuotePayload()));
+      formData.append("artworkAnalysis", JSON.stringify(artworkAnalysis));
+
+      if (order.artwork.file) {
+        formData.append("artwork", order.artwork.file, order.artwork.file.name);
+      }
+
       const response = await fetch("/api/quote", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          order: buildQuotePayload(),
-          artworkAnalysis,
-        }),
+        body: formData,
       });
 
       if (!response.ok) {

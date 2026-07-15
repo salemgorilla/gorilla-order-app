@@ -43,8 +43,10 @@ export function buildQuoteEmail(input: {
   receivedAt: string;
   order: AnyRecord;
   artworkAnalysis: AnyRecord | null;
+  attachmentInfo?: string;
 }) {
-  const { quoteNumber, receivedAt, order, artworkAnalysis } = input;
+  const { quoteNumber, receivedAt, order, artworkAnalysis, attachmentInfo } =
+    input;
   const customer = (order.customer as AnyRecord) || {};
   const product = (order.product as AnyRecord) || {};
   const production = (order.production as AnyRecord) || {};
@@ -126,6 +128,7 @@ export function buildQuoteEmail(input: {
     line("Size", str(artworkAnalysis?.fileSize, "N/A")),
     line("Dimensions", str(artworkAnalysis?.dimensions, "N/A")),
     line("Estimated Colors", str(artworkAnalysis?.estimatedColorCount, "N/A")),
+    line("Attachment", str(attachmentInfo, "Not attached")),
   ];
 
   const customerEmail = str(customer.email);
@@ -249,11 +252,18 @@ function buildHtml(input: {
 </div>`;
 }
 
+export type QuoteAttachment = {
+  filename: string;
+  content: string; // base64-encoded file contents
+};
+
 export async function sendQuoteEmail(input: {
   quoteNumber: string;
   receivedAt: string;
   order: AnyRecord;
   artworkAnalysis: AnyRecord | null;
+  attachment?: QuoteAttachment | null;
+  attachmentInfo?: string;
 }): Promise<QuoteEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
 
@@ -282,6 +292,7 @@ export async function sendQuoteEmail(input: {
         text,
         html,
         ...(replyTo ? { reply_to: replyTo } : {}),
+        ...(input.attachment ? { attachments: [input.attachment] } : {}),
       }),
     });
 

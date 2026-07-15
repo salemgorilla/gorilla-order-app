@@ -24,13 +24,20 @@ _Living roadmap for the Gorilla Salem quote/order builder. Update this file as y
 ✅ **Quote submission** — `POST /api/quote` returns a quote number (`GS-YYYYMMDD-XXXXX`), shows a confirmation screen with **Copy Quote Details** + **Open Gmail Draft**.
 ✅ **Build is green** — `npx tsc --noEmit` and `npm run build` both pass with 0 errors.
 
-**Checkpoint:** `v2.7.0 — Catalog labels + category filters + real S&S style numbers` (see Section 2). Previous: `v2.6.2`, `v2.6.1`.
+**Checkpoint:** `v2.8.0 — Auto-email each quote to the shop` (see Section 2). Previous: `v2.7.0`, `v2.6.2`.
 
 ---
 
 ## 2. What changed most recently (2026-07-14)
 
-### `v2.7.0` — Catalog labels, category filters, and real S&S style numbers _(pending commit)_
+### `v2.8.0` — Auto-email each quote to the shop _(pending commit)_
+Sprint C: when a customer submits, the server now emails the full quote to the shop via **Resend** — so quotes no longer vanish if the customer closes the tab or never clicks "Gmail Draft". Fixes Gaps #2 and #3.
+- New `lib/email.ts` builds a formatted text + HTML email (works for both decal and apparel quotes) and sends it via the Resend API. `reply_to` is set to the customer so you can reply straight back to them.
+- `app/api/quote/route.ts` calls it after logging the quote. **Best-effort:** if the email fails or no key is set, the customer still gets their confirmation — the failure is logged server-side and returned in the response's `notification` field.
+- **⚙️ You must turn it on** — see **Section 3 → "Turn on quote emails"**. Until you add `RESEND_API_KEY`, sending is safely skipped.
+- Verified: no-key path → quote succeeds, email skipped; dummy-key path → quote succeeds, failure captured (`Resend 401`) without blocking; email content correct for both flows; `tsc` + `build` clean.
+
+### `v2.7.0` — Catalog labels, category filters, and real S&S style numbers
 Sprint A (below) is **done and verified in the browser**:
 1. **Merged customer-facing labels/categories into the API.** `app/api/ss-catalog/route.ts` now joins each S&S product to its `apparel-catalog.ts` entry (matched on the style code it was fetched under) and attaches `customerLabel`, `customerCategory`, `catalogStyle`, `catalogNotes`. `lib/ss-activewear.ts` was updated to thread the queried style code through to each product. This fixes Gap #1 — the apparel cards now show clean names ("Starter Tee") and the category filter shows real categories.
 2. **Fixed 6 dead style codes (root cause found).** The catalog used **manufacturer model names** (`2000`, `3001CVC`, `18500`, `18000`, `2400`, `3001YCVC`) which S&S 404s ("discontinued"). S&S wants its **own styleID**. Looked up the correct styleIDs against the live S&S `/v2/styles/` API and verified each returns products:
@@ -83,6 +90,22 @@ npm run build             # must end with "BUILD EXIT: 0" / no errors
 ```
 Direct S&S API test (should return JSON): http://localhost:3000/api/ss-catalog?style=00760
 
+### ⚙️ Turn on quote emails (one-time setup)
+
+Quotes only email once you add a Resend key. Steps:
+1. Go to **https://resend.com** → sign up (free) → **API Keys** → create one (starts with `re_`).
+2. Open `v2/.env.local` and add:
+   ```
+   RESEND_API_KEY=re_your_key_here
+   QUOTE_TO_EMAIL=quote@gorillasalem.com
+   QUOTE_FROM_EMAIL=Gorilla Salem Quotes <onboarding@resend.dev>
+   ```
+3. Restart `npm run dev`.
+4. **Testing note:** Resend's sandbox sender `onboarding@resend.dev` can only email **the address you signed up with**. So to test, set `QUOTE_TO_EMAIL` to your Resend signup email first. Once you **verify the gorillasalem.com domain** in Resend (Domains tab), change `QUOTE_FROM_EMAIL` to `quotes@gorillasalem.com` and set `QUOTE_TO_EMAIL` back to `quote@gorillasalem.com` — then it can email anywhere.
+5. Submit a test quote. Terminal should log `QUOTE EMAIL SENT`; a failure logs `QUOTE EMAIL FAILED: <reason>`.
+
+> Never paste the real key into chat or commit it — it lives only in `.env.local` (git-ignored).
+
 **Manual smoke test — do this after any change to `page.tsx`:**
 - [ ] **Decal flow:** change quantity, size, shape, and decal type → price updates every time, no console errors. Holographic/Chrome/Clear cost more than Gloss/Matte.
 - [ ] **Apparel flow:** click "T-Shirts & Apparel" → catalog loads → pick style/color/size → set size breakdown to match quantity → estimate shows.
@@ -95,8 +118,8 @@ Direct S&S API test (should return JSON): http://localhost:3000/api/ss-catalog?s
 | # | Issue | Where | Impact | Priority |
 |---|-------|-------|--------|----------|
 | 1 | ~~Catalog labels/categories not merged into API response.~~ **✅ FIXED in v2.7.0** (Section 2). Also fixed the 6 dead S&S style codes. | — | Apparel cards now show clean labels + working category filters | ✅ Done |
-| 2 | Quotes are **not stored anywhere**. `POST /api/quote` only `console.log`s and returns a number. Close the tab = quote is gone unless the customer clicks Gmail Draft. | `app/api/quote/route.ts` | No record of quote requests | 🔴 High — see Sprint C |
-| 3 | **No real email.** "Open Gmail Draft" just opens a pre-filled compose window; nothing sends automatically and it requires the customer to be logged into Gmail. | `getEmailQuoteLink()` in `page.tsx` | Quotes can be lost if customer doesn't hit send | 🟠 Med — see Sprint C |
+| 2 | ~~Quotes not stored anywhere.~~ **✅ FIXED in v2.8.0** — each quote now auto-emails to the shop (`lib/email.ts`). _Needs the one-time Resend setup in Section 3 to activate._ Optional future add: also store to a Sheet/DB for a searchable record. | — | Quotes now land in the shop inbox | ✅ Done |
+| 3 | ~~No real email.~~ **✅ FIXED in v2.8.0** — server sends automatically on submit; no reliance on the customer clicking Gmail Draft (that button stays as a manual backup). | — | Automatic delivery | ✅ Done |
 | 4 | **Shipping is defined but never charged.** `defaultOrder.pricing.shippingPrice = 12`, but `recalculateOrder()` sets `total = stickerPrice` only. Decal estimate excludes shipping. | `lib/order.ts`, `recalculateOrder()` in `page.tsx` | Estimate may be lower than real cost — *is this intended?* | 🟠 Med — Decision D1 |
 | 5 | **Validation is inconsistent.** Decal flow requires a phone number; apparel flow does not. | `getOrderValidationErrors()` (`lib/validation.ts`) vs `getApparelValidationErrors()` (`page.tsx`) | Uneven data quality | 🟡 Low — Sprint B |
 | 6 | `page.tsx` is **~2,030 lines** — one giant client component holding all state, pricing wiring, and both flows' markup. | `app/page.tsx` | Hard to edit safely; every change risks both flows | 🟡 Low — Sprint E (refactor) |
@@ -127,20 +150,16 @@ Do these in order. Each is scoped to stay small and commit-ready.
 - [ ] Decal and apparel require the same core fields
 - [ ] No `alert()` on submit; errors show in the UI
 
-### Sprint C — Real quote capture (storage + notification) `v2.8.0`
-**Goal:** Every submitted quote is saved and the shop is notified automatically — no reliance on the customer hitting "send" in Gmail.
-**Why:** Fixes Gaps #2 and #3.
-**Pick one backend (Decision D3):** Google Sheets (simplest) · Airtable · Supabase · Resend/email API.
-**Files:** `app/api/quote/route.ts` (+ new env vars in `.env.local`)
-**Steps (Google Sheets example):**
-1. Create a Google Sheet + a service account; share the sheet with it.
-2. Add credentials to `.env.local` (never commit).
-3. In `route.ts`, append a row per quote (quote number, timestamp, customer, product, estimate).
-4. Optionally also send an email to `quote@gorillasalem.com` via an email API.
-**Done when:**
-- [ ] Submitting a test quote adds a row / record in the chosen backend
-- [ ] Shop gets notified without the customer doing anything extra
-- [ ] `.env.local` holds the secrets and is still git-ignored
+### ✅ Sprint C — Real quote capture (email) `v2.8.0` — DONE 2026-07-14
+**Goal:** Every submitted quote reaches the shop automatically — no reliance on the customer hitting "send".
+**Chosen (D3):** Email via Resend.
+**Outcome (verified):** `lib/email.ts` + `route.ts` auto-email each quote (text + HTML, reply-to = customer). Best-effort so a mail failure never blocks the customer. Both flows produce correct emails; `tsc` + `build` clean.
+- [x] Submitting a quote emails the shop without the customer doing anything extra
+- [x] Failures don't block submission; they're logged + returned in `notification`
+- [x] Secrets live only in `.env.local` (git-ignored)
+- [ ] **YOUR STEP:** add the Resend key (Section 3 → "Turn on quote emails") to activate
+
+> **Optional follow-up:** add a second sink (Google Sheet / Airtable) for a searchable record + status tracking. The code is structured so adding another sink alongside email is a small change in `route.ts`.
 
 ### Sprint D — Attach the actual artwork to the quote `v2.8.1`
 **Goal:** The shop can see the uploaded art, not just its filename.
@@ -243,7 +262,8 @@ git push
 ---
 
 ## Version history
-- `v2.7.0` — Catalog labels + category filters (API merge) + real S&S style numbers _(pending commit)_
+- `v2.8.0` — Auto-email each quote to the shop (Resend) _(pending commit)_
+- `v2.7.0` — Catalog labels + category filters (API merge) + real S&S style numbers
 - `v2.6.2` — Fix decal pricing crash (`getStickerPrice`), remove dead/junk files
 - `v2.6.1` — Rename stickers to decals
 - `v2.6.0` — Simplify decal finish options

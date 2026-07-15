@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { sendQuoteEmail } from "../../../lib/email";
+
 function generateQuoteNumber() {
   const now = new Date();
 
@@ -42,12 +44,33 @@ export async function POST(request: Request) {
     console.log("GORILLA SALEM QUOTE REQUEST");
     console.log(JSON.stringify(quoteRecord, null, 2));
 
+    // Email the quote to the shop (best-effort — never blocks the customer).
+    const notification = await sendQuoteEmail({
+      quoteNumber,
+      receivedAt,
+      order,
+      artworkAnalysis,
+    });
+
+    if (notification.sent) {
+      console.log(`QUOTE EMAIL SENT for ${quoteNumber}`);
+    } else if (notification.skipped) {
+      console.log(
+        `QUOTE EMAIL SKIPPED for ${quoteNumber} (set RESEND_API_KEY in .env.local to enable).`
+      );
+    } else {
+      console.error(
+        `QUOTE EMAIL FAILED for ${quoteNumber}: ${notification.error}`
+      );
+    }
+
     return NextResponse.json({
       success: true,
       message: "Quote received by Gorilla Salem.",
       quoteNumber,
       receivedAt,
       quote: quoteRecord,
+      notification,
     });
   } catch (error) {
     console.error("QUOTE API ERROR");

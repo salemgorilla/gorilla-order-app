@@ -19,9 +19,7 @@ export function getOrderValidationErrors(order: Order) {
     errors.push("Enter your email.");
   }
 
-  if (!order.customer.phone.trim()) {
-    errors.push("Enter your phone number.");
-  }
+  // Phone is optional (matches the apparel flow) — collected but not required.
 
   return errors;
 }

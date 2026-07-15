@@ -24,13 +24,19 @@ _Living roadmap for the Gorilla Salem quote/order builder. Update this file as y
 ✅ **Quote submission** — `POST /api/quote` returns a quote number (`GS-YYYYMMDD-XXXXX`), shows a confirmation screen with **Copy Quote Details** + **Open Gmail Draft**.
 ✅ **Build is green** — `npx tsc --noEmit` and `npm run build` both pass with 0 errors.
 
-**Checkpoint:** `v2.8.0 — Auto-email each quote to the shop` (see Section 2). Previous: `v2.7.0`, `v2.6.2`.
+**Checkpoint:** `v2.8.1 — Phone optional + inline messages (no more popups)` (see Section 2). Previous: `v2.8.0`, `v2.7.0`.
 
 ---
 
 ## 2. What changed most recently (2026-07-14)
 
-### `v2.8.0` — Auto-email each quote to the shop _(pending commit)_
+### `v2.8.1` — Consistent validation + inline messages _(pending commit)_
+Sprint B: fixes Gap #5 and removes the browser popups.
+- **Phone is now optional on both flows** (decision D2). Both decal and apparel now require the same core: name, email, artwork, and need-by date. Apparel still also requires ≥1 print location and a matching size breakdown. Changed in `lib/validation.ts`.
+- **Replaced all `alert()` popups with inline messages.** A failed/blocked submit now shows a red banner above the submit button; the confirmation screen's "Copy Quote Details" shows an inline "copied" confirmation instead of a popup. Changed in `app/page.tsx` (new `submitError` + `copyStatus` state). Zero `alert()` calls remain.
+- Verified: decal required list dropped from 5 → 4 items (no "phone"); no console errors; `tsc` + `build` clean.
+
+### `v2.8.0` — Auto-email each quote to the shop
 Sprint C: when a customer submits, the server now emails the full quote to the shop via **Resend** — so quotes no longer vanish if the customer closes the tab or never clicks "Gmail Draft". Fixes Gaps #2 and #3.
 - New `lib/email.ts` builds a formatted text + HTML email (works for both decal and apparel quotes) and sends it via the Resend API. `reply_to` is set to the customer so you can reply straight back to them.
 - `app/api/quote/route.ts` calls it after logging the quote. **Best-effort:** if the email fails or no key is set, the customer still gets their confirmation — the failure is logged server-side and returned in the response's `notification` field.
@@ -121,7 +127,7 @@ Quotes only email once you add a Resend key. Steps:
 | 2 | ~~Quotes not stored anywhere.~~ **✅ FIXED in v2.8.0** — each quote now auto-emails to the shop (`lib/email.ts`). _Needs the one-time Resend setup in Section 3 to activate._ Optional future add: also store to a Sheet/DB for a searchable record. | — | Quotes now land in the shop inbox | ✅ Done |
 | 3 | ~~No real email.~~ **✅ FIXED in v2.8.0** — server sends automatically on submit; no reliance on the customer clicking Gmail Draft (that button stays as a manual backup). | — | Automatic delivery | ✅ Done |
 | 4 | **Shipping is defined but never charged.** `defaultOrder.pricing.shippingPrice = 12`, but `recalculateOrder()` sets `total = stickerPrice` only. Decal estimate excludes shipping. | `lib/order.ts`, `recalculateOrder()` in `page.tsx` | Estimate may be lower than real cost — *is this intended?* | 🟠 Med — Decision D1 |
-| 5 | **Validation is inconsistent.** Decal flow requires a phone number; apparel flow does not. | `getOrderValidationErrors()` (`lib/validation.ts`) vs `getApparelValidationErrors()` (`page.tsx`) | Uneven data quality | 🟡 Low — Sprint B |
+| 5 | ~~Validation inconsistent (decals required phone, apparel didn't).~~ **✅ FIXED in v2.8.1** — phone is now optional on both; shared core is name/email/artwork/need-by. | — | Consistent required fields | ✅ Done |
 | 6 | `page.tsx` is **~2,030 lines** — one giant client component holding all state, pricing wiring, and both flows' markup. | `app/page.tsx` | Hard to edit safely; every change risks both flows | 🟡 Low — Sprint E (refactor) |
 | 7 | Artwork files are **analyzed in the browser only** (color estimate); the actual file is never uploaded/stored. The quote sends only the filename. | `lib/artwork.ts`, `/api/quote` | Shop can't see the art from the quote record | 🟡 Low — Sprint D |
 
@@ -140,15 +146,11 @@ Do these in order. Each is scoped to stay small and commit-ready.
 
 > **Optional polish (not blocking):** category chips currently order by product sort, not a fixed order; and the S&S `brandName` comes back as "Unknown Brand" for some styles (the clean customer label hides this, but the "S&S: …" secondary line shows it). Consider requesting/using the brand from the `/v2/styles/` endpoint later.
 
-### Sprint B — Align validation + small UX polish `v2.7.1`
-**Goal:** Consistent required-field rules across both flows; tidy copy.
-**Files:** `lib/validation.ts`, `app/page.tsx` (`getApparelValidationErrors`)
-**Steps:**
-1. Decide the shared required set (Decision D2) and make both flows enforce it.
-2. Replace the two `alert()` calls in `submitOrder()` with inline messages (nicer than a browser popup).
-**Done when:**
-- [ ] Decal and apparel require the same core fields
-- [ ] No `alert()` on submit; errors show in the UI
+### ✅ Sprint B — Align validation + UX polish `v2.8.1` — DONE 2026-07-14
+**Chosen (D2):** phone optional on both flows.
+**Outcome (verified):** shared required core (name/email/artwork/need-by); all `alert()` popups replaced with inline messages. `tsc` + `build` clean.
+- [x] Decal and apparel require the same core fields
+- [x] No `alert()` anywhere; errors + copy feedback show in the UI
 
 ### ✅ Sprint C — Real quote capture (email) `v2.8.0` — DONE 2026-07-14
 **Goal:** Every submitted quote reaches the shop automatically — no reliance on the customer hitting "send".
@@ -186,10 +188,10 @@ Connect confirmed quotes to a production/ordering system (Printavo, Shopify, Qui
 
 Answer these before the sprint that needs them:
 
-- **D1 (Shipping):** Should the decal estimate include the $12 shipping, or is decal pricing shipping-free? (Blocks Gap #4.)
-- **D2 (Required fields):** Is a phone number required for apparel quotes too, or should decals stop requiring it? (Blocks Sprint B.)
-- **D3 (Quote storage):** Which backend — Google Sheets, Airtable, Supabase, or just email? (Blocks Sprint C.) Sheets is the lowest-effort start.
-- **D4 (Markup):** Is the S&S garment markup staying at 40% (`SS_MARKUP_RATE=0.4`)? Are the decal + apparel print prices in Section 8 current?
+- **D1 (Shipping):** Should the decal estimate include the $12 shipping, or is decal pricing shipping-free? (Blocks Gap #4.) — _still open_
+- ~~**D2 (Required fields):**~~ ✅ Decided: phone **optional** on both flows (v2.8.1).
+- ~~**D3 (Quote storage):**~~ ✅ Decided: **email via Resend** (v2.8.0). A Sheet/Airtable record can still be added later as a second sink.
+- **D4 (Markup):** Is the S&S garment markup staying at 40% (`SS_MARKUP_RATE=0.4`)? Are the decal + apparel print prices in Section 8 current? — _still open_
 
 ---
 
@@ -262,7 +264,8 @@ git push
 ---
 
 ## Version history
-- `v2.8.0` — Auto-email each quote to the shop (Resend) _(pending commit)_
+- `v2.8.1` — Phone optional on both flows + inline messages (no popups) _(pending commit)_
+- `v2.8.0` — Auto-email each quote to the shop (Resend)
 - `v2.7.0` — Catalog labels + category filters (API merge) + real S&S style numbers
 - `v2.6.2` — Fix decal pricing crash (`getStickerPrice`), remove dead/junk files
 - `v2.6.1` — Rename stickers to decals

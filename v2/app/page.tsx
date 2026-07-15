@@ -90,6 +90,10 @@ export default function Home() {
   const [quoteSubmitted, setQuoteSubmitted] = useState(false);
   const [quoteConfirmation, setQuoteConfirmation] =
     useState<QuoteConfirmation | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">(
+    "idle"
+  );
 
   const isApparelSelected = selectedProductId === "apparel";
   const isApparelSubmitted = submittedProductId === "apparel";
@@ -580,8 +584,12 @@ export default function Home() {
   async function submitOrder() {
     const errors = getCurrentValidationErrors();
 
+    setSubmitError(null);
+
     if (errors.length > 0) {
-      alert("Please complete the missing information before requesting a quote.");
+      setSubmitError(
+        "Please complete the missing information below before requesting a quote."
+      );
       return;
     }
 
@@ -618,7 +626,9 @@ export default function Home() {
       setQuoteSubmitted(true);
     } catch (error) {
       console.error(error);
-      alert("❌ Unable to submit your quote.\nPlease try again.");
+      setSubmitError(
+        "Unable to submit your quote right now. Please try again in a moment."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -741,10 +751,12 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
   async function copyQuoteDetails() {
     try {
       await navigator.clipboard.writeText(getQuoteDetailsText());
-      alert("Quote details copied.");
+      setCopyStatus("copied");
+      setTimeout(() => setCopyStatus("idle"), 2500);
     } catch (error) {
       console.error(error);
-      alert("Unable to copy quote details. You can still email the quote.");
+      setCopyStatus("error");
+      setTimeout(() => setCopyStatus("idle"), 4000);
     }
   }
 
@@ -771,6 +783,8 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     setQuoteConfirmation(null);
     setQuoteSubmitted(false);
     setIsSubmitting(false);
+    setSubmitError(null);
+    setCopyStatus("idle");
   }
 
   const unitPrice = order.pricing.total / order.product.quantity;
@@ -950,6 +964,17 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 Start New Quote
               </button>
             </div>
+
+            {copyStatus === "copied" && (
+              <p className="mt-3 text-center text-sm font-black text-[#2E5037]">
+                Quote details copied to your clipboard.
+              </p>
+            )}
+            {copyStatus === "error" && (
+              <p className="mt-3 text-center text-sm font-bold text-[#b7352d]">
+                Couldn&apos;t copy automatically — use Open Gmail Draft instead.
+              </p>
+            )}
 
             <button
               type="button"
@@ -2005,6 +2030,11 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             )}
 
             <div className="mt-6">
+              {submitError && (
+                <p className="mb-3 rounded-2xl bg-[#fff1f0] p-4 text-sm font-bold leading-6 text-[#b7352d]">
+                  {submitError}
+                </p>
+              )}
               {readyToSubmit ? (
                 <SubmitButton onSubmit={submitOrder} isLoading={isSubmitting} />
               ) : (

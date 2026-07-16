@@ -24,13 +24,33 @@ _Living roadmap for the Gorilla Salem quote/order builder. Update this file as y
 ✅ **Quote submission** — `POST /api/quote` returns a quote number (`GS-YYYYMMDD-XXXXX`), shows a confirmation screen with **Copy Quote Details** + **Open Gmail Draft**.
 ✅ **Build is green** — `npx tsc --noEmit` and `npm run build` both pass with 0 errors.
 
-**Checkpoint:** `v2.9.0 — Split page.tsx into per-flow feature folders` (see Section 2). Previous: `v2.8.2`, `v2.8.1`.
+**Checkpoint:** `v3.0.0 — Push quotes into Printavo as draft/unconfirmed` (see Section 2). Previous: `v2.9.0`, `v2.8.2`.
 
 ---
 
 ## 2. What changed most recently (2026-07-14)
 
-### `v2.9.0` — Split `page.tsx` into per-flow feature folders _(pending commit)_
+### `v3.0.0` — Push quotes into Printavo as draft/unconfirmed _(pending commit)_
+Production integration, first cut. When a quote is submitted, the server also creates a **Printavo quote tagged `#WebQuote` / `#Unconfirmed`** so nothing looks reviewed until you say so.
+
+- **New `lib/printavo.ts`** — Printavo API v2 (GraphQL). Resolves the configured customer's contact → `quoteCreate` → `lineItemGroupCreate`. Handles **both flows** (the old code was decals-only). `buildPrintavoQuotePlan()` is a pure, testable mapper.
+- **New `GET /api/printavo-test`** — verifies your credentials without creating anything.
+- **`app/api/quote/route.ts`** — pushes to Printavo after emailing. **Best-effort**: if credentials are missing or the call fails, the customer still gets their confirmation; the outcome is logged and returned as `printavo`.
+- **Replaced the old dead code.** The previous `create-printavo-order.js` (×3 copies) was written for the old Pages API (`handler(req,res)`), wasn't named `route.ts` so Next ignored it entirely, expected a payload shape the app no longer produces, and was decals-only. Deleted.
+
+**⚙️ Off until you configure it** — see Section 3 → "Turn on Printavo".
+
+**What's verified vs. not:**
+- ✅ Payload mapping for both flows (apparel line item carries garment/color/locations/ink/size-breakdown/S&S style; decals carry size/shape/material); due date defaults to +14 days when none given; unit price math.
+- ✅ Safety: no credentials → skipped, quote succeeds. Bad credentials → real Printavo response (`Unauthorized`) captured, quote still succeeds. So the endpoint, auth headers and request format are confirmed correct.
+- ⚠️ **Not yet verified: the GraphQL schema itself** (`quoteCreate` / `lineItemGroupCreate` field names). Those mirror the previous working code but need one real test once you add credentials.
+
+**Printavo follow-ups (need live credentials to do properly):**
+1. **Real customers.** Every web quote currently attaches to one configured contact (`PRINTAVO_CUSTOMER_ID`), with the customer's real details in the quote's `customerNote`. Find-or-create of real Printavo customers needs schema verification.
+2. **Real size mapping.** Apparel line items use `size_other` with the total count (the only value the old working code used); the readable breakdown (`S-4, M-8…`) goes in the description. Mapping to Printavo's per-size enums needs verification against your account.
+3. **Artwork upload.** Art is attached to the quote *email*, not uploaded to Printavo.
+
+### `v2.9.0` — Split `page.tsx` into per-flow feature folders
 Sprint E: pure tech-debt cleanup — **no behavior change**. `app/page.tsx` went from **2,071 → 1,098 lines (-47%)**, and each flow now lives in its own folder. Fixes Gap #6.
 
 New structure:
@@ -143,6 +163,24 @@ Quotes only email once you add a Resend key. Steps:
 
 > Never paste the real key into chat or commit it — it lives only in `.env.local` (git-ignored).
 
+### ⚙️ Turn on Printavo (one-time setup)
+
+Quotes only reach Printavo once these are set. Until then it's skipped and the app works exactly as it does today.
+
+1. Confirm your Printavo plan includes **API v2 access**, and get your API token (Printavo → My Account → API).
+2. Find the Printavo **customer ID** that web quotes should attach to (open the customer in Printavo; the id is in the URL). Tip: make a customer literally called "Website Quotes" for this.
+3. Add to `v2/.env.local`:
+   ```
+   PRINTAVO_EMAIL=your_printavo_login_email
+   PRINTAVO_TOKEN=your_printavo_api_token
+   PRINTAVO_CUSTOMER_ID=the_customer_id
+   ```
+4. Restart `npm run dev`, then open **http://localhost:3000/api/printavo-test** — it should say `"connected": true` and show your company name. It creates nothing.
+5. Submit one test quote. Terminal logs `PRINTAVO QUOTE CREATED …` with a link; a failure logs `PRINTAVO FAILED: <reason>`.
+6. **Check that first quote in Printavo carefully** — this is the step that confirms the GraphQL schema is right (see the ⚠️ in Section 2). If it errors, send me the exact message and I'll fix the mutation.
+
+> Every web quote lands tagged `#WebQuote` + `#Unconfirmed`. Never paste the token into chat — it lives only in `.env.local` (git-ignored).
+
 **Manual smoke test — do this after any change to `page.tsx`:**
 - [ ] **Decal flow:** change quantity, size, shape, and decal type → price updates every time, no console errors. Holographic/Chrome/Clear cost more than Gloss/Matte.
 - [ ] **Apparel flow:** click "T-Shirts & Apparel" → catalog loads → pick style/color/size → set size breakdown to match quantity → estimate shows.
@@ -215,8 +253,13 @@ Do these in order. Each is scoped to stay small and commit-ready.
 - Change the confirmation screen → `features/QuoteConfirmation.tsx`
 - Change shared state/handlers/pricing wiring → `app/page.tsx`
 
-### Later — Production integration `v3.0.0`
-Connect confirmed quotes to a production/ordering system (Printavo, Shopify, QuickBooks). Design this after Sprint C exists, since it builds on stored quotes.
+### 🟡 v3.0.0 — Production integration (Printavo) — BUILT, awaiting live credentials
+**Decided:** target = **Printavo**; trigger = **auto-create, tagged draft/unconfirmed**.
+**Built + verified:** mapping for both flows, safety (skip/fail never blocks a customer), `/api/printavo-test`. See Section 2.
+- [x] Quotes push to Printavo as `#WebQuote` / `#Unconfirmed`
+- [x] A Printavo outage/failure can never block a customer's quote
+- [ ] **YOUR STEP:** add credentials (Section 3 → "Turn on Printavo") and submit one test quote
+- [ ] Then: verify the GraphQL schema, and tackle the 3 Printavo follow-ups in Section 2 (real customers, size enums, artwork upload)
 
 ---
 
@@ -239,8 +282,9 @@ v2/
     page.tsx                     ← orchestrator: shared state, handlers, layout (~1100 lines)
     layout.tsx, globals.css      ← shell + styles
     api/
-      quote/route.ts             ← POST: receives a quote, emails it to the shop w/ artwork attached
+      quote/route.ts             ← POST: receives a quote, emails it + pushes to Printavo
       ss-catalog/route.ts        ← GET: S&S catalog + merged customer labels/categories
+      printavo-test/route.ts     ← GET: verifies Printavo credentials (creates nothing)
   features/                      ← per-flow UI (added in v2.9.0)
     types.ts                     ← shared catalog/quote types
     QuoteConfirmation.tsx        ← post-submit confirmation screen
@@ -268,6 +312,7 @@ v2/
     artwork.ts                   ← browser-side image color-count estimate
     validation.ts                ← decal-flow required fields
     email.ts                     ← builds + sends the quote email (Resend)
+    printavo.ts                  ← maps + pushes quotes into Printavo (API v2)
 ```
 **Golden rule (do not break):** `page.tsx` / `features/*` = React UI. `api/*/route.ts` = backend only. Never paste one into the other.
 
@@ -311,7 +356,8 @@ git push
 ---
 
 ## Version history
-- `v2.9.0` — Split `page.tsx` into per-flow feature folders (-47% lines, no behavior change) _(pending commit)_
+- `v3.0.0` — Push quotes into Printavo as draft/unconfirmed (+ `/api/printavo-test`) _(pending commit)_
+- `v2.9.0` — Split `page.tsx` into per-flow feature folders (-47% lines, no behavior change)
 - `v2.8.2` — Attach uploaded artwork to the quote email (multipart submit)
 - `v2.8.1` — Phone optional on both flows + inline messages (no popups)
 - `v2.8.0` — Auto-email each quote to the shop (Resend)

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { sendQuoteEmail, type QuoteAttachment } from "../../../lib/email";
+import { createPrintavoQuote } from "../../../lib/printavo";
 
 // Cap the artwork we attach to an email. Big print files (large AI/PDF/PNG)
 // blow past mail-provider limits, so above this we skip the attachment and
@@ -136,6 +137,28 @@ export async function POST(request: Request) {
       );
     }
 
+    // Push into Printavo as a draft/unconfirmed quote (best-effort too).
+    const printavo = await createPrintavoQuote({
+      quoteNumber,
+      order,
+      artworkAnalysis,
+      attachmentInfo,
+    });
+
+    if (printavo.created) {
+      console.log(
+        `PRINTAVO QUOTE CREATED for ${quoteNumber}: ${printavo.publicUrl || printavo.quoteId}`
+      );
+    } else if (printavo.skipped) {
+      console.log(
+        `PRINTAVO SKIPPED for ${quoteNumber} (set PRINTAVO_EMAIL / PRINTAVO_TOKEN / PRINTAVO_CUSTOMER_ID in .env.local to enable).`
+      );
+    } else {
+      console.error(
+        `PRINTAVO FAILED for ${quoteNumber}: ${printavo.error}`
+      );
+    }
+
     return NextResponse.json({
       success: true,
       message: "Quote received by Gorilla Salem.",
@@ -143,6 +166,7 @@ export async function POST(request: Request) {
       receivedAt,
       quote: quoteRecord,
       notification,
+      printavo,
     });
   } catch (error) {
     console.error("QUOTE API ERROR");

@@ -24,13 +24,35 @@ _Living roadmap for the Gorilla Salem quote/order builder. Update this file as y
 ✅ **Quote submission** — `POST /api/quote` returns a quote number (`GS-YYYYMMDD-XXXXX`), shows a confirmation screen with **Copy Quote Details** + **Open Gmail Draft**.
 ✅ **Build is green** — `npx tsc --noEmit` and `npm run build` both pass with 0 errors.
 
-**Checkpoint:** `v2.8.2 — Attach the uploaded artwork to the quote email` (see Section 2). Previous: `v2.8.1`, `v2.8.0`.
+**Checkpoint:** `v2.9.0 — Split page.tsx into per-flow feature folders` (see Section 2). Previous: `v2.8.2`, `v2.8.1`.
 
 ---
 
 ## 2. What changed most recently (2026-07-14)
 
-### `v2.8.2` — Attach the uploaded artwork to the quote email _(pending commit)_
+### `v2.9.0` — Split `page.tsx` into per-flow feature folders _(pending commit)_
+Sprint E: pure tech-debt cleanup — **no behavior change**. `app/page.tsx` went from **2,071 → 1,098 lines (-47%)**, and each flow now lives in its own folder. Fixes Gap #6.
+
+New structure:
+```
+features/
+  types.ts                      ← shared catalog/quote types (were inline in page.tsx)
+  QuoteConfirmation.tsx         ← the post-submit confirmation screen
+  QuoteReviewCard.tsx           ← the shared "Review Your Quote" card
+  apparel/
+    ApparelBuilder.tsx          ← the whole apparel form (S&S catalog, colors, sizes, ink, size breakdown)
+    ApparelSummaryCard.tsx      ← apparel summary + estimated pricing
+  decals/
+    DecalBuilder.tsx            ← quantity / size / shape / decal type
+    DecalPreviewCard.tsx        ← live proof + size/shape/each + needed-by
+```
+`page.tsx` keeps the shared state, handlers, and layout and composes these — it's now the orchestrator, not the whole app.
+
+**How it was done safely:** each block was extracted one at a time as a presentational component with explicit typed props (so TypeScript verifies every wire-up), running `tsc` after each step, then a full browser smoke test of both flows at the end. Also removed leftover junk (`ui` 0-byte file, empty `features/stickers/`) and now-orphaned imports.
+
+Verified after refactor: decal pricing recalculates (Holographic $120/$1.20, Chrome $116/$1.16); apparel shows 6 garments across 4 categories with working filters; size-breakdown buttons update (0/24 → 1/24); review card renders for both flows; **zero console errors**; `tsc` + `build` clean.
+
+### `v2.8.2` — Attach the uploaded artwork to the quote email
 Sprint D: the real artwork file now rides along with the quote and is **attached to the quote email**, so you can open the art directly — not just see a filename. Fixes Gap #7.
 - `app/page.tsx`: submit now sends `multipart/form-data` (order JSON + the actual file) instead of JSON-only.
 - `app/api/quote/route.ts`: parses multipart (still accepts JSON for backward compat), and attaches the file to the email when it's **under 15 MB**. Over that, it skips the attachment and the email says "Too large to attach (X MB) — ask the customer to email the file directly," so nothing silently breaks.
@@ -137,7 +159,7 @@ Quotes only email once you add a Resend key. Steps:
 | 3 | ~~No real email.~~ **✅ FIXED in v2.8.0** — server sends automatically on submit; no reliance on the customer clicking Gmail Draft (that button stays as a manual backup). | — | Automatic delivery | ✅ Done |
 | 4 | **Shipping is defined but never charged.** `defaultOrder.pricing.shippingPrice = 12`, but `recalculateOrder()` sets `total = stickerPrice` only. Decal estimate excludes shipping. | `lib/order.ts`, `recalculateOrder()` in `page.tsx` | Estimate may be lower than real cost — *is this intended?* | 🟠 Med — Decision D1 |
 | 5 | ~~Validation inconsistent (decals required phone, apparel didn't).~~ **✅ FIXED in v2.8.1** — phone is now optional on both; shared core is name/email/artwork/need-by. | — | Consistent required fields | ✅ Done |
-| 6 | `page.tsx` is **~2,030 lines** — one giant client component holding all state, pricing wiring, and both flows' markup. | `app/page.tsx` | Hard to edit safely; every change risks both flows | 🟡 Low — Sprint E (refactor) |
+| 6 | ~~`page.tsx` is ~2,030 lines — one giant component.~~ **✅ FIXED in v2.9.0** — split into `features/apparel/`, `features/decals/`, and shared cards; now 1,098 lines and each flow is editable on its own. | — | Safe to edit one flow without touching the other | ✅ Done |
 | 7 | ~~Artwork analyzed in-browser only; actual file never sent.~~ **✅ FIXED in v2.8.2** — the file is now sent on submit and attached to the quote email (under 15 MB). | — | Shop can open the art from the email | ✅ Done |
 
 ---
@@ -179,14 +201,19 @@ Do these in order. Each is scoped to stay small and commit-ready.
 
 > **Optional follow-up (hosted setups / large files):** upload the file to storage (S3/Supabase) and email a link instead of an attachment — removes the 15 MB cap and the Vercel 4.5 MB request limit. Pairs well with adding a Sheet/DB record (Sprint C follow-up).
 
-### Sprint E — Refactor `page.tsx` (tech-debt, optional but recommended) `v2.9.0`
+### ✅ Sprint E — Refactor `page.tsx` `v2.9.0` — DONE 2026-07-14
 **Goal:** Split the 2,000-line page into smaller pieces so future changes are safe.
-**Why:** Fixes Gap #6.
-**Suggested split:** `features/decals/` and `features/apparel/` (there's already an empty `features/` folder), each owning its own form + summary; keep `page.tsx` as the thin shell that picks a flow.
-**Do this only when the flows are stable** — refactor with the Section 3 smoke test open after every extraction.
-**Done when:**
-- [ ] `page.tsx` is a thin container; each flow lives in its own folder
-- [ ] Both flows pass the full smoke test unchanged
+**Outcome (verified):** `page.tsx` 2,071 → 1,098 lines (-47%); each flow now lives in `features/apparel/` and `features/decals/`; confirmation + review cards extracted to `features/`. See Section 2 for the structure. Both flows pass the full smoke test unchanged; `tsc` + `build` clean.
+- [x] Each flow lives in its own folder; `page.tsx` is now the orchestrator (state + handlers + layout)
+- [x] Both flows pass the full smoke test unchanged
+
+> **Optional further thinning (not needed now):** the remaining bulk of `page.tsx` is ~500 lines of shared state + handlers. If it ever gets unwieldy, move that into a `useQuoteBuilder()` hook and pass it down via context. Deliberately skipped for now — it's a riskier move than the presentational extraction, with less payoff.
+
+**Where to make changes now:**
+- Change an apparel form control → `features/apparel/ApparelBuilder.tsx`
+- Change decal options → `features/decals/DecalBuilder.tsx`
+- Change the confirmation screen → `features/QuoteConfirmation.tsx`
+- Change shared state/handlers/pricing wiring → `app/page.tsx`
 
 ### Later — Production integration `v3.0.0`
 Connect confirmed quotes to a production/ordering system (Printavo, Shopify, QuickBooks). Design this after Sprint C exists, since it builds on stored quotes.
@@ -209,11 +236,21 @@ Answer these before the sprint that needs them:
 ```
 v2/
   app/
-    page.tsx                     ← the whole customer UI + all state (BIG: ~2030 lines)
+    page.tsx                     ← orchestrator: shared state, handlers, layout (~1100 lines)
     layout.tsx, globals.css      ← shell + styles
     api/
-      quote/route.ts             ← POST: receives a quote, returns a quote number (no storage yet)
-      ss-catalog/route.ts        ← GET: proxies S&S catalog for the apparel flow
+      quote/route.ts             ← POST: receives a quote, emails it to the shop w/ artwork attached
+      ss-catalog/route.ts        ← GET: S&S catalog + merged customer labels/categories
+  features/                      ← per-flow UI (added in v2.9.0)
+    types.ts                     ← shared catalog/quote types
+    QuoteConfirmation.tsx        ← post-submit confirmation screen
+    QuoteReviewCard.tsx          ← shared "Review Your Quote" card
+    apparel/
+      ApparelBuilder.tsx         ← the apparel form (catalog, colors, sizes, ink, size breakdown)
+      ApparelSummaryCard.tsx     ← apparel summary + estimated pricing
+    decals/
+      DecalBuilder.tsx           ← quantity / size / shape / decal type
+      DecalPreviewCard.tsx       ← live proof + each/needed-by
   components/
     Header, QuantitySelector, OptionSelector, NeedByDate, CustomerForm, SubmitButton
     preview/  ApparelPreview, StickerPreview, StickerShape   ← live proof visuals
@@ -230,8 +267,9 @@ v2/
     ss-activewear.ts             ← S&S API integration (auth, fetch, normalize)
     artwork.ts                   ← browser-side image color-count estimate
     validation.ts                ← decal-flow required fields
+    email.ts                     ← builds + sends the quote email (Resend)
 ```
-**Golden rule (do not break):** `page.tsx` = React UI. `api/*/route.ts` = backend only. Never paste one into the other.
+**Golden rule (do not break):** `page.tsx` / `features/*` = React UI. `api/*/route.ts` = backend only. Never paste one into the other.
 
 ---
 
@@ -273,7 +311,8 @@ git push
 ---
 
 ## Version history
-- `v2.8.2` — Attach uploaded artwork to the quote email (multipart submit) _(pending commit)_
+- `v2.9.0` — Split `page.tsx` into per-flow feature folders (-47% lines, no behavior change) _(pending commit)_
+- `v2.8.2` — Attach uploaded artwork to the quote email (multipart submit)
 - `v2.8.1` — Phone optional on both flows + inline messages (no popups)
 - `v2.8.0` — Auto-email each quote to the shop (Resend)
 - `v2.7.0` — Catalog labels + category filters (API merge) + real S&S style numbers

@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 
 import Header from "../components/Header";
-import QuantitySelector from "../components/QuantitySelector";
-import OptionSelector from "../components/OptionSelector";
 import UploadBox from "../components/upload/UploadBox";
 import NeedByDate from "../components/NeedByDate";
 import CustomerForm from "../components/CustomerForm";
@@ -12,11 +10,9 @@ import SubmitButton from "../components/SubmitButton";
 import OrderSummary from "../components/summary/OrderSummary";
 import OrderValidation from "../components/summary/OrderValidation";
 import ArtworkAnalysisCard from "../components/summary/ArtworkAnalysisCard";
-import StickerPreview from "../components/preview/StickerPreview";
 import ApparelPreview from "../components/preview/ApparelPreview";
 
-import { stickerCatalog } from "../lib/catalog";
-import { apparelCatalog, defaultApparelQuote } from "../lib/apparel";
+import { defaultApparelQuote } from "../lib/apparel";
 import { productCategories } from "../lib/products";
 import { defaultOrder } from "../lib/order";
 import { getStickerPrice } from "../lib/pricing";
@@ -25,48 +21,19 @@ import { apparelCatalogStyles } from "../lib/apparel-catalog";
 import { getOrderValidationErrors, isOrderReady } from "../lib/validation";
 import { analyzeArtworkFile, ArtworkAnalysis } from "../lib/artwork";
 
-type QuoteConfirmation = {
-  quoteNumber: string;
-  receivedAt: string;
-  message: string;
-};
-
-type SsCatalogSize = {
-  sku: string;
-  sizeName: string;
-  markedUpPrice: number;
-  isAvailable: boolean;
-  outOfStock: boolean;
-};
-
-type SsCatalogColor = {
-  colorName: string;
-  colorHex: string | null;
-  swatchImage: string | null;
-  frontImage: string | null;
-  backImage: string | null;
-  sideImage: string | null;
-  isAvailable: boolean;
-  outOfStock: boolean;
-  sizes: SsCatalogSize[];
-};
-
-type SsCatalogProduct = {
-  id: string;
-  brandName: string;
-  styleName: string;
-  displayName: string;
-  customerLabel: string;
-  customerCategory: string;
-  catalogStyle: string;
-  catalogNotes: string;
-  colors: SsCatalogColor[];
-};
-
-type SsCatalogResponse = {
-  products: SsCatalogProduct[];
-  error?: string;
-};
+import QuoteConfirmationScreen from "../features/QuoteConfirmation";
+import QuoteReviewCard from "../features/QuoteReviewCard";
+import DecalBuilder from "../features/decals/DecalBuilder";
+import DecalPreviewCard from "../features/decals/DecalPreviewCard";
+import ApparelBuilder from "../features/apparel/ApparelBuilder";
+import ApparelSummaryCard from "../features/apparel/ApparelSummaryCard";
+import type {
+  QuoteConfirmation,
+  SsCatalogColor,
+  SsCatalogProduct,
+  SsCatalogResponse,
+  SsCatalogSize,
+} from "../features/types";
 
 export default function Home() {
   const [selectedProductId, setSelectedProductId] = useState("stickers");
@@ -800,197 +767,21 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
   if (quoteSubmitted) {
     return (
-      <main className="min-h-screen bg-[#F8F5EE]">
-        <Header />
-
-        <div className="mx-auto grid min-h-[80vh] max-w-5xl place-items-center px-4 py-10 sm:px-8 sm:py-16">
-          <div className="w-full rounded-[2rem] border border-[#dfd0b8] bg-white p-6 shadow-xl sm:p-10">
-            <div className="text-center">
-              <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-[#2E5037] text-4xl text-white">
-                ✓
-              </div>
-
-              <p className="mt-8 text-sm font-black uppercase tracking-[0.2em] text-[#b7352d]">
-                Quote Received
-              </p>
-
-              <h1 className="mt-3 text-4xl font-black tracking-[-0.06em] text-[#171717] sm:text-5xl">
-                Your request was sent to Gorilla Salem.
-              </h1>
-
-              <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-[#6f695e]">
-                We received your quote request. Gorilla Salem will review your artwork,
-                timeline, and details before production.
-              </p>
-            </div>
-
-            <div className="mt-8 rounded-[2rem] bg-[#F8F5EE] p-6 text-center">
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-[#6f695e]">
-                Quote Number
-              </p>
-
-              <p className="mt-2 text-3xl font-black tracking-[-0.05em] text-[#2E5037] sm:text-4xl">
-                {quoteConfirmation?.quoteNumber || "Pending"}
-              </p>
-
-              <p className="mt-2 text-sm font-bold text-[#6f695e]">
-                Submitted{" "}
-                {quoteConfirmation?.receivedAt
-                  ? new Date(quoteConfirmation.receivedAt).toLocaleString()
-                  : "just now"}
-              </p>
-            </div>
-
-            <div className="mt-6 grid gap-4 md:grid-cols-3">
-              <div className="rounded-2xl border border-[#dfd0b8] p-5">
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#b7352d]">
-                  Customer
-                </p>
-
-                <p className="mt-2 text-lg font-black text-[#171717]">
-                  {order.customer.customerName}
-                </p>
-
-                <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                  {order.customer.email}
-                </p>
-
-                {order.customer.company && (
-                  <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                    {order.customer.company}
-                  </p>
-                )}
-              </div>
-
-              <div className="rounded-2xl border border-[#dfd0b8] p-5">
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#b7352d]">
-                  {isApparelSubmitted ? "Apparel Details" : "Decal Details"}
-                </p>
-
-                {isApparelSubmitted ? (
-                  <>
-                    <p className="mt-2 text-lg font-black text-[#171717]">
-                      {apparelQuote.quantity.toLocaleString()}{" "}
-                      {selectedGarmentLabel}
-                    </p>
-                    <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                      {selectedSsColor?.colorName || apparelQuote.garmentColor} •{" "}
-                      {apparelQuote.inkColors}
-                    </p>
-                    <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                      {apparelQuote.printLocations.join(", ")}
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="mt-2 text-lg font-black text-[#171717]">
-                      {order.product.quantity.toLocaleString()} decals
-                    </p>
-                    <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                      {order.product.size} • {order.product.shape}
-                    </p>
-                    <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                      {order.product.material}
-                    </p>
-                  </>
-                )}
-              </div>
-
-              <div className="rounded-2xl border border-[#dfd0b8] p-5">
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#b7352d]">
-                  Estimate
-                </p>
-
-                {isApparelSubmitted ? (
-                  <>
-                    <p className="mt-2 text-3xl font-black text-[#171717]">
-                      ${apparelPricing.total.toFixed(2)}
-                    </p>
-                    <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                      ${apparelPricing.unitPrice.toFixed(2)} each estimated
-                    </p>
-                    <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                      Final pricing reviewed by Gorilla Salem
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="mt-2 text-3xl font-black text-[#171717]">
-                      ${order.pricing.total.toFixed(2)}
-                    </p>
-                    <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                      ${unitPrice.toFixed(2)} each
-                    </p>
-                  </>
-                )}
-
-                <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                  Needed: {order.production.needBy || "Not entered"}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-6 rounded-2xl bg-[#fff7e8] p-5">
-              <p className="text-sm font-bold leading-6 text-[#6f695e]">
-                This is an estimate, not a final invoice. Gorilla Salem will
-                confirm pricing, timeline, and artwork readiness before
-                production starts.
-              </p>
-
-              <p className="mt-3 text-sm font-bold leading-6 text-[#6f695e]">
-                Use Copy Quote Details as a backup, or click Open Gmail Draft to
-                open a pre-filled Gmail compose window addressed to Gorilla Salem.
-              </p>
-            </div>
-
-            <div className="mt-8 grid gap-3 sm:grid-cols-3">
-              <button
-                type="button"
-                onClick={copyQuoteDetails}
-                className="rounded-2xl border border-[#2E5037] bg-white px-6 py-4 font-black text-[#2E5037] transition hover:bg-[#F8F5EE]"
-              >
-                Copy Quote Details
-              </button>
-
-              <a
-                href={getEmailQuoteLink()}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-2xl bg-[#b7352d] px-6 py-4 text-center font-black text-white transition hover:bg-[#982c25]"
-              >
-                Open Gmail Draft
-              </a>
-
-              <button
-                type="button"
-                onClick={startNewQuote}
-                className="rounded-2xl bg-[#2E5037] px-6 py-4 font-black text-white transition hover:bg-[#24402c]"
-              >
-                Start New Quote
-              </button>
-            </div>
-
-            {copyStatus === "copied" && (
-              <p className="mt-3 text-center text-sm font-black text-[#2E5037]">
-                Quote details copied to your clipboard.
-              </p>
-            )}
-            {copyStatus === "error" && (
-              <p className="mt-3 text-center text-sm font-bold text-[#b7352d]">
-                Couldn&apos;t copy automatically — use Open Gmail Draft instead.
-              </p>
-            )}
-
-            <button
-              type="button"
-              onClick={() => setQuoteSubmitted(false)}
-              className="mt-4 w-full rounded-2xl bg-[#F8F5EE] px-8 py-4 font-black text-[#6f695e] transition hover:bg-[#efe4d4]"
-            >
-              Back to Builder
-            </button>
-          </div>
-        </div>
-      </main>
+      <QuoteConfirmationScreen
+        quoteConfirmation={quoteConfirmation}
+        order={order}
+        isApparelSubmitted={isApparelSubmitted}
+        apparelQuote={apparelQuote}
+        selectedGarmentLabel={selectedGarmentLabel}
+        selectedSsColor={selectedSsColor}
+        apparelPricing={apparelPricing}
+        unitPrice={unitPrice}
+        copyStatus={copyStatus}
+        emailHref={getEmailQuoteLink()}
+        onCopy={copyQuoteDetails}
+        onStartNew={startNewQuote}
+        onBackToBuilder={() => setQuoteSubmitted(false)}
+      />
     );
   }
 
@@ -1116,509 +907,62 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
             <div className="space-y-8">
               {isApparelSelected ? (
-                <>
-                  <QuantitySelector
-                    quantities={apparelCatalog.quantities}
-                    selected={apparelQuote.quantity}
-                    onSelect={(quantity) => updateApparelQuote({ quantity })}
-                  />
+                <ApparelBuilder
+                  apparelQuote={apparelQuote}
+                  artworkAnalysis={artworkAnalysis}
+                  ssCatalogStatus={ssCatalogStatus}
+                  ssCatalogError={ssCatalogError}
+                  hasSsProducts={ssProducts.length > 0}
+                  filteredSsProducts={filteredSsProducts}
+                  apparelCategories={apparelCategories}
+                  selectedApparelCategory={selectedApparelCategory}
+                  selectedSsProduct={selectedSsProduct}
+                  selectedSsColor={selectedSsColor}
+                  selectedSsSize={selectedSsSize}
+                  sizeOptionsForBreakdown={sizeOptionsForBreakdown}
+                  sizeQuantities={sizeQuantities}
+                  sizeQuantityTotal={sizeQuantityTotal}
+                  sizeBreakdownFromButtons={sizeBreakdownFromButtons}
+                  sizeBreakdownMatchesQuantity={sizeBreakdownMatchesQuantity}
+                  onSelectQuantity={(quantity) =>
+                    updateApparelQuote({ quantity })
+                  }
+                  onSelectCategory={handleApparelCategorySelect}
+                  onSelectProduct={handleSsProductSelect}
+                  onSelectColor={handleSsColorSelect}
+                  onSelectSize={handleSsSizeSelect}
+                  onSelectGarmentType={(garmentType) =>
+                    updateApparelQuote({ garmentType })
+                  }
+                  onSelectFallbackGarmentColor={(garmentColor) => {
+                    const estimatedInkCount = getEstimatedInkColorCount(
+                      artworkAnalysis,
+                      garmentColor
+                    );
 
-                  <div className="rounded-[2rem] border border-[#dfd0b8] bg-[#F8F5EE] p-5">
-                    <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                      <div>
-                        <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
-                          Live S&S Catalog
-                        </p>
-                        <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                          Products, colors, sizes, pricing, availability, and images
-                          are pulled from S&S.
-                        </p>
-                      </div>
-
-                      <span className="rounded-full bg-white px-3 py-2 text-xs font-black text-[#2E5037]">
-                        {ssCatalogStatus === "loaded"
-                          ? "Loaded"
-                          : ssCatalogStatus === "loading"
-                          ? "Loading"
-                          : ssCatalogStatus === "error"
-                          ? "Error"
-                          : "Ready"}
-                      </span>
-                    </div>
-
-                    {ssCatalogStatus === "error" && (
-                      <div className="mb-4 rounded-2xl bg-white p-4 text-sm font-bold leading-6 text-[#b7352d]">
-                        {ssCatalogError}
-                      </div>
-                    )}
-
-                    {ssProducts.length > 0 ? (
-                      <div className="space-y-5">
-                        <div>
-                          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6f695e]">
-                              Garment Style
-                            </p>
-
-                            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8a8172]">
-                              {filteredSsProducts.length} shown
-                            </p>
-                          </div>
-
-                          <div className="mb-4 flex flex-wrap gap-2">
-                            {apparelCategories.map((category) => {
-                              const isSelected = selectedApparelCategory === category;
-
-                              return (
-                                <button
-                                  key={category}
-                                  type="button"
-                                  onClick={() => handleApparelCategorySelect(category)}
-                                  className={`rounded-full px-4 py-2 text-sm font-black transition ${
-                                    isSelected
-                                      ? "bg-[#2E5037] text-white"
-                                      : "bg-white text-[#2E5037] hover:bg-[#eef7ee]"
-                                  }`}
-                                >
-                                  {category}
-                                </button>
-                              );
-                            })}
-                          </div>
-
-                          <div className="grid gap-3">
-                            {filteredSsProducts.map((product) => {
-                              const isSelected = selectedSsProduct?.id === product.id;
-                              const thumbnailColor =
-                                product.colors.find((color) => color.frontImage) ||
-                                product.colors[0];
-
-                              return (
-                                <button
-                                  key={product.id}
-                                  type="button"
-                                  onClick={() => handleSsProductSelect(product)}
-                                  className={`rounded-2xl border p-4 text-left transition ${
-                                    isSelected
-                                      ? "border-[#2E5037] bg-white shadow-md"
-                                      : "border-[#dfd0b8] bg-white/70 hover:bg-white"
-                                  }`}
-                                >
-                                  <div className="flex gap-4">
-                                    <div className="grid h-24 w-20 shrink-0 place-items-center overflow-hidden rounded-2xl border border-[#dfd0b8] bg-[#F8F5EE]">
-                                      {thumbnailColor?.frontImage ? (
-                                        <img
-                                          src={thumbnailColor.frontImage}
-                                          alt={`${product.customerLabel || product.displayName} preview`}
-                                          className="h-full w-full object-contain p-2"
-                                        />
-                                      ) : (
-                                        <span className="px-2 text-center text-xs font-black uppercase tracking-[0.12em] text-[#8a8172]">
-                                          No Image
-                                        </span>
-                                      )}
-                                    </div>
-
-                                    <div className="min-w-0 flex-1">
-                                      <div className="flex flex-wrap items-start justify-between gap-3">
-                                        <div>
-                                          <p className="font-black text-[#171717]">
-                                            {product.customerLabel || product.displayName}
-                                          </p>
-                                          <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                                            {product.customerCategory} • Style{" "}
-                                            {product.catalogStyle}
-                                          </p>
-                                          <p className="mt-1 text-xs font-bold text-[#8a8172]">
-                                            S&S: {product.displayName}
-                                          </p>
-                                        </div>
-
-                                        <span className="rounded-full bg-[#F8F5EE] px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-[#2E5037]">
-                                          {product.colors.length} colors
-                                        </span>
-                                      </div>
-
-                                      {thumbnailColor?.colorName && (
-                                        <p className="mt-3 text-xs font-bold text-[#8a8172]">
-                                          Preview shown in {thumbnailColor.colorName}
-                                        </p>
-                                      )}
-                                    </div>
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {selectedSsProduct && (
-                          <div>
-                            <p className="mb-3 text-xs font-black uppercase tracking-[0.16em] text-[#6f695e]">
-                              Garment Color
-                            </p>
-
-                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                              {selectedSsProduct.colors.map((color) => {
-                                const isSelected =
-                                  selectedSsColor?.colorName === color.colorName;
-
-                                return (
-                                  <button
-                                    key={color.colorName}
-                                    type="button"
-                                    onClick={() => handleSsColorSelect(color)}
-                                    disabled={color.outOfStock}
-                                    className={`rounded-2xl border p-3 text-left transition ${
-                                      isSelected
-                                        ? "border-[#2E5037] bg-white shadow-md"
-                                        : "border-[#dfd0b8] bg-white/70 hover:bg-white"
-                                    } ${
-                                      color.outOfStock
-                                        ? "cursor-not-allowed opacity-50"
-                                        : ""
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      {color.swatchImage ? (
-                                        <img
-                                          src={color.swatchImage}
-                                          alt={color.colorName}
-                                          className="h-7 w-7 rounded-full border border-black/10 object-cover"
-                                        />
-                                      ) : (
-                                        <span
-                                          className="h-7 w-7 rounded-full border border-black/10"
-                                          style={{
-                                            backgroundColor:
-                                              color.colorHex || "#ffffff",
-                                          }}
-                                        />
-                                      )}
-
-                                      <span className="text-sm font-black text-[#171717]">
-                                        {color.colorName}
-                                      </span>
-                                    </div>
-
-                                    <p className="mt-2 text-xs font-bold text-[#6f695e]">
-                                      {color.outOfStock ? "Out of stock" : "Available"}
-                                    </p>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {selectedSsColor && (
-                          <div>
-                            <p className="mb-3 text-xs font-black uppercase tracking-[0.16em] text-[#6f695e]">
-                              Sample Size / Garment Price
-                            </p>
-
-                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                              {selectedSsColor.sizes.map((size) => {
-                                const isSelected =
-                                  selectedSsSize?.sizeName === size.sizeName;
-
-                                return (
-                                  <button
-                                    key={size.sku}
-                                    type="button"
-                                    onClick={() => handleSsSizeSelect(size)}
-                                    disabled={size.outOfStock}
-                                    className={`rounded-2xl border p-3 text-center transition ${
-                                      isSelected
-                                        ? "border-[#2E5037] bg-white shadow-md"
-                                        : "border-[#dfd0b8] bg-white/70 hover:bg-white"
-                                    } ${
-                                      size.outOfStock
-                                        ? "cursor-not-allowed opacity-50"
-                                        : ""
-                                    }`}
-                                  >
-                                    <p className="text-sm font-black text-[#171717]">
-                                      {size.sizeName}
-                                    </p>
-                                    <p className="mt-1 text-xs font-bold text-[#6f695e]">
-                                      ${size.markedUpPrice.toFixed(2)}
-                                    </p>
-                                  </button>
-                                );
-                              })}
-                            </div>
-
-                            <p className="mt-3 text-xs font-bold leading-5 text-[#6f695e]">
-                              This garment price includes the 40% markup over S&S
-                              customer pricing. Print/decorating costs are added later.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="space-y-5">
-                        <OptionSelector
-                          title="Garment Type"
-                          options={apparelCatalog.garmentTypes}
-                          selected={apparelQuote.garmentType}
-                          onSelect={(garmentType) =>
-                            updateApparelQuote({ garmentType })
-                          }
-                        />
-
-                        <OptionSelector
-                          title="Garment Color"
-                          options={apparelCatalog.garmentColors}
-                          selected={apparelQuote.garmentColor}
-                          onSelect={(garmentColor) => {
-                            const estimatedInkCount = getEstimatedInkColorCount(
-                              artworkAnalysis,
-                              garmentColor
-                            );
-
-                            updateApparelQuote({
-                              garmentColor,
-                              inkColors: formatInkColorOption(estimatedInkCount),
-                            });
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <div className="mb-3">
-                      <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
-                        Print Locations
-                      </p>
-                      <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                        Choose all that apply.
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                      {apparelCatalog.printLocations.map((location) => {
-                        const isSelected = apparelQuote.printLocations.includes(location);
-
-                        return (
-                          <button
-                            key={location}
-                            type="button"
-                            onClick={() => togglePrintLocation(location)}
-                            className={`rounded-2xl border px-4 py-4 text-sm font-black transition ${
-                              isSelected
-                                ? "border-[#2E5037] bg-[#2E5037] text-white"
-                                : "border-[#dfd0b8] bg-[#F8F5EE] text-[#171717] hover:bg-white"
-                            }`}
-                          >
-                            {location}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <OptionSelector
-                    title="Ink Colors"
-                    options={apparelCatalog.inkColors}
-                    selected={apparelQuote.inkColors}
-                    onSelect={(inkColors) => updateApparelQuote({ inkColors })}
-                  />
-
-                  {artworkAnalysis?.estimatedColorCount && (
-                    <div className="rounded-2xl border border-[#dfd0b8] bg-[#F8F5EE] p-4">
-                      <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
-                        Auto Color Count
-                      </p>
-
-                      <div className="mt-3 grid gap-3 text-sm font-bold text-[#6f695e] sm:grid-cols-3">
-                        <div className="rounded-xl bg-white p-3">
-                          <p className="text-xs uppercase tracking-[0.12em]">
-                            Artwork
-                          </p>
-                          <p className="mt-1 text-lg font-black text-[#171717]">
-                            {artworkAnalysis.estimatedColorCount} colors
-                          </p>
-                        </div>
-
-                        <div className="rounded-xl bg-white p-3">
-                          <p className="text-xs uppercase tracking-[0.12em]">
-                            Underbase
-                          </p>
-                          <p className="mt-1 text-lg font-black text-[#171717]">
-                            {apparelQuote.garmentColor === "White"
-                              ? "+0"
-                              : "+1 white"}
-                          </p>
-                        </div>
-
-                        <div className="rounded-xl bg-white p-3">
-                          <p className="text-xs uppercase tracking-[0.12em]">
-                            Suggested
-                          </p>
-                          <p className="mt-1 text-lg font-black text-[#171717]">
-                            {apparelQuote.inkColors}
-                          </p>
-                        </div>
-                      </div>
-
-                      <p className="mt-3 text-xs font-bold leading-5 text-[#6f695e]">
-                        This is an estimate. If the shirt color is not white, the
-                        app adds one extra color for a white underbase.
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="rounded-[2rem] border border-[#dfd0b8] bg-[#F8F5EE] p-5">
-                    <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                      <div>
-                        <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
-                          Size Breakdown
-                        </p>
-                        <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                          Use the buttons to make the total match the order quantity.
-                        </p>
-                      </div>
-
-                      <span
-                        className={`rounded-full px-4 py-2 text-sm font-black ${
-                          sizeBreakdownMatchesQuantity
-                            ? "bg-[#2E5037] text-white"
-                            : "bg-white text-[#b7352d]"
-                        }`}
-                      >
-                        {sizeQuantityTotal} / {apparelQuote.quantity}
-                      </span>
-                    </div>
-
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {sizeOptionsForBreakdown.map((sizeName) => {
-                        const quantity = sizeQuantities[sizeName] || 0;
-                        const sizeRecord = selectedSsColor?.sizes.find(
-                          (size) => size.sizeName === sizeName
-                        );
-                        const isAvailable = sizeRecord?.isAvailable ?? true;
-                        const canAdd =
-                          isAvailable && sizeQuantityTotal < apparelQuote.quantity;
-
-                        return (
-                          <div
-                            key={sizeName}
-                            className={`rounded-2xl border bg-white p-4 ${
-                              isAvailable
-                                ? "border-[#dfd0b8]"
-                                : "border-[#dfd0b8] opacity-50"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <div>
-                                <p className="text-lg font-black text-[#171717]">
-                                  {sizeName}
-                                </p>
-
-                                <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-[#6f695e]">
-                                  {isAvailable ? "Available" : "Out of stock"}
-                                </p>
-                              </div>
-
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => updateSizeQuantity(sizeName, -1)}
-                                  disabled={quantity === 0}
-                                  className="grid h-10 w-10 place-items-center rounded-full bg-[#F8F5EE] text-xl font-black text-[#2E5037] transition hover:bg-[#eef7ee] disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                  −
-                                </button>
-
-                                <span className="grid h-10 min-w-12 place-items-center rounded-xl bg-[#F8F5EE] px-3 text-lg font-black text-[#171717]">
-                                  {quantity}
-                                </span>
-
-                                <button
-                                  type="button"
-                                  onClick={() => updateSizeQuantity(sizeName, 1)}
-                                  disabled={!canAdd}
-                                  className="grid h-10 w-10 place-items-center rounded-full bg-[#2E5037] text-xl font-black text-white transition hover:bg-[#24402c] disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                  +
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <div className="mt-4 rounded-2xl bg-white p-4">
-                      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6f695e]">
-                        Current Breakdown
-                      </p>
-
-                      <p className="mt-2 text-sm font-black text-[#171717]">
-                        {sizeBreakdownFromButtons || "No sizes selected yet"}
-                      </p>
-
-                      {!sizeBreakdownMatchesQuantity && (
-                        <p className="mt-2 text-sm font-bold leading-6 text-[#b7352d]">
-                          Add or remove sizes until the total equals{" "}
-                          {apparelQuote.quantity}.
-                        </p>
-                      )}
-
-                      {sizeBreakdownMatchesQuantity && sizeQuantityTotal > 0 && (
-                        <p className="mt-2 text-sm font-bold leading-6 text-[#2E5037]">
-                          Size breakdown total matches the order quantity.
-                        </p>
-                      )}
-
-                      {sizeQuantityTotal > 0 && (
-                        <button
-                          type="button"
-                          onClick={resetSizeBreakdown}
-                          className="mt-3 rounded-full bg-[#F8F5EE] px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-[#6f695e] transition hover:bg-[#efe4d4]"
-                        >
-                          Reset Sizes
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </>
+                    updateApparelQuote({
+                      garmentColor,
+                      inkColors: formatInkColorOption(estimatedInkCount),
+                    });
+                  }}
+                  onTogglePrintLocation={togglePrintLocation}
+                  onSelectInkColors={(inkColors) =>
+                    updateApparelQuote({ inkColors })
+                  }
+                  onUpdateSizeQuantity={updateSizeQuantity}
+                  onResetSizeBreakdown={resetSizeBreakdown}
+                />
               ) : (
-                <>
-                  <QuantitySelector
-                    quantities={stickerCatalog.quantities}
-                    selected={order.product.quantity}
-                    onSelect={(quantity) => updateProduct({ quantity })}
-                  />
-
-                  <OptionSelector
-                    title="Size"
-                    options={stickerCatalog.sizes}
-                    selected={order.product.size}
-                    onSelect={(size) => updateProduct({ size })}
-                  />
-
-                  <OptionSelector
-                    title="Shape"
-                    options={stickerCatalog.shapes}
-                    selected={order.product.shape}
-                    onSelect={(shape) => updateProduct({ shape })}
-                  />
-
-                  <OptionSelector
-                    title="Decal Type"
-                    options={stickerCatalog.materials}
-                    selected={order.product.material}
-                    onSelect={(material) =>
-                      updateProduct({
-                        material,
-                        finish: getDecalFinishFromMaterial(material),
-                      })
-                    }
-                  />
-                </>
+                <DecalBuilder
+                  product={order.product}
+                  onUpdate={(updates) => updateProduct(updates)}
+                  onSelectMaterial={(material) =>
+                    updateProduct({
+                      material,
+                      finish: getDecalFinishFromMaterial(material),
+                    })
+                  }
+                />
               )}
 
               <UploadBox onFileSelected={handleArtworkUpload} />
@@ -1657,68 +1001,12 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 quantity={apparelQuote.quantity}
               />
             ) : (
-              <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-5 shadow-xl sm:p-8">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
-                      Digital Proof
-                    </p>
-
-                    <h3 className="mt-2 text-3xl font-black tracking-[-0.05em]">
-                      Live Preview
-                    </h3>
-                  </div>
-
-                  <div className="rounded-full bg-[#2E5037] px-4 py-2 text-sm font-bold text-white">
-                    {order.product.material}
-                  </div>
-                </div>
-
-                <StickerPreview
-                  artworkPreview={artworkPreview}
-                  material={order.product.material}
-                  finish={order.product.finish}
-                  size={order.product.size}
-                  shape={order.product.shape}
-                />
-
-                <div className="mt-6 grid grid-cols-2 gap-3 text-center sm:grid-cols-3">
-                  <div className="rounded-2xl bg-[#F8F5EE] p-4">
-                    <p className="text-xs font-bold uppercase text-[#6f695e]">
-                      Size
-                    </p>
-                    <p className="mt-1 font-black">{order.product.size}</p>
-                  </div>
-
-                  <div className="rounded-2xl bg-[#F8F5EE] p-4">
-                    <p className="text-xs font-bold uppercase text-[#6f695e]">
-                      Shape
-                    </p>
-                    <p className="mt-1 font-black">{order.product.shape}</p>
-                  </div>
-
-                  <div className="rounded-2xl bg-[#F8F5EE] p-4">
-                    <p className="text-xs font-bold uppercase text-[#6f695e]">
-                      Each
-                    </p>
-                    <p className="mt-1 font-black">${unitPrice.toFixed(2)}</p>
-                  </div>
-                </div>
-
-                <div className="mt-3 rounded-2xl bg-[#F8F5EE] p-4 text-center">
-                  <p className="text-xs font-bold uppercase text-[#6f695e]">
-                    Needed In Hand
-                  </p>
-
-                  <p className="mt-1 font-black">
-                    {order.production.needBy || "Not entered yet"}
-                  </p>
-
-                  <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                    {order.production.deadlineType} deadline
-                  </p>
-                </div>
-              </div>
+              <DecalPreviewCard
+                artworkPreview={artworkPreview}
+                product={order.product}
+                production={order.production}
+                unitPrice={unitPrice}
+              />
             )}
 
             <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-5 text-sm font-bold leading-6 text-[#6f695e] shadow-xl sm:p-6">
@@ -1728,288 +1016,27 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             </div>
 
             {isApparelSelected ? (
-              <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-6 shadow-xl">
-                <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
-                  Apparel Summary
-                </p>
-
-                <div className="mt-5 space-y-3 text-sm font-bold text-[#6f695e]">
-                  <div className="flex justify-between gap-4">
-                    <span>Product</span>
-                    <span className="text-right text-[#171717]">{apparelQuote.garmentType}</span>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <span>Quantity</span>
-                    <span className="text-right text-[#171717]">{apparelQuote.quantity}</span>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <span>Color</span>
-                    <span className="text-right text-[#171717]">{apparelQuote.garmentColor}</span>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <span>Locations</span>
-                    <span className="text-right text-[#171717]">{apparelQuote.printLocations.join(", ")}</span>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <span>Ink</span>
-                    <span className="text-right text-[#171717]">{apparelQuote.inkColors}</span>
-                  </div>
-
-                  {selectedSsSize && (
-                    <div className="flex justify-between gap-4">
-                      <span>Garment Price</span>
-                      <span className="text-right text-[#171717]">
-                        ${selectedSsSize.markedUpPrice.toFixed(2)}
-                      </span>
-                    </div>
-                  )}
-
-                  {selectedSsSize && (
-                    <div className="flex justify-between gap-4">
-                      <span>SKU</span>
-                      <span className="text-right text-[#171717]">
-                        {selectedSsSize.sku}
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between gap-4">
-                    <span>Estimated Each</span>
-                    <span className="text-right text-[#171717]">
-                      ${apparelPricing.unitPrice.toFixed(2)}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between gap-4">
-                    <span>Estimated Total</span>
-                    <span className="text-right text-[#2E5037]">
-                      ${apparelPricing.total.toFixed(2)}
-                    </span>
-                  </div>
-
-                  {artworkAnalysis?.estimatedColorCount && (
-                    <div className="flex justify-between gap-4">
-                      <span>Auto Count</span>
-                      <span className="text-right text-[#171717]">
-                        {artworkAnalysis.estimatedColorCount}
-                        {apparelQuote.garmentColor === "White"
-                          ? ""
-                          : " + underbase"}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-5 rounded-2xl bg-[#F8F5EE] p-4">
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6f695e]">
-                    Size Breakdown
-                  </p>
-                  <p className="mt-2 text-sm font-bold text-[#171717]">
-                    {apparelQuote.sizeBreakdown || "Not entered yet"}
-                  </p>
-                </div>
-
-                <div className="mt-5 rounded-2xl bg-[#eef7ee] p-4">
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#2E5037]">
-                    Estimated Apparel Pricing
-                  </p>
-
-                  <div className="mt-4 space-y-2 text-sm font-bold text-[#6f695e]">
-                    <div className="flex justify-between gap-4">
-                      <span>Garments</span>
-                      <span className="text-right text-[#171717]">
-                        ${apparelPricing.garmentTotal.toFixed(2)}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between gap-4">
-                      <span>Printing</span>
-                      <span className="text-right text-[#171717]">
-                        ${apparelPricing.printTotal.toFixed(2)}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between gap-4">
-                      <span>Setup / Screens</span>
-                      <span className="text-right text-[#171717]">
-                        ${apparelPricing.setupTotal.toFixed(2)}
-                      </span>
-                    </div>
-
-                    <div className="border-t border-[#cfe4cf] pt-3">
-                      <div className="flex justify-between gap-4">
-                        <span className="text-[#171717]">Estimated Total</span>
-                        <span className="text-right text-xl font-black text-[#2E5037]">
-                          ${apparelPricing.total.toFixed(2)}
-                        </span>
-                      </div>
-
-                      <div className="mt-1 flex justify-between gap-4">
-                        <span>Estimated Each</span>
-                        <span className="text-right text-[#171717]">
-                          ${apparelPricing.unitPrice.toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-5 rounded-2xl bg-[#fff7e8] p-4">
-                  <p className="text-sm font-bold leading-6 text-[#6f695e]">
-                    Apparel pricing is an estimate. Gorilla Salem will review
-                    garment availability, artwork, print method, and timeline
-                    before confirming the final price.
-                  </p>
-                </div>
-              </div>
+              <ApparelSummaryCard
+                apparelQuote={apparelQuote}
+                selectedSsSize={selectedSsSize}
+                apparelPricing={apparelPricing}
+                artworkAnalysis={artworkAnalysis}
+              />
             ) : (
               <OrderSummary order={order} />
             )}
 
             <ArtworkAnalysisCard analysis={artworkAnalysis} />
 
-            <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-6 shadow-xl">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
-                    Review Your Quote
-                  </p>
-
-                  <p className="mt-2 text-2xl font-black tracking-[-0.05em] text-[#171717]">
-                    Check everything before submitting.
-                  </p>
-                </div>
-
-                <span className="rounded-full bg-[#F8F5EE] px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-[#2E5037]">
-                  {isApparelSelected ? "Apparel" : "Decals"}
-                </span>
-              </div>
-
-              <div className="mt-5 space-y-3 text-sm font-bold text-[#6f695e]">
-                {isApparelSelected ? (
-                  <>
-                    <div className="flex justify-between gap-4">
-                      <span>Garment</span>
-                      <span className="text-right text-[#171717]">
-                        {selectedGarmentLabel}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between gap-4">
-                      <span>Color</span>
-                      <span className="text-right text-[#171717]">
-                        {selectedSsColor?.colorName || apparelQuote.garmentColor}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between gap-4">
-                      <span>Quantity</span>
-                      <span className="text-right text-[#171717]">
-                        {apparelQuote.quantity.toLocaleString()}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between gap-4">
-                      <span>Sizes</span>
-                      <span className="text-right text-[#171717]">
-                        {apparelQuote.sizeBreakdown || "Not complete"}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between gap-4">
-                      <span>Print Locations</span>
-                      <span className="text-right text-[#171717]">
-                        {apparelQuote.printLocations.join(", ") || "Not selected"}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between gap-4">
-                      <span>Ink Colors</span>
-                      <span className="text-right text-[#171717]">
-                        {apparelQuote.inkColors}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between gap-4">
-                      <span>Estimate</span>
-                      <span className="text-right text-[#2E5037]">
-                        ${apparelPricing.total.toFixed(2)}
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex justify-between gap-4">
-                      <span>Decal</span>
-                      <span className="text-right text-[#171717]">
-                        {order.product.size} • {order.product.shape}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between gap-4">
-                      <span>Quantity</span>
-                      <span className="text-right text-[#171717]">
-                        {order.product.quantity.toLocaleString()}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between gap-4">
-                      <span>Decal Type</span>
-                      <span className="text-right text-[#171717]">
-                        {order.product.material}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between gap-4">
-                      <span>Estimate</span>
-                      <span className="text-right text-[#2E5037]">
-                        ${order.pricing.total.toFixed(2)}
-                      </span>
-                    </div>
-                  </>
-                )}
-
-                <div className="border-t border-[#dfd0b8] pt-3">
-                  <div className="flex justify-between gap-4">
-                    <span>Artwork</span>
-                    <span className="text-right text-[#171717]">
-                      {order.artwork.file?.name || "Not uploaded"}
-                    </span>
-                  </div>
-
-                  <div className="mt-3 flex justify-between gap-4">
-                    <span>Needed By</span>
-                    <span className="text-right text-[#171717]">
-                      {order.production.needBy || "Not entered"}
-                    </span>
-                  </div>
-
-                  <div className="mt-3 flex justify-between gap-4">
-                    <span>Customer</span>
-                    <span className="text-right text-[#171717]">
-                      {order.customer.customerName || "Not entered"}
-                    </span>
-                  </div>
-
-                  <div className="mt-3 flex justify-between gap-4">
-                    <span>Email</span>
-                    <span className="text-right text-[#171717]">
-                      {order.customer.email || "Not entered"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {currentValidationErrors.length === 0 ? (
-                <p className="mt-5 rounded-2xl bg-[#eef7ee] p-4 text-sm font-black text-[#2E5037]">
-                  Everything required is complete. This quote is ready to submit.
-                </p>
-              ) : (
-                <p className="mt-5 rounded-2xl bg-[#fff7e8] p-4 text-sm font-bold leading-6 text-[#6f695e]">
-                  Complete the required info below before submitting.
-                </p>
-              )}
-            </div>
+            <QuoteReviewCard
+              isApparelSelected={isApparelSelected}
+              order={order}
+              apparelQuote={apparelQuote}
+              apparelPricing={apparelPricing}
+              selectedGarmentLabel={selectedGarmentLabel}
+              selectedSsColor={selectedSsColor}
+              isReady={currentValidationErrors.length === 0}
+            />
 
 
             {isApparelSelected ? (

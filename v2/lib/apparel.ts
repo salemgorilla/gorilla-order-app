@@ -28,3 +28,5 @@ export const defaultApparelQuote = {
   inkColors: "1 color",
   sizeBreakdown: "",
 };
+
+export type ApparelQuote = typeof defaultApparelQuote;

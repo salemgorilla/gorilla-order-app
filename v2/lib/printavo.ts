@@ -135,6 +135,12 @@ export type PrintavoQuotePlan = {
     price: number;
     quantity: number;
   };
+  // Only present when the customer chose shipping over local pickup.
+  shippingLineItem: {
+    description: string;
+    itemNumber: string;
+    price: number;
+  } | null;
 };
 
 /**
@@ -157,12 +163,18 @@ export function buildPrintavoQuotePlan(input: {
 
   const quantity = Math.max(1, num(product.quantity, 1));
   const total = num(pricing.total);
+  const shippingPrice = num(pricing.shippingPrice);
+  const deliveryMethod = str(production.deliveryMethod, "Pickup");
+
+  // The decal unit price excludes shipping — shipping becomes its own line
+  // item so the Printavo total matches the website total.
+  const itemsSubtotal = apparel ? total : num(pricing.stickerPrice, total);
   const unitPrice =
     apparel && pricing.unitPrice !== undefined
       ? num(pricing.unitPrice)
       : quantity > 0
-      ? Number((total / quantity).toFixed(4))
-      : total;
+      ? Number((itemsSubtotal / quantity).toFixed(4))
+      : itemsSubtotal;
 
   // Printavo wants a date; default to two weeks out if none was given.
   const needBy = str(production.needBy);
@@ -221,10 +233,16 @@ export function buildPrintavoQuotePlan(input: {
     "TIMELINE",
     `Needed in hand: ${needBy || "Not entered"}`,
     `Deadline type: ${str(production.deadlineType, "N/A")}`,
+    `Delivery: ${
+      deliveryMethod === "Ship" ? "SHIP to customer" : "LOCAL PICKUP in Salem"
+    }`,
     "",
     "WEBSITE ESTIMATE",
     `Total: $${total.toFixed(2)}`,
     `Each: $${unitPrice.toFixed(2)}`,
+    ...(shippingPrice > 0
+      ? [`Shipping: $${shippingPrice.toFixed(2)}`]
+      : ["Shipping: Free (local pickup)"]),
     "",
     "ARTWORK",
     `File: ${str(artworkAnalysis?.fileName, "No file uploaded")}`,
@@ -256,6 +274,14 @@ export function buildPrintavoQuotePlan(input: {
       price: unitPrice,
       quantity,
     },
+    shippingLineItem:
+      shippingPrice > 0
+        ? {
+            description: "Shipping",
+            itemNumber: "GORILLA-SHIPPING",
+            price: shippingPrice,
+          }
+        : null,
   };
 }
 
@@ -355,6 +381,18 @@ export async function createPrintavoQuote(input: {
               sizes: [{ size: "size_other", count: plan.lineItem.quantity }],
               taxed: true,
             },
+            ...(plan.shippingLineItem
+              ? [
+                  {
+                    description: plan.shippingLineItem.description,
+                    itemNumber: plan.shippingLineItem.itemNumber,
+                    position: 2,
+                    price: plan.shippingLineItem.price,
+                    sizes: [{ size: "size_other", count: 1 }],
+                    taxed: false,
+                  },
+                ]
+              : []),
           ],
         },
       }

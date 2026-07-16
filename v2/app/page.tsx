@@ -15,7 +15,7 @@ import ApparelPreview from "../components/preview/ApparelPreview";
 import { defaultApparelQuote } from "../lib/apparel";
 import { productCategories } from "../lib/products";
 import { defaultOrder } from "../lib/order";
-import { getStickerPrice } from "../lib/pricing";
+import { getShippingPrice, getStickerPrice } from "../lib/pricing";
 import { calculateApparelPricing } from "../lib/apparel-pricing";
 import { apparelCatalogStyles } from "../lib/apparel-catalog";
 import { getOrderValidationErrors, isOrderReady } from "../lib/validation";
@@ -335,6 +335,8 @@ export default function Home() {
       finish
     );
 
+    const shippingPrice = getShippingPrice(nextOrder.production.deliveryMethod);
+
     return {
       ...nextOrder,
       product: {
@@ -344,7 +346,8 @@ export default function Home() {
       pricing: {
         ...nextOrder.pricing,
         stickerPrice,
-        total: stickerPrice,
+        shippingPrice,
+        total: stickerPrice + shippingPrice,
       },
     };
   }
@@ -372,13 +375,16 @@ export default function Home() {
   }
 
   function updateProduction(updates: Partial<typeof order.production>) {
-    setOrder({
-      ...order,
-      production: {
-        ...order.production,
-        ...updates,
-      },
-    });
+    // Recalculate: changing the delivery method changes the shipping total.
+    setOrder(
+      recalculateOrder({
+        ...order,
+        production: {
+          ...order.production,
+          ...updates,
+        },
+      })
+    );
   }
 
   function updateApparelQuote(updates: Partial<typeof apparelQuote>) {
@@ -620,7 +626,12 @@ Phone: ${order.customer.phone || "N/A"}`;
 
     const timelineSection = `TIMELINE
 Needed In Hand: ${order.production.needBy || "Not entered"}
-Deadline Type: ${order.production.deadlineType}`;
+Deadline Type: ${order.production.deadlineType}
+Delivery: ${
+      order.production.deliveryMethod === "Ship"
+        ? "Ship to customer"
+        : "Local pickup in Salem"
+    }`;
 
     const estimatedInkCount = getEstimatedInkColorCount(
       artworkAnalysis,
@@ -710,8 +721,14 @@ Decal Type: ${order.product.material}
 ${timelineSection}
 
 ESTIMATE
+Decals: $${order.pricing.stickerPrice.toFixed(2)}
+Shipping: ${
+      order.pricing.shippingPrice > 0
+        ? `$${order.pricing.shippingPrice.toFixed(2)}`
+        : "Free (local pickup)"
+    }
 Estimated Total: $${order.pricing.total.toFixed(2)}
-Estimated Each: $${unitPrice.toFixed(2)}
+Estimated Each: $${unitPrice.toFixed(2)} per decal
 
 ${artworkSection}
 
@@ -759,7 +776,8 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     setCopyStatus("idle");
   }
 
-  const unitPrice = order.pricing.total / order.product.quantity;
+  // Price per decal, excluding shipping — shipping is shown as its own line.
+  const unitPrice = order.pricing.stickerPrice / order.product.quantity;
   const currentValidationErrors = getCurrentValidationErrors();
   const readyToSubmit = isApparelSelected
     ? currentValidationErrors.length === 0
@@ -955,6 +973,10 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               ) : (
                 <DecalBuilder
                   product={order.product}
+                  deliveryMethod={order.production.deliveryMethod}
+                  onSelectDeliveryMethod={(deliveryMethod) =>
+                    updateProduction({ deliveryMethod })
+                  }
                   onUpdate={(updates) => updateProduct(updates)}
                   onSelectMaterial={(material) =>
                     updateProduct({

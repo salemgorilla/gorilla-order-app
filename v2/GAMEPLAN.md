@@ -24,13 +24,28 @@ _Living roadmap for the Gorilla Salem quote/order builder. Update this file as y
 ✅ **Quote submission** — `POST /api/quote` returns a quote number (`GS-YYYYMMDD-XXXXX`), shows a confirmation screen with **Copy Quote Details** + **Open Gmail Draft**.
 ✅ **Build is green** — `npx tsc --noEmit` and `npm run build` both pass with 0 errors.
 
-**Checkpoint:** `v3.0.0 — Push quotes into Printavo as draft/unconfirmed` (see Section 2). Previous: `v2.9.0`, `v2.8.2`.
+**Checkpoint:** `v3.1.0 — Pickup vs Ship on decals (+ fixed the fresh-load price bug)` (see Section 2). Previous: `v3.0.0`, `v2.9.0`.
 
 ---
 
 ## 2. What changed most recently (2026-07-14)
 
-### `v3.0.0` — Push quotes into Printavo as draft/unconfirmed _(pending commit)_
+### `v3.1.0` — Pickup vs Ship on decals + fixed the fresh-load price bug _(pending commit)_
+Implements decision **D1**: the customer now chooses **Local Pickup (free)** or **Ship (+$12)** on the decal flow, so walk-ins aren't overcharged and you stop eating shipping on mail orders.
+
+- `features/decals/DecalBuilder.tsx` — new Delivery selector (Local Pickup / Ship It) showing the price of each.
+- `types/order.ts` — new `DeliveryMethod` (`"Pickup" | "Ship"`) on `production`.
+- `lib/pricing.ts` — `DECAL_SHIPPING_PRICE = 12` + `getShippingPrice()`. **Change the shipping price here.**
+- `app/page.tsx` — `recalculateOrder()` now prices shipping too, and `updateProduction()` recalculates (so switching delivery updates the total). "Each" is now the **per-decal** price and excludes shipping.
+- Shipping shows as its own line in the order summary, the copy/Gmail text, the quote email, and as a separate Printavo line item (so Printavo's total matches the site).
+
+**🐛 Also fixed a real bug:** on a fresh page load the app showed **"Total $12 / $0.12 each"** — the old vestigial `shippingPrice: 12` with `stickerPrice: 0`, before any recalculation ran. `defaultOrder` now prices the default selection up front, so it correctly opens at **$89.00 / $0.89**.
+
+Verified: fresh load $89.00/$0.89 ✓; Ship → $101.00 with "each" still $0.89 ✓; Holographic+Ship → $132.00, Holographic+Pickup → $120.00 ✓; delivery selector correctly does **not** appear in the apparel flow ✓; no console errors; `tsc` + `build` clean.
+
+> **Open:** apparel has no shipping choice (its pricing never included shipping). If you want Pickup/Ship on apparel too, say so — it's a small follow-on.
+
+### `v3.0.0` — Push quotes into Printavo as draft/unconfirmed
 Production integration, first cut. When a quote is submitted, the server also creates a **Printavo quote tagged `#WebQuote` / `#Unconfirmed`** so nothing looks reviewed until you say so.
 
 - **New `lib/printavo.ts`** — Printavo API v2 (GraphQL). Resolves the configured customer's contact → `quoteCreate` → `lineItemGroupCreate`. Handles **both flows** (the old code was decals-only). `buildPrintavoQuotePlan()` is a pure, testable mapper.
@@ -195,7 +210,7 @@ Quotes only reach Printavo once these are set. Until then it's skipped and the a
 | 1 | ~~Catalog labels/categories not merged into API response.~~ **✅ FIXED in v2.7.0** (Section 2). Also fixed the 6 dead S&S style codes. | — | Apparel cards now show clean labels + working category filters | ✅ Done |
 | 2 | ~~Quotes not stored anywhere.~~ **✅ FIXED in v2.8.0** — each quote now auto-emails to the shop (`lib/email.ts`). _Needs the one-time Resend setup in Section 3 to activate._ Optional future add: also store to a Sheet/DB for a searchable record. | — | Quotes now land in the shop inbox | ✅ Done |
 | 3 | ~~No real email.~~ **✅ FIXED in v2.8.0** — server sends automatically on submit; no reliance on the customer clicking Gmail Draft (that button stays as a manual backup). | — | Automatic delivery | ✅ Done |
-| 4 | **Shipping is defined but never charged.** `defaultOrder.pricing.shippingPrice = 12`, but `recalculateOrder()` sets `total = stickerPrice` only. Decal estimate excludes shipping. | `lib/order.ts`, `recalculateOrder()` in `page.tsx` | Estimate may be lower than real cost — *is this intended?* | 🟠 Med — Decision D1 |
+| 4 | ~~Shipping defined but never charged.~~ **✅ FIXED in v3.1.0** — customer picks Pickup (free) or Ship (+$12); shipping is priced, shown as its own line, and sent to Printavo. Also fixed the fresh-load "$12/$0.12" bug. | — | Estimates now match what you'd actually charge | ✅ Done |
 | 5 | ~~Validation inconsistent (decals required phone, apparel didn't).~~ **✅ FIXED in v2.8.1** — phone is now optional on both; shared core is name/email/artwork/need-by. | — | Consistent required fields | ✅ Done |
 | 6 | ~~`page.tsx` is ~2,030 lines — one giant component.~~ **✅ FIXED in v2.9.0** — split into `features/apparel/`, `features/decals/`, and shared cards; now 1,098 lines and each flow is editable on its own. | — | Safe to edit one flow without touching the other | ✅ Done |
 | 7 | ~~Artwork analyzed in-browser only; actual file never sent.~~ **✅ FIXED in v2.8.2** — the file is now sent on submit and attached to the quote email (under 15 MB). | — | Shop can open the art from the email | ✅ Done |
@@ -267,10 +282,14 @@ Do these in order. Each is scoped to stay small and commit-ready.
 
 Answer these before the sprint that needs them:
 
-- **D1 (Shipping):** Should the decal estimate include the $12 shipping, or is decal pricing shipping-free? (Blocks Gap #4.) — _still open_
+All resolved. ✅
+
+- ~~**D1 (Shipping):**~~ ✅ Decided: **customer picks Pickup (free) or Ship (+$12)** on decals (v3.1.0).
 - ~~**D2 (Required fields):**~~ ✅ Decided: phone **optional** on both flows (v2.8.1).
 - ~~**D3 (Quote storage):**~~ ✅ Decided: **email via Resend** (v2.8.0). A Sheet/Airtable record can still be added later as a second sink.
-- **D4 (Markup):** Is the S&S garment markup staying at 40% (`SS_MARKUP_RATE=0.4`)? Are the decal + apparel print prices in Section 8 current? — _still open_
+- ~~**D4 (Markup/pricing):**~~ ✅ Confirmed 2026-07-14: 40% markup and all decal + apparel prices in Section 8 are **current** — no changes.
+
+_New decisions to note here as they come up (e.g. shipping on apparel, Printavo customer handling)._
 
 ---
 
@@ -320,9 +339,12 @@ v2/
 
 ## 8. Where to change the numbers
 
+_All confirmed current as of 2026-07-14 (decision D4)._
+
 **Decal prices** — `lib/pricing.ts`:
 - `baseStickerPrices` — price by quantity (50→$65, 100→$89, … 5000→$1541)
 - material multipliers — Clear ×1.15, Holographic ×1.35, Chrome ×1.30, Gloss/Matte ×1.00
+- `DECAL_SHIPPING_PRICE` — flat $12 when the customer picks "Ship" (pickup is free)
 
 **Apparel prices** — `lib/apparel-pricing-config.ts`:
 - `basePrintPrices` — print $/piece by quantity tier (24→$6.00 … 250+→$3.25)
@@ -356,7 +378,8 @@ git push
 ---
 
 ## Version history
-- `v3.0.0` — Push quotes into Printavo as draft/unconfirmed (+ `/api/printavo-test`) _(pending commit)_
+- `v3.1.0` — Pickup vs Ship on decals; fixed the fresh-load "$12/$0.12" price bug _(pending commit)_
+- `v3.0.0` — Push quotes into Printavo as draft/unconfirmed (+ `/api/printavo-test`)
 - `v2.9.0` — Split `page.tsx` into per-flow feature folders (-47% lines, no behavior change)
 - `v2.8.2` — Attach uploaded artwork to the quote email (multipart submit)
 - `v2.8.1` — Phone optional on both flows + inline messages (no popups)

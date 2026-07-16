@@ -31,6 +31,13 @@ function getFinishMultiplier(finish: string) {
   return 1;
 }
 
+// Flat shipping for mailed decal orders. Local pickup is free.
+export const DECAL_SHIPPING_PRICE = 12;
+
+export function getShippingPrice(deliveryMethod: string) {
+  return deliveryMethod === "Ship" ? DECAL_SHIPPING_PRICE : 0;
+}
+
 export function getStickerPrice(
   quantity: number,
   material: string,

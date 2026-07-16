@@ -1,5 +1,7 @@
 export type DeadlineType = "Firm" | "Flexible";
 
+export type DeliveryMethod = "Pickup" | "Ship";
+
 export type Customer = {
   customerName: string;
   company: string;
@@ -24,6 +26,7 @@ export type Artwork = {
 export type Production = {
   needBy: string;
   deadlineType: DeadlineType;
+  deliveryMethod: DeliveryMethod;
 };
 
 export type Pricing = {

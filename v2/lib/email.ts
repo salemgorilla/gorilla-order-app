@@ -60,7 +60,11 @@ export function buildQuoteEmail(input: {
 
   const quantity = Number(product.quantity) || 0;
   const total = Number(pricing.total) || 0;
-  const each = quantity > 0 ? total / quantity : 0;
+  // Decal "each" is per-decal and excludes shipping (matches the site).
+  const baseForEach = apparel
+    ? total
+    : Number(pricing.stickerPrice) || total;
+  const each = quantity > 0 ? baseForEach / quantity : 0;
 
   const productLabel = apparel
     ? str(
@@ -105,6 +109,7 @@ export function buildQuoteEmail(input: {
   }
 
   // ---- estimate section ----
+  const shippingPrice = Number(pricing.shippingPrice) || 0;
   const estimateLines: string[] = [
     line("Estimated Total", money(total)),
     line("Estimated Each", money(each)),
@@ -114,6 +119,14 @@ export function buildQuoteEmail(input: {
       line("Garments", money(pricing.garmentTotal)),
       line("Printing", money(pricing.printTotal)),
       line("Setup / Screens", money(pricing.setupTotal))
+    );
+  } else {
+    estimateLines.push(
+      line("Decals", money(pricing.stickerPrice)),
+      line(
+        "Shipping",
+        shippingPrice > 0 ? money(shippingPrice) : "Free (local pickup)"
+      )
     );
   }
 
@@ -154,6 +167,12 @@ export function buildQuoteEmail(input: {
     `TIMELINE`,
     line("Needed In Hand", str(production.needBy, "Not entered")),
     line("Deadline", str(production.deadlineType, "N/A")),
+    line(
+      "Delivery",
+      str(production.deliveryMethod) === "Ship"
+        ? "Ship to customer"
+        : "Local pickup in Salem"
+    ),
     ``,
     `ARTWORK`,
     ...artworkLines,

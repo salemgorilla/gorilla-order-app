@@ -43,6 +43,15 @@ export default function OrderSummary({ order }: Props) {
         />
 
         <SummaryRow
+          label="Delivery"
+          value={
+            order.production.deliveryMethod === "Ship"
+              ? "Ship"
+              : "Local Pickup"
+          }
+        />
+
+        <SummaryRow
           label="Artwork"
           value={
             order.artwork.file
@@ -55,9 +64,27 @@ export default function OrderSummary({ order }: Props) {
 
       <div className="my-8 border-t border-[#ece4d5]" />
 
+      <div className="space-y-3">
+        <SummaryRow
+          label="Decals"
+          value={`$${order.pricing.stickerPrice.toFixed(2)}`}
+        />
+
+        <SummaryRow
+          label="Shipping"
+          value={
+            order.pricing.shippingPrice > 0
+              ? `$${order.pricing.shippingPrice.toFixed(2)}`
+              : "Free (pickup)"
+          }
+        />
+      </div>
+
+      <div className="my-6 border-t border-[#ece4d5]" />
+
       <div className="flex justify-between text-xl font-black">
         <span>Total</span>
-        <span>${order.pricing.total}</span>
+        <span>${order.pricing.total.toFixed(2)}</span>
       </div>
     </div>
   );

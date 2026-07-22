@@ -126,10 +126,12 @@ export async function POST(request: Request) {
     });
 
     if (notification.sent) {
-      console.log(`QUOTE EMAIL SENT for ${quoteNumber}`);
+      console.log(
+        `QUOTE EMAIL SENT for ${quoteNumber} via ${notification.provider}`
+      );
     } else if (notification.skipped) {
       console.log(
-        `QUOTE EMAIL SKIPPED for ${quoteNumber} (set RESEND_API_KEY in .env.local to enable).`
+        `QUOTE EMAIL SKIPPED for ${quoteNumber} (set RESEND_API_KEY, or GMAIL_USER + GMAIL_APP_PASSWORD, in .env.local to enable).`
       );
     } else {
       console.error(

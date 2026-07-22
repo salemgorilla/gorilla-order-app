@@ -1,17 +1,32 @@
-// Sends each submitted quote to the shop as an email, via Resend.
-// Configured entirely through env vars so no secrets live in the repo:
-//   RESEND_API_KEY   - required to actually send (if missing, sending is skipped)
-//   QUOTE_TO_EMAIL   - where quotes are sent (default quote@gorillasalem.com)
-//   QUOTE_FROM_EMAIL - verified sender (default Resend's onboarding sandbox)
+// Sends each submitted quote to the shop as an email.
 //
-// If RESEND_API_KEY is not set, sendQuoteEmail() returns { sent:false, skipped:true }
-// and the quote submission still succeeds — email is best-effort, never a blocker.
+// Two providers are supported — whichever is configured wins (Resend first):
+//
+//   A) Resend  — set RESEND_API_KEY
+//   B) Gmail   — set GMAIL_USER + GMAIL_APP_PASSWORD
+//                (a Google "App Password", not your normal password;
+//                 requires 2-Step Verification on the account)
+//
+// Shared:
+//   QUOTE_TO_EMAIL   - where quotes are sent (default quote@gorillasalem.com)
+//   QUOTE_FROM_EMAIL - sender. Ignored for Gmail, which must send as GMAIL_USER.
+//
+// If neither provider is configured, sendQuoteEmail() returns
+// { sent:false, skipped:true } and the quote submission still succeeds —
+// email is best-effort and never blocks the customer.
 
 export type QuoteEmailResult = {
   sent: boolean;
   skipped?: boolean;
   error?: string;
+  provider?: "resend" | "gmail";
 };
+
+export function getEmailProvider(): "resend" | "gmail" | null {
+  if (process.env.RESEND_API_KEY) return "resend";
+  if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) return "gmail";
+  return null;
+}
 
 type AnyRecord = Record<string, unknown>;
 
@@ -284,47 +299,124 @@ export async function sendQuoteEmail(input: {
   attachment?: QuoteAttachment | null;
   attachmentInfo?: string;
 }): Promise<QuoteEmailResult> {
-  const apiKey = process.env.RESEND_API_KEY;
+  const provider = getEmailProvider();
 
-  if (!apiKey) {
+  if (!provider) {
     return { sent: false, skipped: true };
   }
 
   const to = process.env.QUOTE_TO_EMAIL || "quote@gorillasalem.com";
-  const from =
-    process.env.QUOTE_FROM_EMAIL ||
-    "Gorilla Salem Quotes <onboarding@resend.dev>";
-
   const { subject, text, html, replyTo } = buildQuoteEmail(input);
 
   try {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from,
+    if (provider === "gmail") {
+      return await sendViaGmail({
         to,
         subject,
         text,
         html,
-        ...(replyTo ? { reply_to: replyTo } : {}),
-        ...(input.attachment ? { attachments: [input.attachment] } : {}),
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      return { sent: false, error: `Resend ${response.status}: ${errorText}` };
+        replyTo,
+        attachment: input.attachment ?? null,
+      });
     }
 
-    return { sent: true };
+    return await sendViaResend({
+      to,
+      subject,
+      text,
+      html,
+      replyTo,
+      attachment: input.attachment ?? null,
+    });
   } catch (error) {
     return {
       sent: false,
+      provider,
       error: error instanceof Error ? error.message : "Unknown email error.",
     };
   }
+}
+
+type SendArgs = {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+  replyTo?: string;
+  attachment: QuoteAttachment | null;
+};
+
+async function sendViaResend(args: SendArgs): Promise<QuoteEmailResult> {
+  const from =
+    process.env.QUOTE_FROM_EMAIL ||
+    "Gorilla Salem Quotes <onboarding@resend.dev>";
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: args.to,
+      subject: args.subject,
+      text: args.text,
+      html: args.html,
+      ...(args.replyTo ? { reply_to: args.replyTo } : {}),
+      ...(args.attachment ? { attachments: [args.attachment] } : {}),
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    return {
+      sent: false,
+      provider: "resend",
+      error: `Resend ${response.status}: ${errorText}`,
+    };
+  }
+
+  return { sent: true, provider: "resend" };
+}
+
+async function sendViaGmail(args: SendArgs): Promise<QuoteEmailResult> {
+  // Imported lazily so the dependency only loads when Gmail is actually used.
+  const nodemailer = (await import("nodemailer")).default;
+
+  const user = process.env.GMAIL_USER as string;
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user,
+      // A Google App Password (16 chars). Spaces are allowed in the UI but
+      // must be stripped before use.
+      pass: (process.env.GMAIL_APP_PASSWORD as string).replace(/\s+/g, ""),
+    },
+  });
+
+  // Gmail always sends as the authenticated account, so we only customise the
+  // display name — QUOTE_FROM_EMAIL's address would be rewritten anyway.
+  await transporter.sendMail({
+    from: `Gorilla Salem Quotes <${user}>`,
+    to: args.to,
+    subject: args.subject,
+    text: args.text,
+    html: args.html,
+    ...(args.replyTo ? { replyTo: args.replyTo } : {}),
+    ...(args.attachment
+      ? {
+          attachments: [
+            {
+              filename: args.attachment.filename,
+              content: args.attachment.content,
+              encoding: "base64",
+            },
+          ],
+        }
+      : {}),
+  });
+
+  return { sent: true, provider: "gmail" };
 }

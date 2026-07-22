@@ -24,13 +24,25 @@ _Living roadmap for the Gorilla Salem quote/order builder. Update this file as y
 ✅ **Quote submission** — `POST /api/quote` returns a quote number (`GS-YYYYMMDD-XXXXX`), shows a confirmation screen with **Copy Quote Details** + **Open Gmail Draft**.
 ✅ **Build is green** — `npx tsc --noEmit` and `npm run build` both pass with 0 errors.
 
-**Checkpoint:** `v3.2.0 — Printavo schema verified; real size mapping + rate-limit backoff` (see Section 2). Previous: `v3.1.0`, `v3.0.0`.
+**Checkpoint:** `v3.3.0 — Quote email works with Resend or Gmail` (see Section 2). Previous: `v3.2.0`, `v3.1.0`.
 
 ---
 
 ## 2. What changed most recently (2026-07-14)
 
-### `v3.2.0` — Printavo schema verified + real size mapping + rate-limit backoff _(pending commit)_
+### `v3.3.0` — Quote email works with Resend **or** Gmail _(pending commit)_
+Resend signup was erroring out ("Something went wrong while processing your request" — and their status page showed no outage), so the app is no longer locked to one provider.
+
+- `lib/email.ts` — now provider-agnostic. `getEmailProvider()` auto-detects: **Resend** (`RESEND_API_KEY`) or **Gmail SMTP** (`GMAIL_USER` + `GMAIL_APP_PASSWORD`), Resend winning if both are set. Neither configured → still skips safely.
+- **New `GET /api/email-test`** — sends a sample quote and reports which provider was used, so you can confirm delivery without submitting a real quote.
+- Added `nodemailer` (lazy-imported, so it only loads if Gmail is actually used).
+- Both blocks are pre-stubbed in `.env.local` — fill in one and uncomment.
+
+**Why Gmail is a fine option here:** no new signup, **no domain verification ever**, and quotes arrive *from* gorillaprinting@gmail.com so replies reach the customer naturally. Gmail's ~500/day limit is far above quote volume.
+
+Verified: no provider → skipped cleanly with a clear hint; dummy Gmail credentials → reached Google's SMTP and returned a real auth rejection (`534-5.7.9`) **without crashing**, proving the path is wired correctly; `tsc` + `build` clean.
+
+### `v3.2.0` — Printavo schema verified + real size mapping + rate-limit backoff
 Verified the whole Printavo mutation against the **official v2 schema docs** (no credentials needed), which resolved the ⚠️ from v3.0.0 and let me fix a real bug and close a follow-up.
 
 **✅ Schema verified** — every name/type I used is confirmed correct:
@@ -187,19 +199,31 @@ Direct S&S API test (should return JSON): http://localhost:3000/api/ss-catalog?s
 
 ### ⚙️ Turn on quote emails (one-time setup)
 
-Quotes only email once you add a Resend key. Steps:
-1. Go to **https://resend.com** → sign up (free) → **API Keys** → create one (starts with `re_`).
-2. Open `v2/.env.local` and add:
-   ```
-   RESEND_API_KEY=re_your_key_here
-   QUOTE_TO_EMAIL=quote@gorillasalem.com
-   QUOTE_FROM_EMAIL=Gorilla Salem Quotes <onboarding@resend.dev>
-   ```
-3. Restart `npm run dev`.
-4. **Testing note:** Resend's sandbox sender `onboarding@resend.dev` can only email **the address you signed up with**. So to test, set `QUOTE_TO_EMAIL` to your Resend signup email first. Once you **verify the gorillasalem.com domain** in Resend (Domains tab), change `QUOTE_FROM_EMAIL` to `quotes@gorillasalem.com` and set `QUOTE_TO_EMAIL` back to `quote@gorillasalem.com` — then it can email anywhere.
-5. Submit a test quote. Terminal should log `QUOTE EMAIL SENT`; a failure logs `QUOTE EMAIL FAILED: <reason>`.
+Quotes only email once a provider is configured. **Pick either one** — the app auto-detects which is set (Resend wins if both are). `v2/.env.local` already has both blocks stubbed out; you just fill one in.
 
-> Never paste the real key into chat or commit it — it lives only in `.env.local` (git-ignored).
+**Check it any time:** http://localhost:3000/api/email-test — sends a sample quote and reports which provider was used.
+
+#### Option A — Resend
+1. **https://resend.com** → sign up (free, 3,000/mo) → **API Keys** → create one (starts with `re_`).
+2. In `v2/.env.local`, uncomment and fill: `RESEND_API_KEY=re_...`
+3. Restart `npm run dev`.
+4. **Testing note:** the sandbox sender `onboarding@resend.dev` is for testing only. To email `quote@gorillasalem.com` you must **verify the gorillasalem.com domain** in Resend (Domains tab → add DNS records); until then, send to your own signup address. After verifying, set `QUOTE_FROM_EMAIL=Gorilla Salem Quotes <quotes@gorillasalem.com>`.
+
+#### Option B — your own Gmail _(no new signup, no domain verification)_
+Good fallback if Resend signup misbehaves. Quotes arrive **from your own address**, so replies work naturally.
+1. Turn on **2-Step Verification**: Google Account → Security.
+2. Create an **App Password**: Google Account → Security → 2-Step Verification → **App passwords**. Copy the 16-character password.
+3. In `v2/.env.local`, uncomment and fill:
+   ```
+   GMAIL_USER=gorillaprinting@gmail.com
+   GMAIL_APP_PASSWORD=the16charpassword
+   ```
+   (Leave `RESEND_API_KEY` commented out.) Spaces in the password are fine — they're stripped automatically.
+4. Restart `npm run dev`.
+
+> Gmail sends as the authenticated account, so `QUOTE_FROM_EMAIL` is ignored for Option B (only the display name is used). Gmail's ~500 emails/day limit is far above quote volume.
+
+**Either way:** submit a test quote — the terminal logs `QUOTE EMAIL SENT for … via resend|gmail`, or `QUOTE EMAIL FAILED: <reason>`. Never paste the key/password into chat or commit it; it lives only in `.env.local` (git-ignored).
 
 ### ⚙️ Turn on Printavo (one-time setup)
 
@@ -410,7 +434,8 @@ git push
 ---
 
 ## Version history
-- `v3.2.0` — Printavo schema verified; real apparel size mapping; nested lineItems fix; 429 backoff _(pending commit)_
+- `v3.3.0` — Quote email supports Resend **or** Gmail SMTP; added `/api/email-test` _(pending commit)_
+- `v3.2.0` — Printavo schema verified; real apparel size mapping; nested lineItems fix; 429 backoff
 - `v3.1.0` — Pickup vs Ship on decals; fixed the fresh-load "$12/$0.12" price bug
 - `v3.0.0` — Push quotes into Printavo as draft/unconfirmed (+ `/api/printavo-test`)
 - `v2.9.0` — Split `page.tsx` into per-flow feature folders (-47% lines, no behavior change)

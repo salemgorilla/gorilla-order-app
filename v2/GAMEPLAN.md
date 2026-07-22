@@ -24,13 +24,36 @@ _Living roadmap for the Gorilla Salem quote/order builder. Update this file as y
 ✅ **Quote submission** — `POST /api/quote` returns a quote number (`GS-YYYYMMDD-XXXXX`), shows a confirmation screen with **Copy Quote Details** + **Open Gmail Draft**.
 ✅ **Build is green** — `npx tsc --noEmit` and `npm run build` both pass with 0 errors.
 
-**Checkpoint:** `v3.1.0 — Pickup vs Ship on decals (+ fixed the fresh-load price bug)` (see Section 2). Previous: `v3.0.0`, `v2.9.0`.
+**Checkpoint:** `v3.2.0 — Printavo schema verified; real size mapping + rate-limit backoff` (see Section 2). Previous: `v3.1.0`, `v3.0.0`.
 
 ---
 
 ## 2. What changed most recently (2026-07-14)
 
-### `v3.1.0` — Pickup vs Ship on decals + fixed the fresh-load price bug _(pending commit)_
+### `v3.2.0` — Printavo schema verified + real size mapping + rate-limit backoff _(pending commit)_
+Verified the whole Printavo mutation against the **official v2 schema docs** (no credentials needed), which resolved the ⚠️ from v3.0.0 and let me fix a real bug and close a follow-up.
+
+**✅ Schema verified** — every name/type I used is confirmed correct:
+| Thing | Confirmed |
+|---|---|
+| `quoteCreate` → `QuoteCreateInput` | ✅ |
+| `contact` | `IDInput!` — object w/ id, as used ✅ |
+| `customerDueAt` / `dueAt` | `ISO8601Date!` (date-only) / `ISO8601DateTime!` — exactly the split implemented ✅ |
+| `nickname`, `customerNote`, `productionNote`, `tags` | ✅ |
+| `lineItemGroupCreate` → `LineItemGroupCreateInput` | ✅ |
+| `description`, `itemNumber`, `position`, `price`, `taxed`, `sizes` | ✅ |
+
+**🐛 Fixed a real bug:** `lineItems` is **`[[LineItemCreateInput!]]` — a nested array**, but the code (inherited from the old integration) passed a flat array. GraphQL would have coerced `[A, B]` into `[[A], [B]]`, splitting the decal and shipping lines into **separate groups**. Now correctly sends `[[A, B]]` as one group.
+
+**✅ Real apparel sizes (closes Printavo follow-up #2).** The `LineItemSize` enum is confirmed lowercase snake_case (`size_s`, `size_m`, `size_2xl`, `size_ys`, `size_other`, …). Apparel line items now map the actual breakdown — `"S-4, M-8, L-8, XL-4"` → `size_s:4, size_m:8, size_l:8, size_xl:4` — instead of dumping everything into `size_other`. **Safety guard:** if the parsed counts don't equal the order quantity, it falls back to a single `size_other` row rather than sending Printavo wrong numbers. Decals still use `size_other`.
+
+**✅ Rate-limit backoff.** Printavo allows **10 requests / 5 seconds**; one quote costs 3, so a couple of simultaneous submissions could trip it. `printavoRequest()` now retries `429`/5xx up to 3 times with exponential backoff (1s/2s/4s), honoring `Retry-After`.
+
+Verified: size mapping + parsing (incl. `XXL`→`size_2xl`, unknown names merged, zero counts skipped, mismatch fallback); quote POST still succeeds with Printavo unconfigured; `tsc` + `build` clean.
+
+> Still needs one live test once credentials exist — the schema is confirmed, but only a real call proves the account accepts it.
+
+### `v3.1.0` — Pickup vs Ship on decals + fixed the fresh-load price bug
 Implements decision **D1**: the customer now chooses **Local Pickup (free)** or **Ship (+$12)** on the decal flow, so walk-ins aren't overcharged and you stop eating shipping on mail orders.
 
 - `features/decals/DecalBuilder.tsx` — new Delivery selector (Local Pickup / Ship It) showing the price of each.
@@ -60,9 +83,9 @@ Production integration, first cut. When a quote is submitted, the server also cr
 - ✅ Safety: no credentials → skipped, quote succeeds. Bad credentials → real Printavo response (`Unauthorized`) captured, quote still succeeds. So the endpoint, auth headers and request format are confirmed correct.
 - ⚠️ **Not yet verified: the GraphQL schema itself** (`quoteCreate` / `lineItemGroupCreate` field names). Those mirror the previous working code but need one real test once you add credentials.
 
-**Printavo follow-ups (need live credentials to do properly):**
-1. **Real customers.** Every web quote currently attaches to one configured contact (`PRINTAVO_CUSTOMER_ID`), with the customer's real details in the quote's `customerNote`. Find-or-create of real Printavo customers needs schema verification.
-2. **Real size mapping.** Apparel line items use `size_other` with the total count (the only value the old working code used); the readable breakdown (`S-4, M-8…`) goes in the description. Mapping to Printavo's per-size enums needs verification against your account.
+**Printavo follow-ups:**
+1. **Real customers.** Every web quote currently attaches to one configured contact (`PRINTAVO_CUSTOMER_ID`), with the customer's real details in the quote's `customerNote`. Find-or-create of real Printavo customers (`customerCreate` / `contactCreate`) is the next step — doable now that the schema pattern is proven.
+2. ~~**Real size mapping.**~~ ✅ **Done in v3.2.0** — apparel now maps to the real `LineItemSize` enums.
 3. **Artwork upload.** Art is attached to the quote *email*, not uploaded to Printavo.
 
 ### `v2.9.0` — Split `page.tsx` into per-flow feature folders
@@ -182,7 +205,8 @@ Quotes only email once you add a Resend key. Steps:
 
 Quotes only reach Printavo once these are set. Until then it's skipped and the app works exactly as it does today.
 
-1. Confirm your Printavo plan includes **API v2 access**, and get your API token (Printavo → My Account → API).
+1. In Printavo: **My Account → Generate API Key**, then copy the token. (To check it later: **My Account → API Token**.)
+   > **Recommended:** create a **separate Printavo user** for this integration and generate the key under that login, rather than using the owner's personal key. The token grants full account access, so a dedicated service user can be rotated or revoked without disrupting anyone's day-to-day login.
 2. Find the Printavo **customer ID** that web quotes should attach to (open the customer in Printavo; the id is in the URL). Tip: make a customer literally called "Website Quotes" for this.
 3. Add to `v2/.env.local`:
    ```
@@ -194,7 +218,15 @@ Quotes only reach Printavo once these are set. Until then it's skipped and the a
 5. Submit one test quote. Terminal logs `PRINTAVO QUOTE CREATED …` with a link; a failure logs `PRINTAVO FAILED: <reason>`.
 6. **Check that first quote in Printavo carefully** — this is the step that confirms the GraphQL schema is right (see the ⚠️ in Section 2). If it errors, send me the exact message and I'll fix the mutation.
 
-> Every web quote lands tagged `#WebQuote` + `#Unconfirmed`. Never paste the token into chat — it lives only in `.env.local` (git-ignored).
+> Every web quote lands tagged `#WebQuote` + `#Unconfirmed`. Never paste the token into chat — it lives only in `.env.local` (git-ignored). Rotate it periodically.
+
+**Printavo API facts worth knowing** (from the API handoff doc):
+- Endpoint `POST https://www.printavo.com/api/v2`; headers `Content-Type`, `email`, `token`.
+- **Rate limit: 10 requests / 5 seconds.** One quote costs 3 requests. The app retries `429` with backoff automatically.
+- **No webhooks** — the API is request/response only. Our integration only *pushes*, so this doesn't affect us; but if you ever want Printavo status changes to flow *back* into the app, that requires polling.
+- Query depth max 13, complexity max 25,000; large reads use cursor pagination.
+- The same key works for v1 and v2 — build new work against **v2**.
+- Docs: https://www.printavo.com/docs/api/v2 · Printavo does not provide implementation support, so the docs are the source of truth.
 
 **Manual smoke test — do this after any change to `page.tsx`:**
 - [ ] **Decal flow:** change quantity, size, shape, and decal type → price updates every time, no console errors. Holographic/Chrome/Clear cost more than Gloss/Matte.
@@ -378,7 +410,8 @@ git push
 ---
 
 ## Version history
-- `v3.1.0` — Pickup vs Ship on decals; fixed the fresh-load "$12/$0.12" price bug _(pending commit)_
+- `v3.2.0` — Printavo schema verified; real apparel size mapping; nested lineItems fix; 429 backoff _(pending commit)_
+- `v3.1.0` — Pickup vs Ship on decals; fixed the fresh-load "$12/$0.12" price bug
 - `v3.0.0` — Push quotes into Printavo as draft/unconfirmed (+ `/api/printavo-test`)
 - `v2.9.0` — Split `page.tsx` into per-flow feature folders (-47% lines, no behavior change)
 - `v2.8.2` — Attach uploaded artwork to the quote email (multipart submit)

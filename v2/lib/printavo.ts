@@ -46,6 +46,62 @@ function isApparel(product: AnyRecord) {
   );
 }
 
+export type PrintavoSizeCount = { size: string; count: number };
+
+// Printavo's LineItemSize enum (lowercase snake_case), verified against
+// https://www.printavo.com/docs/api/v2/enum/lineitemsize/
+const SIZE_ENUM_BY_NAME: Record<string, string> = {
+  XS: "size_xs",
+  S: "size_s",
+  M: "size_m",
+  L: "size_l",
+  XL: "size_xl",
+  "2XL": "size_2xl",
+  XXL: "size_2xl",
+  "3XL": "size_3xl",
+  XXXL: "size_3xl",
+  "4XL": "size_4xl",
+  "5XL": "size_5xl",
+  "6XL": "size_6xl",
+  // Youth
+  YXS: "size_yxs",
+  YS: "size_ys",
+  YM: "size_ym",
+  YL: "size_yl",
+  YXL: "size_yxl",
+};
+
+export function toPrintavoSize(sizeName: string) {
+  const key = sizeName.trim().toUpperCase().replace(/\s+/g, "");
+  return SIZE_ENUM_BY_NAME[key] || "size_other";
+}
+
+/**
+ * Turns the app's size-breakdown string ("S-4, M-8, L-8, XL-4") into Printavo
+ * size/count pairs. Returns [] when nothing usable can be parsed, so callers
+ * can fall back to a single size_other row.
+ */
+export function parseSizeBreakdown(sizeBreakdown: string): PrintavoSizeCount[] {
+  if (!sizeBreakdown.trim()) return [];
+
+  const counts = new Map<string, number>();
+
+  for (const part of sizeBreakdown.split(",")) {
+    // Last dash wins so names containing a dash still parse.
+    const match = part.trim().match(/^(.+)-(\d+)$/);
+    if (!match) continue;
+
+    const count = Number(match[2]);
+    if (!Number.isFinite(count) || count <= 0) continue;
+
+    const size = toPrintavoSize(match[1]);
+    // Unknown names all collapse to size_other, so merge their counts.
+    counts.set(size, (counts.get(size) || 0) + count);
+  }
+
+  return Array.from(counts.entries()).map(([size, count]) => ({ size, count }));
+}
+
 export function getPrintavoConfig() {
   const email = process.env.PRINTAVO_EMAIL;
   const token = process.env.PRINTAVO_TOKEN;
@@ -60,31 +116,58 @@ function isConfigured() {
   return Boolean(email && token && customerId);
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Printavo allows 10 requests per 5 seconds per account. Creating one quote
+// costs 3 requests, so a couple of simultaneous submissions can trip the limit.
+// Retry 429s (and 5xx) with exponential backoff instead of dropping the quote.
+const MAX_RETRIES = 3;
+
 async function printavoRequest<T = AnyRecord>(
   query: string,
   variables?: AnyRecord
 ): Promise<T> {
   const { email, token } = getPrintavoConfig();
 
-  const response = await fetch(PRINTAVO_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      email: email as string,
-      token: token as string,
-    },
-    body: JSON.stringify({ query, variables }),
-  });
+  let lastError = "Printavo request failed.";
 
-  const data = await response.json();
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+    const response = await fetch(PRINTAVO_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        email: email as string,
+        token: token as string,
+      },
+      body: JSON.stringify({ query, variables }),
+    });
 
-  if (!response.ok || data.errors) {
-    const detail =
-      data?.errors?.[0]?.message || `HTTP ${response.status}`;
-    throw new Error(`Printavo: ${detail}`);
+    const retryable = response.status === 429 || response.status >= 500;
+
+    if (retryable && attempt < MAX_RETRIES) {
+      // Honor Retry-After when Printavo sends it; otherwise back off 1s, 2s, 4s.
+      const retryAfter = Number(response.headers.get("retry-after"));
+      const waitMs = Number.isFinite(retryAfter) && retryAfter > 0
+        ? retryAfter * 1000
+        : 1000 * 2 ** attempt;
+
+      lastError = `HTTP ${response.status}`;
+      await sleep(waitMs);
+      continue;
+    }
+
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok || data?.errors) {
+      const detail =
+        data?.errors?.[0]?.message || `HTTP ${response.status}`;
+      throw new Error(`Printavo: ${detail}`);
+    }
+
+    return data.data as T;
   }
 
-  return data.data as T;
+  throw new Error(`Printavo: ${lastError} after ${MAX_RETRIES} retries.`);
 }
 
 /**
@@ -134,6 +217,7 @@ export type PrintavoQuotePlan = {
     itemNumber: string;
     price: number;
     quantity: number;
+    sizes: PrintavoSizeCount[];
   };
   // Only present when the customer chose shipping over local pickup.
   shippingLineItem: {
@@ -273,6 +357,20 @@ export function buildPrintavoQuotePlan(input: {
         : "GORILLA-DECAL",
       price: unitPrice,
       quantity,
+      // Apparel: map the real size breakdown onto Printavo's size enums so the
+      // shop sees S/M/L/XL counts. Decals (and unparseable breakdowns) fall
+      // back to a single size_other row carrying the full count.
+      sizes: (() => {
+        if (!apparel) return [{ size: "size_other", count: quantity }];
+
+        const parsed = parseSizeBreakdown(str(product.sizeBreakdown));
+        const parsedTotal = parsed.reduce((sum, s) => sum + s.count, 0);
+
+        // Only trust the breakdown if it actually accounts for the order.
+        return parsed.length > 0 && parsedTotal === quantity
+          ? parsed
+          : [{ size: "size_other", count: quantity }];
+      })(),
     },
     shippingLineItem:
       shippingPrice > 0
@@ -370,29 +468,31 @@ export async function createPrintavoQuote(input: {
         parentId: quote.id,
         input: {
           position: 1,
+          // NOTE: lineItems is [[LineItemCreateInput!]] — a nested array. Both
+          // items go in ONE inner array so they land in a single group.
           lineItems: [
-            {
-              description: plan.lineItem.description,
-              itemNumber: plan.lineItem.itemNumber,
-              position: 1,
-              price: plan.lineItem.price,
-              // size_other carries the full count; the human-readable size
-              // breakdown lives in the description + customerNote.
-              sizes: [{ size: "size_other", count: plan.lineItem.quantity }],
-              taxed: true,
-            },
-            ...(plan.shippingLineItem
-              ? [
-                  {
-                    description: plan.shippingLineItem.description,
-                    itemNumber: plan.shippingLineItem.itemNumber,
-                    position: 2,
-                    price: plan.shippingLineItem.price,
-                    sizes: [{ size: "size_other", count: 1 }],
-                    taxed: false,
-                  },
-                ]
-              : []),
+            [
+              {
+                description: plan.lineItem.description,
+                itemNumber: plan.lineItem.itemNumber,
+                position: 1,
+                price: plan.lineItem.price,
+                sizes: plan.lineItem.sizes,
+                taxed: true,
+              },
+              ...(plan.shippingLineItem
+                ? [
+                    {
+                      description: plan.shippingLineItem.description,
+                      itemNumber: plan.shippingLineItem.itemNumber,
+                      position: 2,
+                      price: plan.shippingLineItem.price,
+                      sizes: [{ size: "size_other", count: 1 }],
+                      taxed: false,
+                    },
+                  ]
+                : []),
+            ],
           ],
         },
       }

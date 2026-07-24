@@ -23,9 +23,8 @@ _Living roadmap for the Gorilla Salem quote/order builder. Update this file as y
 ✅ **S&S Activewear API** — `/api/ss-catalog` returns `200` with real data. Credentials in `.env.local` are valid.
 ✅ **Quote submission** — `POST /api/quote` returns a quote number (`GS-YYYYMMDD-XXXXX`), shows a confirmation screen with **Copy Quote Details** + **Open Gmail Draft**.
 ✅ **Build is green** — `npx tsc --noEmit` and `npm run build` both pass with 0 errors.
-✅ **Quote emails are LIVE** — verified 2026-07-24 via **Gmail** (`GMAIL_USER=gorillaprinting@gmail.com`). A real `/api/quote` submission emails the shop end-to-end. _(Works while the app is running — see "Going live" below.)_
-
-> ⚠️ **Going live:** this currently runs **locally** (`npm run dev`). For real customers to reach it, the app must be **deployed** (e.g. Vercel) with the same env vars (`GMAIL_USER`, `GMAIL_APP_PASSWORD`, `SS_*`, etc.) set in the host's dashboard — `.env.local` is local-only and never deployed. See Section 10.
+✅ **DEPLOYED & LIVE** (2026-07-24) — **https://salemgorilla-gorilla-order-app.vercel.app/**
+On Vercel, root dir `v2`, auto-deploys on every push to `main`. Verified end-to-end in production: homepage loads, S&S catalog returns all 6 garments, both flows render with correct pricing, and a real `/api/quote` submission **emails the shop via Gmail** — all with zero console errors.
 
 **Checkpoint:** `v3.3.0 — Quote email works with Resend or Gmail` (see Section 2). Previous: `v3.2.0`, `v3.1.0`.
 

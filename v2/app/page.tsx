@@ -717,6 +717,9 @@ Quantity: ${order.product.quantity.toLocaleString()}
 Size: ${order.product.size}
 Shape: ${order.product.shape}
 Decal Type: ${order.product.material}
+Art Placement: ${order.product.artScale}% size, ${order.product.artMargin}% ${
+      order.product.shape === "Die Cut" ? "cut border" : "margin"
+    }
 
 ${timelineSection}
 
@@ -1028,6 +1031,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 product={order.product}
                 production={order.production}
                 unitPrice={unitPrice}
+                onUpdateProduct={(updates) => updateProduct(updates)}
               />
             )}
 

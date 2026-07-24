@@ -119,7 +119,14 @@ export function buildQuoteEmail(input: {
       line("Quantity", String(quantity)),
       line("Size", str(product.size)),
       line("Shape", str(product.shape)),
-      line("Decal Type", str(product.material))
+      line("Decal Type", str(product.material)),
+      line(
+        "Art Placement",
+        `${str(product.artScale, "80")}% size, ${str(
+          product.artMargin,
+          "40"
+        )}% ${str(product.shape) === "Die Cut" ? "cut border" : "margin"}`
+      )
     );
   }
 

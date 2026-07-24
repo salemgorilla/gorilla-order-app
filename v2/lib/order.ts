@@ -8,6 +8,8 @@ const initialProduct = {
   shape: "Die Cut",
   material: "Gloss White Vinyl",
   finish: "Gloss",
+  artScale: 80,
+  artMargin: 40,
 };
 
 // Local pickup by default — Gorilla Salem is a walk-in shop.

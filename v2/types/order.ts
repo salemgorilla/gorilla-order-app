@@ -17,6 +17,10 @@ export type Product = {
   shape: string;
   material: string;
   finish: string;
+  // Preview/production placement of the art on the decal (0–100).
+  // artScale = how large the art is; artMargin = die-cut border / shape margin.
+  artScale: number;
+  artMargin: number;
 };
 
 export type Artwork = {

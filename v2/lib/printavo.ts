@@ -298,6 +298,10 @@ export function buildPrintavoQuotePlan(input: {
         `Size: ${str(product.size, "TBD")}`,
         `Shape: ${str(product.shape, "TBD")}`,
         `Type: ${str(product.material, "TBD")}`,
+        `Art placement: ${str(product.artScale, "80")}% size, ${str(
+          product.artMargin,
+          "40"
+        )}% ${str(product.shape) === "Die Cut" ? "cut border" : "margin"}`,
       ].join("\n");
 
   const customerNote = [

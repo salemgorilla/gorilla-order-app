@@ -8,6 +8,7 @@ type Props = {
   product: Product;
   production: Production;
   unitPrice: number;
+  onUpdateProduct: (updates: Partial<Product>) => void;
 };
 
 export default function DecalPreviewCard({
@@ -15,7 +16,9 @@ export default function DecalPreviewCard({
   product,
   production,
   unitPrice,
+  onUpdateProduct,
 }: Props) {
+  const isDieCut = product.shape === "Die Cut";
   return (
     <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-5 shadow-xl sm:p-8">
       <div className="flex items-center justify-between">
@@ -40,9 +43,59 @@ export default function DecalPreviewCard({
         finish={product.finish}
         size={product.size}
         shape={product.shape}
+        artScale={product.artScale}
+        artMargin={product.artMargin}
       />
 
-      <div className="mt-6 grid grid-cols-2 gap-3 text-center sm:grid-cols-3">
+      <div className="mt-4 rounded-2xl bg-[#F8F5EE] p-4">
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6f695e]">
+          Adjust Art Placement
+        </p>
+
+        <label className="mt-3 block">
+          <span className="flex items-center justify-between text-sm font-bold text-[#171717]">
+            <span>Art Size</span>
+            <span className="text-[#2E5037]">{product.artScale}%</span>
+          </span>
+          <input
+            type="range"
+            min={40}
+            max={100}
+            step={5}
+            value={product.artScale}
+            onChange={(event) =>
+              onUpdateProduct({ artScale: Number(event.target.value) })
+            }
+            className="mt-1 w-full accent-[#2E5037]"
+          />
+        </label>
+
+        <label className="mt-3 block">
+          <span className="flex items-center justify-between text-sm font-bold text-[#171717]">
+            <span>{isDieCut ? "Cut Border" : "Margin"}</span>
+            <span className="text-[#2E5037]">{product.artMargin}%</span>
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={product.artMargin}
+            onChange={(event) =>
+              onUpdateProduct({ artMargin: Number(event.target.value) })
+            }
+            className="mt-1 w-full accent-[#2E5037]"
+          />
+        </label>
+
+        <p className="mt-2 text-xs font-bold leading-5 text-[#6f695e]">
+          {isDieCut
+            ? "Die-cut follows your artwork's outline. Cut Border sets the white edge around it."
+            : "Art auto-centers on the sticker. Margin sets the space to the edge."}
+        </p>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3 text-center sm:grid-cols-3">
         <div className="rounded-2xl bg-[#F8F5EE] p-4">
           <p className="text-xs font-bold uppercase text-[#6f695e]">
             Size

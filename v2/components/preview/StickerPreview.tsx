@@ -6,6 +6,8 @@ type Props = {
   finish: string;
   size: string;
   shape: string;
+  artScale: number;
+  artMargin: number;
 };
 
 export default function StickerPreview({
@@ -14,6 +16,8 @@ export default function StickerPreview({
   finish,
   size,
   shape,
+  artScale,
+  artMargin,
 }: Props) {
   const proofType = shape === "Die Cut" ? "Contour Cut Proof" : `${shape} Proof`;
 
@@ -36,24 +40,14 @@ export default function StickerPreview({
         </div>
 
         <div className="grid min-h-80 place-items-center rounded-[1.25rem] border border-white bg-[radial-gradient(circle_at_top,_#ffffff,_#efe4d4)] p-6">
-          <StickerShape shape={shape} material={material} finish={finish}>
-            {artworkPreview ? (
-              <img
-                src={artworkPreview}
-                alt="Uploaded artwork preview"
-                className="max-h-full max-w-full object-contain drop-shadow-lg"
-              />
-            ) : (
-              <div className="grid h-full w-full place-items-center rounded-3xl bg-[#2E5037] text-center text-white shadow-inner">
-                <div>
-                  <p className="text-6xl font-black tracking-[-0.08em]">GS</p>
-                  <p className="mt-2 text-xs font-black uppercase tracking-[0.2em]">
-                    Upload Art
-                  </p>
-                </div>
-              </div>
-            )}
-          </StickerShape>
+          <StickerShape
+            shape={shape}
+            material={material}
+            finish={finish}
+            artworkPreview={artworkPreview}
+            artScale={artScale}
+            artMargin={artMargin}
+          />
         </div>
 
         <div className="mt-4 grid grid-cols-3 gap-3 text-center">

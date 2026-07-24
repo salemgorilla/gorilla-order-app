@@ -23,6 +23,9 @@ _Living roadmap for the Gorilla Salem quote/order builder. Update this file as y
 ✅ **S&S Activewear API** — `/api/ss-catalog` returns `200` with real data. Credentials in `.env.local` are valid.
 ✅ **Quote submission** — `POST /api/quote` returns a quote number (`GS-YYYYMMDD-XXXXX`), shows a confirmation screen with **Copy Quote Details** + **Open Gmail Draft**.
 ✅ **Build is green** — `npx tsc --noEmit` and `npm run build` both pass with 0 errors.
+✅ **Quote emails are LIVE** — verified 2026-07-24 via **Gmail** (`GMAIL_USER=gorillaprinting@gmail.com`). A real `/api/quote` submission emails the shop end-to-end. _(Works while the app is running — see "Going live" below.)_
+
+> ⚠️ **Going live:** this currently runs **locally** (`npm run dev`). For real customers to reach it, the app must be **deployed** (e.g. Vercel) with the same env vars (`GMAIL_USER`, `GMAIL_APP_PASSWORD`, `SS_*`, etc.) set in the host's dashboard — `.env.local` is local-only and never deployed. See Section 10.
 
 **Checkpoint:** `v3.3.0 — Quote email works with Resend or Gmail` (see Section 2). Previous: `v3.2.0`, `v3.1.0`.
 
@@ -433,8 +436,27 @@ git push
 
 ---
 
+## 10. Going live (deployment)
+
+Today the app runs **locally** (`npm run dev`). That's fine for testing, but a customer can't reach `localhost` — for real quotes to flow, the app has to be **deployed and always-on**.
+
+**The key idea:** `.env.local` never leaves your machine. Every secret in it (`GMAIL_USER`, `GMAIL_APP_PASSWORD`, `SS_ACCOUNT_NUMBER`, `SS_API_KEY`, and Printavo keys once added) must be re-entered in the **hosting provider's** environment-variable settings.
+
+**Vercel is the natural fit** (it's Next.js's maker) and there's already a `vercel.json` at the repo root:
+1. Import the `salemgorilla/gorilla-order-app` repo at vercel.com.
+2. **Set the project's Root Directory to `v2`** (the app lives in the subfolder, not the repo root).
+3. Add every env var from `v2/.env.local` in **Vercel → Settings → Environment Variables**.
+4. Deploy. Point your domain / a link at the resulting URL.
+
+**One thing to re-check after deploying:** artwork attachments. Vercel's serverless functions cap request bodies at ~4.5 MB, so large uploads that work locally may fail in production (noted under Sprint D). If that bites, switch artwork to upload-to-storage + link.
+
+> Want help with this? I can walk through the Vercel setup and confirm each env var, but the actual account/import steps happen in your browser.
+
+---
+
 ## Version history
-- `v3.3.0` — Quote email supports Resend **or** Gmail SMTP; added `/api/email-test` _(pending commit)_
+- **2026-07-24** — Quote emails confirmed **live** via Gmail (end-to-end); added deployment section (10)
+- `v3.3.0` — Quote email supports Resend **or** Gmail SMTP; added `/api/email-test`
 - `v3.2.0` — Printavo schema verified; real apparel size mapping; nested lineItems fix; 429 backoff
 - `v3.1.0` — Pickup vs Ship on decals; fixed the fresh-load "$12/$0.12" price bug
 - `v3.0.0` — Push quotes into Printavo as draft/unconfirmed (+ `/api/printavo-test`)

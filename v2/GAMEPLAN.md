@@ -437,6 +437,8 @@ git push
 
 ## 10. Going live (deployment)
 
+> **Vercel projects (2026-07-24):** the repo is connected to **two** Vercel projects — `gorilla-order-app` (serves **labs.gorillasalem.com**) and `salemgorilla-gorilla-order-app` (serves the `.vercel.app` URL). **Both must have Root Directory = `v2`** (the app lives in the subfolder). If a project's root is left at the repo root it serves the old static `index.html` instead of the app. After changing Root Directory, trigger a **fresh deployment** (a new commit) — "Redeploy" of an old deployment can reuse the old setting. The two projects are redundant; one can be deleted later.
+
 Today the app runs **locally** (`npm run dev`). That's fine for testing, but a customer can't reach `localhost` — for real quotes to flow, the app has to be **deployed and always-on**.
 
 **The key idea:** `.env.local` never leaves your machine. Every secret in it (`GMAIL_USER`, `GMAIL_APP_PASSWORD`, `SS_ACCOUNT_NUMBER`, `SS_API_KEY`, and Printavo keys once added) must be re-entered in the **hosting provider's** environment-variable settings.

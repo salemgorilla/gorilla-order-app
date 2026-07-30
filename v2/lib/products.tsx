@@ -10,7 +10,7 @@ export const productCategories: ProductCategory[] = [
   {
     id: "stickers",
     title: "Custom Decals",
-    badge: "Live",
+    badge: "Beta",
     description:
       "Die-cut decals, logo decals, product labels, and custom vinyl decals.",
     status: "active",
@@ -18,10 +18,10 @@ export const productCategories: ProductCategory[] = [
   {
     id: "apparel",
     title: "T-Shirts & Apparel",
-    badge: "Beta",
+    badge: "Soon",
     description:
       "Quote requests for tees, hoodies, crewnecks, long sleeves, and youth apparel.",
-    status: "active",
+    status: "coming-soon",
   },
   {
     id: "signs",

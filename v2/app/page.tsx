@@ -287,6 +287,34 @@ export default function Home() {
     });
   }
 
+  function setSizeQuantity(sizeName: string, value: number) {
+    setSizeQuantities((current) => {
+      const nextQuantity = Number.isFinite(value)
+        ? Math.max(0, Math.floor(value))
+        : 0;
+      const next = {
+        ...current,
+        [sizeName]: nextQuantity,
+      };
+
+      if (nextQuantity === 0) {
+        delete next[sizeName];
+      }
+
+      const nextBreakdown = Object.entries(next)
+        .filter(([, quantity]) => quantity > 0)
+        .map(([size, quantity]) => `${size}-${quantity}`)
+        .join(", ");
+
+      setApparelQuote((quote) => ({
+        ...quote,
+        sizeBreakdown: nextBreakdown,
+      }));
+
+      return next;
+    });
+  }
+
   function resetSizeBreakdown() {
     setSizeQuantities({});
     setApparelQuote((current) => ({
@@ -977,6 +1005,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     updateApparelQuote({ inkColors })
                   }
                   onUpdateSizeQuantity={updateSizeQuantity}
+                  onSetSizeQuantity={setSizeQuantity}
                   onResetSizeBreakdown={resetSizeBreakdown}
                 />
               ) : (

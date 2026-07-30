@@ -40,6 +40,7 @@ type Props = {
   onTogglePrintLocation: (location: string) => void;
   onSelectInkColors: (inkColors: string) => void;
   onUpdateSizeQuantity: (sizeName: string, change: number) => void;
+  onSetSizeQuantity: (sizeName: string, value: number) => void;
   onResetSizeBreakdown: () => void;
 };
 
@@ -70,6 +71,7 @@ export default function ApparelBuilder({
   onTogglePrintLocation,
   onSelectInkColors,
   onUpdateSizeQuantity,
+  onSetSizeQuantity,
   onResetSizeBreakdown,
 }: Props) {
   return (
@@ -479,9 +481,18 @@ export default function ApparelBuilder({
                       −
                     </button>
 
-                    <span className="grid h-10 min-w-12 place-items-center rounded-xl bg-[#F8F5EE] px-3 text-lg font-black text-[#171717]">
-                      {quantity}
-                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      inputMode="numeric"
+                      value={quantity}
+                      onFocus={(event) => event.target.select()}
+                      onChange={(event) =>
+                        onSetSizeQuantity(sizeName, Number(event.target.value))
+                      }
+                      aria-label={`${sizeName} quantity`}
+                      className="h-10 w-16 rounded-xl bg-[#F8F5EE] px-2 text-center text-lg font-black text-[#171717] outline-none focus:ring-2 focus:ring-[#2E5037]"
+                    />
 
                     <button
                       type="button"

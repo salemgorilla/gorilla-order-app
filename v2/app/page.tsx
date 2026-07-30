@@ -737,19 +737,19 @@ ${notesSection}
 This is an estimate request, not a final invoice. Gorilla Salem will confirm pricing, timeline, and artwork readiness before production starts.`;
     }
 
-    return `GORILLA SALEM DECAL QUOTE REQUEST
+    return `GORILLA SALEM STICKER QUOTE REQUEST
 
 Quote Number: ${quoteNumber}
 Submitted: ${submittedAt}
 
 ${customerSection}
 
-DECAL DETAILS
-Product: Custom Decals
+STICKER DETAILS
+Product: Custom Stickers
 Quantity: ${order.product.quantity.toLocaleString()}
 Size: ${order.product.size}
 Shape: ${order.product.shape}
-Decal Type: ${order.product.material}
+Sticker Type: ${order.product.material}
 Art Placement: ${order.product.artScale}% size, ${order.product.artMargin}% ${
       order.product.shape === "Die Cut" ? "cut border" : "margin"
     }
@@ -758,14 +758,14 @@ Magenta Cut Line: ${order.product.magentaCutLine ? "Yes — art includes a magen
 ${timelineSection}
 
 ESTIMATE
-Decals: $${order.pricing.stickerPrice.toFixed(2)}
+Stickers: $${order.pricing.stickerPrice.toFixed(2)}
 Shipping: ${
       order.pricing.shippingPrice > 0
         ? `$${order.pricing.shippingPrice.toFixed(2)}`
         : "Free (local pickup)"
     }
 Estimated Total: $${order.pricing.total.toFixed(2)}
-Estimated Each: $${unitPrice.toFixed(2)} per decal
+Estimated Each: $${unitPrice.toFixed(2)} per sticker
 
 ${artworkSection}
 
@@ -813,7 +813,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     setCopyStatus("idle");
   }
 
-  // Price per decal, excluding shipping — shipping is shown as its own line.
+  // Price per sticker, excluding shipping — shipping is shown as its own line.
   const unitPrice = order.pricing.stickerPrice / order.product.quantity;
   const currentValidationErrors = getCurrentValidationErrors();
   const readyToSubmit = isApparelSelected
@@ -884,7 +884,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             </div>
 
             <p className="max-w-md text-sm font-bold leading-6 text-[#6f695e]">
-              Start with decals or apparel. More Gorilla Salem products can be
+              Start with stickers or apparel. More Gorilla Salem products can be
               added to this system without rebuilding the whole app.
             </p>
           </div>
@@ -951,12 +951,12 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 <h2 className="mt-2 text-3xl font-black tracking-[-0.05em]">
                   {isApparelSelected
                     ? "Build Your Apparel Quote"
-                    : "Choose Your Decal Details"}
+                    : "Choose Your Sticker Details"}
                 </h2>
               </div>
 
               <div className="rounded-full bg-[#F8F5EE] px-4 py-2 text-sm font-bold text-[#6f695e]">
-                {isApparelSelected ? "Manual Quote" : "Decal Estimate"}
+                {isApparelSelected ? "Manual Quote" : "Sticker Estimate"}
               </div>
             </div>
 

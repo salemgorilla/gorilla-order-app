@@ -38,7 +38,7 @@ export default function QuoteReviewCard({
         </div>
 
         <span className="rounded-full bg-[#F8F5EE] px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-[#2E5037]">
-          {isApparelSelected ? "Apparel" : "Decals"}
+          {isApparelSelected ? "Apparel" : "Stickers"}
         </span>
       </div>
 
@@ -97,7 +97,7 @@ export default function QuoteReviewCard({
         ) : (
           <>
             <div className="flex justify-between gap-4">
-              <span>Decal</span>
+              <span>Sticker</span>
               <span className="text-right text-[#171717]">
                 {order.product.size} • {order.product.shape}
               </span>
@@ -111,7 +111,7 @@ export default function QuoteReviewCard({
             </div>
 
             <div className="flex justify-between gap-4">
-              <span>Decal Type</span>
+              <span>Sticker Type</span>
               <span className="text-right text-[#171717]">
                 {order.product.material}
               </span>

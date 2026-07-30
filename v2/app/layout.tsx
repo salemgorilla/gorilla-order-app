@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Gorilla Labs — Custom Print Quotes | Gorilla Salem",
   description:
-    "Design your custom decals or apparel and get a quote from Gorilla Salem — hand-printed locally in Salem, MA.",
+    "Design your custom stickers or apparel and get a quote from Gorilla Salem — hand-printed locally in Salem, MA.",
 };
 
 export default function RootLayout({

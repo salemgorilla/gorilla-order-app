@@ -87,7 +87,7 @@ export function buildQuoteEmail(input: {
           product.garmentType ||
           "Apparel"
       )
-    : "Custom Decals";
+    : "Custom Stickers";
 
   const subject = `New Quote ${quoteNumber} — ${quantity} ${productLabel}`;
 
@@ -115,11 +115,11 @@ export function buildQuoteEmail(input: {
     );
   } else {
     productLines.push(
-      line("Type", "Custom Decals"),
+      line("Type", "Custom Stickers"),
       line("Quantity", String(quantity)),
       line("Size", str(product.size)),
       line("Shape", str(product.shape)),
-      line("Decal Type", str(product.material)),
+      line("Sticker Type", str(product.material)),
       line(
         "Art Placement",
         `${str(product.artScale, "80")}% size, ${str(
@@ -150,7 +150,7 @@ export function buildQuoteEmail(input: {
     );
   } else {
     estimateLines.push(
-      line("Decals", money(pricing.stickerPrice)),
+      line("Stickers", money(pricing.stickerPrice)),
       line(
         "Shipping",
         shippingPrice > 0 ? money(shippingPrice) : "Free (local pickup)"
@@ -185,7 +185,7 @@ export function buildQuoteEmail(input: {
     line("Email", str(customer.email, "Not entered")),
     line("Phone", str(customer.phone, "N/A")),
     ``,
-    apparel ? `APPAREL DETAILS` : `DECAL DETAILS`,
+    apparel ? `APPAREL DETAILS` : `STICKER DETAILS`,
     ...productLines,
     ``,
     `ESTIMATE`,
@@ -283,7 +283,7 @@ function buildHtml(input: {
       input.submittedAt
     )}</p>
     ${htmlSection("Customer", customerLines)}
-    ${htmlSection(input.apparel ? "Apparel Details" : "Decal Details", input.productLines)}
+    ${htmlSection(input.apparel ? "Apparel Details" : "Sticker Details", input.productLines)}
     ${htmlSection("Estimate", input.estimateLines)}
     <p style="margin:6px 0 0;font-size:12px;color:#8a8172;">Estimate only. Final pricing reviewed by Gorilla Salem.</p>
     ${htmlSection("Artwork", input.artworkLines)}

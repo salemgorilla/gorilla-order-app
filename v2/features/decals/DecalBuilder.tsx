@@ -68,7 +68,7 @@ export default function DecalBuilder({
       />
 
       <OptionSelector
-        title="Decal Type"
+        title="Sticker Type"
         options={stickerCatalog.materials}
         selected={product.material}
         onSelect={(material) => onSelectMaterial(material)}

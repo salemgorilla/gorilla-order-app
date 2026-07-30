@@ -40,7 +40,7 @@ export async function GET() {
         notes: "This is a test send from /api/email-test — not a real quote.",
       },
       product: {
-        type: "Custom Decals",
+        type: "Custom Stickers",
         quantity: 100,
         size: '3"',
         shape: "Die Cut",

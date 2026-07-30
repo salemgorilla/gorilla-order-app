@@ -275,7 +275,7 @@ export function buildPrintavoQuotePlan(input: {
 
   const nickname = apparel
     ? `WEB QUOTE ${quoteNumber} - ${quantity} ${garmentLabel}`
-    : `WEB QUOTE ${quoteNumber} - ${quantity} Decals`;
+    : `WEB QUOTE ${quoteNumber} - ${quantity} Stickers`;
 
   const description = apparel
     ? [
@@ -294,7 +294,7 @@ export function buildPrintavoQuotePlan(input: {
         )}`,
       ].join("\n")
     : [
-        `${quantity}x Custom Decals`,
+        `${quantity}x Custom Stickers`,
         `Size: ${str(product.size, "TBD")}`,
         `Shape: ${str(product.shape, "TBD")}`,
         `Type: ${str(product.material, "TBD")}`,
@@ -318,7 +318,7 @@ export function buildPrintavoQuotePlan(input: {
     `Email: ${str(customer.email, "Not entered")}`,
     `Phone: ${str(customer.phone, "N/A")}`,
     "",
-    apparel ? "APPAREL" : "DECALS",
+    apparel ? "APPAREL" : "STICKERS",
     description,
     "",
     "TIMELINE",
@@ -365,7 +365,7 @@ export function buildPrintavoQuotePlan(input: {
       price: unitPrice,
       quantity,
       // Apparel: map the real size breakdown onto Printavo's size enums so the
-      // shop sees S/M/L/XL counts. Decals (and unparseable breakdowns) fall
+      // shop sees S/M/L/XL counts. Stickers (and unparseable breakdowns) fall
       // back to a single size_other row carrying the full count.
       sizes: (() => {
         if (!apparel) return [{ size: "size_other", count: quantity }];

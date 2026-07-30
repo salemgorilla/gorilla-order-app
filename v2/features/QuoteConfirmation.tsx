@@ -102,7 +102,7 @@ export default function QuoteConfirmationScreen({
 
             <div className="rounded-2xl border border-[#dfd0b8] p-5">
               <p className="text-xs font-black uppercase tracking-[0.16em] text-[#b7352d]">
-                {isApparelSubmitted ? "Apparel Details" : "Decal Details"}
+                {isApparelSubmitted ? "Apparel Details" : "Sticker Details"}
               </p>
 
               {isApparelSubmitted ? (
@@ -122,7 +122,7 @@ export default function QuoteConfirmationScreen({
               ) : (
                 <>
                   <p className="mt-2 text-lg font-black text-[#171717]">
-                    {order.product.quantity.toLocaleString()} decals
+                    {order.product.quantity.toLocaleString()} stickers
                   </p>
                   <p className="mt-1 text-sm font-bold text-[#6f695e]">
                     {order.product.size} • {order.product.shape}

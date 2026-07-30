@@ -66,7 +66,7 @@ export default function OrderSummary({ order }: Props) {
 
       <div className="space-y-3">
         <SummaryRow
-          label="Decals"
+          label="Stickers"
           value={`$${order.pricing.stickerPrice.toFixed(2)}`}
         />
 

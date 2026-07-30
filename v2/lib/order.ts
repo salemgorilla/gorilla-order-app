@@ -2,7 +2,7 @@ import { Order } from "../types/order";
 import { getShippingPrice, getStickerPrice } from "./pricing";
 
 const initialProduct = {
-  type: "Custom Decals",
+  type: "Custom Stickers",
   quantity: 100,
   size: '3"',
   shape: "Die Cut",

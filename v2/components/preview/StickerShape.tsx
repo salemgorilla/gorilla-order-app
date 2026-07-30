@@ -156,7 +156,19 @@ export default function StickerShape({
   // ---------- CIRCLE / SQUARE / ROUNDED: art centered on a vinyl card --------
   const rounded = getShapeRounding(shape);
   const materialClasses = getMaterialClasses(material);
-  const padPx = Math.round((margin / 100) * 40) + 6;
+
+  // The art is sized in real pixels against the card so it can never spill past
+  // the cut edge. A square inscribed in a circle is only ~70.7% of the
+  // diameter, so a circle needs a much tighter safe area than a square —
+  // sizing by plain percentage is what made art run off the round shapes.
+  const CARD_PX = 256; // h-64 / w-64
+  const safeAreaFactor =
+    shape === "Circle" ? 0.707 : shape === "Rounded Square" ? 0.88 : 0.96;
+  const marginPx = (margin / 100) * 34;
+  const artSizePx = Math.max(
+    24,
+    (CARD_PX - marginPx * 2) * safeAreaFactor * (scale / 100)
+  );
 
   return (
     <div className="relative mx-auto grid h-72 w-72 place-items-center">
@@ -178,12 +190,13 @@ export default function StickerShape({
           />
         )}
 
-        {/* Flexbox guarantees the art is centered regardless of aspect ratio */}
-        <div
-          className="relative z-10 flex h-full w-full items-center justify-center"
-          style={{ padding: padPx }}
-        >
-          <div className="flex items-center justify-center" style={artBoxStyle}>
+        {/* An absolute layer the exact size of the card, so the art is centered
+            on the shape itself — not on whatever padding happened to be left. */}
+        <div className="absolute inset-0 z-10 flex items-center justify-center">
+          <div
+            className="flex items-center justify-center"
+            style={{ width: artSizePx, height: artSizePx }}
+          >
             {artworkPreview ? (
               <img
                 src={artworkPreview}

@@ -9,10 +9,10 @@ export type ProductCategory = {
 export const productCategories: ProductCategory[] = [
   {
     id: "stickers",
-    title: "Custom Decals",
+    title: "Custom Stickers",
     badge: "Beta",
     description:
-      "Die-cut decals, logo decals, product labels, and custom vinyl decals.",
+      "Die-cut stickers, logo stickers, product labels, and custom vinyl stickers.",
     status: "active",
   },
   {

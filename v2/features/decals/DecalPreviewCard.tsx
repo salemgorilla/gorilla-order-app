@@ -45,6 +45,7 @@ export default function DecalPreviewCard({
         shape={product.shape}
         artScale={product.artScale}
         artMargin={product.artMargin}
+        magentaCutLine={product.magentaCutLine}
       />
 
       <div className="mt-4 rounded-2xl bg-[#F8F5EE] p-4">

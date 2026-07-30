@@ -302,6 +302,9 @@ export function buildPrintavoQuotePlan(input: {
           product.artMargin,
           "40"
         )}% ${str(product.shape) === "Die Cut" ? "cut border" : "margin"}`,
+        `Magenta cut line: ${
+          product.magentaCutLine ? "YES — art has a magenta cut path" : "no"
+        }`,
       ].join("\n");
 
   const customerNote = [

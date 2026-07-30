@@ -720,6 +720,7 @@ Decal Type: ${order.product.material}
 Art Placement: ${order.product.artScale}% size, ${order.product.artMargin}% ${
       order.product.shape === "Die Cut" ? "cut border" : "margin"
     }
+Magenta Cut Line: ${order.product.magentaCutLine ? "Yes — art includes a magenta cut line" : "No"}
 
 ${timelineSection}
 

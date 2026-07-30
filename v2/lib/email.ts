@@ -126,6 +126,12 @@ export function buildQuoteEmail(input: {
           product.artMargin,
           "40"
         )}% ${str(product.shape) === "Die Cut" ? "cut border" : "margin"}`
+      ),
+      line(
+        "Magenta Cut Line",
+        product.magentaCutLine
+          ? "Yes — customer art includes a magenta cut line"
+          : "No"
       )
     );
   }

@@ -70,6 +70,42 @@ export default function DecalBuilder({
         onSelect={(material) => onSelectMaterial(material)}
       />
 
+      <div className="rounded-2xl border border-[#dfd0b8] bg-[#F8F5EE] p-4">
+        <label className="flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            checked={product.magentaCutLine}
+            onChange={(event) =>
+              onUpdate({ magentaCutLine: event.target.checked })
+            }
+            className="mt-1 h-5 w-5 shrink-0 accent-[#e6007e]"
+          />
+          <span>
+            <span className="flex items-center gap-2 text-sm font-black text-[#171717]">
+              <span
+                className="inline-block h-3 w-3 rounded-full"
+                style={{ backgroundColor: "#e6007e" }}
+              />
+              My artwork includes a magenta cut line
+            </span>
+            <span className="mt-1 block text-sm font-bold leading-5 text-[#6f695e]">
+              Check this if your file has a{" "}
+              <span className="font-black text-[#e6007e]">100% magenta</span>{" "}
+              (RGB 255, 0, 255) line marking exactly where you want it cut —
+              perfect for custom die-cut shapes.
+            </span>
+          </span>
+        </label>
+
+        {product.magentaCutLine && (
+          <p className="mt-3 rounded-xl bg-white p-3 text-xs font-bold leading-5 text-[#6f695e]">
+            Put the magenta line on its own layer as a thin stroke (no fill). We
+            use it as the exact cut path. If it&apos;s missing or unclear,
+            Gorilla Salem will confirm the cut with you before printing.
+          </p>
+        )}
+      </div>
+
       <div>
         <div className="mb-3">
           <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">

@@ -8,6 +8,7 @@ type Props = {
   shape: string;
   artScale: number;
   artMargin: number;
+  magentaCutLine: boolean;
 };
 
 export default function StickerPreview({
@@ -18,6 +19,7 @@ export default function StickerPreview({
   shape,
   artScale,
   artMargin,
+  magentaCutLine,
 }: Props) {
   const proofType = shape === "Die Cut" ? "Contour Cut Proof" : `${shape} Proof`;
 
@@ -47,8 +49,19 @@ export default function StickerPreview({
             artworkPreview={artworkPreview}
             artScale={artScale}
             artMargin={artMargin}
+            magentaCutLine={magentaCutLine}
           />
         </div>
+
+        {magentaCutLine && (
+          <div className="mt-4 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-[#6f695e]">
+            <span
+              className="inline-block h-3 w-3 rounded-full"
+              style={{ backgroundColor: "#e6007e" }}
+            />
+            Magenta line = your cut edge
+          </div>
+        )}
 
         <div className="mt-4 grid grid-cols-3 gap-3 text-center">
           <div className="rounded-2xl bg-white p-3 shadow-sm">

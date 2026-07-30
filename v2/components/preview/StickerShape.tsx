@@ -7,6 +7,7 @@ type Props = {
   artworkPreview: string | null;
   artScale?: number; // 20–100: how large the art is within the sticker
   artMargin?: number; // 0–100: die-cut border width / shape margin
+  magentaCutLine?: boolean; // show the customer's magenta cut edge
 };
 
 function getShapeRounding(shape: string) {
@@ -31,28 +32,46 @@ function getMaterialClasses(material: string) {
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
+const MAGENTA = "#e6007e";
+
+const OUTLINE_DIRS = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+  [1, 1],
+  [1, -1],
+  [-1, 1],
+  [-1, -1],
+];
+
 // A white contour that hugs the artwork's actual outline — the die-cut look.
 // Chained drop-shadows read the image's alpha channel and build up a solid
-// white halo around the non-transparent pixels in every direction.
-function stickerOutline(borderPx: number) {
+// white halo around the non-transparent pixels in every direction. When the
+// customer marks a magenta cut line, a thin magenta rim is added just outside
+// the white so the cut edge is visible.
+function stickerOutline(borderPx: number, magentaCutLine = false) {
   const lift = "drop-shadow(0 10px 12px rgba(0,0,0,0.30))";
-  if (borderPx <= 0) return lift;
+  const layers: string[] = [];
 
-  const dirs = [
-    [1, 0],
-    [-1, 0],
-    [0, 1],
-    [0, -1],
-    [1, 1],
-    [1, -1],
-    [-1, 1],
-    [-1, -1],
-  ];
-  const halo = dirs
-    .map(([x, y]) => `drop-shadow(${x * borderPx}px ${y * borderPx}px 0 #ffffff)`)
-    .join(" ");
+  if (borderPx > 0) {
+    layers.push(
+      ...OUTLINE_DIRS.map(
+        ([x, y]) => `drop-shadow(${x * borderPx}px ${y * borderPx}px 0 #ffffff)`
+      )
+    );
+  }
 
-  return `${halo} ${lift}`;
+  if (magentaCutLine) {
+    const edge = borderPx + 2;
+    layers.push(
+      ...OUTLINE_DIRS.map(
+        ([x, y]) => `drop-shadow(${x * edge}px ${y * edge}px 0 ${MAGENTA})`
+      )
+    );
+  }
+
+  return `${layers.join(" ")} ${lift}`.trim();
 }
 
 function Placeholder({ rounded }: { rounded: string }) {
@@ -77,6 +96,7 @@ export default function StickerShape({
   artworkPreview,
   artScale = 80,
   artMargin = 40,
+  magentaCutLine = false,
 }: Props) {
   const isGloss = finish === "Gloss";
   const isClear = material === "Clear Vinyl";
@@ -95,7 +115,7 @@ export default function StickerShape({
   // ---------- DIE CUT: contour hugs the art, transparent around it ----------
   if (isDieCut) {
     const borderPx = Math.round((margin / 100) * 16);
-    const outline = stickerOutline(borderPx);
+    const outline = stickerOutline(borderPx, magentaCutLine);
 
     return (
       <div className="relative mx-auto grid h-72 w-72 place-items-center">
@@ -181,6 +201,13 @@ export default function StickerShape({
         {isGloss && (
           <div
             className={`pointer-events-none absolute -left-16 -top-24 h-64 w-40 rotate-45 bg-white/55 blur-sm ${rounded}`}
+          />
+        )}
+
+        {magentaCutLine && (
+          <div
+            className={`pointer-events-none absolute inset-0 z-20 border-2 border-dashed ${rounded}`}
+            style={{ borderColor: MAGENTA }}
           />
         )}
 

@@ -10,6 +10,7 @@ const initialProduct = {
   finish: "Gloss",
   artScale: 80,
   artMargin: 40,
+  magentaCutLine: false,
 };
 
 // Local pickup by default — Gorilla Salem is a walk-in shop.

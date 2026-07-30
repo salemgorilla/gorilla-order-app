@@ -21,6 +21,8 @@ export type Product = {
   // artScale = how large the art is; artMargin = die-cut border / shape margin.
   artScale: number;
   artMargin: number;
+  // Customer confirms their artwork includes a magenta line marking the cut edge.
+  magentaCutLine: boolean;
 };
 
 export type Artwork = {

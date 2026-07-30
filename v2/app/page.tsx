@@ -466,6 +466,11 @@ export default function Home() {
 
     setOrder({
       ...order,
+      // Auto-check the magenta cut line when we detect one in the file.
+      // (Only ever turns it on; never overrides a manual choice to off.)
+      product: analysis.magentaDetected
+        ? { ...order.product, magentaCutLine: true }
+        : order.product,
       artwork: {
         file,
       },
@@ -978,6 +983,8 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 <DecalBuilder
                   product={order.product}
                   deliveryMethod={order.production.deliveryMethod}
+                  hasArtwork={Boolean(order.artwork.file)}
+                  magentaDetected={Boolean(artworkAnalysis?.magentaDetected)}
                   onSelectDeliveryMethod={(deliveryMethod) =>
                     updateProduction({ deliveryMethod })
                   }

@@ -8,8 +8,24 @@ export type ArtworkAnalysis = {
   estimatedColorCount: number | null;
   colorCountConfidence: "low" | "medium" | "high";
   palette: string[];
+  // True when a near-pure magenta (cut-line) color is found in the artwork.
+  magentaDetected: boolean;
   notes: string[];
 };
+
+// Near-pure magenta (~255,0,255): high red + blue, low green, red≈blue.
+// Used to auto-spot a customer's die-cut line without false-firing on
+// ordinary red/blue/pink art.
+function isMagentaPixel(red: number, green: number, blue: number) {
+  return (
+    red > 190 &&
+    blue > 190 &&
+    green < 100 &&
+    red - green > 90 &&
+    blue - green > 90 &&
+    Math.abs(red - blue) < 60
+  );
+}
 
 function formatFileSize(bytes: number) {
   if (bytes < 1024) {
@@ -46,6 +62,7 @@ function getEstimatedColorsFromImage(file: File) {
     | "estimatedColorCount"
     | "colorCountConfidence"
     | "palette"
+    | "magentaDetected"
     | "notes"
   >>((resolve) => {
     const objectUrl = URL.createObjectURL(file);
@@ -75,6 +92,7 @@ function getEstimatedColorsFromImage(file: File) {
           estimatedColorCount: null,
           colorCountConfidence: "low",
           palette: [],
+          magentaDetected: false,
           notes: ["Could not analyze image colors."],
         });
 
@@ -86,12 +104,24 @@ function getEstimatedColorsFromImage(file: File) {
       const imageData = context.getImageData(0, 0, width, height).data;
       const colorCounts = new Map<string, number>();
       let sampledPixels = 0;
+      let magentaPixels = 0;
 
       for (let index = 0; index < imageData.length; index += 4) {
         const alpha = imageData[index + 3];
 
         if (alpha < 40) {
           continue;
+        }
+
+        // Check magenta on the raw (un-quantized) values for accuracy.
+        if (
+          isMagentaPixel(
+            imageData[index],
+            imageData[index + 1],
+            imageData[index + 2]
+          )
+        ) {
+          magentaPixels += 1;
         }
 
         const red = quantizeColor(imageData[index]);
@@ -103,6 +133,9 @@ function getEstimatedColorsFromImage(file: File) {
         colorCounts.set(key, (colorCounts.get(key) || 0) + 1);
         sampledPixels += 1;
       }
+
+      // A deliberate cut line leaves a small run of magenta even downscaled.
+      const magentaDetected = magentaPixels >= 4;
 
       const minimumPixelShare = Math.max(6, sampledPixels * 0.012);
 
@@ -126,6 +159,10 @@ function getEstimatedColorsFromImage(file: File) {
         notes.push("Artwork may be full color or need manual color separation.");
       }
 
+      if (magentaDetected) {
+        notes.push("Magenta cut line detected — used as the die-cut path.");
+      }
+
       URL.revokeObjectURL(objectUrl);
 
       resolve({
@@ -135,6 +172,7 @@ function getEstimatedColorsFromImage(file: File) {
         estimatedColorCount,
         colorCountConfidence: sortedColors.length > 5 ? "medium" : "high",
         palette,
+        magentaDetected,
         notes,
       });
     };
@@ -149,6 +187,7 @@ function getEstimatedColorsFromImage(file: File) {
         estimatedColorCount: null,
         colorCountConfidence: "low",
         palette: [],
+        magentaDetected: false,
         notes: ["This file type could not be previewed for color analysis."],
       });
     };
@@ -173,6 +212,7 @@ export async function analyzeArtworkFile(file: File): Promise<ArtworkAnalysis> {
       estimatedColorCount: null,
       colorCountConfidence: "low",
       palette: [],
+      magentaDetected: false,
       notes: ["Upload an image file to estimate color count."],
     };
   }

@@ -9,6 +9,8 @@ import type { DeliveryMethod, Product } from "../../types/order";
 type Props = {
   product: Product;
   deliveryMethod: DeliveryMethod;
+  hasArtwork: boolean;
+  magentaDetected: boolean;
   onUpdate: (updates: Partial<Product>) => void;
   onSelectMaterial: (material: string) => void;
   onSelectDeliveryMethod: (deliveryMethod: DeliveryMethod) => void;
@@ -37,6 +39,8 @@ const deliveryOptions: {
 export default function DecalBuilder({
   product,
   deliveryMethod,
+  hasArtwork,
+  magentaDetected,
   onUpdate,
   onSelectMaterial,
   onSelectDeliveryMethod,
@@ -97,11 +101,30 @@ export default function DecalBuilder({
           </span>
         </label>
 
+        {hasArtwork && magentaDetected && (
+          <p className="mt-3 rounded-xl bg-[#eef7ee] p-3 text-xs font-black leading-5 text-[#2E5037]">
+            ✓ We spotted a magenta cut line in your file and checked the box for
+            you.
+          </p>
+        )}
+
+        {hasArtwork && product.magentaCutLine && !magentaDetected && (
+          <p className="mt-3 rounded-xl bg-[#fff7e8] p-3 text-xs font-bold leading-5 text-[#8a6d1b]">
+            We couldn&apos;t spot a magenta line in your file. Make sure it&apos;s
+            a <span className="font-black text-[#e6007e]">100% magenta</span> (255,
+            0, 255) stroke — otherwise Gorilla Salem will confirm the cut with
+            you.
+          </p>
+        )}
+
         {product.magentaCutLine && (
           <p className="mt-3 rounded-xl bg-white p-3 text-xs font-bold leading-5 text-[#6f695e]">
-            Put the magenta line on its own layer as a thin stroke (no fill). We
-            use it as the exact cut path. If it&apos;s missing or unclear,
-            Gorilla Salem will confirm the cut with you before printing.
+            Put the magenta line on its own layer as a thin stroke (no fill). It
+            marks the cut only —{" "}
+            <span className="font-black">it won&apos;t be printed</span>. Vector
+            files (AI, PDF, EPS, SVG) cut cleanest; on a PNG it still shows us
+            where to cut. If it&apos;s missing or unclear, Gorilla Salem will
+            confirm before printing.
           </p>
         )}
       </div>

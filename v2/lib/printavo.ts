@@ -337,6 +337,126 @@ export async function findOrCreateContactId(customer: AnyRecord): Promise<{
   }
 }
 
+export type PaymentRequestResult = {
+  sent: boolean;
+  error?: string;
+  paymentRequestId?: string;
+  visualId?: string;
+  amount?: number;
+  status?: string;
+};
+
+/**
+ * Asks a customer to pay, against an existing Printavo quote/invoice.
+ *
+ * DELIBERATELY NOT automatic. Web submissions are unreviewed — artwork may be
+ * unprintable, signs may still need hand pricing, and spam happens. Sending a
+ * payment request is a decision the shop makes after looking at the job, so
+ * this is only reachable through the guarded /api/payment-request route.
+ */
+export async function createPaymentRequest(input: {
+  /** Printavo quote or invoice id to bill against. */
+  quoteId: string;
+  /** Amount to request. Defaults to the quote's outstanding total. */
+  amount?: number;
+  /** Who to email. Defaults to the quote's contact. */
+  to?: string[];
+  subject?: string;
+  body?: string;
+}): Promise<PaymentRequestResult> {
+  if (!isConfigured()) {
+    return { sent: false, error: "Printavo is not configured." };
+  }
+
+  try {
+    // Read the quote so we can default the amount and recipient, and so we
+    // never request payment against something that doesn't exist.
+    const quoteData = await printavoRequest<{ quote: AnyRecord }>(
+      `query GorillaQuoteForPayment($id: ID!) {
+         quote(id: $id) {
+           id
+           visualId
+           nickname
+           total
+           amountOutstanding
+           contact { id fullName email }
+         }
+       }`,
+      { id: input.quoteId }
+    );
+
+    const quote = quoteData.quote as AnyRecord;
+    if (!quote?.id) {
+      return { sent: false, error: `Quote ${input.quoteId} was not found.` };
+    }
+
+    const outstanding = num(quote.amountOutstanding, num(quote.total));
+    const amount = input.amount !== undefined ? input.amount : outstanding;
+
+    if (!(amount > 0)) {
+      return {
+        sent: false,
+        error: "Nothing to request — the amount is zero. Price the quote first.",
+      };
+    }
+
+    const contact = (quote.contact as AnyRecord) || {};
+    const contactEmails = str(contact.email)
+      .split(",")
+      .map((e) => e.trim())
+      .filter(Boolean);
+    const to = input.to?.length ? input.to : contactEmails;
+
+    if (!to.length) {
+      return { sent: false, error: "No email address to send the request to." };
+    }
+
+    const label = str(quote.nickname, `Quote ${str(quote.visualId)}`);
+
+    const data = await printavoRequest<{ paymentRequestCreate: AnyRecord }>(
+      `mutation GorillaPaymentRequest($parentId: ID!, $input: PaymentRequestCreateInput!) {
+         paymentRequestCreate(parentId: $parentId, input: $input) {
+           id
+           visualId
+           amount
+           status
+         }
+       }`,
+      {
+        parentId: input.quoteId,
+        input: {
+          amount,
+          email: {
+            to,
+            subject:
+              input.subject || `Gorilla Salem — payment request for ${label}`,
+            body:
+              input.body ||
+              `Hi,\n\nYour order is ready for payment. Use the link below to pay securely.\n\n${label}\nAmount due: $${amount.toFixed(
+                2
+              )}\n\nThanks,\nGorilla Salem`,
+          },
+        },
+      }
+    );
+
+    const pr = data.paymentRequestCreate as AnyRecord;
+
+    return {
+      sent: true,
+      paymentRequestId: str(pr.id),
+      visualId: str(pr.visualId),
+      amount: num(pr.amount, amount),
+      status: str(pr.status),
+    };
+  } catch (error) {
+    return {
+      sent: false,
+      error: error instanceof Error ? error.message : "Unknown Printavo error.",
+    };
+  }
+}
+
 export type PrintavoQuotePlan = {
   nickname: string;
   customerDueAt: string;

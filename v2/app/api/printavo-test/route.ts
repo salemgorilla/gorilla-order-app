@@ -13,12 +13,24 @@ export async function GET() {
     PRINTAVO_CUSTOMER_ID: Boolean(customerId),
   };
 
+  // Diagnostic: which PRINTAVO* variables actually reached the runtime, and
+  // whether they hold anything. NAMES AND LENGTHS ONLY — never values. This
+  // catches a typo'd or empty variable, which a plain boolean can't explain.
+  const seenPrintavoVars = Object.keys(process.env)
+    .filter((k) => k.toUpperCase().includes("PRINTAVO"))
+    .sort()
+    .map((k) => ({
+      name: JSON.stringify(k), // quoted so stray whitespace is visible
+      length: (process.env[k] || "").length,
+    }));
+
   const result = await testPrintavoConnection();
 
   return NextResponse.json(
     {
       connected: result.ok,
       configured,
+      seenPrintavoVars,
       account: result.account ?? null,
       error: result.error ?? null,
       hint: result.ok

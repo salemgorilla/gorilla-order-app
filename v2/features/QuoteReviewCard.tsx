@@ -17,6 +17,7 @@ type Props = {
   apparelQuote: ApparelQuote;
   apparelPricing: ApparelPricingResult;
   signsQuote: SignsQuote;
+  signsTotal: number | null;
   selectedGarmentLabel: string;
   selectedSsColor: SsCatalogColor | null;
   isReady: boolean;
@@ -29,6 +30,7 @@ export default function QuoteReviewCard({
   apparelQuote,
   apparelPricing,
   signsQuote,
+  signsTotal,
   selectedGarmentLabel,
   selectedSsColor,
   isReady,
@@ -75,7 +77,11 @@ export default function QuoteReviewCard({
 
             <div className="flex justify-between gap-4">
               <span>Estimate</span>
-              <span className="text-right text-[#2E5037]">Quoted by hand</span>
+              <span className="text-right text-[#2E5037]">
+                {signsTotal !== null
+                  ? `$${signsTotal.toFixed(2)}`
+                  : "Quoted by hand"}
+              </span>
             </div>
           </>
         ) : isApparelSelected ? (

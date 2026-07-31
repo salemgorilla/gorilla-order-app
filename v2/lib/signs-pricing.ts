@@ -136,11 +136,14 @@ export function calculateSignsPricing(
       );
     }
 
-    // Double-sided is a per-sqft surcharge on the rigid board.
-    const effectivePerSqft =
-      input.doubleSided && input.method === "rigid"
-        ? perSqft + cfg.rigid.doubleSidedPerSqft
-        : perSqft;
+    // Double-sided is a per-sqft surcharge (rigid + banner).
+    const takesDoubleSurcharge =
+      input.doubleSided &&
+      (cfg.doubleSidedMethods as readonly string[]).includes(input.method);
+
+    const effectivePerSqft = takesDoubleSurcharge
+      ? perSqft + cfg.doubleSidedPerSqft
+      : perSqft;
 
     const totalSqft = sqftEach * quantity;
     productTotal = effectivePerSqft * totalSqft;
@@ -152,9 +155,9 @@ export function calculateSignsPricing(
       amount: round2(productTotal),
     });
 
-    if (input.doubleSided && input.method === "rigid") {
+    if (takesDoubleSurcharge) {
       lines.push({
-        label: `(includes +$${cfg.rigid.doubleSidedPerSqft}/sqft double-sided)`,
+        label: `(includes +$${cfg.doubleSidedPerSqft}/sqft double-sided)`,
         amount: 0,
       });
     }

@@ -17,6 +17,8 @@ type Props = {
   isApparelSubmitted: boolean;
   isSignsSubmitted: boolean;
   signsQuote: SignsQuote;
+  /** Null when the signs job could not be priced online. */
+  signsTotal: number | null;
   apparelQuote: ApparelQuote;
   selectedGarmentLabel: string;
   selectedSsColor: SsCatalogColor | null;
@@ -35,6 +37,7 @@ export default function QuoteConfirmationScreen({
   isApparelSubmitted,
   isSignsSubmitted,
   signsQuote,
+  signsTotal,
   apparelQuote,
   selectedGarmentLabel,
   selectedSsColor,
@@ -167,14 +170,25 @@ export default function QuoteConfirmationScreen({
               </p>
 
               {isSignsSubmitted ? (
-                <>
-                  <p className="mt-2 text-2xl font-black text-[#171717]">
-                    Quoted by hand
-                  </p>
-                  <p className="mt-1 text-sm font-bold text-[#6f695e]">
-                    Gorilla Salem will reply with your price
-                  </p>
-                </>
+                signsTotal !== null ? (
+                  <>
+                    <p className="mt-2 text-3xl font-black text-[#171717]">
+                      ${signsTotal.toFixed(2)}
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                      Estimate — confirmed before production
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-2 text-2xl font-black text-[#171717]">
+                      Quoted by hand
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                      Gorilla Salem will reply with your price
+                    </p>
+                  </>
+                )
               ) : isApparelSubmitted ? (
                 <>
                   <p className="mt-2 text-3xl font-black text-[#171717]">

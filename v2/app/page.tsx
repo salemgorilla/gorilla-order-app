@@ -16,9 +16,12 @@ import { defaultApparelQuote } from "../lib/apparel";
 import {
   CUSTOM_SIZE,
   defaultSignsQuote,
+  getSignDimensions,
   getSignProduct,
   getSignSizeLabel,
+  getSizeOptions,
 } from "../lib/signs";
+import { calculateSignsPricing } from "../lib/signs-pricing";
 import { productCategories } from "../lib/products";
 import { defaultOrder } from "../lib/order";
 import { getShippingPrice, getStickerPrice } from "../lib/pricing";
@@ -159,6 +162,39 @@ export default function Home() {
       (product) => product.customerCategory === selectedApparelCategory
     );
   }, [selectedApparelCategory, ssProducts]);
+
+  const signsPricing = useMemo(() => {
+    const product = getSignProduct(signsQuote.productId);
+    const { widthInches, heightInches } = getSignDimensions(signsQuote);
+
+    // Some products (e.g. window/wall graphics) are always quoted by hand —
+    // they're measured to the customer's space, so there's nothing to compute.
+    if (product.pricingMethod === null) {
+      return {
+        priceable: false as const,
+        reason:
+          "We price these to your space. Send the request with your measurements or a photo and Gorilla Salem will reply with a quote.",
+        lines: [],
+        subtotal: 0,
+        total: 0,
+        unitPrice: 0,
+        sqftEach: 0,
+        note: "",
+      };
+    }
+
+    return calculateSignsPricing({
+      method: product.pricingMethod,
+      quantity: signsQuote.quantity,
+      sizeKey: signsQuote.size,
+      widthInches,
+      heightInches,
+      material: signsQuote.material,
+      doubleSided: signsQuote.doubleSided,
+      stepStakes: signsQuote.finishing === "With Step Stakes",
+      isCustomSize: signsQuote.size === CUSTOM_SIZE,
+    });
+  }, [signsQuote]);
 
   const apparelPricing = useMemo(() => {
     return calculateApparelPricing({
@@ -529,10 +565,13 @@ export default function Home() {
     setSignsQuote({
       ...signsQuote,
       productId,
-      size: product.sizes[0],
+      size: getSizeOptions(product)[0],
       customSize: "",
+      customWidthInches: 0,
+      customHeightInches: 0,
       material: product.materials[0],
       finishing: product.finishing[0],
+      doubleSided: product.allowDoubleSided ? signsQuote.doubleSided : false,
     });
   }
 
@@ -555,8 +594,11 @@ export default function Home() {
       errors.push("Enter the date you need this in hand.");
     }
 
-    if (signsQuote.size === CUSTOM_SIZE && !signsQuote.customSize.trim()) {
-      errors.push("Tell us the custom size you need.");
+    if (
+      signsQuote.size === CUSTOM_SIZE &&
+      (signsQuote.customWidthInches <= 0 || signsQuote.customHeightInches <= 0)
+    ) {
+      errors.push("Enter the width and height for your custom size.");
     }
 
     return errors;
@@ -627,11 +669,21 @@ export default function Home() {
           fileName: order.artwork.file?.name || null,
         },
         production: order.production,
-        pricing: {
-          total: 0,
-          quoteRequired: true,
-          note: "Signs are priced by hand. Gorilla Salem will reply with the price.",
-        },
+        pricing: signsPricing.priceable
+          ? {
+              total: signsPricing.total,
+              unitPrice: signsPricing.unitPrice,
+              lines: signsPricing.lines,
+              quoteRequired: false,
+              note: `${signsPricing.note} Estimate — Gorilla Salem confirms artwork and add-ons before production.`,
+            }
+          : {
+              total: 0,
+              quoteRequired: true,
+              note:
+                signsPricing.reason ||
+                "Priced by hand. Gorilla Salem will reply with the price.",
+            },
       };
     }
 
@@ -796,8 +848,22 @@ Sides: ${signsQuote.doubleSided ? "Double-sided" : "Single-sided"}
 
 ${timelineSection}
 
-PRICING
-Signs are priced by hand. Gorilla Salem will reply with the price.
+ESTIMATE
+${
+  signsPricing.priceable
+    ? `${signsPricing.lines
+        .filter((l) => l.amount !== 0)
+        .map((l) => `${l.label}: $${l.amount.toFixed(2)}`)
+        .join("\n")}
+Estimated Total: $${signsPricing.total.toFixed(2)}${
+        signsQuote.quantity > 1
+          ? `\nEstimated Each: $${signsPricing.unitPrice.toFixed(2)}`
+          : ""
+      }
+${signsPricing.note}`
+    : signsPricing.reason ||
+      "Priced by hand. Gorilla Salem will reply with the price."
+}
 
 ${artworkSection}
 
@@ -946,6 +1012,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         isApparelSubmitted={isApparelSubmitted}
         isSignsSubmitted={isSignsSubmitted}
         signsQuote={signsQuote}
+        signsTotal={signsPricing.priceable ? signsPricing.total : null}
         apparelQuote={apparelQuote}
         selectedGarmentLabel={selectedGarmentLabel}
         selectedSsColor={selectedSsColor}
@@ -1223,6 +1290,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               <SignsSummaryCard
                 signsQuote={signsQuote}
                 production={order.production}
+                pricing={signsPricing}
               />
             ) : isApparelSelected ? (
               <ApparelSummaryCard
@@ -1244,6 +1312,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               apparelQuote={apparelQuote}
               apparelPricing={apparelPricing}
               signsQuote={signsQuote}
+              signsTotal={signsPricing.priceable ? signsPricing.total : null}
               selectedGarmentLabel={selectedGarmentLabel}
               selectedSsColor={selectedSsColor}
               isReady={currentValidationErrors.length === 0}

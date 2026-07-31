@@ -35,6 +35,14 @@ export const signsPricingConfig = {
   /** Methods cut from sheet stock, i.e. the ones the custom size fee applies to. */
   hardStockMethods: ["yard", "rigid"] as const,
 
+  /**
+   * Double-sided surcharge, per square foot, for the $/sqft products.
+   * (Yard signs are not included — their table already has its own
+   * double-sided column.)
+   */
+  doubleSidedPerSqft: 7,
+  doubleSidedMethods: ["rigid", "banner"] as const,
+
   // ---------------- Corrugated / yard signs (priced per unit) -------------
   yardSigns: {
     stepStakePerSign: 2,

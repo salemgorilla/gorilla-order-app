@@ -5,6 +5,7 @@ import OptionSelector from "../../components/OptionSelector";
 import {
   CUSTOM_SIZE,
   getSignProduct,
+  getSizeOptions,
   signsCatalog,
   type SignsQuote,
 } from "../../lib/signs";
@@ -28,6 +29,7 @@ export default function SignsBuilder({
 }: Props) {
   const product = getSignProduct(signsQuote.productId);
   const isCustomSize = signsQuote.size === CUSTOM_SIZE;
+  const sizeOptions = getSizeOptions(product);
 
   return (
     <>
@@ -37,7 +39,7 @@ export default function SignsBuilder({
             Sign Type
           </p>
           <p className="mt-1 text-sm font-bold text-[#6f695e]">
-            Pick what you need — we&apos;ll price it and get right back to you.
+            Pick what you need and we&apos;ll price it as you build.
           </p>
         </div>
 
@@ -56,7 +58,14 @@ export default function SignsBuilder({
                     : "border-[#dfd0b8] bg-[#F8F5EE] hover:bg-white"
                 }`}
               >
-                <p className="font-black text-[#171717]">{item.label}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-black text-[#171717]">{item.label}</p>
+                  {item.pricingMethod === null && (
+                    <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-[#6f695e]">
+                      Quote
+                    </span>
+                  )}
+                </div>
                 <p className="mt-1 text-sm font-bold leading-5 text-[#6f695e]">
                   {item.blurb}
                 </p>
@@ -75,27 +84,61 @@ export default function SignsBuilder({
       <div>
         <OptionSelector
           title="Size"
-          options={product.sizes}
+          options={sizeOptions}
           selected={signsQuote.size}
           onSelect={(size) => onUpdate({ size })}
         />
 
         {isCustomSize && (
-          <div className="mt-3">
-            <label className="block">
-              <span className="text-sm font-bold text-[#171717]">
-                Tell us the size you need
-              </span>
-              <input
-                type="text"
-                value={signsQuote.customSize}
-                onChange={(event) =>
-                  onUpdate({ customSize: event.target.value })
-                }
-                placeholder={`e.g. 5' x 10'`}
-                className="mt-2 w-full rounded-2xl border border-[#dfd0b8] bg-white px-4 py-3 font-bold text-[#171717] outline-none focus:ring-2 focus:ring-[#2E5037]"
-              />
-            </label>
+          <div className="mt-3 rounded-2xl border border-[#dfd0b8] bg-[#F8F5EE] p-4">
+            <p className="text-sm font-black text-[#171717]">
+              Enter your size (inches)
+            </p>
+
+            <div className="mt-3 flex items-center gap-3">
+              <label className="flex-1">
+                <span className="text-xs font-black uppercase tracking-[0.12em] text-[#6f695e]">
+                  Width
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  inputMode="numeric"
+                  value={signsQuote.customWidthInches || ""}
+                  onChange={(event) =>
+                    onUpdate({ customWidthInches: Number(event.target.value) })
+                  }
+                  placeholder="60"
+                  className="mt-1 w-full rounded-xl border border-[#dfd0b8] bg-white px-3 py-2 font-black text-[#171717] outline-none focus:ring-2 focus:ring-[#2E5037]"
+                />
+              </label>
+
+              <span className="mt-5 font-black text-[#6f695e]">×</span>
+
+              <label className="flex-1">
+                <span className="text-xs font-black uppercase tracking-[0.12em] text-[#6f695e]">
+                  Height
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  inputMode="numeric"
+                  value={signsQuote.customHeightInches || ""}
+                  onChange={(event) =>
+                    onUpdate({ customHeightInches: Number(event.target.value) })
+                  }
+                  placeholder="36"
+                  className="mt-1 w-full rounded-xl border border-[#dfd0b8] bg-white px-3 py-2 font-black text-[#171717] outline-none focus:ring-2 focus:ring-[#2E5037]"
+                />
+              </label>
+            </div>
+
+            <p className="mt-3 text-xs font-bold leading-5 text-[#6f695e]">
+              {product.pricingMethod === "banner" ||
+              product.pricingMethod === "poster"
+                ? "Any size — no extra charge, these print on roll material."
+                : "Custom sizes on hard stock add a $20 fee, since odd sizes leave drop pieces when cut from our 48″ × 96″ sheets."}
+            </p>
           </div>
         )}
       </div>
@@ -114,24 +157,30 @@ export default function SignsBuilder({
         onSelect={(finishing) => onUpdate({ finishing })}
       />
 
-      <div className="rounded-2xl border border-[#dfd0b8] bg-[#F8F5EE] p-4">
-        <label className="flex cursor-pointer items-start gap-3">
-          <input
-            type="checkbox"
-            checked={signsQuote.doubleSided}
-            onChange={(event) => onUpdate({ doubleSided: event.target.checked })}
-            className="mt-1 h-5 w-5 shrink-0 accent-[#2E5037]"
-          />
-          <span>
-            <span className="block text-sm font-black text-[#171717]">
-              Print both sides
+      {product.allowDoubleSided && (
+        <div className="rounded-2xl border border-[#dfd0b8] bg-[#F8F5EE] p-4">
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={signsQuote.doubleSided}
+              onChange={(event) =>
+                onUpdate({ doubleSided: event.target.checked })
+              }
+              className="mt-1 h-5 w-5 shrink-0 accent-[#2E5037]"
+            />
+            <span>
+              <span className="block text-sm font-black text-[#171717]">
+                Print both sides
+              </span>
+              <span className="mt-1 block text-sm font-bold leading-5 text-[#6f695e]">
+                {product.pricingMethod === "yard"
+                  ? "Double-sided pricing is built into the quantity price."
+                  : "Adds $7 per square foot."}
+              </span>
             </span>
-            <span className="mt-1 block text-sm font-bold leading-5 text-[#6f695e]">
-              Double-sided printing — handy for yard signs and hanging banners.
-            </span>
-          </span>
-        </label>
-      </div>
+          </label>
+        </div>
+      )}
 
       <div>
         <div className="mb-3">

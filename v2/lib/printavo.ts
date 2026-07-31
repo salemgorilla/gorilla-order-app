@@ -500,31 +500,30 @@ export async function createPrintavoQuote(input: {
         parentId: quote.id,
         input: {
           position: 1,
-          // NOTE: lineItems is [[LineItemCreateInput!]] — a nested array. Both
-          // items go in ONE inner array so they land in a single group.
+          // lineItems is [LineItemCreateInput!] — a FLAT list. (The published
+          // docs render it as [[...]], but live schema introspection against
+          // the account confirms a flat list; the live schema wins.)
           lineItems: [
-            [
-              {
-                description: plan.lineItem.description,
-                itemNumber: plan.lineItem.itemNumber,
-                position: 1,
-                price: plan.lineItem.price,
-                sizes: plan.lineItem.sizes,
-                taxed: true,
-              },
-              ...(plan.shippingLineItem
-                ? [
-                    {
-                      description: plan.shippingLineItem.description,
-                      itemNumber: plan.shippingLineItem.itemNumber,
-                      position: 2,
-                      price: plan.shippingLineItem.price,
-                      sizes: [{ size: "size_other", count: 1 }],
-                      taxed: false,
-                    },
-                  ]
-                : []),
-            ],
+            {
+              description: plan.lineItem.description,
+              itemNumber: plan.lineItem.itemNumber,
+              position: 1,
+              price: plan.lineItem.price,
+              sizes: plan.lineItem.sizes,
+              taxed: true,
+            },
+            ...(plan.shippingLineItem
+              ? [
+                  {
+                    description: plan.shippingLineItem.description,
+                    itemNumber: plan.shippingLineItem.itemNumber,
+                    position: 2,
+                    price: plan.shippingLineItem.price,
+                    sizes: [{ size: "size_other", count: 1 }],
+                    taxed: false,
+                  },
+                ]
+              : []),
           ],
         },
       }

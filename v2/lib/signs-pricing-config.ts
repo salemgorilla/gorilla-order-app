@@ -74,9 +74,30 @@ export const signsPricingConfig = {
 
   // ---------------- Square-foot priced products --------------------------
   banner: {
-    perSqft: 8, // includes grommets
-    // Hemmed edges, pole pockets, wind slits, webbing and D-rings are extra
-    // and quoted by the shop — deliberately not priced here.
+    perSqft: 8, // includes hems + standard grommets
+
+    /**
+     * Finishing add-ons. Hems and standard grommets are INCLUDED in the sqft
+     * rate (matches the shop board: "$8 per sqft — includes grommets").
+     *
+     * ⚠️ The prices below are MARKET DEFAULTS from the add-on pricing research
+     * (Jul 2026), not Gorilla's own confirmed rates. Adjust to taste.
+     *   pole pockets  market $10–$20 flat (or +10% of banner)
+     *   wind slits    market $5–$10 flat (suggested $6)
+     *   webbing/D-rings/rope: custom quote, recommended over ~100 sqft
+     */
+    addOns: {
+      polePockets: { label: "Pole Pockets", flat: 15, quoteByHand: false },
+      windSlits: { label: "Wind Slits", flat: 6, quoteByHand: false },
+      reinforcedWebbing: {
+        label: "Webbing / D-Rings / Rope",
+        flat: 0,
+        quoteByHand: true,
+      },
+    },
+
+    /** Above this many sqft, suggest reinforcement. */
+    recommendReinforcementOverSqft: 100,
   },
 
   poster: {

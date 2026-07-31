@@ -70,9 +70,14 @@ export default function SignsSummaryCard({
 
               <div className="border-t border-[#cfe4cf] pt-3">
                 <div className="flex justify-between gap-4">
-                  <span className="text-[#171717]">Estimated Total</span>
+                  <span className="text-[#171717]">
+                    {pricing.hasQuotedExtras
+                      ? "Estimated From"
+                      : "Estimated Total"}
+                  </span>
                   <span className="text-right text-xl font-black text-[#2E5037]">
-                    ${pricing.total.toFixed(2)}
+                    {pricing.hasQuotedExtras ? "from " : ""}$
+                    {pricing.total.toFixed(2)}
                   </span>
                 </div>
 
@@ -88,8 +93,24 @@ export default function SignsSummaryCard({
             </div>
           </div>
 
+          {(pricing.suggestions?.length ?? 0) > 0 && (
+            <div className="mt-3 rounded-2xl bg-[#eef4ff] p-4">
+              {pricing.suggestions?.map((s) => (
+                <p
+                  key={s}
+                  className="text-sm font-bold leading-6 text-[#2f4f7a]"
+                >
+                  {s}
+                </p>
+              ))}
+            </div>
+          )}
+
           <div className="mt-5 rounded-2xl bg-[#fff7e8] p-4">
             <p className="text-sm font-bold leading-6 text-[#6f695e]">
+              {pricing.hasQuotedExtras
+                ? "Some finishing you picked is quoted by hand, so this total is a starting point. "
+                : ""}
               {pricing.note} This is an estimate — Gorilla Salem confirms
               artwork, finishing, and any add-ons before production.
             </p>

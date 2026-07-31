@@ -3,6 +3,7 @@
 import QuantitySelector from "../../components/QuantitySelector";
 import OptionSelector from "../../components/OptionSelector";
 import {
+  BANNER_ADD_ONS,
   CUSTOM_SIZE,
   getSignProduct,
   getSizeOptions,
@@ -156,6 +157,65 @@ export default function SignsBuilder({
         selected={signsQuote.finishing}
         onSelect={(finishing) => onUpdate({ finishing })}
       />
+
+      {product.pricingMethod === "banner" && (
+        <div>
+          <div className="mb-3">
+            <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+              Banner Add-Ons
+            </p>
+            <p className="mt-1 text-sm font-bold text-[#6f695e]">
+              Hems and grommets are already included. These are extras.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            {BANNER_ADD_ONS.map((addOn) => {
+              const checked = signsQuote.bannerAddOns.includes(addOn.key);
+              // Pole pockets replace grommets on an edge, so the shop treats
+              // them as an alternative to the included grommet finishing.
+              const conflicts =
+                addOn.key === "polePockets" &&
+                signsQuote.finishing === "Hemmed + Grommets";
+
+              return (
+                <label
+                  key={addOn.key}
+                  className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[#dfd0b8] bg-[#F8F5EE] p-4"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(event) => {
+                      const next = event.target.checked
+                        ? [...signsQuote.bannerAddOns, addOn.key]
+                        : signsQuote.bannerAddOns.filter(
+                            (k) => k !== addOn.key
+                          );
+                      onUpdate({ bannerAddOns: next });
+                    }}
+                    className="mt-1 h-5 w-5 shrink-0 accent-[#2E5037]"
+                  />
+                  <span>
+                    <span className="block text-sm font-black text-[#171717]">
+                      {addOn.label}
+                    </span>
+                    <span className="mt-1 block text-sm font-bold leading-5 text-[#6f695e]">
+                      {addOn.detail}
+                    </span>
+                    {checked && conflicts && (
+                      <span className="mt-2 block text-xs font-bold leading-5 text-[#8a6d1b]">
+                        Pole pockets and grommets can&apos;t share an edge — we&apos;ll
+                        confirm the layout with you.
+                      </span>
+                    )}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {product.allowDoubleSided && (
         <div className="rounded-2xl border border-[#dfd0b8] bg-[#F8F5EE] p-4">

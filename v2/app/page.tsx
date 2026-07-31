@@ -193,6 +193,7 @@ export default function Home() {
       doubleSided: signsQuote.doubleSided,
       stepStakes: signsQuote.finishing === "With Step Stakes",
       isCustomSize: signsQuote.size === CUSTOM_SIZE,
+      bannerAddOns: signsQuote.bannerAddOns,
     });
   }, [signsQuote]);
 

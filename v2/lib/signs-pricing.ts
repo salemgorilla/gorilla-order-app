@@ -15,6 +15,8 @@ export type SignsPricingInput = {
   /** Yard signs only. */
   stepStakes?: boolean;
   isCustomSize: boolean;
+  /** Banner finishing add-on keys (see signsPricingConfig.banner.addOns). */
+  bannerAddOns?: string[];
 };
 
 export type SignsPricingLine = { label: string; amount: number };
@@ -29,6 +31,13 @@ export type SignsPricingResult = {
   unitPrice: number;
   sqftEach: number;
   note: string;
+  /**
+   * True when the customer picked an add-on the shop quotes by hand, so the
+   * total is a floor ("from $X") rather than the finished price.
+   */
+  hasQuotedExtras?: boolean;
+  /** Shown when a big banner should probably be reinforced. */
+  suggestions?: string[];
 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -163,6 +172,44 @@ export function calculateSignsPricing(
     }
   }
 
+  // ---- banner finishing add-ons ----
+  let hasQuotedExtras = false;
+  const suggestions: string[] = [];
+
+  if (input.method === "banner" && input.bannerAddOns?.length) {
+    for (const key of input.bannerAddOns) {
+      const addOn =
+        cfg.banner.addOns[key as keyof typeof cfg.banner.addOns];
+      if (!addOn) continue;
+
+      if (addOn.quoteByHand) {
+        hasQuotedExtras = true;
+        lines.push({ label: `${addOn.label} — quoted separately`, amount: 0 });
+        continue;
+      }
+
+      // Finishing is per banner, so it scales with quantity.
+      const amount = addOn.flat * quantity;
+      productTotal += amount;
+      lines.push({
+        label:
+          quantity > 1
+            ? `${addOn.label} (${quantity} × $${addOn.flat})`
+            : addOn.label,
+        amount: round2(amount),
+      });
+    }
+  }
+
+  if (
+    input.method === "banner" &&
+    sqftEach * quantity > cfg.banner.recommendReinforcementOverSqft
+  ) {
+    suggestions.push(
+      "Banners this large usually need reinforcement (webbing or rope) — we'll confirm what's best."
+    );
+  }
+
   // ---- order-level fees ----
   lines.push({ label: "Setup fee", amount: cfg.setupFee });
   let total = productTotal + cfg.setupFee;
@@ -187,5 +234,7 @@ export function calculateSignsPricing(
     unitPrice: round2(total / quantity),
     sqftEach: round2(sqftEach),
     note: cfg.taxNote,
+    hasQuotedExtras,
+    suggestions,
   };
 }

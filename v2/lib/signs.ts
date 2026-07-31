@@ -129,6 +129,25 @@ export function getSignProduct(productId: string): SignProduct {
   return signProducts.find((p) => p.id === productId) || signProducts[0];
 }
 
+/** Banner finishing add-ons the customer can tick on. */
+export const BANNER_ADD_ONS = [
+  {
+    key: "polePockets",
+    label: "Pole Pockets",
+    detail: "Sewn sleeves for a pole. Replaces grommets on those edges.",
+  },
+  {
+    key: "windSlits",
+    label: "Wind Slits",
+    detail: "Half-moon cuts that let wind through. Mesh vinyl is the sturdier option.",
+  },
+  {
+    key: "reinforcedWebbing",
+    label: "Webbing / D-Rings / Rope",
+    detail: "Heavy-duty reinforcement for big or high-wind banners. Quoted separately.",
+  },
+] as const;
+
 export const defaultSignsQuote = {
   productId: "vinyl-banner",
   quantity: 1,
@@ -139,6 +158,7 @@ export const defaultSignsQuote = {
   material: "13 oz Scrim Vinyl",
   finishing: "Hemmed + Grommets",
   doubleSided: false,
+  bannerAddOns: [] as string[],
 };
 
 export type SignsQuote = typeof defaultSignsQuote;

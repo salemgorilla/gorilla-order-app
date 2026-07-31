@@ -13,12 +13,18 @@ import ArtworkAnalysisCard from "../components/summary/ArtworkAnalysisCard";
 import ApparelPreview from "../components/preview/ApparelPreview";
 
 import { defaultApparelQuote } from "../lib/apparel";
+import {
+  CUSTOM_SIZE,
+  defaultSignsQuote,
+  getSignProduct,
+  getSignSizeLabel,
+} from "../lib/signs";
 import { productCategories } from "../lib/products";
 import { defaultOrder } from "../lib/order";
 import { getShippingPrice, getStickerPrice } from "../lib/pricing";
 import { calculateApparelPricing } from "../lib/apparel-pricing";
 import { apparelCatalogStyles } from "../lib/apparel-catalog";
-import { getOrderValidationErrors, isOrderReady } from "../lib/validation";
+import { getOrderValidationErrors } from "../lib/validation";
 import { analyzeArtworkFile, ArtworkAnalysis } from "../lib/artwork";
 
 import QuoteConfirmationScreen from "../features/QuoteConfirmation";
@@ -27,6 +33,9 @@ import DecalBuilder from "../features/decals/DecalBuilder";
 import DecalPreviewCard from "../features/decals/DecalPreviewCard";
 import ApparelBuilder from "../features/apparel/ApparelBuilder";
 import ApparelSummaryCard from "../features/apparel/ApparelSummaryCard";
+import SignsBuilder from "../features/signs/SignsBuilder";
+import SignsSummaryCard from "../features/signs/SignsSummaryCard";
+import SignsPreviewCard from "../features/signs/SignsPreviewCard";
 import type {
   QuoteConfirmation,
   SsCatalogColor,
@@ -40,6 +49,7 @@ export default function Home() {
   const [submittedProductId, setSubmittedProductId] = useState("stickers");
   const [order, setOrder] = useState(defaultOrder);
   const [apparelQuote, setApparelQuote] = useState(defaultApparelQuote);
+  const [signsQuote, setSignsQuote] = useState(defaultSignsQuote);
   const [ssProducts, setSsProducts] = useState<SsCatalogProduct[]>([]);
   const [selectedSsProductId, setSelectedSsProductId] = useState("");
   const [selectedSsColorName, setSelectedSsColorName] = useState("");
@@ -64,6 +74,8 @@ export default function Home() {
 
   const isApparelSelected = selectedProductId === "apparel";
   const isApparelSubmitted = submittedProductId === "apparel";
+  const isSignsSelected = selectedProductId === "signs";
+  const isSignsSubmitted = submittedProductId === "signs";
 
   const selectedSsProduct = useMemo(() => {
     return (
@@ -505,6 +517,51 @@ export default function Home() {
     });
   }
 
+  function updateSignsQuote(updates: Partial<typeof signsQuote>) {
+    setSignsQuote({ ...signsQuote, ...updates });
+  }
+
+  function handleSignProductSelect(productId: string) {
+    // Sizes/materials/finishing differ per sign type, so reset them to that
+    // product's own defaults instead of keeping an invalid leftover choice.
+    const product = getSignProduct(productId);
+
+    setSignsQuote({
+      ...signsQuote,
+      productId,
+      size: product.sizes[0],
+      customSize: "",
+      material: product.materials[0],
+      finishing: product.finishing[0],
+    });
+  }
+
+  function getSignsValidationErrors() {
+    const errors: string[] = [];
+
+    if (!order.customer.customerName.trim()) {
+      errors.push("Enter your name.");
+    }
+
+    if (!order.customer.email.trim()) {
+      errors.push("Enter your email.");
+    }
+
+    if (!order.artwork.file) {
+      errors.push("Upload your artwork.");
+    }
+
+    if (!order.production.needBy.trim()) {
+      errors.push("Enter the date you need this in hand.");
+    }
+
+    if (signsQuote.size === CUSTOM_SIZE && !signsQuote.customSize.trim()) {
+      errors.push("Tell us the custom size you need.");
+    }
+
+    return errors;
+  }
+
   function getApparelValidationErrors() {
     const errors: string[] = [];
 
@@ -544,10 +601,40 @@ export default function Home() {
       return getApparelValidationErrors();
     }
 
+    if (isSignsSelected) {
+      return getSignsValidationErrors();
+    }
+
     return getOrderValidationErrors(order);
   }
 
   function buildQuotePayload() {
+    if (isSignsSelected) {
+      const product = getSignProduct(signsQuote.productId);
+
+      return {
+        customer: order.customer,
+        product: {
+          type: "Banners & Signs",
+          signType: product.label,
+          quantity: signsQuote.quantity,
+          size: getSignSizeLabel(signsQuote),
+          material: signsQuote.material,
+          finishing: signsQuote.finishing,
+          sides: signsQuote.doubleSided ? "Double-sided" : "Single-sided",
+        },
+        artwork: {
+          fileName: order.artwork.file?.name || null,
+        },
+        production: order.production,
+        pricing: {
+          total: 0,
+          quoteRequired: true,
+          note: "Signs are priced by hand. Gorilla Salem will reply with the price.",
+        },
+      };
+    }
+
     if (isApparelSelected) {
       return {
         customer: order.customer,
@@ -689,6 +776,36 @@ Suggested Ink Count: ${
     const notesSection = `NOTES
 ${order.customer.notes || "No customer notes"}`;
 
+    if (isSignsSubmitted) {
+      const signProduct = getSignProduct(signsQuote.productId);
+
+      return `GORILLA SALEM SIGNS QUOTE REQUEST
+
+Quote Number: ${quoteNumber}
+Submitted: ${submittedAt}
+
+${customerSection}
+
+SIGNS DETAILS
+Product: ${signProduct.label}
+Quantity: ${signsQuote.quantity.toLocaleString()}
+Size: ${getSignSizeLabel(signsQuote)}
+Material: ${signsQuote.material}
+Finishing: ${signsQuote.finishing}
+Sides: ${signsQuote.doubleSided ? "Double-sided" : "Single-sided"}
+
+${timelineSection}
+
+PRICING
+Signs are priced by hand. Gorilla Salem will reply with the price.
+
+${artworkSection}
+
+${notesSection}
+
+This is a quote request. Gorilla Salem will confirm pricing, timeline, and artwork readiness before production starts.`;
+    }
+
     if (isApparelSubmitted) {
       return `GORILLA SALEM APPAREL QUOTE REQUEST
 
@@ -801,6 +918,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
     setOrder(defaultOrder);
     setApparelQuote(defaultApparelQuote);
+    setSignsQuote(defaultSignsQuote);
     setSelectedProductId("stickers");
     setSubmittedProductId("stickers");
     setArtworkPreview(null);
@@ -816,9 +934,9 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
   // Price per sticker, excluding shipping — shipping is shown as its own line.
   const unitPrice = order.pricing.stickerPrice / order.product.quantity;
   const currentValidationErrors = getCurrentValidationErrors();
-  const readyToSubmit = isApparelSelected
-    ? currentValidationErrors.length === 0
-    : isOrderReady(order);
+  // Every flow now routes through getCurrentValidationErrors(), which returns
+  // the sticker rules for stickers, so one check covers all three.
+  const readyToSubmit = currentValidationErrors.length === 0;
 
   if (quoteSubmitted) {
     return (
@@ -826,6 +944,8 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         quoteConfirmation={quoteConfirmation}
         order={order}
         isApparelSubmitted={isApparelSubmitted}
+        isSignsSubmitted={isSignsSubmitted}
+        signsQuote={signsQuote}
         apparelQuote={apparelQuote}
         selectedGarmentLabel={selectedGarmentLabel}
         selectedSsColor={selectedSsColor}
@@ -951,17 +1071,33 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 <h2 className="mt-2 text-3xl font-black tracking-[-0.05em]">
                   {isApparelSelected
                     ? "Build Your Apparel Quote"
+                    : isSignsSelected
+                    ? "Build Your Signs Quote"
                     : "Choose Your Sticker Details"}
                 </h2>
               </div>
 
               <div className="rounded-full bg-[#F8F5EE] px-4 py-2 text-sm font-bold text-[#6f695e]">
-                {isApparelSelected ? "Manual Quote" : "Sticker Estimate"}
+                {isApparelSelected
+                  ? "Manual Quote"
+                  : isSignsSelected
+                  ? "Quote Request"
+                  : "Sticker Estimate"}
               </div>
             </div>
 
             <div className="space-y-8">
-              {isApparelSelected ? (
+              {isSignsSelected ? (
+                <SignsBuilder
+                  signsQuote={signsQuote}
+                  deliveryMethod={order.production.deliveryMethod}
+                  onUpdate={(updates) => updateSignsQuote(updates)}
+                  onSelectProduct={handleSignProductSelect}
+                  onSelectDeliveryMethod={(deliveryMethod) =>
+                    updateProduction({ deliveryMethod })
+                  }
+                />
+              ) : isApparelSelected ? (
                 <ApparelBuilder
                   apparelQuote={apparelQuote}
                   artworkAnalysis={artworkAnalysis}
@@ -1052,7 +1188,12 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
           </section>
 
           <aside className="space-y-6 lg:col-span-5">
-            {isApparelSelected ? (
+            {isSignsSelected ? (
+              <SignsPreviewCard
+                artworkPreview={artworkPreview}
+                signsQuote={signsQuote}
+              />
+            ) : isApparelSelected ? (
               <ApparelPreview
                 artworkPreview={artworkPreview}
                 garmentType={selectedGarmentLabel}
@@ -1078,7 +1219,12 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               goes to print.
             </div>
 
-            {isApparelSelected ? (
+            {isSignsSelected ? (
+              <SignsSummaryCard
+                signsQuote={signsQuote}
+                production={order.production}
+              />
+            ) : isApparelSelected ? (
               <ApparelSummaryCard
                 apparelQuote={apparelQuote}
                 selectedSsSize={selectedSsSize}
@@ -1093,16 +1239,18 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
             <QuoteReviewCard
               isApparelSelected={isApparelSelected}
+              isSignsSelected={isSignsSelected}
               order={order}
               apparelQuote={apparelQuote}
               apparelPricing={apparelPricing}
+              signsQuote={signsQuote}
               selectedGarmentLabel={selectedGarmentLabel}
               selectedSsColor={selectedSsColor}
               isReady={currentValidationErrors.length === 0}
             />
 
 
-            {isApparelSelected ? (
+            {isApparelSelected || isSignsSelected ? (
               <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-6 shadow-xl">
                 <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
                   Required Info
@@ -1110,7 +1258,9 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
                 {currentValidationErrors.length === 0 ? (
                   <p className="mt-4 rounded-2xl bg-[#eef7ee] p-4 text-sm font-black text-[#2E5037]">
-                    Apparel quote is ready to submit.
+                    {isSignsSelected
+                      ? "Signs quote is ready to submit."
+                      : "Apparel quote is ready to submit."}
                   </p>
                 ) : (
                   <ul className="mt-4 space-y-2 text-sm font-bold text-[#6f695e]">

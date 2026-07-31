@@ -5,11 +5,18 @@ import type { Order } from "../types/order";
 import type { ApparelQuote } from "../lib/apparel";
 import type { ApparelPricingResult } from "../lib/apparel-pricing";
 import type { QuoteConfirmation, SsCatalogColor } from "./types";
+import {
+  getSignProduct,
+  getSignSizeLabel,
+  type SignsQuote,
+} from "../lib/signs";
 
 type Props = {
   quoteConfirmation: QuoteConfirmation | null;
   order: Order;
   isApparelSubmitted: boolean;
+  isSignsSubmitted: boolean;
+  signsQuote: SignsQuote;
   apparelQuote: ApparelQuote;
   selectedGarmentLabel: string;
   selectedSsColor: SsCatalogColor | null;
@@ -26,6 +33,8 @@ export default function QuoteConfirmationScreen({
   quoteConfirmation,
   order,
   isApparelSubmitted,
+  isSignsSubmitted,
+  signsQuote,
   apparelQuote,
   selectedGarmentLabel,
   selectedSsColor,
@@ -102,10 +111,28 @@ export default function QuoteConfirmationScreen({
 
             <div className="rounded-2xl border border-[#dfd0b8] p-5">
               <p className="text-xs font-black uppercase tracking-[0.16em] text-[#b7352d]">
-                {isApparelSubmitted ? "Apparel Details" : "Sticker Details"}
+                {isApparelSubmitted
+                  ? "Apparel Details"
+                  : isSignsSubmitted
+                  ? "Signs Details"
+                  : "Sticker Details"}
               </p>
 
-              {isApparelSubmitted ? (
+              {isSignsSubmitted ? (
+                <>
+                  <p className="mt-2 text-lg font-black text-[#171717]">
+                    {signsQuote.quantity.toLocaleString()}{" "}
+                    {getSignProduct(signsQuote.productId).label}
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                    {getSignSizeLabel(signsQuote)} • {signsQuote.material}
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                    {signsQuote.finishing} •{" "}
+                    {signsQuote.doubleSided ? "Double-sided" : "Single-sided"}
+                  </p>
+                </>
+              ) : isApparelSubmitted ? (
                 <>
                   <p className="mt-2 text-lg font-black text-[#171717]">
                     {apparelQuote.quantity.toLocaleString()}{" "}
@@ -139,7 +166,16 @@ export default function QuoteConfirmationScreen({
                 Estimate
               </p>
 
-              {isApparelSubmitted ? (
+              {isSignsSubmitted ? (
+                <>
+                  <p className="mt-2 text-2xl font-black text-[#171717]">
+                    Quoted by hand
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                    Gorilla Salem will reply with your price
+                  </p>
+                </>
+              ) : isApparelSubmitted ? (
                 <>
                   <p className="mt-2 text-3xl font-black text-[#171717]">
                     ${apparelPricing.total.toFixed(2)}

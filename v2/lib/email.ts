@@ -49,6 +49,13 @@ function isApparel(product: AnyRecord) {
   );
 }
 
+function isSigns(product: AnyRecord) {
+  return (
+    str(product.type).toLowerCase().includes("signs") ||
+    Boolean(product.signType)
+  );
+}
+
 function line(label: string, value: string) {
   return `${label}: ${value}`;
 }
@@ -67,6 +74,7 @@ export function buildQuoteEmail(input: {
   const production = (order.production as AnyRecord) || {};
   const pricing = (order.pricing as AnyRecord) || {};
   const apparel = isApparel(product);
+  const signs = isSigns(product);
 
   const submittedAt = (() => {
     const d = new Date(receivedAt);
@@ -87,6 +95,8 @@ export function buildQuoteEmail(input: {
           product.garmentType ||
           "Apparel"
       )
+    : signs
+    ? str(product.signType, "Signs")
     : "Custom Stickers";
 
   const subject = `New Quote ${quoteNumber} — ${quantity} ${productLabel}`;
@@ -113,6 +123,16 @@ export function buildQuoteEmail(input: {
       line("SKU", str(supplier.sku, "N/A")),
       line("Garment Price (marked up)", money(supplier.markedUpGarmentPrice))
     );
+  } else if (signs) {
+    productLines.push(
+      line("Type", "Banners & Signs"),
+      line("Product", str(product.signType, "Not selected")),
+      line("Quantity", String(quantity)),
+      line("Size", str(product.size, "Not specified")),
+      line("Material", str(product.material)),
+      line("Finishing", str(product.finishing)),
+      line("Sides", str(product.sides, "Single-sided"))
+    );
   } else {
     productLines.push(
       line("Type", "Custom Stickers"),
@@ -138,11 +158,23 @@ export function buildQuoteEmail(input: {
 
   // ---- estimate section ----
   const shippingPrice = Number(pricing.shippingPrice) || 0;
-  const estimateLines: string[] = [
-    line("Estimated Total", money(total)),
-    line("Estimated Each", money(each)),
-  ];
-  if (apparel) {
+  // Signs are quoted by hand, so never show a $0.00 "estimate" that the shop
+  // (or the customer) could mistake for a real price.
+  const estimateLines: string[] = signs
+    ? [
+        line("Estimated Total", "Quoted by hand — needs pricing"),
+        line(
+          "Delivery",
+          str(production.deliveryMethod) === "Ship"
+            ? "Ship (quote shipping)"
+            : "Local pickup in Salem"
+        ),
+      ]
+    : [line("Estimated Total", money(total)), line("Estimated Each", money(each))];
+
+  if (signs) {
+    // no further breakdown — nothing is priced yet
+  } else if (apparel) {
     estimateLines.push(
       line("Garments", money(pricing.garmentTotal)),
       line("Printing", money(pricing.printTotal)),
@@ -185,7 +217,7 @@ export function buildQuoteEmail(input: {
     line("Email", str(customer.email, "Not entered")),
     line("Phone", str(customer.phone, "N/A")),
     ``,
-    apparel ? `APPAREL DETAILS` : `STICKER DETAILS`,
+    apparel ? `APPAREL DETAILS` : signs ? `SIGNS DETAILS` : `STICKER DETAILS`,
     ...productLines,
     ``,
     `ESTIMATE`,
@@ -217,6 +249,11 @@ export function buildQuoteEmail(input: {
     quoteNumber,
     submittedAt,
     apparel,
+    detailsLabel: apparel
+      ? "Apparel Details"
+      : signs
+      ? "Signs Details"
+      : "Sticker Details",
     customer,
     productLines,
     estimateLines,
@@ -258,6 +295,7 @@ function buildHtml(input: {
   quoteNumber: string;
   submittedAt: string;
   apparel: boolean;
+  detailsLabel: string;
   customer: AnyRecord;
   productLines: string[];
   estimateLines: string[];
@@ -283,7 +321,7 @@ function buildHtml(input: {
       input.submittedAt
     )}</p>
     ${htmlSection("Customer", customerLines)}
-    ${htmlSection(input.apparel ? "Apparel Details" : "Sticker Details", input.productLines)}
+    ${htmlSection(input.detailsLabel, input.productLines)}
     ${htmlSection("Estimate", input.estimateLines)}
     <p style="margin:6px 0 0;font-size:12px;color:#8a8172;">Estimate only. Final pricing reviewed by Gorilla Salem.</p>
     ${htmlSection("Artwork", input.artworkLines)}

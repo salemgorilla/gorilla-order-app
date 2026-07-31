@@ -4,12 +4,19 @@ import type { Order } from "../types/order";
 import type { ApparelQuote } from "../lib/apparel";
 import type { ApparelPricingResult } from "../lib/apparel-pricing";
 import type { SsCatalogColor } from "./types";
+import {
+  getSignProduct,
+  getSignSizeLabel,
+  type SignsQuote,
+} from "../lib/signs";
 
 type Props = {
   isApparelSelected: boolean;
+  isSignsSelected: boolean;
   order: Order;
   apparelQuote: ApparelQuote;
   apparelPricing: ApparelPricingResult;
+  signsQuote: SignsQuote;
   selectedGarmentLabel: string;
   selectedSsColor: SsCatalogColor | null;
   isReady: boolean;
@@ -17,9 +24,11 @@ type Props = {
 
 export default function QuoteReviewCard({
   isApparelSelected,
+  isSignsSelected,
   order,
   apparelQuote,
   apparelPricing,
+  signsQuote,
   selectedGarmentLabel,
   selectedSsColor,
   isReady,
@@ -38,12 +47,38 @@ export default function QuoteReviewCard({
         </div>
 
         <span className="rounded-full bg-[#F8F5EE] px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-[#2E5037]">
-          {isApparelSelected ? "Apparel" : "Stickers"}
+          {isApparelSelected ? "Apparel" : isSignsSelected ? "Signs" : "Stickers"}
         </span>
       </div>
 
       <div className="mt-5 space-y-3 text-sm font-bold text-[#6f695e]">
-        {isApparelSelected ? (
+        {isSignsSelected ? (
+          <>
+            {(
+              [
+                ["Product", getSignProduct(signsQuote.productId).label],
+                ["Quantity", signsQuote.quantity.toLocaleString()],
+                ["Size", getSignSizeLabel(signsQuote)],
+                ["Material", signsQuote.material],
+                ["Finishing", signsQuote.finishing],
+                [
+                  "Sides",
+                  signsQuote.doubleSided ? "Double-sided" : "Single-sided",
+                ],
+              ] as [string, string][]
+            ).map(([label, value]) => (
+              <div key={label} className="flex justify-between gap-4">
+                <span>{label}</span>
+                <span className="text-right text-[#171717]">{value}</span>
+              </div>
+            ))}
+
+            <div className="flex justify-between gap-4">
+              <span>Estimate</span>
+              <span className="text-right text-[#2E5037]">Quoted by hand</span>
+            </div>
+          </>
+        ) : isApparelSelected ? (
           <>
             <div className="flex justify-between gap-4">
               <span>Garment</span>

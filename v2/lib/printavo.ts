@@ -46,6 +46,13 @@ function isApparel(product: AnyRecord) {
   );
 }
 
+function isSigns(product: AnyRecord) {
+  return (
+    str(product.type).toLowerCase().includes("signs") ||
+    Boolean(product.signType)
+  );
+}
+
 export type PrintavoSizeCount = { size: string; count: number };
 
 // Printavo's LineItemSize enum (lowercase snake_case), verified against
@@ -273,11 +280,25 @@ export function buildPrintavoQuotePlan(input: {
     "Apparel"
   );
 
+  const signs = isSigns(product);
+  const signLabel = str(product.signType, "Signs");
+
   const nickname = apparel
     ? `WEB QUOTE ${quoteNumber} - ${quantity} ${garmentLabel}`
+    : signs
+    ? `WEB QUOTE ${quoteNumber} - ${quantity} ${signLabel} (NEEDS PRICING)`
     : `WEB QUOTE ${quoteNumber} - ${quantity} Stickers`;
 
-  const description = apparel
+  const description = signs
+    ? [
+        `${quantity}x ${signLabel}`,
+        `Size: ${str(product.size, "TBD")}`,
+        `Material: ${str(product.material, "TBD")}`,
+        `Finishing: ${str(product.finishing, "TBD")}`,
+        `Sides: ${str(product.sides, "Single-sided")}`,
+        `PRICING NEEDED — signs are quoted by hand.`,
+      ].join("\n")
+    : apparel
     ? [
         `${quantity}x ${garmentLabel}`,
         `Color: ${str(product.garmentColor || supplier.colorName, "TBD")}`,
@@ -318,7 +339,7 @@ export function buildPrintavoQuotePlan(input: {
     `Email: ${str(customer.email, "Not entered")}`,
     `Phone: ${str(customer.phone, "N/A")}`,
     "",
-    apparel ? "APPAREL" : "STICKERS",
+    apparel ? "APPAREL" : signs ? "SIGNS" : "STICKERS",
     description,
     "",
     "TIMELINE",
@@ -356,10 +377,14 @@ export function buildPrintavoQuotePlan(input: {
     dueAt,
     customerNote,
     productionNote,
-    tags: ["#GorillaOrder", "#WebQuote", "#Unconfirmed"],
+    tags: signs
+      ? ["#GorillaOrder", "#WebQuote", "#Unconfirmed", "#NeedsPricing"]
+      : ["#GorillaOrder", "#WebQuote", "#Unconfirmed"],
     lineItem: {
       description,
-      itemNumber: apparel
+      itemNumber: signs
+        ? `GORILLA-SIGN-${str(product.signType, "NA").toUpperCase().replace(/[^A-Z0-9]+/g, "-")}`
+        : apparel
         ? `GORILLA-APPAREL-${str(supplier.catalogStyle, "NA")}`
         : "GORILLA-DECAL",
       price: unitPrice,

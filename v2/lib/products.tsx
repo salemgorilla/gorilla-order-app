@@ -26,9 +26,9 @@ export const productCategories: ProductCategory[] = [
   {
     id: "signs",
     title: "Banners & Signs",
-    badge: "Soon",
+    badge: "Beta",
     description:
-      "Future quote builder for banners, signs, posters, and larger-format print jobs.",
-    status: "coming-soon",
+      "Vinyl banners, yard signs, rigid signs, posters, and window graphics.",
+    status: "active",
   },
 ];

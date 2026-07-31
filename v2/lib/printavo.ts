@@ -3,17 +3,17 @@
 // Env vars (all optional — if any are missing, pushing is skipped safely):
 //   PRINTAVO_EMAIL        - the Printavo account email (API v2 auth header)
 //   PRINTAVO_TOKEN        - the Printavo API token
-//   PRINTAVO_CUSTOMER_ID  - customer whose primary contact the quotes attach to
+//   PRINTAVO_CUSTOMER_ID  - OPTIONAL catch-all customer, used only as a
+//                           fallback when a quote's customer can't be resolved
 //                           (falls back to PRINTAVO_TEST_CUSTOMER_ID)
 //
 // Design notes:
 // - Best-effort: a Printavo failure never blocks the customer's confirmation.
 // - Quotes are tagged #WebQuote / #Unconfirmed so they're obviously not
 //   reviewed yet. A Printavo "quote" is already pre-order, not an invoice.
-// - Customer identity: every web quote currently attaches to ONE configured
-//   contact, with the real customer's details in the quote's customerNote.
-//   Find-or-create of real Printavo customers needs schema verification
-//   against a live account — see GAMEPLAN "Printavo follow-ups".
+// - Customer identity: quotes attach to the REAL customer. We look them up by
+//   email and create a Printavo customer + primary contact if they're new, so
+//   repeat customers accumulate history on one record.
 
 const PRINTAVO_API_URL = "https://www.printavo.com/api/v2";
 
@@ -23,6 +23,10 @@ export type PrintavoResult = {
   error?: string;
   quoteId?: string;
   publicUrl?: string;
+  /** True when a brand-new Printavo customer was created for this quote. */
+  createdCustomer?: boolean;
+  /** True when an existing Printavo customer was matched by email. */
+  matchedExistingCustomer?: boolean;
 };
 
 type AnyRecord = Record<string, unknown>;
@@ -119,8 +123,9 @@ export function getPrintavoConfig() {
 }
 
 function isConfigured() {
-  const { email, token, customerId } = getPrintavoConfig();
-  return Boolean(email && token && customerId);
+  // customerId is only a fallback now — find-or-create resolves real customers.
+  const { email, token } = getPrintavoConfig();
+  return Boolean(email && token);
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -209,6 +214,126 @@ export async function testPrintavoConnection(): Promise<{
       ok: false,
       error: error instanceof Error ? error.message : "Unknown Printavo error.",
     };
+  }
+}
+
+/**
+ * Finds the Printavo contact for this customer by email, creating a new
+ * customer + primary contact when they're new to the shop.
+ *
+ * Falls back to PRINTAVO_CUSTOMER_ID's primary contact if the customer gave no
+ * email or if lookup/create fails, so a quote never gets lost.
+ */
+export async function findOrCreateContactId(customer: AnyRecord): Promise<{
+  contactId: string | null;
+  created: boolean;
+  matchedExisting: boolean;
+}> {
+  const email = str(customer.email).trim();
+  const name = str(customer.customerName).trim();
+
+  // ---- 1. look for an existing contact with this email ----
+  if (email) {
+    try {
+      const found = await printavoRequest<{
+        contacts: { nodes: AnyRecord[] };
+      }>(
+        `query GorillaFindContact($q: String!) {
+           contacts(query: $q, first: 10) { nodes { id fullName email } }
+         }`,
+        { q: email }
+      );
+
+      const wanted = email.toLowerCase();
+      const matches = (found.contacts?.nodes || []).filter((n) =>
+        // Printavo stores multiple addresses in one comma-separated string.
+        str(n.email)
+          .toLowerCase()
+          .split(",")
+          .map((e) => e.trim())
+          .includes(wanted)
+      );
+
+      // Duplicates exist in real data — prefer the most complete record.
+      const best =
+        matches.find((m) => str(m.fullName).trim().length > 0) || matches[0];
+
+      if (best?.id) {
+        return {
+          contactId: str(best.id),
+          created: false,
+          matchedExisting: true,
+        };
+      }
+    } catch {
+      // fall through to create / fallback
+    }
+  }
+
+  // ---- 2. create a new customer + primary contact ----
+  if (email) {
+    try {
+      const [firstName, ...rest] = name.split(/\s+/).filter(Boolean);
+
+      const created = await printavoRequest<{ customerCreate: AnyRecord }>(
+        `mutation GorillaCustomerCreate($input: CustomerCreateInput!) {
+           customerCreate(input: $input) {
+             id
+             companyName
+             primaryContact { id }
+           }
+         }`,
+        {
+          input: {
+            // Company if they gave one, otherwise their name, otherwise email.
+            companyName: str(customer.company) || name || email,
+            primaryContact: {
+              ...(firstName ? { firstName } : {}),
+              ...(rest.length ? { lastName: rest.join(" ") } : {}),
+              email: [email], // ContactInput.email is a list
+              ...(str(customer.phone) ? { phone: str(customer.phone) } : {}),
+            },
+          },
+        }
+      );
+
+      const contactId = (
+        (created.customerCreate as AnyRecord)?.primaryContact as AnyRecord
+      )?.id;
+
+      if (contactId) {
+        return { contactId: str(contactId), created: true, matchedExisting: false };
+      }
+    } catch {
+      // fall through to fallback
+    }
+  }
+
+  // ---- 3. fallback: the configured catch-all customer ----
+  const { customerId } = getPrintavoConfig();
+  if (!customerId) {
+    return { contactId: null, created: false, matchedExisting: false };
+  }
+
+  try {
+    const data = await printavoRequest<{ customer: AnyRecord }>(
+      `query GorillaOrderCustomer($id: ID!) {
+         customer(id: $id) { id primaryContact { id } }
+       }`,
+      { id: customerId }
+    );
+
+    const fallbackId = (
+      (data.customer as AnyRecord)?.primaryContact as AnyRecord
+    )?.id;
+
+    return {
+      contactId: fallbackId ? str(fallbackId) : null,
+      created: false,
+      matchedExisting: false,
+    };
+  } catch {
+    return { contactId: null, created: false, matchedExisting: false };
   }
 }
 
@@ -429,35 +554,20 @@ export async function createPrintavoQuote(input: {
     return { created: false, skipped: true };
   }
 
-  const { customerId } = getPrintavoConfig();
   const plan = buildPrintavoQuotePlan(input);
 
   try {
-    // 1. Resolve the contact the quote attaches to.
-    const customerData = await printavoRequest<{ customer: AnyRecord }>(
-      `
-        query GorillaOrderCustomer($id: ID!) {
-          customer(id: $id) {
-            id
-            companyName
-            primaryContact {
-              id
-              fullName
-              email
-            }
-          }
-        }
-      `,
-      { id: customerId }
-    );
+    // 1. Attach the quote to the real customer — reuse their Printavo record
+    //    if they already exist, otherwise create one from what they entered.
+    const customerRecord = (input.order.customer as AnyRecord) || {};
+    const { contactId, created: createdCustomer, matchedExisting } =
+      await findOrCreateContactId(customerRecord);
 
-    const primaryContact = (customerData.customer as AnyRecord)
-      ?.primaryContact as AnyRecord | undefined;
-
-    if (!primaryContact?.id) {
+    if (!contactId) {
       return {
         created: false,
-        error: "Printavo customer has no primary contact to attach the quote to.",
+        error:
+          "Could not resolve a Printavo contact for this customer (and no PRINTAVO_CUSTOMER_ID fallback is configured).",
       };
     }
 
@@ -474,7 +584,7 @@ export async function createPrintavoQuote(input: {
       `,
       {
         input: {
-          contact: { id: primaryContact.id },
+          contact: { id: contactId },
           nickname: plan.nickname,
           customerDueAt: plan.customerDueAt,
           dueAt: plan.dueAt,
@@ -533,6 +643,8 @@ export async function createPrintavoQuote(input: {
       created: true,
       quoteId: str(quote.id),
       publicUrl: str(quote.publicUrl),
+      createdCustomer,
+      matchedExistingCustomer: matchedExisting,
     };
   } catch (error) {
     return {

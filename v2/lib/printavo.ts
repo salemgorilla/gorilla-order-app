@@ -57,6 +57,23 @@ function isSigns(product: AnyRecord) {
   );
 }
 
+/**
+ * Printavo mangles non-ASCII in line-item text ("10 × $2" arrives as "10 � $2"),
+ * so swap the typographic characters we use for plain ASCII before sending.
+ */
+function asciiSafe(value: string) {
+  return value
+    .replace(/[×✕✖]/g, "x")
+    .replace(/[–—]/g, "-")
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/…/g, "...")
+    .replace(/″/g, '"')
+    .replace(/′/g, "'")
+    // Anything still outside ASCII would come through as a replacement char.
+    .replace(/[^\x20-\x7E\n]/g, "");
+}
+
 export type PrintavoSizeCount = { size: string; count: number };
 
 // Printavo's LineItemSize enum (lowercase snake_case), verified against
@@ -744,11 +761,11 @@ export async function createPrintavoQuote(input: {
       {
         input: {
           contact: { id: contactId },
-          nickname: plan.nickname,
+          nickname: asciiSafe(plan.nickname),
           customerDueAt: plan.customerDueAt,
           dueAt: plan.dueAt,
-          customerNote: plan.customerNote,
-          productionNote: plan.productionNote,
+          customerNote: asciiSafe(plan.customerNote),
+          productionNote: asciiSafe(plan.productionNote),
           tags: plan.tags,
         },
       }
@@ -774,7 +791,7 @@ export async function createPrintavoQuote(input: {
           // the account confirms a flat list; the live schema wins.)
           lineItems: [
             {
-              description: plan.lineItem.description,
+              description: asciiSafe(plan.lineItem.description),
               itemNumber: plan.lineItem.itemNumber,
               position: 1,
               price: plan.lineItem.price,
@@ -784,7 +801,7 @@ export async function createPrintavoQuote(input: {
             // Setup fee, custom size fee, banner add-ons — each its own line so
             // the shop can adjust one charge without unpicking a lumped total.
             ...plan.feeLineItems.map((fee, index) => ({
-              description: fee.description,
+              description: asciiSafe(fee.description),
               itemNumber: fee.itemNumber,
               position: index + 2,
               price: fee.price,
@@ -794,7 +811,7 @@ export async function createPrintavoQuote(input: {
             ...(plan.shippingLineItem
               ? [
                   {
-                    description: plan.shippingLineItem.description,
+                    description: asciiSafe(plan.shippingLineItem.description),
                     itemNumber: plan.shippingLineItem.itemNumber,
                     position: plan.feeLineItems.length + 2,
                     price: plan.shippingLineItem.price,

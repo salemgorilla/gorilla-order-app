@@ -10,7 +10,9 @@ export const apparelCatalog = {
     "Red",
     "Custom / Not Sure",
   ],
-  printLocations: ["Front", "Back", "Left Chest", "Sleeve"],
+  // Launching small: front and back only. Anything else (left chest, sleeve,
+  // tags, hats, custom placement) goes through the special-order request.
+  printLocations: ["Front", "Back"],
   inkColors: [
     "1 color",
     "2 colors",
@@ -27,6 +29,13 @@ export const defaultApparelQuote = {
   printLocations: ["Front"],
   inkColors: "1 color",
   sizeBreakdown: "",
+  /**
+   * The customer needs something outside the simple menu (a different garment,
+   * another print location, embroidery, hats…). Turns the whole submission into
+   * a "NEED TO QUOTE" special order instead of an online estimate.
+   */
+  specialOrder: false,
+  specialOrderNotes: "",
 };
 
 export type ApparelQuote = typeof defaultApparelQuote;

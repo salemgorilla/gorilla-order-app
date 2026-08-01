@@ -569,12 +569,15 @@ export function buildPrintavoQuotePlan(input: {
   const signs = isSigns(product);
   const signLabel = str(product.signType, "Signs");
 
-  // Signs are usually priced online now; only flag the ones that genuinely
-  // still need the shop to price them by hand.
-  const needsHandPricing = signs && Boolean(pricing.quoteRequired);
+  // Flag anything the app couldn't price: unpriced signs, and apparel special
+  // orders (a garment or placement outside the simple online menu).
+  const needsHandPricing = Boolean(pricing.quoteRequired);
+  const isSpecialOrder = Boolean(product.specialOrder);
 
   const nickname = apparel
-    ? `WEB QUOTE ${quoteNumber} - ${quantity} ${garmentLabel}`
+    ? `WEB QUOTE ${quoteNumber} - ${quantity} ${garmentLabel}${
+        isSpecialOrder ? " (SPECIAL ORDER - NEEDS QUOTE)" : ""
+      }`
     : signs
     ? `WEB QUOTE ${quoteNumber} - ${quantity} ${signLabel}${
         needsHandPricing ? " (NEEDS PRICING)" : ""
@@ -605,6 +608,14 @@ export function buildPrintavoQuotePlan(input: {
           supplier.sku,
           "N/A"
         )}`,
+        // The whole point of a special order — what they actually asked for.
+        ...(isSpecialOrder
+          ? [
+              "",
+              "*** SPECIAL ORDER - NEEDS A HAND QUOTE ***",
+              str(product.specialOrderNotes, "No details given"),
+            ]
+          : []),
       ].join("\n")
     : [
         `${quantity}x Custom Stickers`,
@@ -669,7 +680,7 @@ export function buildPrintavoQuotePlan(input: {
     dueAt,
     customerNote,
     productionNote,
-    tags: signs
+    tags: needsHandPricing
       ? ["#GorillaOrder", "#WebQuote", "#Unconfirmed", "#NeedsPricing"]
       : ["#GorillaOrder", "#WebQuote", "#Unconfirmed"],
     lineItem: {

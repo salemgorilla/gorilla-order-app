@@ -20,7 +20,7 @@ export const productCategories: ProductCategory[] = [
     title: "T-Shirts & Apparel",
     badge: "Soon",
     description:
-      "Quote requests for tees, hoodies, crewnecks, long sleeves, and youth apparel.",
+      "Screen printed tees and hoodies. Need something else? Just ask.",
     status: "coming-soon",
   },
   {

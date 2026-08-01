@@ -99,7 +99,14 @@ export function buildQuoteEmail(input: {
     ? str(product.signType, "Signs")
     : "Custom Stickers";
 
-  const subject = `New Quote ${quoteNumber} — ${quantity} ${productLabel}`;
+  // A special order (or anything the app couldn't price) needs the shop to
+  // quote it by hand — say so in the subject so it stands out in the inbox.
+  const needsHandQuote =
+    Boolean(product.specialOrder) || Boolean(pricing.quoteRequired);
+
+  const subject = needsHandQuote
+    ? `NEED TO QUOTE — ${quoteNumber} — ${quantity} ${productLabel}`
+    : `New Quote ${quoteNumber} — ${quantity} ${productLabel}`;
 
   // ---- product section ----
   const productLines: string[] = [];
@@ -118,6 +125,12 @@ export function buildQuoteEmail(input: {
       ),
       line("Ink Colors", str(product.inkColors)),
       line("Size Breakdown", str(product.sizeBreakdown, "Not entered")),
+      ...(product.specialOrder
+        ? [
+            line("*** SPECIAL ORDER ***", "Needs a hand quote"),
+            line("What they need", str(product.specialOrderNotes, "Not described")),
+          ]
+        : []),
       line("S&S Style", str(supplier.catalogStyle, "N/A")),
       line("Sample Size", str(supplier.sampleSize, "N/A")),
       line("SKU", str(supplier.sku, "N/A")),
@@ -160,7 +173,12 @@ export function buildQuoteEmail(input: {
   const shippingPrice = Number(pricing.shippingPrice) || 0;
   // Signs are quoted by hand, so never show a $0.00 "estimate" that the shop
   // (or the customer) could mistake for a real price.
-  const estimateLines: string[] = signs
+  const estimateLines: string[] = needsHandQuote && !signs
+    ? [
+        line("Estimated Total", "NEEDS A HAND QUOTE"),
+        line("Why", str(pricing.note, "Special order — outside the online menu.")),
+      ]
+    : signs
     ? [
         line("Estimated Total", "Quoted by hand — needs pricing"),
         line(

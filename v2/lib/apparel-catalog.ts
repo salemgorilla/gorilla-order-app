@@ -30,24 +30,12 @@ export const apparelCatalogItems: ApparelCatalogItem[] = [
     style: "395",
     notes: "Gildan 18500 Heavy Blend — pullover hoodie.",
   },
-  {
-    label: "Classic Crewneck",
-    category: "Sweatshirts",
-    style: "372",
-    notes: "Gildan 18000 Heavy Blend — crewneck sweatshirt.",
-  },
-  {
-    label: "Long Sleeve Tee",
-    category: "Long Sleeves",
-    style: "135",
-    notes: "Gildan 2400 Ultra Cotton — long sleeve tee.",
-  },
-  {
-    label: "Youth Soft Tee",
-    category: "Youth",
-    style: "10628",
-    notes: "Bella+Canvas 3001YCVC — youth CVC jersey tee.",
-  },
 ];
+
+// Parked while apparel launches small — tees and hoodies only. Add back by
+// moving an entry into apparelCatalogItems above; the styles are verified.
+//   Classic Crewneck  Sweatshirts  style "372"   Gildan 18000 Heavy Blend
+//   Long Sleeve Tee   Long Sleeves style "135"   Gildan 2400 Ultra Cotton
+//   Youth Soft Tee    Youth        style "10628" Bella+Canvas 3001YCVC
 
 export const apparelCatalogStyles = apparelCatalogItems.map((item) => item.style);

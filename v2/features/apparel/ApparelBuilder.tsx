@@ -39,6 +39,10 @@ type Props = {
   onSelectFallbackGarmentColor: (garmentColor: string) => void;
   onTogglePrintLocation: (location: string) => void;
   onSelectInkColors: (inkColors: string) => void;
+  onUpdateSpecialOrder: (updates: {
+    specialOrder?: boolean;
+    specialOrderNotes?: string;
+  }) => void;
   onUpdateSizeQuantity: (sizeName: string, change: number) => void;
   onSetSizeQuantity: (sizeName: string, value: number) => void;
   onResetSizeBreakdown: () => void;
@@ -70,6 +74,7 @@ export default function ApparelBuilder({
   onSelectFallbackGarmentColor,
   onTogglePrintLocation,
   onSelectInkColors,
+  onUpdateSpecialOrder,
   onUpdateSizeQuantity,
   onSetSizeQuantity,
   onResetSizeBreakdown,
@@ -346,7 +351,7 @@ export default function ApparelBuilder({
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3">
           {apparelCatalog.printLocations.map((location) => {
             const isSelected = apparelQuote.printLocations.includes(location);
 
@@ -374,6 +379,62 @@ export default function ApparelBuilder({
         selected={apparelQuote.inkColors}
         onSelect={(inkColors) => onSelectInkColors(inkColors)}
       />
+
+      <div
+        className={`rounded-2xl border p-4 transition ${
+          apparelQuote.specialOrder
+            ? "border-[#b7352d] bg-[#fff1f0]"
+            : "border-[#dfd0b8] bg-[#F8F5EE]"
+        }`}
+      >
+        <label className="flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            checked={apparelQuote.specialOrder}
+            onChange={(event) =>
+              onUpdateSpecialOrder({ specialOrder: event.target.checked })
+            }
+            className="mt-1 h-5 w-5 shrink-0 accent-[#b7352d]"
+          />
+          <span>
+            <span className="block text-sm font-black text-[#171717]">
+              I need something not listed here
+            </span>
+            <span className="mt-1 block text-sm font-bold leading-5 text-[#6f695e]">
+              Different garment (crewneck, long sleeve, youth, hats), another
+              print location (left chest, sleeve, tag), embroidery, or anything
+              custom. We&apos;ll quote it by hand.
+            </span>
+          </span>
+        </label>
+
+        {apparelQuote.specialOrder && (
+          <div className="mt-4">
+            <label className="block">
+              <span className="text-sm font-black text-[#171717]">
+                Tell us what you need
+              </span>
+              <textarea
+                value={apparelQuote.specialOrderNotes}
+                onChange={(event) =>
+                  onUpdateSpecialOrder({
+                    specialOrderNotes: event.target.value,
+                  })
+                }
+                rows={3}
+                placeholder="e.g. 40 crewnecks, left chest logo + full back, plus 12 embroidered hats"
+                className="mt-2 w-full rounded-2xl border border-[#dfd0b8] bg-white px-4 py-3 font-bold text-[#171717] outline-none focus:ring-2 focus:ring-[#b7352d]"
+              />
+            </label>
+
+            <p className="mt-3 rounded-xl bg-white p-3 text-xs font-bold leading-5 text-[#6f695e]">
+              Heads up: special orders don&apos;t get an online price. Everything
+              you fill in above still comes through — Gorilla Salem will price it
+              and reply.
+            </p>
+          </div>
+        )}
+      </div>
 
       {artworkAnalysis?.estimatedColorCount && (
         <div className="rounded-2xl border border-[#dfd0b8] bg-[#F8F5EE] p-4">

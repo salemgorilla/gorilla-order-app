@@ -624,6 +624,16 @@ export default function Home() {
       errors.push("Needed-in-hand date is required.");
     }
 
+    // A special order is priced by hand, so the strict menu rules (print
+    // locations, matching size breakdown) don't apply — we just need to know
+    // what they want.
+    if (apparelQuote.specialOrder) {
+      if (!apparelQuote.specialOrderNotes.trim()) {
+        errors.push("Tell us what you need for your special order.");
+      }
+      return errors;
+    }
+
     if (apparelQuote.printLocations.length === 0) {
       errors.push("Choose at least one print location.");
     }
@@ -699,6 +709,8 @@ export default function Home() {
           printLocations: apparelQuote.printLocations,
           inkColors: apparelQuote.inkColors,
           sizeBreakdown: apparelQuote.sizeBreakdown,
+          specialOrder: apparelQuote.specialOrder,
+          specialOrderNotes: apparelQuote.specialOrderNotes,
           supplier: {
             source: "S&S Activewear",
             productName: selectedGarmentLabel || "Not selected",
@@ -716,11 +728,19 @@ export default function Home() {
           fileName: order.artwork.file?.name || null,
         },
         production: order.production,
-        pricing: {
-          ...apparelPricing,
-          quoteRequired: false,
-          note: "Estimated apparel pricing. Final pricing reviewed by Gorilla Salem.",
-        },
+        // A special order gets no online estimate — the menu pricing doesn't
+        // describe what they're actually asking for.
+        pricing: apparelQuote.specialOrder
+          ? {
+              total: 0,
+              quoteRequired: true,
+              note: "Special order — priced by hand by Gorilla Salem.",
+            }
+          : {
+              ...apparelPricing,
+              quoteRequired: false,
+              note: "Estimated apparel pricing. Final pricing reviewed by Gorilla Salem.",
+            },
       };
     }
 
@@ -1207,6 +1227,9 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   onTogglePrintLocation={togglePrintLocation}
                   onSelectInkColors={(inkColors) =>
                     updateApparelQuote({ inkColors })
+                  }
+                  onUpdateSpecialOrder={(updates) =>
+                    updateApparelQuote(updates)
                   }
                   onUpdateSizeQuantity={updateSizeQuantity}
                   onSetSizeQuantity={setSizeQuantity}

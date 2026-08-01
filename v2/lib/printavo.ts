@@ -477,6 +477,16 @@ export type PrintavoQuotePlan = {
     itemNumber: string;
     price: number;
   } | null;
+  /**
+   * Fees and add-ons broken out as their own Printavo lines (setup fee, custom
+   * size fee, banner finishing). Sending these separately means the shop can
+   * adjust one charge in Printavo without reverse-engineering a lumped total.
+   */
+  feeLineItems: {
+    description: string;
+    itemNumber: string;
+    price: number;
+  }[];
 };
 
 /**
@@ -502,9 +512,23 @@ export function buildPrintavoQuotePlan(input: {
   const shippingPrice = num(pricing.shippingPrice);
   const deliveryMethod = str(production.deliveryMethod, "Pickup");
 
+  // Signs send an itemised breakdown (product line, setup fee, add-ons). Split
+  // it so Printavo shows the same lines the customer saw, instead of one lump.
+  const signsLines = Array.isArray(pricing.lines)
+    ? (pricing.lines as AnyRecord[]).filter((l) => num(l.amount) > 0)
+    : [];
+  // The first line is the product itself; everything after is a fee/add-on.
+  const signsProductLine = signsLines[0];
+  const signsFeeLines = signsLines.slice(1);
+
   // The decal unit price excludes shipping — shipping becomes its own line
   // item so the Printavo total matches the website total.
-  const itemsSubtotal = apparel ? total : num(pricing.stickerPrice, total);
+  const itemsSubtotal = apparel
+    ? total
+    : signsProductLine
+    ? num(signsProductLine.amount)
+    : num(pricing.stickerPrice, total);
+
   const unitPrice =
     apparel && pricing.unitPrice !== undefined
       ? num(pricing.unitPrice)
@@ -657,6 +681,15 @@ export function buildPrintavoQuotePlan(input: {
             price: shippingPrice,
           }
         : null,
+    feeLineItems: signsFeeLines.map((l) => ({
+      description: str(l.label, "Fee"),
+      itemNumber: `GORILLA-FEE-${str(l.label, "FEE")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]+/g, "-")
+        .slice(0, 24)
+        .replace(/-$/, "")}`,
+      price: num(l.amount),
+    })),
   };
 }
 
@@ -742,12 +775,22 @@ export async function createPrintavoQuote(input: {
               sizes: plan.lineItem.sizes,
               taxed: true,
             },
+            // Setup fee, custom size fee, banner add-ons — each its own line so
+            // the shop can adjust one charge without unpicking a lumped total.
+            ...plan.feeLineItems.map((fee, index) => ({
+              description: fee.description,
+              itemNumber: fee.itemNumber,
+              position: index + 2,
+              price: fee.price,
+              sizes: [{ size: "size_other", count: 1 }],
+              taxed: true,
+            })),
             ...(plan.shippingLineItem
               ? [
                   {
                     description: plan.shippingLineItem.description,
                     itemNumber: plan.shippingLineItem.itemNumber,
-                    position: 2,
+                    position: plan.feeLineItems.length + 2,
                     price: plan.shippingLineItem.price,
                     sizes: [{ size: "size_other", count: 1 }],
                     taxed: false,

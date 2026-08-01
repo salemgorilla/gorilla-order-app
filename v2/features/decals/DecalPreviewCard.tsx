@@ -20,7 +20,7 @@ export default function DecalPreviewCard({
 }: Props) {
   const isDieCut = product.shape === "Die Cut";
   return (
-    <div className="rounded-[2rem] border border-[var(--rule)] bg-white p-5 shadow-xl sm:p-8">
+    <div className=" border border-[var(--rule)] bg-white p-5 sm:p-8">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
@@ -32,7 +32,7 @@ export default function DecalPreviewCard({
           </h3>
         </div>
 
-        <div className="rounded-full bg-[var(--gorilla-green)] px-4 py-2 text-sm font-bold text-white">
+        <div className=" bg-[var(--gorilla-green)] px-4 py-2 text-sm font-bold text-white">
           {product.material}
         </div>
       </div>
@@ -48,7 +48,7 @@ export default function DecalPreviewCard({
         magentaCutLine={product.magentaCutLine}
       />
 
-      <div className="mt-4 rounded-2xl bg-[var(--shirt-blank)] p-4">
+      <div className="mt-4 bg-[var(--shirt-blank)] p-4">
         <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--ink-muted)]">
           Adjust Art Placement
         </p>
@@ -97,21 +97,21 @@ export default function DecalPreviewCard({
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 text-center sm:grid-cols-3">
-        <div className="rounded-2xl bg-[var(--shirt-blank)] p-4">
+        <div className=" bg-[var(--shirt-blank)] p-4">
           <p className="text-xs font-bold uppercase text-[var(--ink-muted)]">
             Size
           </p>
           <p className="mt-1 font-black">{product.size}</p>
         </div>
 
-        <div className="rounded-2xl bg-[var(--shirt-blank)] p-4">
+        <div className=" bg-[var(--shirt-blank)] p-4">
           <p className="text-xs font-bold uppercase text-[var(--ink-muted)]">
             Shape
           </p>
           <p className="mt-1 font-black">{product.shape}</p>
         </div>
 
-        <div className="rounded-2xl bg-[var(--shirt-blank)] p-4">
+        <div className=" bg-[var(--shirt-blank)] p-4">
           <p className="text-xs font-bold uppercase text-[var(--ink-muted)]">
             Each
           </p>
@@ -119,7 +119,7 @@ export default function DecalPreviewCard({
         </div>
       </div>
 
-      <div className="mt-3 rounded-2xl bg-[var(--shirt-blank)] p-4 text-center">
+      <div className="mt-3 bg-[var(--shirt-blank)] p-4 text-center">
         <p className="text-xs font-bold uppercase text-[var(--ink-muted)]">
           Needed In Hand
         </p>

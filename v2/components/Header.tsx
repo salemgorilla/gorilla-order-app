@@ -7,7 +7,7 @@ export default function Header() {
           <span className="text-[var(--rush-red)]">LABS</span>
         </h1>
 
-        <div className="rounded-full border border-[var(--rule)] bg-[#fffdf7] px-5 py-2 font-bold text-[var(--ink-muted)]">
+        <div className="spec border border-[var(--rule)] bg-[var(--paper)] px-5 py-2 text-sm font-bold text-[var(--ink-muted)]">
           Quote &amp; Order Builder
         </div>
       </div>

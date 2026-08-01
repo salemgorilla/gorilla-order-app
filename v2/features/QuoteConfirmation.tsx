@@ -54,9 +54,9 @@ export default function QuoteConfirmationScreen({
       <Header />
 
       <div className="mx-auto grid min-h-[80vh] max-w-5xl place-items-center px-4 py-10 sm:px-8 sm:py-16">
-        <div className="w-full rounded-[2rem] border border-[var(--rule)] bg-white p-6 shadow-xl sm:p-10">
+        <div className="w-full border border-[var(--rule)] bg-white p-6 sm:p-10">
           <div className="text-center">
-            <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-[var(--gorilla-green)] text-4xl text-white">
+            <div className="mx-auto grid h-20 w-20 place-items-center bg-[var(--gorilla-green)] text-4xl text-white">
               ✓
             </div>
 
@@ -74,7 +74,7 @@ export default function QuoteConfirmationScreen({
             </p>
           </div>
 
-          <div className="mt-8 rounded-[2rem] bg-[var(--shirt-blank)] p-6 text-center">
+          <div className="mt-8 bg-[var(--shirt-blank)] p-6 text-center">
             <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--ink-muted)]">
               Quote Number
             </p>
@@ -92,7 +92,7 @@ export default function QuoteConfirmationScreen({
           </div>
 
           <div className="mt-6 grid gap-4 md:grid-cols-3">
-            <div className="rounded-2xl border border-[var(--rule)] p-5">
+            <div className=" border border-[var(--rule)] p-5">
               <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--rush-red)]">
                 Customer
               </p>
@@ -112,7 +112,7 @@ export default function QuoteConfirmationScreen({
               )}
             </div>
 
-            <div className="rounded-2xl border border-[var(--rule)] p-5">
+            <div className=" border border-[var(--rule)] p-5">
               <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--rush-red)]">
                 {isApparelSubmitted
                   ? "Apparel Details"
@@ -164,7 +164,7 @@ export default function QuoteConfirmationScreen({
               )}
             </div>
 
-            <div className="rounded-2xl border border-[var(--rule)] p-5">
+            <div className=" border border-[var(--rule)] p-5">
               <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--rush-red)]">
                 Estimate
               </p>
@@ -218,7 +218,7 @@ export default function QuoteConfirmationScreen({
             </div>
           </div>
 
-          <div className="mt-6 rounded-2xl bg-[var(--surface-warn)] p-5">
+          <div className="mt-6 bg-[var(--surface-warn)] p-5">
             <p className="text-sm font-bold leading-6 text-[var(--ink-muted)]">
               This is an estimate, not a final invoice. Gorilla Salem will
               confirm pricing, timeline, and artwork readiness before
@@ -235,7 +235,7 @@ export default function QuoteConfirmationScreen({
             <button
               type="button"
               onClick={onCopy}
-              className="rounded-2xl border border-[var(--gorilla-green)] bg-white px-6 py-4 font-black text-[var(--gorilla-green)] transition hover:bg-[var(--shirt-blank)]"
+              className=" border border-[var(--gorilla-green)] bg-white px-6 py-4 font-black text-[var(--gorilla-green)] transition hover:bg-[var(--shirt-blank)]"
             >
               Copy Quote Details
             </button>
@@ -244,7 +244,7 @@ export default function QuoteConfirmationScreen({
               href={emailHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-2xl bg-[var(--rush-red)] px-6 py-4 text-center font-black text-white transition hover:bg-[#982c25]"
+              className=" bg-[var(--rush-red)] px-6 py-4 text-center font-black text-white transition hover:bg-[#982c25]"
             >
               Open Gmail Draft
             </a>
@@ -252,7 +252,7 @@ export default function QuoteConfirmationScreen({
             <button
               type="button"
               onClick={onStartNew}
-              className="rounded-2xl bg-[var(--gorilla-green)] px-6 py-4 font-black text-white transition hover:bg-[#24402c]"
+              className=" bg-[var(--gorilla-green)] px-6 py-4 font-black text-white transition hover:bg-[#24402c]"
             >
               Start New Quote
             </button>
@@ -272,7 +272,7 @@ export default function QuoteConfirmationScreen({
           <button
             type="button"
             onClick={onBackToBuilder}
-            className="mt-4 w-full rounded-2xl bg-[var(--shirt-blank)] px-8 py-4 font-black text-[var(--ink-muted)] transition hover:bg-[var(--shirt-blank)]"
+            className="mt-4 w-full bg-[var(--shirt-blank)] px-8 py-4 font-black text-[var(--ink-muted)] transition hover:bg-[var(--shirt-blank)]"
           >
             Back to Builder
           </button>

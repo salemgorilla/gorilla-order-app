@@ -1068,19 +1068,19 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
           </p>
 
           <div className="mt-6 flex flex-wrap gap-3">
-            <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-[var(--gorilla-green)] shadow-sm">
+            <span className=" bg-white px-4 py-2 text-sm font-black text-[var(--gorilla-green)]">
               Hand-printed locally
             </span>
-            <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-[var(--gorilla-green)] shadow-sm">
+            <span className=" bg-white px-4 py-2 text-sm font-black text-[var(--gorilla-green)]">
               Salem, Massachusetts
             </span>
-            <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-[var(--gorilla-green)] shadow-sm">
+            <span className=" bg-white px-4 py-2 text-sm font-black text-[var(--gorilla-green)]">
               Real proof review before production
             </span>
           </div>
         </div>
 
-        <section className="mb-8 rounded-[2rem] border border-[var(--rule)] bg-white p-5 shadow-xl sm:p-8">
+        <section className="mb-8 border border-[var(--rule)] bg-white p-5 sm:p-8">
           <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
@@ -1111,11 +1111,11 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     setSelectedProductId(product.id);
                     updateProduct({ type: product.title });
                   }}
-                  className={`rounded-[1.5rem] border p-5 text-left transition ${
+                  className={` border p-5 text-left transition ${
                     isSelected
-                      ? "border-[var(--gorilla-green)] bg-[var(--surface-ok)] shadow-md"
+                      ? "border-[var(--gorilla-green)] bg-[var(--surface-ok)]"
                       : isActive
-                      ? "border-[var(--rule)] bg-white shadow-sm hover:-translate-y-0.5"
+                      ? "border-[var(--rule)] bg-white hover:-translate-y-0.5"
                       : "cursor-not-allowed border-[var(--rule)] bg-[var(--shirt-blank)] opacity-70"
                   }`}
                 >
@@ -1125,7 +1125,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     </p>
 
                     <span
-                      className={`rounded-full px-3 py-1 text-xs font-black ${
+                      className={` px-3 py-1 text-xs font-black ${
                         isSelected
                           ? "bg-[var(--gorilla-green)] text-white"
                           : "bg-[var(--shirt-blank)] text-[var(--ink-muted)]"
@@ -1149,7 +1149,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         </section>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-          <section className="rounded-[2rem] border border-[var(--rule)] bg-white p-5 shadow-xl sm:p-8 lg:col-span-7">
+          <section className=" border border-[var(--rule)] bg-white p-5 sm:p-8 lg:col-span-7">
             <div className="mb-8 flex items-center justify-between">
               <div>
                 <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
@@ -1165,7 +1165,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 </h2>
               </div>
 
-              <div className="rounded-full bg-[var(--shirt-blank)] px-4 py-2 text-sm font-bold text-[var(--ink-muted)]">
+              <div className=" bg-[var(--shirt-blank)] px-4 py-2 text-sm font-bold text-[var(--ink-muted)]">
                 {isApparelSelected
                   ? "Manual Quote"
                   : isSignsSelected
@@ -1304,7 +1304,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               />
             )}
 
-            <div className="rounded-[2rem] border border-[var(--rule)] bg-white p-5 text-sm font-bold leading-6 text-[var(--ink-muted)] shadow-xl sm:p-6">
+            <div className=" border border-[var(--rule)] bg-white p-5 text-sm font-bold leading-6 text-[var(--ink-muted)] sm:p-6">
               Not sure what to choose? Send the quote anyway. Gorilla Salem will
               review the artwork and help confirm the best setup before anything
               goes to print.
@@ -1344,13 +1344,13 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
 
             {isApparelSelected || isSignsSelected ? (
-              <div className="rounded-[2rem] border border-[var(--rule)] bg-white p-6 shadow-xl">
+              <div className=" border border-[var(--rule)] bg-white p-6">
                 <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
                   Required Info
                 </p>
 
                 {currentValidationErrors.length === 0 ? (
-                  <p className="mt-4 rounded-2xl bg-[var(--surface-ok)] p-4 text-sm font-black text-[var(--gorilla-green)]">
+                  <p className="mt-4 bg-[var(--surface-ok)] p-4 text-sm font-black text-[var(--gorilla-green)]">
                     {isSignsSelected
                       ? "Signs quote is ready to submit."
                       : "Apparel quote is ready to submit."}
@@ -1369,7 +1369,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
             <div className="mt-6">
               {submitError && (
-                <p className="mb-3 rounded-2xl bg-[#fff1f0] p-4 text-sm font-bold leading-6 text-[var(--rush-red)]">
+                <p className="mb-3 bg-[#fff1f0] p-4 text-sm font-bold leading-6 text-[var(--rush-red)]">
                   {submitError}
                 </p>
               )}
@@ -1389,7 +1389,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             </div>
           </aside>
         </div>
-        <footer className="mt-12 rounded-[2rem] border border-[var(--rule)] bg-white p-6 text-center shadow-xl">
+        <footer className="mt-12 border border-[var(--rule)] bg-white p-6 text-center">
           <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
             Gorilla Salem
           </p>

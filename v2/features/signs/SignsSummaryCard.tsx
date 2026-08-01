@@ -35,7 +35,7 @@ export default function SignsSummaryCard({
   ];
 
   return (
-    <div className="rounded-[2rem] border border-[var(--rule)] bg-white p-6 shadow-xl">
+    <div className=" border border-[var(--rule)] bg-white p-6">
       <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
         Signs Summary
       </p>
@@ -51,7 +51,7 @@ export default function SignsSummaryCard({
 
       {pricing.priceable ? (
         <>
-          <div className="mt-5 rounded-2xl bg-[var(--surface-ok)] p-4">
+          <div className="mt-5 bg-[var(--surface-ok)] p-4">
             <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--gorilla-green)]">
               Estimated Pricing
             </p>
@@ -94,7 +94,7 @@ export default function SignsSummaryCard({
           </div>
 
           {(pricing.suggestions?.length ?? 0) > 0 && (
-            <div className="mt-3 rounded-2xl bg-[var(--shirt-blank)] p-4">
+            <div className="mt-3 bg-[var(--shirt-blank)] p-4">
               {pricing.suggestions?.map((s) => (
                 <p
                   key={s}
@@ -106,7 +106,7 @@ export default function SignsSummaryCard({
             </div>
           )}
 
-          <div className="mt-5 rounded-2xl bg-[var(--surface-warn)] p-4">
+          <div className="mt-5 bg-[var(--surface-warn)] p-4">
             <p className="text-sm font-bold leading-6 text-[var(--ink-muted)]">
               {pricing.hasQuotedExtras
                 ? "Some finishing you picked is quoted by hand, so this total is a starting point. "
@@ -117,7 +117,7 @@ export default function SignsSummaryCard({
           </div>
         </>
       ) : (
-        <div className="mt-5 rounded-2xl bg-[var(--surface-warn)] p-4">
+        <div className="mt-5 bg-[var(--surface-warn)] p-4">
           <p className="text-sm font-black text-[var(--ink-black)]">
             Priced by hand
           </p>

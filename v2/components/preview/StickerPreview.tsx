@@ -24,8 +24,8 @@ export default function StickerPreview({
   const proofType = shape === "Die Cut" ? "Contour Cut Proof" : `${shape} Proof`;
 
   return (
-    <div className="mt-8 rounded-[2rem] bg-gradient-to-br from-white to-[#f1e5cf] p-5">
-      <div className="rounded-[1.5rem] border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
+    <div className="mt-8 bg-gradient-to-br from-white to-[#f1e5cf] p-5">
+      <div className=" border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
         <div className="mb-4 flex items-center justify-between gap-4">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
@@ -36,12 +36,12 @@ export default function StickerPreview({
             </p>
           </div>
 
-          <div className="rounded-full bg-white px-3 py-2 text-xs font-black text-[var(--gorilla-green)] shadow-sm">
+          <div className=" bg-white px-3 py-2 text-xs font-black text-[var(--gorilla-green)]">
             {size}
           </div>
         </div>
 
-        <div className="grid min-h-80 place-items-center rounded-[1.25rem] border border-white bg-[radial-gradient(circle_at_top,_#ffffff,_#efe4d4)] p-6">
+        <div className="grid min-h-80 place-items-center border border-white bg-[radial-gradient(circle_at_top,_#ffffff,_#efe4d4)] p-6">
           <StickerShape
             shape={shape}
             material={material}
@@ -56,7 +56,7 @@ export default function StickerPreview({
         {magentaCutLine && (
           <div className="mt-4 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-[var(--ink-muted)]">
             <span
-              className="inline-block h-3 w-3 rounded-full"
+              className="inline-block h-3 w-3"
               style={{ backgroundColor: "#e6007e" }}
             />
             Magenta line = your cut edge
@@ -64,21 +64,21 @@ export default function StickerPreview({
         )}
 
         <div className="mt-4 grid grid-cols-3 gap-3 text-center">
-          <div className="rounded-2xl bg-white p-3 shadow-sm">
+          <div className=" bg-white p-3">
             <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-muted)]">
               Shape
             </p>
             <p className="mt-1 text-sm font-black text-[var(--ink-black)]">{shape}</p>
           </div>
 
-          <div className="rounded-2xl bg-white p-3 shadow-sm">
+          <div className=" bg-white p-3">
             <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-muted)]">
               Material
             </p>
             <p className="mt-1 text-sm font-black text-[var(--ink-black)]">{material}</p>
           </div>
 
-          <div className="rounded-2xl bg-white p-3 shadow-sm">
+          <div className=" bg-white p-3">
             <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-muted)]">
               Finish
             </p>

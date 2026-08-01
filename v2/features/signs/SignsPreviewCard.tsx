@@ -16,7 +16,7 @@ export default function SignsPreviewCard({ artworkPreview, signsQuote }: Props) 
   const aspect = isBanner ? "aspect-[3/1]" : "aspect-[4/3]";
 
   return (
-    <div className="rounded-[2rem] border border-[var(--rule)] bg-white p-5 shadow-xl sm:p-8">
+    <div className=" border border-[var(--rule)] bg-white p-5 sm:p-8">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
@@ -27,13 +27,13 @@ export default function SignsPreviewCard({ artworkPreview, signsQuote }: Props) 
           </h3>
         </div>
 
-        <div className="rounded-full bg-[var(--gorilla-green)] px-4 py-2 text-sm font-bold text-white">
+        <div className=" bg-[var(--gorilla-green)] px-4 py-2 text-sm font-bold text-white">
           {getSignSizeLabel(signsQuote)}
         </div>
       </div>
 
-      <div className="mt-8 rounded-[2rem] bg-gradient-to-br from-white to-[#f1e5cf] p-5">
-        <div className="rounded-[1.5rem] border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
+      <div className="mt-8 bg-gradient-to-br from-white to-[#f1e5cf] p-5">
+        <div className=" border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
             {product.label} Proof
           </p>
@@ -41,9 +41,9 @@ export default function SignsPreviewCard({ artworkPreview, signsQuote }: Props) 
             Preview only — final proof reviewed by Gorilla Salem
           </p>
 
-          <div className="mt-4 grid place-items-center rounded-[1.25rem] border border-white bg-[radial-gradient(circle_at_top,_#ffffff,_#efe4d4)] p-6">
+          <div className="mt-4 grid place-items-center border border-white bg-[radial-gradient(circle_at_top,_#ffffff,_#efe4d4)] p-6">
             <div
-              className={`relative w-full ${aspect} overflow-hidden rounded-xl bg-white shadow-2xl ring-8 ring-white`}
+              className={`relative w-full ${aspect} overflow-hidden bg-white ring-8 ring-white`}
             >
               <div className="absolute inset-0 flex items-center justify-center p-4">
                 {artworkPreview ? (
@@ -53,7 +53,7 @@ export default function SignsPreviewCard({ artworkPreview, signsQuote }: Props) 
                     className="max-h-full max-w-full object-contain drop-shadow"
                   />
                 ) : (
-                  <div className="grid h-full w-full place-items-center rounded-lg bg-[var(--gorilla-green)] text-center text-white">
+                  <div className="grid h-full w-full place-items-center bg-[var(--gorilla-green)] text-center text-white">
                     <div>
                       <p className="text-4xl font-black tracking-[-0.08em]">GS</p>
                       <p className="mt-2 text-[10px] font-black uppercase tracking-[0.2em]">
@@ -76,7 +76,7 @@ export default function SignsPreviewCard({ artworkPreview, signsQuote }: Props) 
               ["Finishing", signsQuote.finishing],
               ["Sides", signsQuote.doubleSided ? "Double" : "Single"],
             ].map(([label, value]) => (
-              <div key={label} className="rounded-2xl bg-white p-3 shadow-sm">
+              <div key={label} className=" bg-white p-3">
                 <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-muted)]">
                   {label}
                 </p>

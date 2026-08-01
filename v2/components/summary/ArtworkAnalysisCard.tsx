@@ -7,7 +7,7 @@ type Props = {
 export default function ArtworkAnalysisCard({ analysis }: Props) {
   if (!analysis) {
     return (
-      <div className="rounded-[2rem] border border-[var(--rule)] bg-white p-6 shadow-xl">
+      <div className=" border border-[var(--rule)] bg-white p-6">
         <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
           Artwork Check
         </p>
@@ -21,7 +21,7 @@ export default function ArtworkAnalysisCard({ analysis }: Props) {
   }
 
   return (
-    <div className="rounded-[2rem] border border-[var(--rule)] bg-white p-6 shadow-xl">
+    <div className=" border border-[var(--rule)] bg-white p-6">
       <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
         Artwork Check
       </p>
@@ -69,7 +69,7 @@ export default function ArtworkAnalysisCard({ analysis }: Props) {
             {analysis.palette.map((color) => (
               <div
                 key={color}
-                className="h-8 w-8 rounded-full border border-black/10 shadow-sm"
+                className="h-8 w-8 border border-black/10"
                 style={{ backgroundColor: color }}
                 title={color}
               />
@@ -79,7 +79,7 @@ export default function ArtworkAnalysisCard({ analysis }: Props) {
       )}
 
       {analysis.notes.length > 0 && (
-        <div className="mt-5 rounded-2xl bg-[var(--shirt-blank)] p-4">
+        <div className="mt-5 bg-[var(--shirt-blank)] p-4">
           <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--ink-muted)]">
             Notes
           </p>

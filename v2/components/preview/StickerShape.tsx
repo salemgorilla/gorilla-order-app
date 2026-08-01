@@ -77,7 +77,8 @@ function stickerOutline(borderPx: number, magentaCutLine = false) {
 function Placeholder({ rounded }: { rounded: string }) {
   return (
     <div
-      className={`grid h-full w-full place-items-center ${rounded} bg-[#2E5037] text-center text-white shadow-inner`}
+      // `rounded` stays — it carries the real die-cut shape, not UI chrome.
+      className={`grid h-full w-full place-items-center ${rounded} bg-[var(--gorilla-green)] text-center text-white`}
     >
       <div>
         <p className="text-5xl font-black tracking-[-0.08em]">GS</p>

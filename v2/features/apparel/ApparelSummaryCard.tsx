@@ -19,7 +19,7 @@ export default function ApparelSummaryCard({
   artworkAnalysis,
 }: Props) {
   return (
-    <div className="rounded-[2rem] border border-[var(--rule)] bg-white p-6 shadow-xl">
+    <div className=" border border-[var(--rule)] bg-white p-6">
       <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
         Apparel Summary
       </p>
@@ -91,7 +91,7 @@ export default function ApparelSummaryCard({
         )}
       </div>
 
-      <div className="mt-5 rounded-2xl bg-[var(--shirt-blank)] p-4">
+      <div className="mt-5 bg-[var(--shirt-blank)] p-4">
         <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--ink-muted)]">
           Size Breakdown
         </p>
@@ -100,7 +100,7 @@ export default function ApparelSummaryCard({
         </p>
       </div>
 
-      <div className="mt-5 rounded-2xl bg-[var(--surface-ok)] p-4">
+      <div className="mt-5 bg-[var(--surface-ok)] p-4">
         <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--gorilla-green)]">
           Estimated Apparel Pricing
         </p>
@@ -145,7 +145,7 @@ export default function ApparelSummaryCard({
         </div>
       </div>
 
-      <div className="mt-5 rounded-2xl bg-[var(--surface-warn)] p-4">
+      <div className="mt-5 bg-[var(--surface-warn)] p-4">
         <p className="text-sm font-bold leading-6 text-[var(--ink-muted)]">
           Apparel pricing is an estimate. Gorilla Salem will review
           garment availability, artwork, print method, and timeline

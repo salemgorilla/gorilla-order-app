@@ -4,7 +4,7 @@ interface Props {
 
 export default function OrderSummary({ order }: Props) {
   return (
-    <div className="rounded-[2rem] border border-[var(--rule)] bg-white p-8 shadow-xl">
+    <div className=" border border-[var(--rule)] bg-white p-8">
       <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
         Review
       </p>

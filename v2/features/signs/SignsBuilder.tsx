@@ -53,16 +53,16 @@ export default function SignsBuilder({
                 key={item.id}
                 type="button"
                 onClick={() => onSelectProduct(item.id)}
-                className={`rounded-2xl border p-4 text-left transition ${
+                className={` border p-4 text-left transition ${
                   isSelected
-                    ? "border-[var(--gorilla-green)] bg-[var(--surface-ok)] shadow-md"
+                    ? "border-[var(--gorilla-green)] bg-[var(--surface-ok)]"
                     : "border-[var(--rule)] bg-[var(--shirt-blank)] hover:bg-white"
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-black text-[var(--ink-black)]">{item.label}</p>
                   {item.pricingMethod === null && (
-                    <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-[var(--ink-muted)]">
+                    <span className="shrink-0 bg-white px-2 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-[var(--ink-muted)]">
                       Quote
                     </span>
                   )}
@@ -91,7 +91,7 @@ export default function SignsBuilder({
         />
 
         {isCustomSize && (
-          <div className="mt-3 rounded-2xl border border-[var(--rule)] bg-[var(--shirt-blank)] p-4">
+          <div className="mt-3 border border-[var(--rule)] bg-[var(--shirt-blank)] p-4">
             <p className="text-sm font-black text-[var(--ink-black)]">
               Enter your size (inches)
             </p>
@@ -110,7 +110,7 @@ export default function SignsBuilder({
                     onUpdate({ customWidthInches: Number(event.target.value) })
                   }
                   placeholder="60"
-                  className="mt-1 w-full rounded-xl border border-[var(--rule)] bg-white px-3 py-2 font-black text-[var(--ink-black)] outline-none focus:ring-2 focus:ring-[var(--gorilla-green)]"
+                  className="mt-1 w-full border border-[var(--rule)] bg-white px-3 py-2 font-black text-[var(--ink-black)] outline-none focus:ring-2 focus:ring-[var(--gorilla-green)]"
                 />
               </label>
 
@@ -129,7 +129,7 @@ export default function SignsBuilder({
                     onUpdate({ customHeightInches: Number(event.target.value) })
                   }
                   placeholder="36"
-                  className="mt-1 w-full rounded-xl border border-[var(--rule)] bg-white px-3 py-2 font-black text-[var(--ink-black)] outline-none focus:ring-2 focus:ring-[var(--gorilla-green)]"
+                  className="mt-1 w-full border border-[var(--rule)] bg-white px-3 py-2 font-black text-[var(--ink-black)] outline-none focus:ring-2 focus:ring-[var(--gorilla-green)]"
                 />
               </label>
             </div>
@@ -181,7 +181,7 @@ export default function SignsBuilder({
               return (
                 <label
                   key={addOn.key}
-                  className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[var(--rule)] bg-[var(--shirt-blank)] p-4"
+                  className="flex cursor-pointer items-start gap-3 border border-[var(--rule)] bg-[var(--shirt-blank)] p-4"
                 >
                   <input
                     type="checkbox"
@@ -218,7 +218,7 @@ export default function SignsBuilder({
       )}
 
       {product.allowDoubleSided && (
-        <div className="rounded-2xl border border-[var(--rule)] bg-[var(--shirt-blank)] p-4">
+        <div className=" border border-[var(--rule)] bg-[var(--shirt-blank)] p-4">
           <label className="flex cursor-pointer items-start gap-3">
             <input
               type="checkbox"
@@ -281,16 +281,16 @@ export default function SignsBuilder({
                 key={option.value}
                 type="button"
                 onClick={() => onSelectDeliveryMethod(option.value)}
-                className={`rounded-2xl border p-4 text-left transition ${
+                className={` border p-4 text-left transition ${
                   isSelected
-                    ? "border-[var(--gorilla-green)] bg-[var(--surface-ok)] shadow-md"
+                    ? "border-[var(--gorilla-green)] bg-[var(--surface-ok)]"
                     : "border-[var(--rule)] bg-[var(--shirt-blank)] hover:bg-white"
                 }`}
               >
                 <div className="flex items-center justify-between gap-3">
                   <p className="font-black text-[var(--ink-black)]">{option.label}</p>
                   <span
-                    className={`rounded-full px-3 py-1 text-xs font-black ${
+                    className={` px-3 py-1 text-xs font-black ${
                       isSelected
                         ? "bg-[var(--gorilla-green)] text-white"
                         : "bg-white text-[var(--gorilla-green)]"

@@ -29,7 +29,7 @@ export default function UploadBox({ onFileSelected }: Props) {
         const file = event.dataTransfer.files?.[0];
         handleFile(file);
       }}
-      className={`rounded-[2rem] border-2 border-dashed p-8 transition ${
+      className={` border-2 border-dashed p-8 transition ${
         isDragging
           ? "border-[var(--gorilla-green)] bg-[#eef6f0] scale-[1.01]"
           : "border-[#d6c5ab] bg-[#faf8f3] hover:border-[var(--gorilla-green)] hover:bg-[#f6f2ea]"
@@ -37,7 +37,7 @@ export default function UploadBox({ onFileSelected }: Props) {
     >
       <label className="block cursor-pointer">
         <div className="flex flex-col items-center justify-center text-center">
-          <div className="mb-5 grid h-20 w-20 place-items-center rounded-full bg-[var(--gorilla-green)] text-4xl text-white shadow-lg">
+          <div className="mb-5 grid h-20 w-20 place-items-center bg-[var(--gorilla-green)] text-4xl text-white">
             {isDragging ? "⬇️" : "📁"}
           </div>
 
@@ -50,11 +50,11 @@ export default function UploadBox({ onFileSelected }: Props) {
             files.
           </p>
 
-          <div className="mt-6 rounded-full bg-white px-6 py-3 text-sm font-bold shadow">
+          <div className="mt-6 bg-white px-6 py-3 text-sm font-bold">
             AI • EPS • PDF • SVG • PNG • JPG
           </div>
 
-          <div className="mt-8 rounded-xl bg-[var(--gorilla-green)] px-8 py-4 font-bold text-white transition hover:bg-[#24402c]">
+          <div className="mt-8 bg-[var(--gorilla-green)] px-8 py-4 font-bold text-white transition hover:bg-[#24402c]">
             Browse Files
           </div>
 

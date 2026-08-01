@@ -23,13 +23,13 @@ export default function CustomerForm({
   onChange,
 }: Props) {
   return (
-    <div className="rounded-3xl border border-[var(--rule)] bg-[var(--shirt-blank)] p-6">
+    <div className=" border border-[var(--rule)] bg-[var(--shirt-blank)] p-6">
       <h3 className="text-xl font-black">Customer Information</h3>
 
       <div className="mt-5 space-y-4">
 
         <input
-          className="w-full rounded-xl border p-3"
+          className="w-full border p-3"
           placeholder="Full Name"
           value={customerName}
           onChange={(e) =>
@@ -38,7 +38,7 @@ export default function CustomerForm({
         />
 
         <input
-          className="w-full rounded-xl border p-3"
+          className="w-full border p-3"
           placeholder="Company (optional)"
           value={company}
           onChange={(e) =>
@@ -47,7 +47,7 @@ export default function CustomerForm({
         />
 
         <input
-          className="w-full rounded-xl border p-3"
+          className="w-full border p-3"
           placeholder="Email"
           value={email}
           onChange={(e) =>
@@ -56,7 +56,7 @@ export default function CustomerForm({
         />
 
         <input
-          className="w-full rounded-xl border p-3"
+          className="w-full border p-3"
           placeholder="Phone"
           value={phone}
           onChange={(e) =>
@@ -66,7 +66,7 @@ export default function CustomerForm({
 
         <textarea
           rows={4}
-          className="w-full rounded-xl border p-3"
+          className="w-full border p-3"
           placeholder="Special Instructions..."
           value={notes}
           onChange={(e) =>

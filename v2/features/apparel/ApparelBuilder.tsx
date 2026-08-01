@@ -87,7 +87,7 @@ export default function ApparelBuilder({
         onSelect={(quantity) => onSelectQuantity(quantity)}
       />
 
-      <div className="rounded-[2rem] border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
+      <div className=" border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
@@ -99,7 +99,7 @@ export default function ApparelBuilder({
             </p>
           </div>
 
-          <span className="rounded-full bg-white px-3 py-2 text-xs font-black text-[var(--gorilla-green)]">
+          <span className=" bg-white px-3 py-2 text-xs font-black text-[var(--gorilla-green)]">
             {ssCatalogStatus === "loaded"
               ? "Loaded"
               : ssCatalogStatus === "loading"
@@ -111,7 +111,7 @@ export default function ApparelBuilder({
         </div>
 
         {ssCatalogStatus === "error" && (
-          <div className="mb-4 rounded-2xl bg-white p-4 text-sm font-bold leading-6 text-[var(--rush-red)]">
+          <div className="mb-4 bg-white p-4 text-sm font-bold leading-6 text-[var(--rush-red)]">
             {ssCatalogError}
           </div>
         )}
@@ -138,7 +138,7 @@ export default function ApparelBuilder({
                       key={category}
                       type="button"
                       onClick={() => onSelectCategory(category)}
-                      className={`rounded-full px-4 py-2 text-sm font-black transition ${
+                      className={` px-4 py-2 text-sm font-black transition ${
                         isSelected
                           ? "bg-[var(--gorilla-green)] text-white"
                           : "bg-white text-[var(--gorilla-green)] hover:bg-[var(--surface-ok)]"
@@ -162,14 +162,14 @@ export default function ApparelBuilder({
                       key={product.id}
                       type="button"
                       onClick={() => onSelectProduct(product)}
-                      className={`rounded-2xl border p-4 text-left transition ${
+                      className={` border p-4 text-left transition ${
                         isSelected
-                          ? "border-[var(--gorilla-green)] bg-white shadow-md"
+                          ? "border-[var(--gorilla-green)] bg-white"
                           : "border-[var(--rule)] bg-white/70 hover:bg-white"
                       }`}
                     >
                       <div className="flex gap-4">
-                        <div className="grid h-24 w-20 shrink-0 place-items-center overflow-hidden rounded-2xl border border-[var(--rule)] bg-[var(--shirt-blank)]">
+                        <div className="grid h-24 w-20 shrink-0 place-items-center overflow-hidden border border-[var(--rule)] bg-[var(--shirt-blank)]">
                           {thumbnailColor?.frontImage ? (
                             <img
                               src={thumbnailColor.frontImage}
@@ -198,7 +198,7 @@ export default function ApparelBuilder({
                               </p>
                             </div>
 
-                            <span className="rounded-full bg-[var(--shirt-blank)] px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-[var(--gorilla-green)]">
+                            <span className=" bg-[var(--shirt-blank)] px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-[var(--gorilla-green)]">
                               {product.colors.length} colors
                             </span>
                           </div>
@@ -233,9 +233,9 @@ export default function ApparelBuilder({
                         type="button"
                         onClick={() => onSelectColor(color)}
                         disabled={color.outOfStock}
-                        className={`rounded-2xl border p-3 text-left transition ${
+                        className={` border p-3 text-left transition ${
                           isSelected
-                            ? "border-[var(--gorilla-green)] bg-white shadow-md"
+                            ? "border-[var(--gorilla-green)] bg-white"
                             : "border-[var(--rule)] bg-white/70 hover:bg-white"
                         } ${
                           color.outOfStock
@@ -248,11 +248,11 @@ export default function ApparelBuilder({
                             <img
                               src={color.swatchImage}
                               alt={color.colorName}
-                              className="h-7 w-7 rounded-full border border-black/10 object-cover"
+                              className="h-7 w-7 border border-black/10 object-cover"
                             />
                           ) : (
                             <span
-                              className="h-7 w-7 rounded-full border border-black/10"
+                              className="h-7 w-7 border border-black/10"
                               style={{
                                 backgroundColor:
                                   color.colorHex || "#ffffff",
@@ -292,9 +292,9 @@ export default function ApparelBuilder({
                         type="button"
                         onClick={() => onSelectSize(size)}
                         disabled={size.outOfStock}
-                        className={`rounded-2xl border p-3 text-center transition ${
+                        className={` border p-3 text-center transition ${
                           isSelected
-                            ? "border-[var(--gorilla-green)] bg-white shadow-md"
+                            ? "border-[var(--gorilla-green)] bg-white"
                             : "border-[var(--rule)] bg-white/70 hover:bg-white"
                         } ${
                           size.outOfStock
@@ -360,7 +360,7 @@ export default function ApparelBuilder({
                 key={location}
                 type="button"
                 onClick={() => onTogglePrintLocation(location)}
-                className={`rounded-2xl border px-4 py-4 text-sm font-black transition ${
+                className={` border px-4 py-4 text-sm font-black transition ${
                   isSelected
                     ? "border-[var(--gorilla-green)] bg-[var(--gorilla-green)] text-white"
                     : "border-[var(--rule)] bg-[var(--shirt-blank)] text-[var(--ink-black)] hover:bg-white"
@@ -381,7 +381,7 @@ export default function ApparelBuilder({
       />
 
       <div
-        className={`rounded-2xl border p-4 transition ${
+        className={` border p-4 transition ${
           apparelQuote.specialOrder
             ? "border-[var(--rush-red)] bg-[#fff1f0]"
             : "border-[var(--rule)] bg-[var(--shirt-blank)]"
@@ -423,11 +423,11 @@ export default function ApparelBuilder({
                 }
                 rows={3}
                 placeholder="e.g. 40 crewnecks, left chest logo + full back, plus 12 embroidered hats"
-                className="mt-2 w-full rounded-2xl border border-[var(--rule)] bg-white px-4 py-3 font-bold text-[var(--ink-black)] outline-none focus:ring-2 focus:ring-[var(--rush-red)]"
+                className="mt-2 w-full border border-[var(--rule)] bg-white px-4 py-3 font-bold text-[var(--ink-black)] outline-none focus:ring-2 focus:ring-[var(--rush-red)]"
               />
             </label>
 
-            <p className="mt-3 rounded-xl bg-white p-3 text-xs font-bold leading-5 text-[var(--ink-muted)]">
+            <p className="mt-3 bg-white p-3 text-xs font-bold leading-5 text-[var(--ink-muted)]">
               Heads up: special orders don&apos;t get an online price. Everything
               you fill in above still comes through — Gorilla Salem will price it
               and reply.
@@ -437,13 +437,13 @@ export default function ApparelBuilder({
       </div>
 
       {artworkAnalysis?.estimatedColorCount && (
-        <div className="rounded-2xl border border-[var(--rule)] bg-[var(--shirt-blank)] p-4">
+        <div className=" border border-[var(--rule)] bg-[var(--shirt-blank)] p-4">
           <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
             Auto Color Count
           </p>
 
           <div className="mt-3 grid gap-3 text-sm font-bold text-[var(--ink-muted)] sm:grid-cols-3">
-            <div className="rounded-xl bg-white p-3">
+            <div className=" bg-white p-3">
               <p className="text-xs uppercase tracking-[0.12em]">
                 Artwork
               </p>
@@ -452,7 +452,7 @@ export default function ApparelBuilder({
               </p>
             </div>
 
-            <div className="rounded-xl bg-white p-3">
+            <div className=" bg-white p-3">
               <p className="text-xs uppercase tracking-[0.12em]">
                 Underbase
               </p>
@@ -463,7 +463,7 @@ export default function ApparelBuilder({
               </p>
             </div>
 
-            <div className="rounded-xl bg-white p-3">
+            <div className=" bg-white p-3">
               <p className="text-xs uppercase tracking-[0.12em]">
                 Suggested
               </p>
@@ -480,7 +480,7 @@ export default function ApparelBuilder({
         </div>
       )}
 
-      <div className="rounded-[2rem] border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
+      <div className=" border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
@@ -492,7 +492,7 @@ export default function ApparelBuilder({
           </div>
 
           <span
-            className={`rounded-full px-4 py-2 text-sm font-black ${
+            className={` px-4 py-2 text-sm font-black ${
               sizeBreakdownMatchesQuantity
                 ? "bg-[var(--gorilla-green)] text-white"
                 : "bg-white text-[var(--rush-red)]"
@@ -515,7 +515,7 @@ export default function ApparelBuilder({
             return (
               <div
                 key={sizeName}
-                className={`rounded-2xl border bg-white p-4 ${
+                className={` border bg-white p-4 ${
                   isAvailable
                     ? "border-[var(--rule)]"
                     : "border-[var(--rule)] opacity-50"
@@ -537,7 +537,7 @@ export default function ApparelBuilder({
                       type="button"
                       onClick={() => onUpdateSizeQuantity(sizeName, -1)}
                       disabled={quantity === 0}
-                      className="grid h-10 w-10 place-items-center rounded-full bg-[var(--shirt-blank)] text-xl font-black text-[var(--gorilla-green)] transition hover:bg-[var(--surface-ok)] disabled:cursor-not-allowed disabled:opacity-40"
+                      className="grid h-10 w-10 place-items-center bg-[var(--shirt-blank)] text-xl font-black text-[var(--gorilla-green)] transition hover:bg-[var(--surface-ok)] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       −
                     </button>
@@ -552,14 +552,14 @@ export default function ApparelBuilder({
                         onSetSizeQuantity(sizeName, Number(event.target.value))
                       }
                       aria-label={`${sizeName} quantity`}
-                      className="h-10 w-16 rounded-xl bg-[var(--shirt-blank)] px-2 text-center text-lg font-black text-[var(--ink-black)] outline-none focus:ring-2 focus:ring-[var(--gorilla-green)]"
+                      className="h-10 w-16 bg-[var(--shirt-blank)] px-2 text-center text-lg font-black text-[var(--ink-black)] outline-none focus:ring-2 focus:ring-[var(--gorilla-green)]"
                     />
 
                     <button
                       type="button"
                       onClick={() => onUpdateSizeQuantity(sizeName, 1)}
                       disabled={!canAdd}
-                      className="grid h-10 w-10 place-items-center rounded-full bg-[var(--gorilla-green)] text-xl font-black text-white transition hover:bg-[#24402c] disabled:cursor-not-allowed disabled:opacity-40"
+                      className="grid h-10 w-10 place-items-center bg-[var(--gorilla-green)] text-xl font-black text-white transition hover:bg-[#24402c] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       +
                     </button>
@@ -570,7 +570,7 @@ export default function ApparelBuilder({
           })}
         </div>
 
-        <div className="mt-4 rounded-2xl bg-white p-4">
+        <div className="mt-4 bg-white p-4">
           <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--ink-muted)]">
             Current Breakdown
           </p>
@@ -596,7 +596,7 @@ export default function ApparelBuilder({
             <button
               type="button"
               onClick={onResetSizeBreakdown}
-              className="mt-3 rounded-full bg-[var(--shirt-blank)] px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-[var(--ink-muted)] transition hover:bg-[var(--shirt-blank)]"
+              className="mt-3 bg-[var(--shirt-blank)] px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-[var(--ink-muted)] transition hover:bg-[var(--shirt-blank)]"
             >
               Reset Sizes
             </button>

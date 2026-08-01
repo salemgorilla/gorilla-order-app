@@ -18,19 +18,103 @@ _Living roadmap for the Gorilla Salem quote/order builder. Update this file as y
 
 ## 1. Current status (verified working)
 
-✅ **Decal quote flow** — quantity / size / shape / decal type → live price → review → confirmation.
-✅ **Apparel quote flow** — live S&S catalog (products, colors, sizes, prices, images, stock), size-breakdown buttons, print locations, ink colors, artwork color estimate.
+✅ **Sticker quote flow** — quantity / size / shape / type → live price → review → confirmation. Die-cut proof follows the artwork outline; magenta cut lines are auto-detected.
+🔒 **Apparel quote flow** — fully built (live S&S catalog, size-breakdown with keyboard entry, print locations, ink colors, artwork color estimate) but **hidden from customers** as "Coming Soon". One line in `lib/products.tsx` turns it back on.
+✅ **Signs & Banners flow** — vinyl banners, yard signs, rigid signs, posters (live pricing from the shop boards) + window/wall graphics (quoted by hand).
 ✅ **S&S Activewear API** — `/api/ss-catalog` returns `200` with real data. Credentials in `.env.local` are valid.
 ✅ **Quote submission** — `POST /api/quote` returns a quote number (`GS-YYYYMMDD-XXXXX`), shows a confirmation screen with **Copy Quote Details** + **Open Gmail Draft**.
 ✅ **Build is green** — `npx tsc --noEmit` and `npm run build` both pass with 0 errors.
 ✅ **DEPLOYED & LIVE** (2026-07-24) — **https://salemgorilla-gorilla-order-app.vercel.app/**
 On Vercel, root dir `v2`, auto-deploys on every push to `main`. Verified end-to-end in production: homepage loads, S&S catalog returns all 6 garments, both flows render with correct pricing, and a real `/api/quote` submission **emails the shop via Gmail** — all with zero console errors.
 
-**Checkpoint:** `v3.3.0 — Quote email works with Resend or Gmail` (see Section 2). Previous: `v3.2.0`, `v3.1.0`.
+**Checkpoint:** `v3.13.0 — Printavo payment requests` (see Section 2). Previous: `v3.12.0`, `v3.11.0`.
+
+### ⚠️ The one thing still switched off
+`PRINTAVO_TOKEN` is **not** set on the live Vercel project, so quotes don't reach Printavo yet.
+Everything else runs: pricing, quote emails, the Printavo code itself (verified against the live
+account). Add the token in the project serving `salemgorilla-gorilla-order-app.vercel.app`
+(Settings → Environment Variables), redeploy, then check `/api/printavo-test`.
+
+> Watch out: **two Vercel projects** are connected to this repo and env vars have landed on the
+> wrong one twice. See Section 10.
 
 ---
 
-## 2. What changed most recently (2026-07-14)
+## 2. What changed most recently (2026-07-31)
+
+### `v3.13.0` — Printavo payment requests (admin-triggered)
+`POST /api/payment-request` asks a customer to pay against a Printavo quote, using the shop's
+existing Printavo payment processing — no separate Stripe account.
+
+**Deliberately NOT automatic.** Web submissions are unreviewed: artwork may be unprintable, signs
+may still need hand pricing, and spam happens. Sending a payment request is a decision the shop
+makes after looking at the job.
+
+- Guarded by `ADMIN_SECRET` (`x-admin-secret` header)
+- **Fails closed** — with no `ADMIN_SECRET` set the route returns 503, never open to the public
+- Defaults amount to the quote's outstanding balance and recipient to the quote's contact
+- Refuses to send a $0 request, which is exactly what protects an unpriced signs job
+
+```bash
+curl -X POST https://<site>/api/payment-request \
+  -H "x-admin-secret: $ADMIN_SECRET" -H "Content-Type: application/json" \
+  -d '{"quoteId":"23901567"}'
+```
+
+### `v3.12.0` — Printavo quotes attach to the real customer
+Looks the customer up by email and creates a Printavo customer + primary contact when they're new,
+so repeat customers build history on one record instead of piling onto a catch-all.
+`PRINTAVO_CUSTOMER_ID` is now **optional** — only a fallback.
+
+Two things live data taught us: Printavo stores **multiple emails in one comma-separated string**,
+and the account contains **duplicate contacts** — so matching splits the list and prefers the record
+with a name.
+
+### `v3.11.0` — Banner finishing add-ons
+Pole Pockets $15, Wind Slits $6 (per banner). Webbing/D-Rings/Rope is **quoted by hand**, so the
+estimate switches to **"from $X"** rather than showing a total that omits real cost. Warns that pole
+pockets and grommets can't share an edge; suggests reinforcement over 100 sqft.
+
+> ⚠️ Those add-on prices are **market defaults** from the pricing research, **not Gorilla's confirmed
+> rates**. Flagged in `signs-pricing-config.ts` — worth reviewing before customers see them.
+
+### `v3.10.0` — Live signs pricing (from the shop price boards)
+| Configuration | Total |
+|---|---|
+| Banner 3'×6' (18 sqft × $8 + $15) | $159.00 |
+| 10× yard 18"×24" single + stakes | $155.00 |
+| 10× yard 18"×24" double + stakes | $215.00 |
+| Rigid PVC ½" 2'×3' double-sided | $129.00 |
+| Custom banner 5'×10' (no custom fee) | $415.00 |
+| Custom rigid 30"×40" (+$20 fee) | $101.67 |
+
+**Custom size fee is hard stock only** — odd sizes leave drop pieces when cut from 48"×96" sheets.
+Banners and posters print on roll material, so custom sizes there cost nothing extra.
+
+### `v3.9.0` — Signs & Banners flow
+Third product flow. Four priced products plus window/wall graphics (quoted to the space). Fixed a
+bug found in testing: the confirmation screen only knew apparel-vs-stickers, so a signs customer saw
+"100 stickers … $89.00" — a real price for a job that had not been priced.
+
+### `v3.8.0` — Renamed decals → stickers; fixed shaped-proof centering
+Every customer-visible "decal" is now "sticker" (internal identifiers deliberately unchanged so
+Printavo SKUs stay stable). Circle/Square/Rounded proofs were sized by percentage, so a square of art
+inside a **round** shape had corners crossing the cut edge. Art is now sized in real pixels against a
+shape-aware safe area (a circle's inscribed square is only ~70.7% of its diameter) and centers on the
+shape itself.
+
+### `v3.6.x` — Magenta cut line
+Customers can mark the cut edge with 100% magenta. The app **auto-detects** it in the uploaded file
+and ticks the box, warns if the box is on but no magenta is found, and notes the line won't be
+printed and that vector files cut cleanest.
+
+### Earlier today
+`v3.7.0` manual keyboard entry for apparel size quantities · `v3.5.0` rebrand to **Gorilla Labs**
+(the browser tab literally said "Create Next App") · `v3.4.0` die-cut contour preview.
+
+---
+
+## 2b. Older changes (2026-07-14)
 
 ### `v3.3.0` — Quote email works with Resend **or** Gmail _(pending commit)_
 Resend signup was erroring out ("Something went wrong while processing your request" — and their status page showed no outage), so the app is no longer locked to one provider.
@@ -437,6 +521,22 @@ git push
 
 ## 10. Going live (deployment)
 
+> ### ⚠️ Two Vercel projects — the recurring gotcha
+> Env vars have landed on the wrong project **twice**, and it's cost real time both times.
+> - **`salemgorilla-gorilla-order-app`** → serves the live site. **This is the one that matters.**
+> - **`gorilla-order-app`** → owns `labs.gorillasalem.com`, still builds the repo root (old static
+>   page), returns 404 on `/api/*`.
+>
+> **Recommended cleanup:** add the env vars to the working project, move the `labs.gorillasalem.com`
+> domain onto it (remove from the old project, add to the new one, update the `labs` CNAME in
+> Squarespace to the new target), then **delete `gorilla-order-app`**.
+>
+> 🚨 When touching DNS, change **only the `labs` record**. Editing `@` or `www` took the main
+> Squarespace site offline once already.
+>
+> Diagnostic: `/api/printavo-test` lists which `PRINTAVO*` env vars actually reached the runtime
+> (names + lengths, never values) — use it to tell "wrong project" from "wrong value".
+
 > **Vercel projects (2026-07-24):** the repo is connected to **two** Vercel projects — `gorilla-order-app` (serves **labs.gorillasalem.com**) and `salemgorilla-gorilla-order-app` (serves the `.vercel.app` URL). **Both must have Root Directory = `v2`** (the app lives in the subfolder). If a project's root is left at the repo root it serves the old static `index.html` instead of the app. After changing Root Directory, trigger a **fresh deployment** (a new commit) — "Redeploy" of an old deployment can reuse the old setting. The two projects are redundant; one can be deleted later.
 
 Today the app runs **locally** (`npm run dev`). That's fine for testing, but a customer can't reach `localhost` — for real quotes to flow, the app has to be **deployed and always-on**.
@@ -456,6 +556,20 @@ Today the app runs **locally** (`npm run dev`). That's fine for testing, but a c
 ---
 
 ## Version history
+- `v3.13.0` — Printavo payment requests (admin-triggered, fails closed)
+- `v3.12.0` — Printavo quotes attach to the real customer (find-or-create by email)
+- **fix** — Printavo `lineItems` is a FLAT list. The published docs render it as `[[...]]` and
+  v3.2.0 changed the code to match; **live introspection proved that wrong** and it would have
+  failed on the first real quote. Confirmed by creating a real test quote (#102518, since deleted)
+  whose total came back **$159.00**, matching the app's computed estimate.
+- `v3.11.0` — Banner finishing add-ons (market-default prices, flagged for review)
+- `v3.10.0` — Live signs pricing from the shop price boards
+- `v3.9.0` — Signs & Banners flow (third product flow)
+- `v3.8.0` — Renamed decals → stickers; fixed shaped-proof centering
+- `v3.7.0` — Manual keyboard entry for apparel sizes; apparel hidden as Coming Soon
+- `v3.6.0/1` — Magenta cut line + auto-detection
+- `v3.5.0` — Rebrand to "Gorilla Labs"
+- `v3.4.0` — Die-cut contour preview, auto-centered art, placement controls
 - **2026-07-24** — Quote emails confirmed **live** via Gmail (end-to-end); added deployment section (10)
 - `v3.3.0` — Quote email supports Resend **or** Gmail SMTP; added `/api/email-test`
 - `v3.2.0` — Printavo schema verified; real apparel size mapping; nested lineItems fix; 429 backoff

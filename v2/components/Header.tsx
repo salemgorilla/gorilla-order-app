@@ -1,13 +1,13 @@
 export default function Header() {
   return (
-    <header className="border-b-4 border-black bg-[#fff6e4] py-6">
+    <header className="border-b-4 border-[var(--ink-black)] bg-[var(--shirt-blank)] py-6">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-8">
         <h1 className="text-4xl font-black tracking-tight">
           <span>GORILLA</span>
-          <span className="text-[#b7352d]">LABS</span>
+          <span className="text-[var(--rush-red)]">LABS</span>
         </h1>
 
-        <div className="rounded-full border border-[#dfd0b8] bg-[#fffdf7] px-5 py-2 font-bold text-[#6f695e]">
+        <div className="rounded-full border border-[var(--rule)] bg-[#fffdf7] px-5 py-2 font-bold text-[var(--ink-muted)]">
           Quote &amp; Order Builder
         </div>
       </div>

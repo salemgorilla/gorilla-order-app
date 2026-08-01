@@ -19,37 +19,37 @@ export default function ApparelSummaryCard({
   artworkAnalysis,
 }: Props) {
   return (
-    <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-6 shadow-xl">
-      <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+    <div className="rounded-[2rem] border border-[var(--rule)] bg-white p-6 shadow-xl">
+      <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
         Apparel Summary
       </p>
 
-      <div className="mt-5 space-y-3 text-sm font-bold text-[#6f695e]">
+      <div className="mt-5 space-y-3 text-sm font-bold text-[var(--ink-muted)]">
         <div className="flex justify-between gap-4">
           <span>Product</span>
-          <span className="text-right text-[#171717]">{apparelQuote.garmentType}</span>
+          <span className="text-right text-[var(--ink-black)]">{apparelQuote.garmentType}</span>
         </div>
         <div className="flex justify-between gap-4">
           <span>Quantity</span>
-          <span className="text-right text-[#171717]">{apparelQuote.quantity}</span>
+          <span className="text-right text-[var(--ink-black)]">{apparelQuote.quantity}</span>
         </div>
         <div className="flex justify-between gap-4">
           <span>Color</span>
-          <span className="text-right text-[#171717]">{apparelQuote.garmentColor}</span>
+          <span className="text-right text-[var(--ink-black)]">{apparelQuote.garmentColor}</span>
         </div>
         <div className="flex justify-between gap-4">
           <span>Locations</span>
-          <span className="text-right text-[#171717]">{apparelQuote.printLocations.join(", ")}</span>
+          <span className="text-right text-[var(--ink-black)]">{apparelQuote.printLocations.join(", ")}</span>
         </div>
         <div className="flex justify-between gap-4">
           <span>Ink</span>
-          <span className="text-right text-[#171717]">{apparelQuote.inkColors}</span>
+          <span className="text-right text-[var(--ink-black)]">{apparelQuote.inkColors}</span>
         </div>
 
         {selectedSsSize && (
           <div className="flex justify-between gap-4">
             <span>Garment Price</span>
-            <span className="text-right text-[#171717]">
+            <span className="text-right text-[var(--ink-black)]">
               ${selectedSsSize.markedUpPrice.toFixed(2)}
             </span>
           </div>
@@ -58,7 +58,7 @@ export default function ApparelSummaryCard({
         {selectedSsSize && (
           <div className="flex justify-between gap-4">
             <span>SKU</span>
-            <span className="text-right text-[#171717]">
+            <span className="text-right text-[var(--ink-black)]">
               {selectedSsSize.sku}
             </span>
           </div>
@@ -66,14 +66,14 @@ export default function ApparelSummaryCard({
 
         <div className="flex justify-between gap-4">
           <span>Estimated Each</span>
-          <span className="text-right text-[#171717]">
+          <span className="text-right text-[var(--ink-black)]">
             ${apparelPricing.unitPrice.toFixed(2)}
           </span>
         </div>
 
         <div className="flex justify-between gap-4">
           <span>Estimated Total</span>
-          <span className="text-right text-[#2E5037]">
+          <span className="text-right text-[var(--gorilla-green)]">
             ${apparelPricing.total.toFixed(2)}
           </span>
         </div>
@@ -81,7 +81,7 @@ export default function ApparelSummaryCard({
         {artworkAnalysis?.estimatedColorCount && (
           <div className="flex justify-between gap-4">
             <span>Auto Count</span>
-            <span className="text-right text-[#171717]">
+            <span className="text-right text-[var(--ink-black)]">
               {artworkAnalysis.estimatedColorCount}
               {apparelQuote.garmentColor === "White"
                 ? ""
@@ -91,53 +91,53 @@ export default function ApparelSummaryCard({
         )}
       </div>
 
-      <div className="mt-5 rounded-2xl bg-[#F8F5EE] p-4">
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6f695e]">
+      <div className="mt-5 rounded-2xl bg-[var(--shirt-blank)] p-4">
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--ink-muted)]">
           Size Breakdown
         </p>
-        <p className="mt-2 text-sm font-bold text-[#171717]">
+        <p className="mt-2 text-sm font-bold text-[var(--ink-black)]">
           {apparelQuote.sizeBreakdown || "Not entered yet"}
         </p>
       </div>
 
-      <div className="mt-5 rounded-2xl bg-[#eef7ee] p-4">
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-[#2E5037]">
+      <div className="mt-5 rounded-2xl bg-[var(--surface-ok)] p-4">
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--gorilla-green)]">
           Estimated Apparel Pricing
         </p>
 
-        <div className="mt-4 space-y-2 text-sm font-bold text-[#6f695e]">
+        <div className="mt-4 space-y-2 text-sm font-bold text-[var(--ink-muted)]">
           <div className="flex justify-between gap-4">
             <span>Garments</span>
-            <span className="text-right text-[#171717]">
+            <span className="text-right text-[var(--ink-black)]">
               ${apparelPricing.garmentTotal.toFixed(2)}
             </span>
           </div>
 
           <div className="flex justify-between gap-4">
             <span>Printing</span>
-            <span className="text-right text-[#171717]">
+            <span className="text-right text-[var(--ink-black)]">
               ${apparelPricing.printTotal.toFixed(2)}
             </span>
           </div>
 
           <div className="flex justify-between gap-4">
             <span>Setup / Screens</span>
-            <span className="text-right text-[#171717]">
+            <span className="text-right text-[var(--ink-black)]">
               ${apparelPricing.setupTotal.toFixed(2)}
             </span>
           </div>
 
-          <div className="border-t border-[#cfe4cf] pt-3">
+          <div className="border-t border-[var(--rule)] pt-3">
             <div className="flex justify-between gap-4">
-              <span className="text-[#171717]">Estimated Total</span>
-              <span className="text-right text-xl font-black text-[#2E5037]">
+              <span className="text-[var(--ink-black)]">Estimated Total</span>
+              <span className="text-right text-xl font-black text-[var(--gorilla-green)]">
                 ${apparelPricing.total.toFixed(2)}
               </span>
             </div>
 
             <div className="mt-1 flex justify-between gap-4">
               <span>Estimated Each</span>
-              <span className="text-right text-[#171717]">
+              <span className="text-right text-[var(--ink-black)]">
                 ${apparelPricing.unitPrice.toFixed(2)}
               </span>
             </div>
@@ -145,8 +145,8 @@ export default function ApparelSummaryCard({
         </div>
       </div>
 
-      <div className="mt-5 rounded-2xl bg-[#fff7e8] p-4">
-        <p className="text-sm font-bold leading-6 text-[#6f695e]">
+      <div className="mt-5 rounded-2xl bg-[var(--surface-warn)] p-4">
+        <p className="text-sm font-bold leading-6 text-[var(--ink-muted)]">
           Apparel pricing is an estimate. Gorilla Salem will review
           garment availability, artwork, print method, and timeline
           before confirming the final price.

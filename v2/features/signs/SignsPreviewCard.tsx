@@ -16,10 +16,10 @@ export default function SignsPreviewCard({ artworkPreview, signsQuote }: Props) 
   const aspect = isBanner ? "aspect-[3/1]" : "aspect-[4/3]";
 
   return (
-    <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-5 shadow-xl sm:p-8">
+    <div className="rounded-[2rem] border border-[var(--rule)] bg-white p-5 shadow-xl sm:p-8">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
             Digital Proof
           </p>
           <h3 className="mt-2 text-3xl font-black tracking-[-0.05em]">
@@ -27,17 +27,17 @@ export default function SignsPreviewCard({ artworkPreview, signsQuote }: Props) 
           </h3>
         </div>
 
-        <div className="rounded-full bg-[#2E5037] px-4 py-2 text-sm font-bold text-white">
+        <div className="rounded-full bg-[var(--gorilla-green)] px-4 py-2 text-sm font-bold text-white">
           {getSignSizeLabel(signsQuote)}
         </div>
       </div>
 
       <div className="mt-8 rounded-[2rem] bg-gradient-to-br from-white to-[#f1e5cf] p-5">
-        <div className="rounded-[1.5rem] border border-[#dfd0b8] bg-[#F8F5EE] p-5">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#b7352d]">
+        <div className="rounded-[1.5rem] border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
             {product.label} Proof
           </p>
-          <p className="mt-1 text-sm font-bold text-[#6f695e]">
+          <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
             Preview only — final proof reviewed by Gorilla Salem
           </p>
 
@@ -53,7 +53,7 @@ export default function SignsPreviewCard({ artworkPreview, signsQuote }: Props) 
                     className="max-h-full max-w-full object-contain drop-shadow"
                   />
                 ) : (
-                  <div className="grid h-full w-full place-items-center rounded-lg bg-[#2E5037] text-center text-white">
+                  <div className="grid h-full w-full place-items-center rounded-lg bg-[var(--gorilla-green)] text-center text-white">
                     <div>
                       <p className="text-4xl font-black tracking-[-0.08em]">GS</p>
                       <p className="mt-2 text-[10px] font-black uppercase tracking-[0.2em]">
@@ -65,7 +65,7 @@ export default function SignsPreviewCard({ artworkPreview, signsQuote }: Props) 
               </div>
 
               {signsQuote.finishing === "With H-Stakes" && (
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1.5 bg-[#dfd0b8]" />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1.5 bg-[var(--rule)]" />
               )}
             </div>
           </div>
@@ -77,10 +77,10 @@ export default function SignsPreviewCard({ artworkPreview, signsQuote }: Props) 
               ["Sides", signsQuote.doubleSided ? "Double" : "Single"],
             ].map(([label, value]) => (
               <div key={label} className="rounded-2xl bg-white p-3 shadow-sm">
-                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#6f695e]">
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-muted)]">
                   {label}
                 </p>
-                <p className="mt-1 text-sm font-black text-[#171717]">{value}</p>
+                <p className="mt-1 text-sm font-black text-[var(--ink-black)]">{value}</p>
               </div>
             ))}
           </div>

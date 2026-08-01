@@ -1,3 +1,5 @@
+import Chip from "./ui/Chip";
+
 type Props = {
   quantities: number[];
   selected: number;
@@ -15,17 +17,14 @@ export default function QuantitySelector({
 
       <div className="grid grid-cols-2 gap-3">
         {quantities.map((quantity) => (
-          <button
+          <Chip
             key={quantity}
-            onClick={() => onSelect(quantity)}
-            className={`rounded-xl border p-4 text-lg font-semibold transition ${
-              selected === quantity
-                ? "bg-[#2E5037] text-white border-[#2E5037]"
-                : "bg-white hover:bg-gray-100"
-            }`}
-          >
-            {quantity.toLocaleString()}
-          </button>
+            // Quantities are real values, so they get the mono spec treatment.
+            spec
+            label={quantity.toLocaleString()}
+            selected={selected === quantity}
+            onSelect={() => onSelect(quantity)}
+          />
         ))}
       </div>
     </div>

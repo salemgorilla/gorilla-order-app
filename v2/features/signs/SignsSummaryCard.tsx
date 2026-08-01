@@ -35,47 +35,47 @@ export default function SignsSummaryCard({
   ];
 
   return (
-    <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-6 shadow-xl">
-      <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+    <div className="rounded-[2rem] border border-[var(--rule)] bg-white p-6 shadow-xl">
+      <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
         Signs Summary
       </p>
 
-      <div className="mt-5 space-y-3 text-sm font-bold text-[#6f695e]">
+      <div className="mt-5 space-y-3 text-sm font-bold text-[var(--ink-muted)]">
         {rows.map(([label, value]) => (
           <div key={label} className="flex justify-between gap-4">
             <span>{label}</span>
-            <span className="text-right text-[#171717]">{value}</span>
+            <span className="text-right text-[var(--ink-black)]">{value}</span>
           </div>
         ))}
       </div>
 
       {pricing.priceable ? (
         <>
-          <div className="mt-5 rounded-2xl bg-[#eef7ee] p-4">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#2E5037]">
+          <div className="mt-5 rounded-2xl bg-[var(--surface-ok)] p-4">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--gorilla-green)]">
               Estimated Pricing
             </p>
 
-            <div className="mt-4 space-y-2 text-sm font-bold text-[#6f695e]">
+            <div className="mt-4 space-y-2 text-sm font-bold text-[var(--ink-muted)]">
               {pricing.lines
                 .filter((l) => l.amount !== 0)
                 .map((l) => (
                   <div key={l.label} className="flex justify-between gap-4">
                     <span>{l.label}</span>
-                    <span className="text-right text-[#171717]">
+                    <span className="text-right text-[var(--ink-black)]">
                       ${l.amount.toFixed(2)}
                     </span>
                   </div>
                 ))}
 
-              <div className="border-t border-[#cfe4cf] pt-3">
+              <div className="border-t border-[var(--rule)] pt-3">
                 <div className="flex justify-between gap-4">
-                  <span className="text-[#171717]">
+                  <span className="text-[var(--ink-black)]">
                     {pricing.hasQuotedExtras
                       ? "Estimated From"
                       : "Estimated Total"}
                   </span>
-                  <span className="text-right text-xl font-black text-[#2E5037]">
+                  <span className="text-right text-xl font-black text-[var(--gorilla-green)]">
                     {pricing.hasQuotedExtras ? "from " : ""}$
                     {pricing.total.toFixed(2)}
                   </span>
@@ -84,7 +84,7 @@ export default function SignsSummaryCard({
                 {signsQuote.quantity > 1 && (
                   <div className="mt-1 flex justify-between gap-4">
                     <span>Estimated Each</span>
-                    <span className="text-right text-[#171717]">
+                    <span className="text-right text-[var(--ink-black)]">
                       ${pricing.unitPrice.toFixed(2)}
                     </span>
                   </div>
@@ -94,11 +94,11 @@ export default function SignsSummaryCard({
           </div>
 
           {(pricing.suggestions?.length ?? 0) > 0 && (
-            <div className="mt-3 rounded-2xl bg-[#eef4ff] p-4">
+            <div className="mt-3 rounded-2xl bg-[var(--shirt-blank)] p-4">
               {pricing.suggestions?.map((s) => (
                 <p
                   key={s}
-                  className="text-sm font-bold leading-6 text-[#2f4f7a]"
+                  className="text-sm font-bold leading-6 text-[var(--ink-black)]"
                 >
                   {s}
                 </p>
@@ -106,8 +106,8 @@ export default function SignsSummaryCard({
             </div>
           )}
 
-          <div className="mt-5 rounded-2xl bg-[#fff7e8] p-4">
-            <p className="text-sm font-bold leading-6 text-[#6f695e]">
+          <div className="mt-5 rounded-2xl bg-[var(--surface-warn)] p-4">
+            <p className="text-sm font-bold leading-6 text-[var(--ink-muted)]">
               {pricing.hasQuotedExtras
                 ? "Some finishing you picked is quoted by hand, so this total is a starting point. "
                 : ""}
@@ -117,11 +117,11 @@ export default function SignsSummaryCard({
           </div>
         </>
       ) : (
-        <div className="mt-5 rounded-2xl bg-[#fff7e8] p-4">
-          <p className="text-sm font-black text-[#171717]">
+        <div className="mt-5 rounded-2xl bg-[var(--surface-warn)] p-4">
+          <p className="text-sm font-black text-[var(--ink-black)]">
             Priced by hand
           </p>
-          <p className="mt-2 text-sm font-bold leading-6 text-[#6f695e]">
+          <p className="mt-2 text-sm font-bold leading-6 text-[var(--ink-muted)]">
             {pricing.reason ||
               "Gorilla Salem will price this and reply with your quote."}
           </p>

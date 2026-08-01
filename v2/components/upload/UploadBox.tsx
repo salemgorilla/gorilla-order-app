@@ -31,21 +31,21 @@ export default function UploadBox({ onFileSelected }: Props) {
       }}
       className={`rounded-[2rem] border-2 border-dashed p-8 transition ${
         isDragging
-          ? "border-[#2E5037] bg-[#eef6f0] scale-[1.01]"
-          : "border-[#d6c5ab] bg-[#faf8f3] hover:border-[#2E5037] hover:bg-[#f6f2ea]"
+          ? "border-[var(--gorilla-green)] bg-[#eef6f0] scale-[1.01]"
+          : "border-[#d6c5ab] bg-[#faf8f3] hover:border-[var(--gorilla-green)] hover:bg-[#f6f2ea]"
       }`}
     >
       <label className="block cursor-pointer">
         <div className="flex flex-col items-center justify-center text-center">
-          <div className="mb-5 grid h-20 w-20 place-items-center rounded-full bg-[#2E5037] text-4xl text-white shadow-lg">
+          <div className="mb-5 grid h-20 w-20 place-items-center rounded-full bg-[var(--gorilla-green)] text-4xl text-white shadow-lg">
             {isDragging ? "⬇️" : "📁"}
           </div>
 
-          <h3 className="text-2xl font-black tracking-[-0.03em] text-[#171717]">
+          <h3 className="text-2xl font-black tracking-[-0.03em] text-[var(--ink-black)]">
             {isDragging ? "Drop It Here" : "Upload Your Artwork"}
           </h3>
 
-          <p className="mt-3 max-w-md text-[#6f695e]">
+          <p className="mt-3 max-w-md text-[var(--ink-muted)]">
             Drag and drop your artwork here, or click anywhere to browse your
             files.
           </p>
@@ -54,11 +54,11 @@ export default function UploadBox({ onFileSelected }: Props) {
             AI • EPS • PDF • SVG • PNG • JPG
           </div>
 
-          <div className="mt-8 rounded-xl bg-[#2E5037] px-8 py-4 font-bold text-white transition hover:bg-[#24402c]">
+          <div className="mt-8 rounded-xl bg-[var(--gorilla-green)] px-8 py-4 font-bold text-white transition hover:bg-[#24402c]">
             Browse Files
           </div>
 
-          <p className="mt-4 text-sm text-[#8b8478]">
+          <p className="mt-4 text-sm text-[var(--ink-muted)]">
             Maximum file size: 100 MB
           </p>
         </div>

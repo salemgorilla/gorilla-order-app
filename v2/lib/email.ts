@@ -291,20 +291,32 @@ function escapeHtml(value: string) {
     .replace(/>/g, "&gt;");
 }
 
+// Order Desk inks, duplicated as literals on purpose: email clients do not
+// support CSS custom properties, so `var(--ink-black)` would render as black
+// in some and as nothing in others. Keep these in sync with app/globals.css.
+const INK_BLACK = "#111111";
+const INK_MUTED = "#5f594e";
+const SHIRT_BLANK = "#f4f1ea";
+const GORILLA_GREEN = "#2e7d32";
+const RUSH_RED = "#b23a2e";
+const RULE = "#d8d2c4";
+// Webfonts are unreliable in email; this is the closest safe stack.
+const SPEC_FONT = "ui-monospace,SFMono-Regular,Menlo,Consolas,monospace";
+
 function htmlSection(title: string, lines: string[]) {
   const rows = lines
     .map((l) => {
       const idx = l.indexOf(": ");
       const label = idx >= 0 ? l.slice(0, idx) : l;
       const value = idx >= 0 ? l.slice(idx + 2) : "";
-      return `<tr><td style="padding:3px 12px 3px 0;color:#6f695e;white-space:nowrap;vertical-align:top;">${escapeHtml(
+      return `<tr><td style="padding:3px 12px 3px 0;color:${INK_MUTED};white-space:nowrap;vertical-align:top;">${escapeHtml(
         label
-      )}</td><td style="padding:3px 0;color:#171717;font-weight:600;">${escapeHtml(
+      )}</td><td style="padding:3px 0;color:${INK_BLACK};font-weight:600;">${escapeHtml(
         value
       )}</td></tr>`;
     })
     .join("");
-  return `<h3 style="margin:22px 0 6px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#b7352d;">${escapeHtml(
+  return `<h3 style="margin:22px 0 6px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:${RUSH_RED};">${escapeHtml(
     title
   )}</h3><table style="border-collapse:collapse;font-size:14px;">${rows}</table>`;
 }
@@ -329,22 +341,22 @@ function buildHtml(input: {
     line("Phone", str(input.customer.phone, "N/A")),
   ];
 
-  return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;padding:24px;background:#F8F5EE;color:#171717;">
-  <div style="background:#fff;border:1px solid #dfd0b8;border-radius:16px;padding:24px;">
-    <p style="margin:0;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#b7352d;font-weight:800;">New Quote Request</p>
-    <h1 style="margin:6px 0 2px;font-size:26px;color:#2E5037;">${escapeHtml(
+  return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;padding:24px;background:${SHIRT_BLANK};color:${INK_BLACK};">
+  <div style="background:#ffffff;border:1px solid ${RULE};padding:24px;">
+    <p style="margin:0;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:${RUSH_RED};font-weight:800;">New Quote Request</p>
+    <h1 style="margin:6px 0 2px;font-size:26px;color:${GORILLA_GREEN};font-family:${SPEC_FONT};letter-spacing:.02em;">${escapeHtml(
       input.quoteNumber
     )}</h1>
-    <p style="margin:0;color:#6f695e;font-size:13px;">Submitted ${escapeHtml(
+    <p style="margin:0;color:${INK_MUTED};font-size:13px;font-family:${SPEC_FONT};">Submitted ${escapeHtml(
       input.submittedAt
     )}</p>
     ${htmlSection("Customer", customerLines)}
     ${htmlSection(input.detailsLabel, input.productLines)}
     ${htmlSection("Estimate", input.estimateLines)}
-    <p style="margin:6px 0 0;font-size:12px;color:#8a8172;">Estimate only. Final pricing reviewed by Gorilla Salem.</p>
+    <p style="margin:6px 0 0;font-size:12px;color:${INK_MUTED};">Estimate only. Final pricing reviewed by Gorilla Salem.</p>
     ${htmlSection("Artwork", input.artworkLines)}
     ${htmlSection("Notes", [`_: ${input.notes}`]).replace("_", "")}
-    <p style="margin:22px 0 0;padding-top:14px;border-top:1px solid #dfd0b8;font-size:13px;color:#6f695e;">${
+    <p style="margin:22px 0 0;padding-top:14px;border-top:1px solid ${RULE};font-size:13px;color:${INK_MUTED};">${
       input.customerEmail
         ? `Reply to this email to reach ${escapeHtml(
             input.customerName

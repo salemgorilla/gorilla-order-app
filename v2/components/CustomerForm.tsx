@@ -23,7 +23,7 @@ export default function CustomerForm({
   onChange,
 }: Props) {
   return (
-    <div className="rounded-3xl border border-[#dfd0b8] bg-[#F8F5EE] p-6">
+    <div className="rounded-3xl border border-[var(--rule)] bg-[var(--shirt-blank)] p-6">
       <h3 className="text-xl font-black">Customer Information</h3>
 
       <div className="mt-5 space-y-4">

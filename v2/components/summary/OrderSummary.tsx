@@ -4,8 +4,8 @@ interface Props {
 
 export default function OrderSummary({ order }: Props) {
   return (
-    <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-8 shadow-xl">
-      <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+    <div className="rounded-[2rem] border border-[var(--rule)] bg-white p-8 shadow-xl">
+      <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
         Review
       </p>
 
@@ -62,7 +62,7 @@ export default function OrderSummary({ order }: Props) {
 
       </div>
 
-      <div className="my-8 border-t border-[#ece4d5]" />
+      <div className="my-8 border-t border-[var(--rule)]" />
 
       <div className="space-y-3">
         <SummaryRow
@@ -80,7 +80,7 @@ export default function OrderSummary({ order }: Props) {
         />
       </div>
 
-      <div className="my-6 border-t border-[#ece4d5]" />
+      <div className="my-6 border-t border-[var(--rule)]" />
 
       <div className="flex justify-between text-xl font-black">
         <span>Total</span>
@@ -99,7 +99,7 @@ function SummaryRow({
 }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-[#6f695e]">
+      <span className="text-[var(--ink-muted)]">
         {label}
       </span>
 

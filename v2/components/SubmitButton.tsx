@@ -4,23 +4,40 @@ type Props = {
   isLoading?: boolean;
 };
 
+/**
+ * Order Desk — primary commit action.
+ *
+ * Disabled is 40% opacity + not-allowed + no hover (never a grey fill, which
+ * reads as a different button rather than the same button switched off).
+ * Loading carries a mono label, not a spinner.
+ */
 export default function SubmitButton({
   onSubmit,
   disabled = false,
   isLoading = false,
 }: Props) {
+  const inactive = disabled || isLoading;
+
   return (
     <button
       type="button"
       onClick={onSubmit}
-      disabled={disabled || isLoading}
-      className={`w-full rounded-2xl py-5 text-xl font-black transition ${
-        disabled || isLoading
-          ? "cursor-not-allowed bg-gray-300 text-gray-500"
-          : "bg-[#b7352d] text-white hover:scale-[1.01] hover:bg-[#a32d25] active:scale-[0.99]"
-      }`}
+      disabled={inactive}
+      className={[
+        "w-full border-2 border-[var(--rush-red)] bg-[var(--rush-red)] py-5",
+        "text-xl font-black text-white",
+        "transition-colors duration-[120ms] ease-linear",
+        inactive
+          ? "cursor-not-allowed opacity-40"
+          : // Ink inversion, same as every other affordance in the app.
+            "cursor-pointer hover:bg-[var(--paper)] hover:text-[var(--rush-red)] active:translate-x-[2px] active:translate-y-[2px]",
+      ].join(" ")}
     >
-      {isLoading ? "Requesting Quote..." : "Request Quote →"}
+      {isLoading ? (
+        <span className="spec">REQUESTING QUOTE…</span>
+      ) : (
+        "Request Quote →"
+      )}
     </button>
   );
 }

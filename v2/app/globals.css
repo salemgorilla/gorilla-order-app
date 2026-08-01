@@ -1,26 +1,106 @@
 @import "tailwindcss";
 
+/* ============================================================
+   ORDER DESK — Gorilla Printing house design system (est. 2026-08)
+
+   Register: Republic. Cold, systematic, print-shop-as-institution.
+   Held constraint: EVERY PANEL IS A PRINT TICKET.
+     hairline 1px frames · mono spec strip · radius 0 everywhere
+     borders not shadows (hard offset 3px 3px 0 ok, blur never)
+
+   Change an ink here and it changes everywhere. Do not reintroduce
+   raw hex into components — add a token instead.
+   ============================================================ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* ---- Inks (named — reference the token, never the hex) ---- */
+  --ink-black: #111111;      /* INK BLACK     text, rules, frames               */
+  --shirt-blank: #f4f1ea;    /* SHIRT BLANK   page ground, panel tint           */
+  --gorilla-green: #2e7d32;  /* GORILLA GREEN existing brand — never replace    */
+  --gorilla-green-dark: #1b5e20;
+  --green-bright: #5dbb63;   /* GREEN BRIGHT  green lifted, ink-on-black only   */
+  --rush-red: #b23a2e;       /* RUSH RED      rush/late/error, never decorative */
+
+  /* Functional, outside the palette: magenta means "cut line" in the
+     artwork feature and is named in customer-facing instructions. */
+  --cut-line: #e6007e;
+
+  /* ---- Derived neutrals (deliberately few) ---- */
+  --paper: #ffffff;          /* panel fill above the ground                     */
+  --rule: #d8d2c4;           /* 1px hairline frame                              */
+  --ink-muted: #5f594e;      /* secondary text — 4.5:1 on SHIRT BLANK           */
+  --ink-warn: #6b4e0f;       /* caution text on SURFACE WARN — 4.5:1            */
+
+  /* ---- Semantic surfaces ----
+     Status tints, each derived from an ink above. Always paired with text
+     and a border — colour is never the only signal. */
+  --surface-ok: #eaf2ea;     /* pale GORILLA GREEN — valid, confirmed           */
+  --surface-warn: #f7f0dd;   /* pale caution — notices, "we'll confirm this"    */
+  --surface-rush: #f6e9e7;   /* pale RUSH RED — error, rush, blocked            */
+
+  /* ---- Structure ---- */
+  --radius: 0px;             /* Republic: radius 0                              */
+  --hairline: 1px;
+  --offset: 3px;             /* hard offset shadow, zero blur                   */
+  --motion: 120ms;           /* linear, functional only                         */
+
+  --background: var(--shirt-blank);
+  --foreground: var(--ink-black);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-ink: var(--ink-black);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-warn: var(--ink-warn);
+  --color-blank: var(--shirt-blank);
+  --color-paper: var(--paper);
+  --color-rule: var(--rule);
+  --color-green: var(--gorilla-green);
+  --color-green-dark: var(--gorilla-green-dark);
+  --color-green-bright: var(--green-bright);
+  --color-rush: var(--rush-red);
+  --color-cut-line: var(--cut-line);
+  --color-surface-ok: var(--surface-ok);
+  --color-surface-warn: var(--surface-warn);
+  --color-surface-rush: var(--surface-rush);
+
+  --radius-ticket: var(--radius);
+
+  --font-sans: var(--font-display);
+  --font-mono: var(--font-spec);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Space Grotesk, loaded in layout.tsx. A hardcoded `Arial` used to sit
+     here and silently defeated the entire type system. */
+  font-family: var(--font-display), "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Spec furniture: ticket numbers, timestamps, statuses, size grids, index
+   numbering. Mono signals "this is a real value" — never decorative. */
+.spec {
+  font-family: var(--font-spec), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* Focus is an accessibility floor and is never removed. */
+*:focus-visible {
+  outline: 2px solid var(--gorilla-green);
+  outline-offset: 2px;
+}
+
+/* Motion is functional only — no spring, parallax, or scroll-jacking. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

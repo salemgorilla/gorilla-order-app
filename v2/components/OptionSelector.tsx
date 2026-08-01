@@ -1,3 +1,5 @@
+import Chip from "./ui/Chip";
+
 type Props = {
   title: string;
   options: string[];
@@ -17,17 +19,12 @@ export default function OptionSelector({
 
       <div className="grid grid-cols-2 gap-3">
         {options.map((option) => (
-          <button
+          <Chip
             key={option}
-            onClick={() => onSelect(option)}
-            className={`rounded-xl border p-4 text-left font-semibold transition ${
-              selected === option
-                ? "border-[#2E5037] bg-[#2E5037] text-white"
-                : "bg-white hover:bg-gray-100"
-            }`}
-          >
-            {option}
-          </button>
+            label={option}
+            selected={selected === option}
+            onSelect={() => onSelect(option)}
+          />
         ))}
       </div>
     </div>

@@ -1049,49 +1049,49 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
   }
 
   return (
-    <main className="min-h-screen bg-[#F8F5EE]">
+    <main className="min-h-screen bg-[var(--shirt-blank)]">
       <Header />
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-8 sm:py-10">
         <div className="mb-10">
-          <p className="text-sm font-black uppercase tracking-[0.2em] text-[#b7352d]">
+          <p className="text-sm font-black uppercase tracking-[0.2em] text-[var(--rush-red)]">
             Printed Locally in Salem, MA
           </p>
 
-          <h1 className="mt-3 max-w-4xl text-4xl font-black tracking-[-0.08em] text-[#171717] sm:text-5xl lg:text-6xl">
+          <h1 className="mt-3 max-w-4xl text-4xl font-black tracking-[-0.08em] text-[var(--ink-black)] sm:text-5xl lg:text-6xl">
             Custom print quotes made simple.
           </h1>
 
-          <p className="mt-5 max-w-2xl text-xl leading-8 text-[#6f695e]">
+          <p className="mt-5 max-w-2xl text-xl leading-8 text-[var(--ink-muted)]">
             Choose your details, upload your artwork, and get a live estimate or
             quote request before sending it to Gorilla Salem.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-3">
-            <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-[#2E5037] shadow-sm">
+            <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-[var(--gorilla-green)] shadow-sm">
               Hand-printed locally
             </span>
-            <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-[#2E5037] shadow-sm">
+            <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-[var(--gorilla-green)] shadow-sm">
               Salem, Massachusetts
             </span>
-            <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-[#2E5037] shadow-sm">
+            <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-[var(--gorilla-green)] shadow-sm">
               Real proof review before production
             </span>
           </div>
         </div>
 
-        <section className="mb-8 rounded-[2rem] border border-[#dfd0b8] bg-white p-5 shadow-xl sm:p-8">
+        <section className="mb-8 rounded-[2rem] border border-[var(--rule)] bg-white p-5 shadow-xl sm:p-8">
           <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+              <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
                 Product Type
               </p>
-              <h2 className="mt-2 text-3xl font-black tracking-[-0.05em] text-[#171717]">
+              <h2 className="mt-2 text-3xl font-black tracking-[-0.05em] text-[var(--ink-black)]">
                 What do you want to quote?
               </h2>
             </div>
 
-            <p className="max-w-md text-sm font-bold leading-6 text-[#6f695e]">
+            <p className="max-w-md text-sm font-bold leading-6 text-[var(--ink-muted)]">
               Start with stickers or apparel. More Gorilla Salem products can be
               added to this system without rebuilding the whole app.
             </p>
@@ -1113,33 +1113,33 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   }}
                   className={`rounded-[1.5rem] border p-5 text-left transition ${
                     isSelected
-                      ? "border-[#2E5037] bg-[#f4f8f1] shadow-md"
+                      ? "border-[var(--gorilla-green)] bg-[var(--surface-ok)] shadow-md"
                       : isActive
-                      ? "border-[#dfd0b8] bg-white shadow-sm hover:-translate-y-0.5"
-                      : "cursor-not-allowed border-[#dfd0b8] bg-[#F8F5EE] opacity-70"
+                      ? "border-[var(--rule)] bg-white shadow-sm hover:-translate-y-0.5"
+                      : "cursor-not-allowed border-[var(--rule)] bg-[var(--shirt-blank)] opacity-70"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-lg font-black text-[#171717]">
+                    <p className="text-lg font-black text-[var(--ink-black)]">
                       {product.title}
                     </p>
 
                     <span
                       className={`rounded-full px-3 py-1 text-xs font-black ${
                         isSelected
-                          ? "bg-[#2E5037] text-white"
-                          : "bg-[#F8F5EE] text-[#6f695e]"
+                          ? "bg-[var(--gorilla-green)] text-white"
+                          : "bg-[var(--shirt-blank)] text-[var(--ink-muted)]"
                       }`}
                     >
                       {product.badge}
                     </span>
                   </div>
 
-                  <p className="mt-3 text-sm font-bold leading-6 text-[#6f695e]">
+                  <p className="mt-3 text-sm font-bold leading-6 text-[var(--ink-muted)]">
                     {product.description}
                   </p>
 
-                  <p className="mt-4 text-xs font-black uppercase tracking-[0.16em] text-[#b7352d]">
+                  <p className="mt-4 text-xs font-black uppercase tracking-[0.16em] text-[var(--rush-red)]">
                     {isActive ? "Available now" : "Coming soon"}
                   </p>
                 </button>
@@ -1149,10 +1149,10 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         </section>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-          <section className="rounded-[2rem] border border-[#dfd0b8] bg-white p-5 shadow-xl sm:p-8 lg:col-span-7">
+          <section className="rounded-[2rem] border border-[var(--rule)] bg-white p-5 shadow-xl sm:p-8 lg:col-span-7">
             <div className="mb-8 flex items-center justify-between">
               <div>
-                <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+                <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
                   Step 1
                 </p>
 
@@ -1165,7 +1165,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 </h2>
               </div>
 
-              <div className="rounded-full bg-[#F8F5EE] px-4 py-2 text-sm font-bold text-[#6f695e]">
+              <div className="rounded-full bg-[var(--shirt-blank)] px-4 py-2 text-sm font-bold text-[var(--ink-muted)]">
                 {isApparelSelected
                   ? "Manual Quote"
                   : isSignsSelected
@@ -1304,7 +1304,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               />
             )}
 
-            <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-5 text-sm font-bold leading-6 text-[#6f695e] shadow-xl sm:p-6">
+            <div className="rounded-[2rem] border border-[var(--rule)] bg-white p-5 text-sm font-bold leading-6 text-[var(--ink-muted)] shadow-xl sm:p-6">
               Not sure what to choose? Send the quote anyway. Gorilla Salem will
               review the artwork and help confirm the best setup before anything
               goes to print.
@@ -1344,19 +1344,19 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
 
             {isApparelSelected || isSignsSelected ? (
-              <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-6 shadow-xl">
-                <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+              <div className="rounded-[2rem] border border-[var(--rule)] bg-white p-6 shadow-xl">
+                <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
                   Required Info
                 </p>
 
                 {currentValidationErrors.length === 0 ? (
-                  <p className="mt-4 rounded-2xl bg-[#eef7ee] p-4 text-sm font-black text-[#2E5037]">
+                  <p className="mt-4 rounded-2xl bg-[var(--surface-ok)] p-4 text-sm font-black text-[var(--gorilla-green)]">
                     {isSignsSelected
                       ? "Signs quote is ready to submit."
                       : "Apparel quote is ready to submit."}
                   </p>
                 ) : (
-                  <ul className="mt-4 space-y-2 text-sm font-bold text-[#6f695e]">
+                  <ul className="mt-4 space-y-2 text-sm font-bold text-[var(--ink-muted)]">
                     {currentValidationErrors.map((error) => (
                       <li key={error}>• {error}</li>
                     ))}
@@ -1369,7 +1369,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
             <div className="mt-6">
               {submitError && (
-                <p className="mb-3 rounded-2xl bg-[#fff1f0] p-4 text-sm font-bold leading-6 text-[#b7352d]">
+                <p className="mb-3 rounded-2xl bg-[#fff1f0] p-4 text-sm font-bold leading-6 text-[var(--rush-red)]">
                   {submitError}
                 </p>
               )}
@@ -1379,22 +1379,24 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 <button
                   type="button"
                   disabled
-                  className="w-full cursor-not-allowed rounded-2xl bg-gray-300 py-5 text-xl font-black text-gray-500"
+                  // Matches SubmitButton's disabled treatment exactly — it is
+                  // the same button switched off, not a different one.
+                  className="w-full cursor-not-allowed border-2 border-[var(--rush-red)] bg-[var(--rush-red)] py-5 text-xl font-black text-white opacity-40"
                 >
-                  Complete Required Info
+                  Complete required info
                 </button>
               )}
             </div>
           </aside>
         </div>
-        <footer className="mt-12 rounded-[2rem] border border-[#dfd0b8] bg-white p-6 text-center shadow-xl">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+        <footer className="mt-12 rounded-[2rem] border border-[var(--rule)] bg-white p-6 text-center shadow-xl">
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
             Gorilla Salem
           </p>
-          <p className="mt-2 text-lg font-black text-[#171717]">
+          <p className="mt-2 text-lg font-black text-[var(--ink-black)]">
             Custom printing, local service, real people reviewing your order.
           </p>
-          <p className="mt-2 text-sm font-bold text-[#6f695e]">
+          <p className="mt-2 text-sm font-bold text-[var(--ink-muted)]">
             Salem, Massachusetts • quote@gorillasalem.com
           </p>
         </footer>

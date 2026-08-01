@@ -87,19 +87,19 @@ export default function ApparelBuilder({
         onSelect={(quantity) => onSelectQuantity(quantity)}
       />
 
-      <div className="rounded-[2rem] border border-[#dfd0b8] bg-[#F8F5EE] p-5">
+      <div className="rounded-[2rem] border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+            <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
               Live S&S Catalog
             </p>
-            <p className="mt-1 text-sm font-bold text-[#6f695e]">
+            <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
               Products, colors, sizes, pricing, availability, and images
               are pulled from S&S.
             </p>
           </div>
 
-          <span className="rounded-full bg-white px-3 py-2 text-xs font-black text-[#2E5037]">
+          <span className="rounded-full bg-white px-3 py-2 text-xs font-black text-[var(--gorilla-green)]">
             {ssCatalogStatus === "loaded"
               ? "Loaded"
               : ssCatalogStatus === "loading"
@@ -111,7 +111,7 @@ export default function ApparelBuilder({
         </div>
 
         {ssCatalogStatus === "error" && (
-          <div className="mb-4 rounded-2xl bg-white p-4 text-sm font-bold leading-6 text-[#b7352d]">
+          <div className="mb-4 rounded-2xl bg-white p-4 text-sm font-bold leading-6 text-[var(--rush-red)]">
             {ssCatalogError}
           </div>
         )}
@@ -120,11 +120,11 @@ export default function ApparelBuilder({
           <div className="space-y-5">
             <div>
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6f695e]">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--ink-muted)]">
                   Garment Style
                 </p>
 
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8a8172]">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--ink-muted)]">
                   {filteredSsProducts.length} shown
                 </p>
               </div>
@@ -140,8 +140,8 @@ export default function ApparelBuilder({
                       onClick={() => onSelectCategory(category)}
                       className={`rounded-full px-4 py-2 text-sm font-black transition ${
                         isSelected
-                          ? "bg-[#2E5037] text-white"
-                          : "bg-white text-[#2E5037] hover:bg-[#eef7ee]"
+                          ? "bg-[var(--gorilla-green)] text-white"
+                          : "bg-white text-[var(--gorilla-green)] hover:bg-[var(--surface-ok)]"
                       }`}
                     >
                       {category}
@@ -164,12 +164,12 @@ export default function ApparelBuilder({
                       onClick={() => onSelectProduct(product)}
                       className={`rounded-2xl border p-4 text-left transition ${
                         isSelected
-                          ? "border-[#2E5037] bg-white shadow-md"
-                          : "border-[#dfd0b8] bg-white/70 hover:bg-white"
+                          ? "border-[var(--gorilla-green)] bg-white shadow-md"
+                          : "border-[var(--rule)] bg-white/70 hover:bg-white"
                       }`}
                     >
                       <div className="flex gap-4">
-                        <div className="grid h-24 w-20 shrink-0 place-items-center overflow-hidden rounded-2xl border border-[#dfd0b8] bg-[#F8F5EE]">
+                        <div className="grid h-24 w-20 shrink-0 place-items-center overflow-hidden rounded-2xl border border-[var(--rule)] bg-[var(--shirt-blank)]">
                           {thumbnailColor?.frontImage ? (
                             <img
                               src={thumbnailColor.frontImage}
@@ -177,7 +177,7 @@ export default function ApparelBuilder({
                               className="h-full w-full object-contain p-2"
                             />
                           ) : (
-                            <span className="px-2 text-center text-xs font-black uppercase tracking-[0.12em] text-[#8a8172]">
+                            <span className="px-2 text-center text-xs font-black uppercase tracking-[0.12em] text-[var(--ink-muted)]">
                               No Image
                             </span>
                           )}
@@ -186,25 +186,25 @@ export default function ApparelBuilder({
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                              <p className="font-black text-[#171717]">
+                              <p className="font-black text-[var(--ink-black)]">
                                 {product.customerLabel || product.displayName}
                               </p>
-                              <p className="mt-1 text-sm font-bold text-[#6f695e]">
+                              <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
                                 {product.customerCategory} • Style{" "}
                                 {product.catalogStyle}
                               </p>
-                              <p className="mt-1 text-xs font-bold text-[#8a8172]">
+                              <p className="mt-1 text-xs font-bold text-[var(--ink-muted)]">
                                 S&S: {product.displayName}
                               </p>
                             </div>
 
-                            <span className="rounded-full bg-[#F8F5EE] px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-[#2E5037]">
+                            <span className="rounded-full bg-[var(--shirt-blank)] px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-[var(--gorilla-green)]">
                               {product.colors.length} colors
                             </span>
                           </div>
 
                           {thumbnailColor?.colorName && (
-                            <p className="mt-3 text-xs font-bold text-[#8a8172]">
+                            <p className="mt-3 text-xs font-bold text-[var(--ink-muted)]">
                               Preview shown in {thumbnailColor.colorName}
                             </p>
                           )}
@@ -218,7 +218,7 @@ export default function ApparelBuilder({
 
             {selectedSsProduct && (
               <div>
-                <p className="mb-3 text-xs font-black uppercase tracking-[0.16em] text-[#6f695e]">
+                <p className="mb-3 text-xs font-black uppercase tracking-[0.16em] text-[var(--ink-muted)]">
                   Garment Color
                 </p>
 
@@ -235,8 +235,8 @@ export default function ApparelBuilder({
                         disabled={color.outOfStock}
                         className={`rounded-2xl border p-3 text-left transition ${
                           isSelected
-                            ? "border-[#2E5037] bg-white shadow-md"
-                            : "border-[#dfd0b8] bg-white/70 hover:bg-white"
+                            ? "border-[var(--gorilla-green)] bg-white shadow-md"
+                            : "border-[var(--rule)] bg-white/70 hover:bg-white"
                         } ${
                           color.outOfStock
                             ? "cursor-not-allowed opacity-50"
@@ -260,12 +260,12 @@ export default function ApparelBuilder({
                             />
                           )}
 
-                          <span className="text-sm font-black text-[#171717]">
+                          <span className="text-sm font-black text-[var(--ink-black)]">
                             {color.colorName}
                           </span>
                         </div>
 
-                        <p className="mt-2 text-xs font-bold text-[#6f695e]">
+                        <p className="mt-2 text-xs font-bold text-[var(--ink-muted)]">
                           {color.outOfStock ? "Out of stock" : "Available"}
                         </p>
                       </button>
@@ -277,7 +277,7 @@ export default function ApparelBuilder({
 
             {selectedSsColor && (
               <div>
-                <p className="mb-3 text-xs font-black uppercase tracking-[0.16em] text-[#6f695e]">
+                <p className="mb-3 text-xs font-black uppercase tracking-[0.16em] text-[var(--ink-muted)]">
                   Sample Size / Garment Price
                 </p>
 
@@ -294,18 +294,18 @@ export default function ApparelBuilder({
                         disabled={size.outOfStock}
                         className={`rounded-2xl border p-3 text-center transition ${
                           isSelected
-                            ? "border-[#2E5037] bg-white shadow-md"
-                            : "border-[#dfd0b8] bg-white/70 hover:bg-white"
+                            ? "border-[var(--gorilla-green)] bg-white shadow-md"
+                            : "border-[var(--rule)] bg-white/70 hover:bg-white"
                         } ${
                           size.outOfStock
                             ? "cursor-not-allowed opacity-50"
                             : ""
                         }`}
                       >
-                        <p className="text-sm font-black text-[#171717]">
+                        <p className="text-sm font-black text-[var(--ink-black)]">
                           {size.sizeName}
                         </p>
-                        <p className="mt-1 text-xs font-bold text-[#6f695e]">
+                        <p className="mt-1 text-xs font-bold text-[var(--ink-muted)]">
                           ${size.markedUpPrice.toFixed(2)}
                         </p>
                       </button>
@@ -313,7 +313,7 @@ export default function ApparelBuilder({
                   })}
                 </div>
 
-                <p className="mt-3 text-xs font-bold leading-5 text-[#6f695e]">
+                <p className="mt-3 text-xs font-bold leading-5 text-[var(--ink-muted)]">
                   This garment price includes the 40% markup over S&S
                   customer pricing. Print/decorating costs are added later.
                 </p>
@@ -343,10 +343,10 @@ export default function ApparelBuilder({
 
       <div>
         <div className="mb-3">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
             Print Locations
           </p>
-          <p className="mt-1 text-sm font-bold text-[#6f695e]">
+          <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
             Choose all that apply.
           </p>
         </div>
@@ -362,8 +362,8 @@ export default function ApparelBuilder({
                 onClick={() => onTogglePrintLocation(location)}
                 className={`rounded-2xl border px-4 py-4 text-sm font-black transition ${
                   isSelected
-                    ? "border-[#2E5037] bg-[#2E5037] text-white"
-                    : "border-[#dfd0b8] bg-[#F8F5EE] text-[#171717] hover:bg-white"
+                    ? "border-[var(--gorilla-green)] bg-[var(--gorilla-green)] text-white"
+                    : "border-[var(--rule)] bg-[var(--shirt-blank)] text-[var(--ink-black)] hover:bg-white"
                 }`}
               >
                 {location}
@@ -383,8 +383,8 @@ export default function ApparelBuilder({
       <div
         className={`rounded-2xl border p-4 transition ${
           apparelQuote.specialOrder
-            ? "border-[#b7352d] bg-[#fff1f0]"
-            : "border-[#dfd0b8] bg-[#F8F5EE]"
+            ? "border-[var(--rush-red)] bg-[#fff1f0]"
+            : "border-[var(--rule)] bg-[var(--shirt-blank)]"
         }`}
       >
         <label className="flex cursor-pointer items-start gap-3">
@@ -394,13 +394,13 @@ export default function ApparelBuilder({
             onChange={(event) =>
               onUpdateSpecialOrder({ specialOrder: event.target.checked })
             }
-            className="mt-1 h-5 w-5 shrink-0 accent-[#b7352d]"
+            className="mt-1 h-5 w-5 shrink-0 accent-[var(--rush-red)]"
           />
           <span>
-            <span className="block text-sm font-black text-[#171717]">
+            <span className="block text-sm font-black text-[var(--ink-black)]">
               I need something not listed here
             </span>
-            <span className="mt-1 block text-sm font-bold leading-5 text-[#6f695e]">
+            <span className="mt-1 block text-sm font-bold leading-5 text-[var(--ink-muted)]">
               Different garment (crewneck, long sleeve, youth, hats), another
               print location (left chest, sleeve, tag), embroidery, or anything
               custom. We&apos;ll quote it by hand.
@@ -411,7 +411,7 @@ export default function ApparelBuilder({
         {apparelQuote.specialOrder && (
           <div className="mt-4">
             <label className="block">
-              <span className="text-sm font-black text-[#171717]">
+              <span className="text-sm font-black text-[var(--ink-black)]">
                 Tell us what you need
               </span>
               <textarea
@@ -423,11 +423,11 @@ export default function ApparelBuilder({
                 }
                 rows={3}
                 placeholder="e.g. 40 crewnecks, left chest logo + full back, plus 12 embroidered hats"
-                className="mt-2 w-full rounded-2xl border border-[#dfd0b8] bg-white px-4 py-3 font-bold text-[#171717] outline-none focus:ring-2 focus:ring-[#b7352d]"
+                className="mt-2 w-full rounded-2xl border border-[var(--rule)] bg-white px-4 py-3 font-bold text-[var(--ink-black)] outline-none focus:ring-2 focus:ring-[var(--rush-red)]"
               />
             </label>
 
-            <p className="mt-3 rounded-xl bg-white p-3 text-xs font-bold leading-5 text-[#6f695e]">
+            <p className="mt-3 rounded-xl bg-white p-3 text-xs font-bold leading-5 text-[var(--ink-muted)]">
               Heads up: special orders don&apos;t get an online price. Everything
               you fill in above still comes through — Gorilla Salem will price it
               and reply.
@@ -437,17 +437,17 @@ export default function ApparelBuilder({
       </div>
 
       {artworkAnalysis?.estimatedColorCount && (
-        <div className="rounded-2xl border border-[#dfd0b8] bg-[#F8F5EE] p-4">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+        <div className="rounded-2xl border border-[var(--rule)] bg-[var(--shirt-blank)] p-4">
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
             Auto Color Count
           </p>
 
-          <div className="mt-3 grid gap-3 text-sm font-bold text-[#6f695e] sm:grid-cols-3">
+          <div className="mt-3 grid gap-3 text-sm font-bold text-[var(--ink-muted)] sm:grid-cols-3">
             <div className="rounded-xl bg-white p-3">
               <p className="text-xs uppercase tracking-[0.12em]">
                 Artwork
               </p>
-              <p className="mt-1 text-lg font-black text-[#171717]">
+              <p className="mt-1 text-lg font-black text-[var(--ink-black)]">
                 {artworkAnalysis.estimatedColorCount} colors
               </p>
             </div>
@@ -456,7 +456,7 @@ export default function ApparelBuilder({
               <p className="text-xs uppercase tracking-[0.12em]">
                 Underbase
               </p>
-              <p className="mt-1 text-lg font-black text-[#171717]">
+              <p className="mt-1 text-lg font-black text-[var(--ink-black)]">
                 {apparelQuote.garmentColor === "White"
                   ? "+0"
                   : "+1 white"}
@@ -467,26 +467,26 @@ export default function ApparelBuilder({
               <p className="text-xs uppercase tracking-[0.12em]">
                 Suggested
               </p>
-              <p className="mt-1 text-lg font-black text-[#171717]">
+              <p className="mt-1 text-lg font-black text-[var(--ink-black)]">
                 {apparelQuote.inkColors}
               </p>
             </div>
           </div>
 
-          <p className="mt-3 text-xs font-bold leading-5 text-[#6f695e]">
+          <p className="mt-3 text-xs font-bold leading-5 text-[var(--ink-muted)]">
             This is an estimate. If the shirt color is not white, the
             app adds one extra color for a white underbase.
           </p>
         </div>
       )}
 
-      <div className="rounded-[2rem] border border-[#dfd0b8] bg-[#F8F5EE] p-5">
+      <div className="rounded-[2rem] border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+            <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
               Size Breakdown
             </p>
-            <p className="mt-1 text-sm font-bold text-[#6f695e]">
+            <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
               Use the buttons to make the total match the order quantity.
             </p>
           </div>
@@ -494,8 +494,8 @@ export default function ApparelBuilder({
           <span
             className={`rounded-full px-4 py-2 text-sm font-black ${
               sizeBreakdownMatchesQuantity
-                ? "bg-[#2E5037] text-white"
-                : "bg-white text-[#b7352d]"
+                ? "bg-[var(--gorilla-green)] text-white"
+                : "bg-white text-[var(--rush-red)]"
             }`}
           >
             {sizeQuantityTotal} / {apparelQuote.quantity}
@@ -517,17 +517,17 @@ export default function ApparelBuilder({
                 key={sizeName}
                 className={`rounded-2xl border bg-white p-4 ${
                   isAvailable
-                    ? "border-[#dfd0b8]"
-                    : "border-[#dfd0b8] opacity-50"
+                    ? "border-[var(--rule)]"
+                    : "border-[var(--rule)] opacity-50"
                 }`}
               >
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-lg font-black text-[#171717]">
+                    <p className="text-lg font-black text-[var(--ink-black)]">
                       {sizeName}
                     </p>
 
-                    <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-[#6f695e]">
+                    <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
                       {isAvailable ? "Available" : "Out of stock"}
                     </p>
                   </div>
@@ -537,7 +537,7 @@ export default function ApparelBuilder({
                       type="button"
                       onClick={() => onUpdateSizeQuantity(sizeName, -1)}
                       disabled={quantity === 0}
-                      className="grid h-10 w-10 place-items-center rounded-full bg-[#F8F5EE] text-xl font-black text-[#2E5037] transition hover:bg-[#eef7ee] disabled:cursor-not-allowed disabled:opacity-40"
+                      className="grid h-10 w-10 place-items-center rounded-full bg-[var(--shirt-blank)] text-xl font-black text-[var(--gorilla-green)] transition hover:bg-[var(--surface-ok)] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       −
                     </button>
@@ -552,14 +552,14 @@ export default function ApparelBuilder({
                         onSetSizeQuantity(sizeName, Number(event.target.value))
                       }
                       aria-label={`${sizeName} quantity`}
-                      className="h-10 w-16 rounded-xl bg-[#F8F5EE] px-2 text-center text-lg font-black text-[#171717] outline-none focus:ring-2 focus:ring-[#2E5037]"
+                      className="h-10 w-16 rounded-xl bg-[var(--shirt-blank)] px-2 text-center text-lg font-black text-[var(--ink-black)] outline-none focus:ring-2 focus:ring-[var(--gorilla-green)]"
                     />
 
                     <button
                       type="button"
                       onClick={() => onUpdateSizeQuantity(sizeName, 1)}
                       disabled={!canAdd}
-                      className="grid h-10 w-10 place-items-center rounded-full bg-[#2E5037] text-xl font-black text-white transition hover:bg-[#24402c] disabled:cursor-not-allowed disabled:opacity-40"
+                      className="grid h-10 w-10 place-items-center rounded-full bg-[var(--gorilla-green)] text-xl font-black text-white transition hover:bg-[#24402c] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       +
                     </button>
@@ -571,23 +571,23 @@ export default function ApparelBuilder({
         </div>
 
         <div className="mt-4 rounded-2xl bg-white p-4">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6f695e]">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--ink-muted)]">
             Current Breakdown
           </p>
 
-          <p className="mt-2 text-sm font-black text-[#171717]">
+          <p className="mt-2 text-sm font-black text-[var(--ink-black)]">
             {sizeBreakdownFromButtons || "No sizes selected yet"}
           </p>
 
           {!sizeBreakdownMatchesQuantity && (
-            <p className="mt-2 text-sm font-bold leading-6 text-[#b7352d]">
+            <p className="mt-2 text-sm font-bold leading-6 text-[var(--rush-red)]">
               Add or remove sizes until the total equals{" "}
               {apparelQuote.quantity}.
             </p>
           )}
 
           {sizeBreakdownMatchesQuantity && sizeQuantityTotal > 0 && (
-            <p className="mt-2 text-sm font-bold leading-6 text-[#2E5037]">
+            <p className="mt-2 text-sm font-bold leading-6 text-[var(--gorilla-green)]">
               Size breakdown total matches the order quantity.
             </p>
           )}
@@ -596,7 +596,7 @@ export default function ApparelBuilder({
             <button
               type="button"
               onClick={onResetSizeBreakdown}
-              className="mt-3 rounded-full bg-[#F8F5EE] px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-[#6f695e] transition hover:bg-[#efe4d4]"
+              className="mt-3 rounded-full bg-[var(--shirt-blank)] px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-[var(--ink-muted)] transition hover:bg-[var(--shirt-blank)]"
             >
               Reset Sizes
             </button>

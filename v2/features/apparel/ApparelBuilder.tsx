@@ -383,7 +383,7 @@ export default function ApparelBuilder({
       <div
         className={` border p-4 transition ${
           apparelQuote.specialOrder
-            ? "border-[var(--rush-red)] bg-[#fff1f0]"
+            ? "border-[var(--rush-red)] bg-[var(--surface-rush)]"
             : "border-[var(--rule)] bg-[var(--shirt-blank)]"
         }`}
       >
@@ -559,7 +559,7 @@ export default function ApparelBuilder({
                       type="button"
                       onClick={() => onUpdateSizeQuantity(sizeName, 1)}
                       disabled={!canAdd}
-                      className="grid h-10 w-10 place-items-center bg-[var(--gorilla-green)] text-xl font-black text-white transition hover:bg-[#24402c] disabled:cursor-not-allowed disabled:opacity-40"
+                      className="grid h-10 w-10 place-items-center bg-[var(--gorilla-green)] text-xl font-black text-white transition hover:bg-[var(--gorilla-green-dark)] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       +
                     </button>

@@ -1369,7 +1369,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
             <div className="mt-6">
               {submitError && (
-                <p className="mb-3 bg-[#fff1f0] p-4 text-sm font-bold leading-6 text-[var(--rush-red)]">
+                <p className="mb-3 bg-[var(--surface-rush)] p-4 text-sm font-bold leading-6 text-[var(--rush-red)]">
                   {submitError}
                 </p>
               )}

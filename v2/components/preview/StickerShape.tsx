@@ -32,7 +32,10 @@ function getMaterialClasses(material: string) {
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
-const MAGENTA = "#e6007e";
+// Must match --cut-line in globals.css and isMagentaPixel() in lib/artwork.ts.
+// Literal rather than var() because this is interpolated into a drop-shadow()
+// filter chain built as a string.
+const MAGENTA = "#ff00ff";
 
 const OUTLINE_DIRS = [
   [1, 0],

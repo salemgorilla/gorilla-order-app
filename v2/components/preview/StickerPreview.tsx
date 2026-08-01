@@ -24,7 +24,7 @@ export default function StickerPreview({
   const proofType = shape === "Die Cut" ? "Contour Cut Proof" : `${shape} Proof`;
 
   return (
-    <div className="mt-8 bg-gradient-to-br from-white to-[#f1e5cf] p-5">
+    <div className="mt-8 bg-[var(--shirt-blank)] p-5">
       <div className=" border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
         <div className="mb-4 flex items-center justify-between gap-4">
           <div>
@@ -57,7 +57,7 @@ export default function StickerPreview({
           <div className="mt-4 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-[var(--ink-muted)]">
             <span
               className="inline-block h-3 w-3"
-              style={{ backgroundColor: "#e6007e" }}
+              style={{ backgroundColor: "var(--cut-line)" }}
             />
             Magenta line = your cut edge
           </div>

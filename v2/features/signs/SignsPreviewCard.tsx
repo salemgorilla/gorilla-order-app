@@ -32,7 +32,7 @@ export default function SignsPreviewCard({ artworkPreview, signsQuote }: Props) 
         </div>
       </div>
 
-      <div className="mt-8 bg-gradient-to-br from-white to-[#f1e5cf] p-5">
+      <div className="mt-8 bg-[var(--shirt-blank)] p-5">
         <div className=" border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
             {product.label} Proof

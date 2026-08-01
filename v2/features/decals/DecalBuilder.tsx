@@ -82,19 +82,21 @@ export default function DecalBuilder({
             onChange={(event) =>
               onUpdate({ magentaCutLine: event.target.checked })
             }
-            className="mt-1 h-5 w-5 shrink-0 accent-[#e6007e]"
+            className="mt-1 h-5 w-5 shrink-0 accent-[var(--cut-line)]"
           />
           <span>
             <span className="flex items-center gap-2 text-sm font-black text-[var(--ink-black)]">
               <span
                 className="inline-block h-3 w-3"
-                style={{ backgroundColor: "#e6007e" }}
+                // The legend swatch must be the exact colour the copy below
+                // names, or colour-picking it produces an undetectable line.
+                style={{ backgroundColor: "var(--cut-line)" }}
               />
               My artwork includes a magenta cut line
             </span>
             <span className="mt-1 block text-sm font-bold leading-5 text-[var(--ink-muted)]">
               Check this if your file has a{" "}
-              <span className="font-black text-[#e6007e]">100% magenta</span>{" "}
+              <span className="font-black text-[var(--cut-line)]">100% magenta</span>{" "}
               (RGB 255, 0, 255) line marking exactly where you want it cut —
               perfect for custom die-cut shapes.
             </span>
@@ -111,7 +113,7 @@ export default function DecalBuilder({
         {hasArtwork && product.magentaCutLine && !magentaDetected && (
           <p className="mt-3 bg-[var(--surface-warn)] p-3 text-xs font-bold leading-5 text-[var(--ink-warn)]">
             We couldn&apos;t spot a magenta line in your file. Make sure it&apos;s
-            a <span className="font-black text-[#e6007e]">100% magenta</span> (255,
+            a <span className="font-black text-[var(--cut-line)]">100% magenta</span> (255,
             0, 255) stroke — otherwise Gorilla Salem will confirm the cut with
             you.
           </p>

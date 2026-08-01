@@ -20,10 +20,16 @@
   --gorilla-green-dark: #1b5e20;
   --green-bright: #5dbb63;   /* GREEN BRIGHT  green lifted, ink-on-black only   */
   --rush-red: #b23a2e;       /* RUSH RED      rush/late/error, never decorative */
+  --rush-red-dark: #8c2c22;  /* RUSH RED pressed/hover step                     */
 
-  /* Functional, outside the palette: magenta means "cut line" in the
-     artwork feature and is named in customer-facing instructions. */
-  --cut-line: #e6007e;
+  /* Functional, outside the palette: magenta means "cut line" in the artwork
+     feature and is named in customer-facing instructions.
+     MUST stay RGB 255,0,255 — isMagentaPixel() in lib/artwork.ts requires
+     blue > 190 to auto-detect a cut line, and the on-screen instructions tell
+     customers to use exactly this value. The swatch previously rendered
+     #e6007e (blue = 126), so anyone colour-picking it got a line the
+     detector would silently miss. */
+  --cut-line: #ff00ff;
 
   /* ---- Derived neutrals (deliberately few) ---- */
   --paper: #ffffff;          /* panel fill above the ground                     */
@@ -62,6 +68,7 @@
   --color-green-dark: var(--gorilla-green-dark);
   --color-green-bright: var(--green-bright);
   --color-rush: var(--rush-red);
+  --color-rush-dark: var(--rush-red-dark);
   --color-cut-line: var(--cut-line);
   --color-surface-ok: var(--surface-ok);
   --color-surface-warn: var(--surface-warn);

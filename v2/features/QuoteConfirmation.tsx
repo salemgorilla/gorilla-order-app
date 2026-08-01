@@ -244,7 +244,7 @@ export default function QuoteConfirmationScreen({
               href={emailHref}
               target="_blank"
               rel="noopener noreferrer"
-              className=" bg-[var(--rush-red)] px-6 py-4 text-center font-black text-white transition hover:bg-[#982c25]"
+              className=" bg-[var(--rush-red)] px-6 py-4 text-center font-black text-white transition hover:bg-[var(--rush-red-dark)]"
             >
               Open Gmail Draft
             </a>
@@ -252,7 +252,7 @@ export default function QuoteConfirmationScreen({
             <button
               type="button"
               onClick={onStartNew}
-              className=" bg-[var(--gorilla-green)] px-6 py-4 font-black text-white transition hover:bg-[#24402c]"
+              className=" bg-[var(--gorilla-green)] px-6 py-4 font-black text-white transition hover:bg-[var(--gorilla-green-dark)]"
             >
               Start New Quote
             </button>

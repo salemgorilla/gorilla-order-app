@@ -31,8 +31,8 @@ export default function UploadBox({ onFileSelected }: Props) {
       }}
       className={` border-2 border-dashed p-8 transition ${
         isDragging
-          ? "border-[var(--gorilla-green)] bg-[#eef6f0] scale-[1.01]"
-          : "border-[#d6c5ab] bg-[#faf8f3] hover:border-[var(--gorilla-green)] hover:bg-[#f6f2ea]"
+          ? "border-[var(--gorilla-green)] bg-[var(--surface-ok)] scale-[1.01]"
+          : "border-[var(--rule)] bg-[var(--paper)] hover:border-[var(--gorilla-green)] hover:bg-[var(--shirt-blank)]"
       }`}
     >
       <label className="block cursor-pointer">
@@ -54,7 +54,7 @@ export default function UploadBox({ onFileSelected }: Props) {
             AI • EPS • PDF • SVG • PNG • JPG
           </div>
 
-          <div className="mt-8 bg-[var(--gorilla-green)] px-8 py-4 font-bold text-white transition hover:bg-[#24402c]">
+          <div className="mt-8 bg-[var(--gorilla-green)] px-8 py-4 font-bold text-white transition hover:bg-[var(--gorilla-green-dark)]">
             Browse Files
           </div>
 

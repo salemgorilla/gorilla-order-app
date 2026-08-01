@@ -552,10 +552,16 @@ export function buildPrintavoQuotePlan(input: {
   const signs = isSigns(product);
   const signLabel = str(product.signType, "Signs");
 
+  // Signs are usually priced online now; only flag the ones that genuinely
+  // still need the shop to price them by hand.
+  const needsHandPricing = signs && Boolean(pricing.quoteRequired);
+
   const nickname = apparel
     ? `WEB QUOTE ${quoteNumber} - ${quantity} ${garmentLabel}`
     : signs
-    ? `WEB QUOTE ${quoteNumber} - ${quantity} ${signLabel} (NEEDS PRICING)`
+    ? `WEB QUOTE ${quoteNumber} - ${quantity} ${signLabel}${
+        needsHandPricing ? " (NEEDS PRICING)" : ""
+      }`
     : `WEB QUOTE ${quoteNumber} - ${quantity} Stickers`;
 
   const description = signs
@@ -565,7 +571,7 @@ export function buildPrintavoQuotePlan(input: {
         `Material: ${str(product.material, "TBD")}`,
         `Finishing: ${str(product.finishing, "TBD")}`,
         `Sides: ${str(product.sides, "Single-sided")}`,
-        `PRICING NEEDED — signs are quoted by hand.`,
+        ...(needsHandPricing ? [`PRICING NEEDED — this sign is quoted by hand.`] : []),
       ].join("\n")
     : apparel
     ? [

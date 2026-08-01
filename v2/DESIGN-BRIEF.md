@@ -1,3 +1,11 @@
+> ⚠️ **SUPERSEDED — see [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md).**
+>
+> This brief describes the app *before* the Order Desk system was applied.
+> Its palette table, type notes and "two real problems" section are all now
+> out of date — the Arial override is gone, the dead dark-mode block is
+> deleted, and the ~380 hardcoded hexes are tokenised. Kept for the record of
+> what was wrong and why.
+
 # Gorilla Labs — Design Brief
 
 **For:** Art Director

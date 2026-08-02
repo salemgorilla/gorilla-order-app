@@ -173,25 +173,54 @@ export function buildQuoteEmail(input: {
   const shippingPrice = Number(pricing.shippingPrice) || 0;
   // Signs are quoted by hand, so never show a $0.00 "estimate" that the shop
   // (or the customer) could mistake for a real price.
+  const signsDelivery = line(
+    "Delivery",
+    str(production.deliveryMethod) === "Ship"
+      ? "Ship (quote shipping)"
+      : "Local pickup in Salem"
+  );
+
   const estimateLines: string[] = needsHandQuote && !signs
     ? [
         line("Estimated Total", "NEEDS A HAND QUOTE"),
         line("Why", str(pricing.note, "Special order — outside the online menu.")),
       ]
+    : signs && Boolean(pricing.quoteRequired)
+    ? [line("Estimated Total", "Quoted by hand — needs pricing"), signsDelivery]
     : signs
-    ? [
-        line("Estimated Total", "Quoted by hand — needs pricing"),
-        line(
-          "Delivery",
-          str(production.deliveryMethod) === "Ship"
-            ? "Ship (quote shipping)"
-            : "Local pickup in Salem"
-        ),
+    ? // Signs have been live-priced since v3.10.0. This branch used to send
+      // "needs pricing" unconditionally, so the shop lost the computed total
+      // on every signs quote while the subject line said it was priced.
+      [
+        line("Estimated Total", money(total)),
+        line("Estimated Each", money(pricing.unitPrice ?? each)),
+        signsDelivery,
       ]
     : [line("Estimated Total", money(total)), line("Estimated Each", money(each))];
 
   if (signs) {
-    // no further breakdown — nothing is priced yet
+    // Itemised breakdown straight from the pricing engine. $0 lines are kept
+    // deliberately: they carry the "quoted separately" finishing add-ons the
+    // customer asked for, which the shop has to action by hand. Printavo
+    // filters those out (printavo.ts:535), so this email is the only place
+    // they surface.
+    const breakdown = Array.isArray(pricing.lines)
+      ? (pricing.lines as AnyRecord[])
+      : [];
+
+    for (const item of breakdown) {
+      // Rendered as "Label: Value" and split on the first ": ", so strip the
+      // engine's " - quoted separately" suffix rather than letting it repeat
+      // the value. Dashes are written as \u escapes: a literal em dash in
+      // this file did not survive the round trip reliably enough to match.
+      const label = str(item.label)
+        .replace(/quoted separately\s*$/i, "")
+        .replace(new RegExp("[\\s\\u2010-\\u2015\\u2212-]+$"), "");
+      const amount = Number(item.amount) || 0;
+      estimateLines.push(
+        line(label, amount > 0 ? money(amount) : "Quoted separately")
+      );
+    }
   } else if (apparel) {
     estimateLines.push(
       line("Garments", money(pricing.garmentTotal)),

@@ -48,4 +48,6 @@ export const defaultOrder: Order = {
     shippingPrice: initialShippingPrice,
     total: initialStickerPrice + initialShippingPrice,
   },
+  addOns: [],
+  addOnsNote: "",
 };

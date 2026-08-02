@@ -195,6 +195,20 @@ export default function QuoteReviewCard({
               {order.customer.email || "Not entered"}
             </span>
           </div>
+
+          {/* Read-only. Sits with the other confirmations so the extra items
+              are visible before the customer commits, not just after. */}
+          {(order.addOns.length > 0 || order.addOnsNote.trim()) && (
+            <div className="mt-3 flex justify-between gap-4">
+              <span>Also asking about</span>
+              <span className="text-right text-[var(--ink-black)]">
+                {[
+                  ...order.addOns.map((a) => a.label),
+                  ...(order.addOnsNote.trim() ? [order.addOnsNote.trim()] : []),
+                ].join(", ")}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

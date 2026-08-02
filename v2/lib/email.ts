@@ -15,6 +15,10 @@
 // { sent:false, skipped:true } and the quote submission still succeeds —
 // email is best-effort and never blocks the customer.
 
+// Type-only import — erased at build time, so the email path stays free of
+// the add-on catalogue and the pricing engines behind it.
+import type { AddOn } from "../types/order";
+
 export type QuoteEmailResult = {
   sent: boolean;
   skipped?: boolean;
@@ -73,6 +77,8 @@ export function buildQuoteEmail(input: {
   const product = (order.product as AnyRecord) || {};
   const production = (order.production as AnyRecord) || {};
   const pricing = (order.pricing as AnyRecord) || {};
+  const addOns = (Array.isArray(order.addOns) ? order.addOns : []) as AddOn[];
+  const addOnsNote = str(order.addOnsNote);
   const apparel = isApparel(product);
   const signs = isSigns(product);
 
@@ -101,12 +107,25 @@ export function buildQuoteEmail(input: {
 
   // A special order (or anything the app couldn't price) needs the shop to
   // quote it by hand — say so in the subject so it stands out in the inbox.
-  const needsHandQuote =
+  // Whether the PRIMARY product could be priced. This alone governs the
+  // ESTIMATE section — an unpriced add-on must never hide a total the app
+  // actually computed for the main job.
+  const primaryNeedsHandQuote =
     Boolean(product.specialOrder) || Boolean(pricing.quoteRequired);
 
+  // Whether ANY part of this quote needs hand pricing. Subject line only:
+  // it is the shop's inbox triage signal, so a priced sticker order carrying
+  // an unpriced add-on still has to be flagged.
+  const needsHandQuote =
+    primaryNeedsHandQuote || addOns.some((a) => a.quoteRequired);
+
+  // Same suffix on both subjects so add-ons are never invisible in the list.
+  const addOnCount = addOns.length + (addOnsNote ? 1 : 0);
+  const suffix = addOnCount > 0 ? ` + ${addOnCount} more` : "";
+
   const subject = needsHandQuote
-    ? `NEED TO QUOTE — ${quoteNumber} — ${quantity} ${productLabel}`
-    : `New Quote ${quoteNumber} — ${quantity} ${productLabel}`;
+    ? `NEED TO QUOTE — ${quoteNumber} — ${quantity} ${productLabel}${suffix}`
+    : `New Quote ${quoteNumber} — ${quantity} ${productLabel}${suffix}`;
 
   // ---- product section ----
   const productLines: string[] = [];
@@ -180,7 +199,7 @@ export function buildQuoteEmail(input: {
       : "Local pickup in Salem"
   );
 
-  const estimateLines: string[] = needsHandQuote && !signs
+  const estimateLines: string[] = primaryNeedsHandQuote && !signs
     ? [
         line("Estimated Total", "NEEDS A HAND QUOTE"),
         line("Why", str(pricing.note, "Special order — outside the online menu.")),
@@ -253,6 +272,42 @@ export function buildQuoteEmail(input: {
 
   const customerEmail = str(customer.email);
 
+  // ---- add-ons ----
+  // Extra items the customer asked to add to this quote. They are NOT in
+  // pricing.total on purpose, so they are listed as their own section rather
+  // than folded into the estimate.
+  const addOnLines: string[] = [];
+
+  for (const item of addOns) {
+    const label = str((item as AnyRecord).label);
+    if (!label) continue;
+    const quoteRequired = Boolean((item as AnyRecord).quoteRequired);
+    const amount = Number((item as AnyRecord).amount) || 0;
+    addOnLines.push(
+      line(label, quoteRequired ? "Quote by hand" : money(amount))
+    );
+  }
+
+  if (addOnsNote) addOnLines.push(line("Also asked about", addOnsNote));
+
+  if (addOnLines.length > 0) {
+    // Computed inline rather than imported, to keep the email path free of
+    // the add-on catalogue and the pricing engines it pulls in.
+    const priced = addOns.reduce(
+      (sum, a) => sum + (a.quoteRequired ? 0 : Number(a.amount) || 0),
+      0
+    );
+    const quoteCount = addOns.filter((a) => a.quoteRequired).length;
+    addOnLines.push(
+      line(
+        "Add-ons subtotal",
+        `${money(priced)}${
+          quoteCount > 0 ? ` + ${quoteCount} to quote by hand` : ""
+        } (not included in the estimate above)`
+      )
+    );
+  }
+
   const text = [
     `NEW QUOTE REQUEST — Gorilla Salem`,
     `Quote #: ${quoteNumber}`,
@@ -270,6 +325,7 @@ export function buildQuoteEmail(input: {
     `ESTIMATE`,
     ...estimateLines,
     `Note: Estimate only. Final pricing reviewed by Gorilla Salem.`,
+    ...(addOnLines.length ? [``, `ADD-ONS THE CUSTOMER ASKED FOR`, ...addOnLines] : []),
     ``,
     `TIMELINE`,
     line("Needed In Hand", str(production.needBy, "Not entered")),
@@ -304,6 +360,7 @@ export function buildQuoteEmail(input: {
     customer,
     productLines,
     estimateLines,
+    addOnLines,
     artworkLines,
     notes: str(customer.notes, "No customer notes"),
     customerName: str(customer.customerName, "the customer"),
@@ -358,6 +415,7 @@ function buildHtml(input: {
   customer: AnyRecord;
   productLines: string[];
   estimateLines: string[];
+  addOnLines: string[];
   artworkLines: string[];
   notes: string;
   customerName: string;
@@ -383,6 +441,11 @@ function buildHtml(input: {
     ${htmlSection(input.detailsLabel, input.productLines)}
     ${htmlSection("Estimate", input.estimateLines)}
     <p style="margin:6px 0 0;font-size:12px;color:${INK_MUTED};">Estimate only. Final pricing reviewed by Gorilla Salem.</p>
+    ${
+      input.addOnLines.length
+        ? htmlSection("Add-ons the customer asked for", input.addOnLines)
+        : ""
+    }
     ${htmlSection("Artwork", input.artworkLines)}
     ${htmlSection("Notes", [`_: ${input.notes}`]).replace("_", "")}
     <p style="margin:22px 0 0;padding-top:14px;border-top:1px solid ${RULE};font-size:13px;color:${INK_MUTED};">${

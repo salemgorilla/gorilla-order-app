@@ -11,6 +11,7 @@ import OrderSummary from "../components/summary/OrderSummary";
 import OrderValidation from "../components/summary/OrderValidation";
 import ArtworkAnalysisCard from "../components/summary/ArtworkAnalysisCard";
 import ApparelPreview from "../components/preview/ApparelPreview";
+import AddOnsCard from "../features/addons/AddOnsCard";
 
 import { defaultApparelQuote } from "../lib/apparel";
 import {
@@ -24,6 +25,7 @@ import {
 import { calculateSignsPricing } from "../lib/signs-pricing";
 import { productCategories } from "../lib/products";
 import { defaultOrder } from "../lib/order";
+import { AddOnOffer, toAddOn } from "../lib/addons";
 import { getShippingPrice, getStickerPrice } from "../lib/pricing";
 import { calculateApparelPricing } from "../lib/apparel-pricing";
 import { apparelCatalogStyles } from "../lib/apparel-catalog";
@@ -449,6 +451,21 @@ export default function Home() {
         ...updates,
       },
     });
+  }
+
+  /**
+   * Add-ons are quote requests, not purchases. Deliberately NOT routed
+   * through recalculateOrder() — they must never move `pricing.total`, which
+   * both the email and the Printavo note divide by the primary product's
+   * quantity to get a per-unit price.
+   */
+  function toggleAddOn(offer: AddOnOffer, checked: boolean) {
+    setOrder((prev) => ({
+      ...prev,
+      addOns: checked
+        ? [...prev.addOns.filter((a) => a.id !== offer.id), toAddOn(offer)]
+        : prev.addOns.filter((a) => a.id !== offer.id),
+    }));
   }
 
   function updateProduction(updates: Partial<typeof order.production>) {
@@ -1326,6 +1343,21 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             ) : (
               <OrderSummary order={order} />
             )}
+
+            {/* Rendered once, outside the three-way flow ternary above, so
+                stickers / signs / apparel all get it from one place. It sits
+                directly after the price because that is the only slot that is
+                after the estimate on BOTH breakpoints — below `lg` the aside
+                stacks under the entire form. */}
+            <AddOnsCard
+              flow={selectedProductId}
+              addOns={order.addOns}
+              note={order.addOnsNote}
+              onToggle={toggleAddOn}
+              onNoteChange={(value) =>
+                setOrder((prev) => ({ ...prev, addOnsNote: value }))
+              }
+            />
 
             <ArtworkAnalysisCard analysis={artworkAnalysis} />
 

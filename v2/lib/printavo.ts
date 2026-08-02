@@ -522,7 +522,29 @@ export function buildPrintavoQuotePlan(input: {
   const product = (order.product as AnyRecord) || {};
   const production = (order.production as AnyRecord) || {};
   const pricing = (order.pricing as AnyRecord) || {};
+  const addOns = (Array.isArray(order.addOns)
+    ? order.addOns
+    : []) as AnyRecord[];
+  const addOnsNote = str(order.addOnsNote);
   const apparel = isApparel(product);
+
+  // asciiSafe() runs over the whole note before sending, so no transliteration
+  // is needed here — but keep labels plain anyway (see lib/addons.ts).
+  const addOnLines = [
+    ...addOns
+      .filter((a) => str(a.label))
+      .map(
+        (a) =>
+          `- ${str(a.label)}: ${
+            a.quoteRequired ? "QUOTE BY HAND" : `$${num(a.amount).toFixed(2)}`
+          }`
+      ),
+    ...(addOnsNote ? [`- Also asked about: ${addOnsNote}`] : []),
+  ];
+
+  if (addOnLines.length > 0) {
+    addOnLines.push("(Not included in the website estimate above.)");
+  }
 
   const quantity = Math.max(1, num(product.quantity, 1));
   const total = num(pricing.total);
@@ -571,7 +593,15 @@ export function buildPrintavoQuotePlan(input: {
 
   // Flag anything the app couldn't price: unpriced signs, and apparel special
   // orders (a garment or placement outside the simple online menu).
-  const needsHandPricing = Boolean(pricing.quoteRequired);
+  //
+  // Two separate questions, deliberately not merged. `productNeedsHandPricing`
+  // describes the PRIMARY item and is what labels the nickname and the
+  // description — an unpriced add-on must never make a priced sign read as
+  // "quoted by hand". `needsHandPricing` is the whole-quote triage signal and
+  // only drives the #NeedsPricing tag.
+  const productNeedsHandPricing = Boolean(pricing.quoteRequired);
+  const needsHandPricing =
+    productNeedsHandPricing || addOns.some((a) => Boolean(a.quoteRequired));
   const isSpecialOrder = Boolean(product.specialOrder);
 
   const nickname = apparel
@@ -580,7 +610,7 @@ export function buildPrintavoQuotePlan(input: {
       }`
     : signs
     ? `WEB QUOTE ${quoteNumber} - ${quantity} ${signLabel}${
-        needsHandPricing ? " (NEEDS PRICING)" : ""
+        productNeedsHandPricing ? " (NEEDS PRICING)" : ""
       }`
     : `WEB QUOTE ${quoteNumber} - ${quantity} Stickers`;
 
@@ -591,7 +621,9 @@ export function buildPrintavoQuotePlan(input: {
         `Material: ${str(product.material, "TBD")}`,
         `Finishing: ${str(product.finishing, "TBD")}`,
         `Sides: ${str(product.sides, "Single-sided")}`,
-        ...(needsHandPricing ? [`PRICING NEEDED — this sign is quoted by hand.`] : []),
+        ...(productNeedsHandPricing
+          ? [`PRICING NEEDED — this sign is quoted by hand.`]
+          : []),
       ].join("\n")
     : apparel
     ? [
@@ -659,6 +691,15 @@ export function buildPrintavoQuotePlan(input: {
       ? [`Shipping: $${shippingPrice.toFixed(2)}`]
       : ["Shipping: Free (local pickup)"]),
     "",
+    // Add-ons live in the note, NOT in the line items. Two reasons: the line
+    // item builder below filters out anything with amount <= 0, which would
+    // silently drop every "quote by hand" add-on; and every web quote already
+    // lands #Unconfirmed for hand review, so a line in a note the shop is
+    // already reading loses nothing.
+    ...(addOnLines.length
+      ? ["", "ADD-ONS THE CUSTOMER ASKED FOR", ...addOnLines]
+      : []),
+    "",
     "ARTWORK",
     `File: ${str(artworkAnalysis?.fileName, "No file uploaded")}`,
     `Estimated colors: ${str(artworkAnalysis?.estimatedColorCount, "N/A")}`,
@@ -680,9 +721,14 @@ export function buildPrintavoQuotePlan(input: {
     dueAt,
     customerNote,
     productionNote,
-    tags: needsHandPricing
-      ? ["#GorillaOrder", "#WebQuote", "#Unconfirmed", "#NeedsPricing"]
-      : ["#GorillaOrder", "#WebQuote", "#Unconfirmed"],
+    // Tags are sent raw, not through asciiSafe() — keep them ASCII.
+    tags: [
+      "#GorillaOrder",
+      "#WebQuote",
+      "#Unconfirmed",
+      ...(needsHandPricing ? ["#NeedsPricing"] : []),
+      ...(addOnLines.length ? ["#Upsell"] : []),
+    ],
     lineItem: {
       description,
       itemNumber: signs

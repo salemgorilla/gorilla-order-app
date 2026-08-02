@@ -41,10 +41,34 @@ export type Pricing = {
   total: number;
 };
 
+/**
+ * An extra item the customer asked to add to this quote.
+ *
+ * Add-ons never touch `Pricing.total`. Both lib/email.ts and lib/printavo.ts
+ * derive a per-unit price by dividing a total by the PRIMARY product's
+ * quantity, so folding add-on money into the total silently corrupts the
+ * per-unit figure the shop prices from.
+ */
+export type AddOn = {
+  id: string;
+  label: string;
+  /** 0 when the shop has to price it by hand. */
+  amount: number;
+  quoteRequired: boolean;
+};
+
 export type Order = {
   customer: Customer;
   product: Product;
   artwork: Artwork;
   production: Production;
   pricing: Pricing;
+  /**
+   * Top level, deliberately NOT inside `Product` — the signs and apparel
+   * flows replace `product` wholesale when they build their payloads, and
+   * lib/email.ts / lib/printavo.ts duck-type the flow off its keys.
+   */
+  addOns: AddOn[];
+  /** Free-text catch-all for anything the list does not cover. */
+  addOnsNote: string;
 };

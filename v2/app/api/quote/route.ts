@@ -99,6 +99,10 @@ export async function POST(request: Request) {
       product: order.product,
       production: order.production,
       pricing: order.pricing,
+      // Extra items the customer asked to add. They ride alongside pricing,
+      // never inside it.
+      addOns: Array.isArray(order.addOns) ? order.addOns : [],
+      addOnsNote: order.addOnsNote ?? "",
       artworkAnalysis,
       artwork: {
         fileName: artworkFile?.name ?? null,

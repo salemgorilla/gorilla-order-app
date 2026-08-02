@@ -23,9 +23,14 @@ export default function StickerPreview({
 }: Props) {
   const proofType = shape === "Die Cut" ? "Contour Cut Proof" : `${shape} Proof`;
 
+  // The proof stage is a fixed 288px. Four nested padded boxes used to squeeze
+  // the column to 172px on a 375px phone, so the proof overflowed and the whole
+  // page scrolled sideways. The outer wrapper here was pure redundant nesting —
+  // it carried the same background as the card inside it — so it is gone, and
+  // the remaining padding steps down on mobile. No die-cut geometry is touched.
   return (
-    <div className="mt-8 bg-[var(--shirt-blank)] p-5">
-      <div className=" border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
+    <div className="mt-8">
+      <div className="border border-[var(--rule)] bg-[var(--shirt-blank)] p-3 sm:p-5">
         <div className="mb-4 flex items-center justify-between gap-4">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
@@ -41,7 +46,7 @@ export default function StickerPreview({
           </div>
         </div>
 
-        <div className="grid min-h-80 place-items-center border border-white bg-[radial-gradient(circle_at_top,_#ffffff,_#efe4d4)] p-6">
+        <div className="grid min-h-80 place-items-center border border-[var(--rule)] bg-[var(--paper)] p-1 sm:p-6">
           <StickerShape
             shape={shape}
             material={material}

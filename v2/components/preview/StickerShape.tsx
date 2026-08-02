@@ -122,7 +122,10 @@ export default function StickerShape({
     const outline = stickerOutline(borderPx, magentaCutLine);
 
     return (
-      <div className="relative mx-auto grid h-72 w-72 place-items-center">
+      // max-w-full is a backstop, not the fix: it guarantees the stage can never
+    // push the page wider than the viewport even if padding changes upstream.
+    // The 256px card inside stays 256px, so artSizePx and CARD_PX are unaffected.
+    <div className="relative mx-auto grid h-72 w-72 max-w-full place-items-center">
         {/* Subtle checkerboard signals the die-cut (transparent) area */}
         <div
           className="absolute inset-0 rounded-[1.25rem] opacity-40"
@@ -175,7 +178,10 @@ export default function StickerShape({
   );
 
   return (
-    <div className="relative mx-auto grid h-72 w-72 place-items-center">
+    // max-w-full is a backstop, not the fix: it guarantees the stage can never
+    // push the page wider than the viewport even if padding changes upstream.
+    // The 256px card inside stays 256px, so artSizePx and CARD_PX are unaffected.
+    <div className="relative mx-auto grid h-72 w-72 max-w-full place-items-center">
       <div className={`absolute inset-3 ${rounded} bg-black/20 blur-xl`} />
 
       <div

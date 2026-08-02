@@ -13,31 +13,24 @@ export async function GET() {
     PRINTAVO_CUSTOMER_ID: Boolean(customerId),
   };
 
-  // Diagnostic: which PRINTAVO* variables actually reached the runtime, and
-  // whether they hold anything. NAMES AND LENGTHS ONLY — never values. This
-  // catches a typo'd or empty variable, which a plain boolean can't explain.
-  const seenPrintavoVars = Object.keys(process.env)
-    .filter((k) => k.toUpperCase().includes("PRINTAVO"))
-    .sort()
-    .map((k) => ({
-      name: JSON.stringify(k), // quoted so stray whitespace is visible
-      length: (process.env[k] || "").length,
-    }));
-
   const result = await testPrintavoConnection();
 
   return NextResponse.json(
     {
       connected: result.ok,
       configured,
-      seenPrintavoVars,
       account: result.account ?? null,
       error: result.error ?? null,
+      // Pushing needs only email + token (see isConfigured in lib/printavo.ts).
+      // PRINTAVO_CUSTOMER_ID stopped being required once find-or-create landed;
+      // it is now just the fallback for a customer whose email can't be
+      // resolved. This hint used to claim pushing was "off" without it, which
+      // was alarming and wrong.
       hint: result.ok
         ? customerId
-          ? "Credentials work. Quote pushing is enabled."
-          : "Credentials work, but PRINTAVO_CUSTOMER_ID is missing so quote pushing stays off."
-        : "Add PRINTAVO_EMAIL and PRINTAVO_TOKEN to v2/.env.local, then restart the dev server.",
+          ? "Credentials work. Quote pushing is on, with a fallback customer set."
+          : "Credentials work. Quote pushing is on. PRINTAVO_CUSTOMER_ID is optional — set it to catch the rare quote whose customer email can't be resolved."
+        : "Add PRINTAVO_EMAIL and PRINTAVO_TOKEN, then redeploy (env vars only apply to new deployments).",
     },
     { status: result.ok ? 200 : 400 }
   );

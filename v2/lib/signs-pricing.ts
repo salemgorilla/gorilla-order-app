@@ -135,7 +135,12 @@ export function calculateSignsPricing(
 
     let perSqft: number | undefined;
 
-    if (input.method === "banner") perSqft = cfg.banner.perSqft;
+    if (input.method === "banner")
+      // Falls back to the flat rate so an unlisted material still prices,
+      // rather than dropping into the "quoted by hand" branch below.
+      perSqft =
+        cfg.banner.perSqftByMaterial[input.material || ""] ??
+        cfg.banner.perSqft;
     else if (input.method === "poster") perSqft = cfg.poster.perSqft;
     else perSqft = cfg.rigid.perSqftByMaterial[input.material || ""];
 

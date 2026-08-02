@@ -44,8 +44,15 @@ export const signProducts: SignProduct[] = [
       { label: "4' x 8'", widthInches: 96, heightInches: 48 },
       { label: "2' x 8'", widthInches: 96, heightInches: 24 },
     ],
-    materials: ["13 oz Scrim Vinyl", "Mesh Vinyl (windy areas)"],
-    finishing: ["Hemmed + Grommets", "Pole Pockets", "No Finishing"],
+    // These MUST match the keys in signsPricingConfig.banner.perSqftByMaterial.
+    materials: [
+      "13 oz Scrim Vinyl",
+      "18 oz Heavy Duty Vinyl",
+      "Mesh Vinyl (windy areas)",
+    ],
+    // 18 oz is heavy enough that hemming is optional, so the hem choice is
+    // spelled out rather than hidden behind "No Finishing".
+    finishing: ["Hemmed + Grommets", "Pole Pockets", "No Hem or Grommets"],
     allowDoubleSided: true,
     allowStakes: false,
   },
@@ -139,7 +146,9 @@ export const BANNER_ADD_ONS = [
   {
     key: "windSlits",
     label: "Wind Slits",
-    detail: "Half-moon cuts that let wind through. Mesh vinyl is the sturdier option.",
+    // Replaced the old "mesh vinyl is sturdier" line: mesh is no longer
+    // offered, and wind slits solve the same problem on a solid banner.
+    detail: "Half-moon cuts that let wind pass through. The fix for windy spots.",
   },
   {
     key: "reinforcedWebbing",

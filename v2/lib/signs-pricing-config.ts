@@ -74,7 +74,24 @@ export const signsPricingConfig = {
 
   // ---------------- Square-foot priced products --------------------------
   banner: {
-    perSqft: 8, // includes hems + standard grommets
+    /**
+     * Fallback rate, used for any banner material without an explicit rate
+     * below. Includes hems + standard grommets.
+     */
+    perSqft: 8,
+
+    /**
+     * Per-material rates. Banners used to be a single flat rate regardless of
+     * material — this mirrors the rigid.perSqftByMaterial pattern so heavier
+     * stock can carry its own price.
+     *
+     * 18 oz is the standard rate + $3/sqft.
+     */
+    perSqftByMaterial: {
+      "13 oz Scrim Vinyl": 8,
+      "18 oz Heavy Duty Vinyl": 11, // standard rate + $3/sqft
+      "Mesh Vinyl (windy areas)": 8, // unchanged — was already the flat rate
+    } as Record<string, number>,
 
     /**
      * Finishing add-ons. Hems and standard grommets are INCLUDED in the sqft

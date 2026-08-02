@@ -2,6 +2,16 @@
 
 import QuantitySelector from "../../components/QuantitySelector";
 import OptionSelector from "../../components/OptionSelector";
+import { signsPricingConfig } from "../../lib/signs-pricing-config";
+
+/**
+ * Money for prose: "$22", "$7.70". Every price shown in copy is read from
+ * signs-pricing-config rather than typed inline, so a rate change can never
+ * leave the app quoting one number and telling the customer another.
+ */
+function priceCopy(amount: number) {
+  return Number.isInteger(amount) ? `$${amount}` : `$${amount.toFixed(2)}`;
+}
 import {
   allowsDoubleSided,
   BANNER_ADD_ONS,
@@ -141,7 +151,11 @@ export default function SignsBuilder({
               {product.pricingMethod === "banner" ||
               product.pricingMethod === "poster"
                 ? "Any size — no extra charge, these print on roll material."
-                : "Custom sizes on hard stock add a $20 fee, since odd sizes leave drop pieces when cut from our 48″ × 96″ sheets."}
+                : `Custom sizes on hard stock add a ${priceCopy(
+                    signsPricingConfig.customSizeFee
+                  )} fee, since odd sizes leave drop pieces when cut from our ${
+                    signsPricingConfig.sheetStockInches.width
+                  }″ × ${signsPricingConfig.sheetStockInches.height}″ sheets.`}
             </p>
           </div>
         )}
@@ -241,8 +255,14 @@ export default function SignsBuilder({
                   : getDoubleSidedMethod(product, signsQuote.material) === "sewn"
                   ? // 13 oz shows through, so this is genuinely two banners.
                     // Say so before the price moves, not after.
-                    "13 oz shows through, so this is two banners sewn back to back — double the material, plus $10 per linear foot to construct."
-                  : "Adds $7 per square foot."}
+                    `13 oz shows through, so this is two banners sewn back to back — double the material, plus ${priceCopy(
+                      signsPricingConfig.banner.doubleSided[
+                        signsQuote.material
+                      ]?.constructionPerLinearFoot ?? 0
+                    )} per linear foot to construct.`
+                  : `Adds ${priceCopy(
+                      signsPricingConfig.doubleSidedPerSqft
+                    )} per square foot.`}
               </span>
             </span>
           </label>

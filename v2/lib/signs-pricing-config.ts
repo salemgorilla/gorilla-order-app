@@ -106,11 +106,37 @@ export const signsPricingConfig = {
     noHemFinishingLabel: "No Hem or Grommets",
 
     /**
-     * Only these banner materials can be printed double-sided. 13 oz shows
-     * through, and mesh is perforated. Rigid, corrugated and the other sign
-     * types are unaffected — this list is banner-only.
+     * Only these banner materials may skip the hem. 13 oz and mesh always get
+     * hemmed — they need the reinforced edge to survive, so the option is not
+     * offered and the credit never applies to them.
      */
-    doubleSidedMaterials: ["18 oz Heavy Duty Vinyl"] as string[],
+    noHemMaterials: ["18 oz Heavy Duty Vinyl"] as string[],
+
+    /**
+     * How each banner material can be printed double-sided. A material absent
+     * from this map cannot be double-sided at all (mesh is perforated, so
+     * there is nothing to block show-through).
+     *
+     *   "surcharge" — printed both sides on one panel, at the standard
+     *                 doubleSidedPerSqft rate. 18 oz is opaque enough.
+     *
+     *   "sewn"      — 13 oz shows through, so it is two banners sewn back to
+     *                 back: double the material, plus a construction charge
+     *                 per linear foot of sewn edge (the perimeter).
+     *
+     * Rigid, corrugated and the other sign types are unaffected — this map is
+     * banner-only.
+     */
+    doubleSided: {
+      "18 oz Heavy Duty Vinyl": { method: "surcharge" as const },
+      "13 oz Scrim Vinyl": {
+        method: "sewn" as const,
+        constructionPerLinearFoot: 10,
+      },
+    } as Record<
+      string,
+      { method: "surcharge" | "sewn"; constructionPerLinearFoot?: number }
+    >,
 
     /**
      * Finishing add-ons. Hems and standard grommets are INCLUDED in the sqft

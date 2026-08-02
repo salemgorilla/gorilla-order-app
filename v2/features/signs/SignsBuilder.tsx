@@ -6,6 +6,8 @@ import {
   allowsDoubleSided,
   BANNER_ADD_ONS,
   CUSTOM_SIZE,
+  getDoubleSidedMethod,
+  getFinishingOptions,
   getSignProduct,
   getSizeOptions,
   signsCatalog,
@@ -154,7 +156,7 @@ export default function SignsBuilder({
 
       <OptionSelector
         title="Finishing"
-        options={product.finishing}
+        options={getFinishingOptions(product, signsQuote.material)}
         selected={signsQuote.finishing}
         onSelect={(finishing) => onUpdate({ finishing })}
       />
@@ -236,6 +238,10 @@ export default function SignsBuilder({
               <span className="mt-1 block text-sm font-bold leading-5 text-[var(--ink-muted)]">
                 {product.pricingMethod === "yard"
                   ? "Double-sided pricing is built into the quantity price."
+                  : getDoubleSidedMethod(product, signsQuote.material) === "sewn"
+                  ? // 13 oz shows through, so this is genuinely two banners.
+                    // Say so before the price moves, not after.
+                    "13 oz shows through, so this is two banners sewn back to back — double the material, plus $10 per linear foot to construct."
                   : "Adds $7 per square foot."}
               </span>
             </span>

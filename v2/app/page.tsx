@@ -18,6 +18,7 @@ import {
   allowsDoubleSided,
   CUSTOM_SIZE,
   defaultSignsQuote,
+  getFinishingOptions,
   getSignDimensions,
   getSignProduct,
   getSignSizeLabel,
@@ -584,6 +585,14 @@ export default function Home() {
     const product = getSignProduct(next.productId);
     if (next.doubleSided && !allowsDoubleSided(product, next.material)) {
       next.doubleSided = false;
+    }
+
+    // Same hazard for finishing: only 18 oz may skip the hem, so switching to
+    // 13 oz or mesh must drop a stale "No Hem or Grommets" back to the default
+    // rather than leaving an option the new material can't have.
+    const validFinishing = getFinishingOptions(product, next.material);
+    if (!validFinishing.includes(next.finishing)) {
+      next.finishing = validFinishing[0];
     }
 
     setSignsQuote(next);

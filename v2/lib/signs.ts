@@ -189,10 +189,35 @@ export function allowsDoubleSided(product: SignProduct, material: string) {
   if (!product.allowDoubleSided) return false;
 
   if (product.pricingMethod === "banner") {
-    return signsPricingConfig.banner.doubleSidedMaterials.includes(material);
+    return Boolean(signsPricingConfig.banner.doubleSided[material]);
   }
 
   return true;
+}
+
+/**
+ * How a banner material achieves double-sided, for customer-facing copy.
+ * "sewn" costs materially more than "surcharge", so the UI says so up front
+ * rather than letting the price jump without explanation.
+ */
+export function getDoubleSidedMethod(product: SignProduct, material: string) {
+  if (product.pricingMethod !== "banner") return null;
+  return signsPricingConfig.banner.doubleSided[material]?.method ?? null;
+}
+
+/**
+ * Finishing options valid for the chosen material.
+ *
+ * Skipping the hem is offered on 18 oz only — 13 oz and mesh need the
+ * reinforced edge — so the option is removed rather than shown and refused.
+ */
+export function getFinishingOptions(product: SignProduct, material: string) {
+  if (product.pricingMethod !== "banner") return product.finishing;
+
+  const cfg = signsPricingConfig.banner;
+  if (cfg.noHemMaterials.includes(material)) return product.finishing;
+
+  return product.finishing.filter((f) => f !== cfg.noHemFinishingLabel);
 }
 
 export function getSizeOptions(product: SignProduct) {

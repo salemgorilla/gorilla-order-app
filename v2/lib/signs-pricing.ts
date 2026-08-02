@@ -152,29 +152,48 @@ export function calculateSignsPricing(
       );
     }
 
-    // Double-sided is a per-sqft surcharge (rigid + banner). Among banners it
-    // is 18 oz only — 13 oz shows through and mesh is perforated — so the
-    // surcharge cannot be charged for a banner that can't physically take it.
-    const bannerCanDoubleSide =
-      input.method !== "banner" ||
-      cfg.banner.doubleSidedMaterials.includes(input.material || "");
+    // Perimeter of ONE piece, in feet. Used by the sewn double-sided
+    // construction charge and by the no-hem credit.
+    const perimeterFt =
+      (((input.widthInches || 0) + (input.heightInches || 0)) * 2) / 12;
 
-    const takesDoubleSurcharge =
+    // Banners carry their own double-sided rules per material; every other
+    // sqft method uses the flat surcharge.
+    const bannerDouble =
+      input.method === "banner"
+        ? cfg.banner.doubleSided[input.material || ""]
+        : undefined;
+
+    const canDoubleSide =
+      input.method !== "banner" || Boolean(bannerDouble);
+
+    const wantsDouble =
       input.doubleSided &&
-      bannerCanDoubleSide &&
+      canDoubleSide &&
       (cfg.doubleSidedMethods as readonly string[]).includes(input.method);
+
+    // 13 oz shows through, so double-sided means two panels sewn back to back
+    // rather than a per-sqft surcharge.
+    const isSewnDouble = wantsDouble && bannerDouble?.method === "sewn";
+    const takesDoubleSurcharge = wantsDouble && !isSewnDouble;
 
     const effectivePerSqft = takesDoubleSurcharge
       ? perSqft + cfg.doubleSidedPerSqft
       : perSqft;
 
     const totalSqft = sqftEach * quantity;
-    productTotal = effectivePerSqft * totalSqft;
+    // Sewn double-sided is literally two banners, so the material doubles.
+    const panels = isSewnDouble ? 2 : 1;
+    productTotal = effectivePerSqft * totalSqft * panels;
 
     lines.push({
-      label: `${quantity} × ${sqftEach.toFixed(2)} sqft @ $${effectivePerSqft.toFixed(
-        2
-      )}/sqft`,
+      label: isSewnDouble
+        ? `${quantity} × ${sqftEach.toFixed(2)} sqft @ $${effectivePerSqft.toFixed(
+            2
+          )}/sqft × 2 panels (sewn back to back)`
+        : `${quantity} × ${sqftEach.toFixed(2)} sqft @ $${effectivePerSqft.toFixed(
+            2
+          )}/sqft`,
       amount: round2(productTotal),
     });
 
@@ -185,15 +204,30 @@ export function calculateSignsPricing(
       });
     }
 
+    if (isSewnDouble) {
+      const rate = bannerDouble?.constructionPerLinearFoot || 0;
+      const construction = rate * perimeterFt * quantity;
+
+      if (construction > 0) {
+        productTotal += construction;
+        lines.push({
+          label: `Sewn back-to-back construction (${perimeterFt.toFixed(
+            0
+          )} lin ft each @ $${rate})`,
+          amount: round2(construction),
+        });
+      }
+    }
+
     // The sqft rate includes hems, so skipping them credits the labour back:
     // $2 per linear foot of edge, i.e. the perimeter, per banner.
     if (
       input.method === "banner" &&
-      input.finishing === cfg.banner.noHemFinishingLabel
+      input.finishing === cfg.banner.noHemFinishingLabel &&
+      // 18 oz only — 13 oz and mesh always get hemmed, so they never earn
+      // the credit even if a stale finishing value reaches this far.
+      cfg.banner.noHemMaterials.includes(input.material || "")
     ) {
-      const perimeterFt =
-        (((input.widthInches || 0) + (input.heightInches || 0)) * 2) / 12;
-
       // Clamped so a pathological custom size can never credit past the
       // product cost and produce a negative banner.
       const credit = Math.min(

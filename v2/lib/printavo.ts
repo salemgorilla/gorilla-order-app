@@ -553,9 +553,19 @@ export function buildPrintavoQuotePlan(input: {
 
   // Signs send an itemised breakdown (product line, setup fee, add-ons). Split
   // it so Printavo shows the same lines the customer saw, instead of one lump.
-  const signsLines = Array.isArray(pricing.lines)
-    ? (pricing.lines as AnyRecord[]).filter((l) => num(l.amount) > 0)
+  const allSignsLines = Array.isArray(pricing.lines)
+    ? (pricing.lines as AnyRecord[])
     : [];
+
+  // Credits (the no-hem credit) are negative and would be dropped by the
+  // positive-only filter below, which would make the Printavo total HIGHER
+  // than the price the customer was shown. Net them into the product line
+  // instead of sending a negative line item.
+  const creditTotal = allSignsLines
+    .filter((l) => num(l.amount) < 0)
+    .reduce((sum, l) => sum + num(l.amount), 0);
+
+  const signsLines = allSignsLines.filter((l) => num(l.amount) > 0);
   // The first line is the product itself; everything after is a fee/add-on.
   const signsProductLine = signsLines[0];
   const signsFeeLines = signsLines.slice(1);
@@ -565,7 +575,8 @@ export function buildPrintavoQuotePlan(input: {
   const itemsSubtotal = apparel
     ? total
     : signsProductLine
-    ? num(signsProductLine.amount)
+    ? // creditTotal is negative, so this subtracts.
+      Math.max(0, num(signsProductLine.amount) + creditTotal)
     : num(pricing.stickerPrice, total);
 
   const unitPrice =

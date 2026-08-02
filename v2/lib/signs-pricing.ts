@@ -9,11 +9,13 @@ export type SignsPricingInput = {
   /** Square-foot products: finished size of ONE piece. */
   widthInches?: number;
   heightInches?: number;
-  /** Rigid signs: material key from perSqftByMaterial. */
+  /** Rigid AND banner signs: material key from the relevant perSqftByMaterial. */
   material?: string;
   doubleSided: boolean;
   /** Yard signs only. */
   stepStakes?: boolean;
+  /** The chosen finishing label. Banners use it for the no-hem credit. */
+  finishing?: string;
   isCustomSize: boolean;
   /** Banner finishing add-on keys (see signsPricingConfig.banner.addOns). */
   bannerAddOns?: string[];
@@ -150,9 +152,16 @@ export function calculateSignsPricing(
       );
     }
 
-    // Double-sided is a per-sqft surcharge (rigid + banner).
+    // Double-sided is a per-sqft surcharge (rigid + banner). Among banners it
+    // is 18 oz only — 13 oz shows through and mesh is perforated — so the
+    // surcharge cannot be charged for a banner that can't physically take it.
+    const bannerCanDoubleSide =
+      input.method !== "banner" ||
+      cfg.banner.doubleSidedMaterials.includes(input.material || "");
+
     const takesDoubleSurcharge =
       input.doubleSided &&
+      bannerCanDoubleSide &&
       (cfg.doubleSidedMethods as readonly string[]).includes(input.method);
 
     const effectivePerSqft = takesDoubleSurcharge
@@ -174,6 +183,33 @@ export function calculateSignsPricing(
         label: `(includes +$${cfg.doubleSidedPerSqft}/sqft double-sided)`,
         amount: 0,
       });
+    }
+
+    // The sqft rate includes hems, so skipping them credits the labour back:
+    // $2 per linear foot of edge, i.e. the perimeter, per banner.
+    if (
+      input.method === "banner" &&
+      input.finishing === cfg.banner.noHemFinishingLabel
+    ) {
+      const perimeterFt =
+        (((input.widthInches || 0) + (input.heightInches || 0)) * 2) / 12;
+
+      // Clamped so a pathological custom size can never credit past the
+      // product cost and produce a negative banner.
+      const credit = Math.min(
+        productTotal,
+        cfg.banner.noHemCreditPerLinearFoot * perimeterFt * quantity
+      );
+
+      if (credit > 0) {
+        productTotal -= credit;
+        lines.push({
+          label: `No hem credit (${perimeterFt.toFixed(0)} lin ft each @ $${
+            cfg.banner.noHemCreditPerLinearFoot
+          })`,
+          amount: -round2(credit),
+        });
+      }
     }
   }
 

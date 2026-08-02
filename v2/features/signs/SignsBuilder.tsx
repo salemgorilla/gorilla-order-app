@@ -3,6 +3,7 @@
 import QuantitySelector from "../../components/QuantitySelector";
 import OptionSelector from "../../components/OptionSelector";
 import {
+  allowsDoubleSided,
   BANNER_ADD_ONS,
   CUSTOM_SIZE,
   getSignProduct,
@@ -217,7 +218,7 @@ export default function SignsBuilder({
         </div>
       )}
 
-      {product.allowDoubleSided && (
+      {allowsDoubleSided(product, signsQuote.material) && (
         <div className=" border border-[var(--rule)] bg-[var(--shirt-blank)] p-4">
           <label className="flex cursor-pointer items-start gap-3">
             <input

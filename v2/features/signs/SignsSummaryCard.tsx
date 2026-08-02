@@ -62,8 +62,11 @@ export default function SignsSummaryCard({
                 .map((l) => (
                   <div key={l.label} className="flex justify-between gap-4">
                     <span>{l.label}</span>
+                    {/* Credits are negative, so the sign goes before the
+                        dollar: -$36.00, not $-36.00. */}
                     <span className="text-right text-[var(--ink-black)]">
-                      ${l.amount.toFixed(2)}
+                      {l.amount < 0 ? "-" : ""}$
+                      {Math.abs(l.amount).toFixed(2)}
                     </span>
                   </div>
                 ))}

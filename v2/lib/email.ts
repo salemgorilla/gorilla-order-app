@@ -236,9 +236,17 @@ export function buildQuoteEmail(input: {
         .replace(/quoted separately\s*$/i, "")
         .replace(new RegExp("[\\s\\u2010-\\u2015\\u2212-]+$"), "");
       const amount = Number(item.amount) || 0;
-      estimateLines.push(
-        line(label, amount > 0 ? money(amount) : "Quoted separately")
-      );
+      // Three cases, not two. Only ZERO means "quoted separately" — a negative
+      // is a credit (the no-hem credit) and must show as -$36.00, not get
+      // mislabelled as something the shop still has to price.
+      const value =
+        amount === 0
+          ? "Quoted separately"
+          : amount < 0
+          ? `-${money(Math.abs(amount))}`
+          : money(amount);
+
+      estimateLines.push(line(label, value));
     }
   } else if (apparel) {
     estimateLines.push(

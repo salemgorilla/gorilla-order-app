@@ -94,6 +94,25 @@ export const signsPricingConfig = {
     } as Record<string, number>,
 
     /**
+     * The sqft rate includes hems. 18 oz is heavy enough not to need them, so
+     * skipping the hem credits back the labour: $2 per linear foot of edge,
+     * i.e. the banner's perimeter, per banner.
+     *
+     * A 3' x 6' banner has an 18 ft perimeter, so the credit is $36.
+     */
+    noHemCreditPerLinearFoot: 2,
+
+    /** The finishing option that means "no hem" (must match signs.ts). */
+    noHemFinishingLabel: "No Hem or Grommets",
+
+    /**
+     * Only these banner materials can be printed double-sided. 13 oz shows
+     * through, and mesh is perforated. Rigid, corrugated and the other sign
+     * types are unaffected — this list is banner-only.
+     */
+    doubleSidedMaterials: ["18 oz Heavy Duty Vinyl"] as string[],
+
+    /**
      * Finishing add-ons. Hems and standard grommets are INCLUDED in the sqft
      * rate (matches the shop board: "$8 per sqft — includes grommets").
      *

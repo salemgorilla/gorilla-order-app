@@ -10,6 +10,8 @@
 // To add/edit products, sizes, materials or finishing, edit the arrays below.
 // To change PRICES, edit lib/signs-pricing-config.ts.
 
+import { signsPricingConfig } from "./signs-pricing-config";
+
 export const CUSTOM_SIZE = "Custom size";
 
 export type SignPricingMethod = "yard" | "banner" | "poster" | "rigid" | null;
@@ -173,6 +175,26 @@ export const defaultSignsQuote = {
 export type SignsQuote = typeof defaultSignsQuote;
 
 /** All selectable size labels for a product, including the custom option. */
+/**
+ * Whether a product can be printed double-sided in the chosen material.
+ *
+ * Product-level `allowDoubleSided` is not enough for banners: rigid and
+ * corrugated take double-sided fine, but among banners only 18 oz can — 13 oz
+ * shows through and mesh is perforated.
+ *
+ * The UI and the pricing engine both go through this rule, so the checkbox
+ * and the surcharge can never disagree.
+ */
+export function allowsDoubleSided(product: SignProduct, material: string) {
+  if (!product.allowDoubleSided) return false;
+
+  if (product.pricingMethod === "banner") {
+    return signsPricingConfig.banner.doubleSidedMaterials.includes(material);
+  }
+
+  return true;
+}
+
 export function getSizeOptions(product: SignProduct) {
   const labels = product.sizes.map((s) => s.label);
   return product.sizes.length > 0 ? [...labels, CUSTOM_SIZE] : [CUSTOM_SIZE];

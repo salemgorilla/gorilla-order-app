@@ -15,6 +15,7 @@ import AddOnsCard from "../features/addons/AddOnsCard";
 
 import { defaultApparelQuote } from "../lib/apparel";
 import {
+  allowsDoubleSided,
   CUSTOM_SIZE,
   defaultSignsQuote,
   getSignDimensions,
@@ -194,6 +195,8 @@ export default function Home() {
       material: signsQuote.material,
       doubleSided: signsQuote.doubleSided,
       stepStakes: signsQuote.finishing === "With Step Stakes",
+      // Banners use this for the no-hem credit.
+      finishing: signsQuote.finishing,
       isCustomSize: signsQuote.size === CUSTOM_SIZE,
       bannerAddOns: signsQuote.bannerAddOns,
     });
@@ -572,7 +575,18 @@ export default function Home() {
   }
 
   function updateSignsQuote(updates: Partial<typeof signsQuote>) {
-    setSignsQuote({ ...signsQuote, ...updates });
+    const next = { ...signsQuote, ...updates };
+
+    // Switching to a material that can't be printed double-sided (13 oz or
+    // mesh) must clear the flag. The checkbox hides itself, but without this
+    // the stale `true` would keep charging the surcharge and keep saying
+    // "Double-sided" on the summary, the review card and the shop email.
+    const product = getSignProduct(next.productId);
+    if (next.doubleSided && !allowsDoubleSided(product, next.material)) {
+      next.doubleSided = false;
+    }
+
+    setSignsQuote(next);
   }
 
   function handleSignProductSelect(productId: string) {
@@ -589,7 +603,9 @@ export default function Home() {
       customHeightInches: 0,
       material: product.materials[0],
       finishing: product.finishing[0],
-      doubleSided: product.allowDoubleSided ? signsQuote.doubleSided : false,
+      doubleSided: allowsDoubleSided(product, product.materials[0])
+        ? signsQuote.doubleSided
+        : false,
     });
   }
 

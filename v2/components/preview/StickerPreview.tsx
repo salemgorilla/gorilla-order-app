@@ -33,7 +33,7 @@ export default function StickerPreview({
       <div className="border border-[var(--rule)] bg-[var(--shirt-blank)] p-3 sm:p-5">
         <div className="mb-4 flex items-center justify-between gap-4">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
+            <p className="eyebrow">
               {proofType}
             </p>
             <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
@@ -41,7 +41,7 @@ export default function StickerPreview({
             </p>
           </div>
 
-          <div className=" bg-white px-3 py-2 text-xs font-black text-[var(--gorilla-green)]">
+          <div className=" bg-white px-3 py-2 text-xs font-bold text-[var(--gorilla-green)]">
             {size}
           </div>
         </div>
@@ -59,7 +59,7 @@ export default function StickerPreview({
         </div>
 
         {magentaCutLine && (
-          <div className="mt-4 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+          <div className="mt-4 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
             <span
               className="inline-block h-3 w-3"
               style={{ backgroundColor: "var(--cut-line)" }}
@@ -70,24 +70,24 @@ export default function StickerPreview({
 
         <div className="mt-4 grid grid-cols-3 gap-3 text-center">
           <div className=" bg-white p-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+            <p className="text-spec font-bold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
               Shape
             </p>
-            <p className="mt-1 text-sm font-black text-[var(--ink-black)]">{shape}</p>
+            <p className="mt-1 text-sm font-bold text-[var(--ink-black)]">{shape}</p>
           </div>
 
           <div className=" bg-white p-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+            <p className="text-spec font-bold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
               Material
             </p>
-            <p className="mt-1 text-sm font-black text-[var(--ink-black)]">{material}</p>
+            <p className="mt-1 text-sm font-bold text-[var(--ink-black)]">{material}</p>
           </div>
 
           <div className=" bg-white p-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+            <p className="text-spec font-bold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
               Finish
             </p>
-            <p className="mt-1 text-sm font-black text-[var(--ink-black)]">{finish}</p>
+            <p className="mt-1 text-sm font-bold text-[var(--ink-black)]">{finish}</p>
           </div>
         </div>
       </div>

@@ -5,11 +5,11 @@ interface Props {
 export default function OrderSummary({ order }: Props) {
   return (
     <div className=" border border-[var(--rule)] bg-white p-8">
-      <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
+      <p className="eyebrow">
         Review
       </p>
 
-      <h2 className="mt-2 text-3xl font-black tracking-[-0.05em]">
+      <h2 className="mt-2 text-head font-bold tracking-display">
         Order Summary
       </h2>
 
@@ -82,7 +82,7 @@ export default function OrderSummary({ order }: Props) {
 
       <div className="my-6 border-t border-[var(--rule)]" />
 
-      <div className="flex justify-between text-xl font-black">
+      <div className="flex justify-between text-lede font-bold">
         <span>Total</span>
         <span>${order.pricing.total.toFixed(2)}</span>
       </div>

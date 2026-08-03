@@ -20,7 +20,7 @@ export default function ApparelSummaryCard({
 }: Props) {
   return (
     <div className=" border border-[var(--rule)] bg-white p-6">
-      <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
+      <p className="eyebrow">
         Apparel Summary
       </p>
 
@@ -92,7 +92,7 @@ export default function ApparelSummaryCard({
       </div>
 
       <div className="mt-5 bg-[var(--shirt-blank)] p-4">
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
           Size Breakdown
         </p>
         <p className="mt-2 text-sm font-bold text-[var(--ink-black)]">
@@ -101,7 +101,7 @@ export default function ApparelSummaryCard({
       </div>
 
       <div className="mt-5 bg-[var(--surface-ok)] p-4">
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--gorilla-green)]">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--gorilla-green)]">
           Estimated Apparel Pricing
         </p>
 
@@ -130,7 +130,7 @@ export default function ApparelSummaryCard({
           <div className="border-t border-[var(--rule)] pt-3">
             <div className="flex justify-between gap-4">
               <span className="text-[var(--ink-black)]">Estimated Total</span>
-              <span className="text-right text-xl font-black text-[var(--gorilla-green)]">
+              <span className="text-right text-lede font-bold text-[var(--gorilla-green)]">
                 ${apparelPricing.total.toFixed(2)}
               </span>
             </div>

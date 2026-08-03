@@ -25,7 +25,7 @@ export default function SubmitButton({
       disabled={inactive}
       className={[
         "w-full border-2 border-[var(--rush-red)] bg-[var(--rush-red)] py-5",
-        "text-xl font-black text-white",
+        "text-lede font-bold text-white",
         "transition-colors duration-[120ms] ease-linear",
         inactive
           ? "cursor-not-allowed opacity-40"

@@ -19,10 +19,10 @@ export default function SignsPreviewCard({ artworkPreview, signsQuote }: Props) 
     <div className=" border border-[var(--rule)] bg-white p-5 sm:p-8">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
+          <p className="eyebrow">
             Digital Proof
           </p>
-          <h3 className="mt-2 text-3xl font-black tracking-[-0.05em]">
+          <h3 className="mt-2 text-head font-bold tracking-display">
             Live Preview
           </h3>
         </div>
@@ -34,7 +34,7 @@ export default function SignsPreviewCard({ artworkPreview, signsQuote }: Props) 
 
       <div className="mt-8 bg-[var(--shirt-blank)] p-5">
         <div className=" border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
+          <p className="eyebrow">
             {product.label} Proof
           </p>
           <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
@@ -55,8 +55,8 @@ export default function SignsPreviewCard({ artworkPreview, signsQuote }: Props) 
                 ) : (
                   <div className="grid h-full w-full place-items-center bg-[var(--gorilla-green)] text-center text-white">
                     <div>
-                      <p className="text-4xl font-black tracking-[-0.08em]">GS</p>
-                      <p className="mt-2 text-[10px] font-black uppercase tracking-[0.2em]">
+                      <p className="text-display font-bold tracking-display">GS</p>
+                      <p className="mt-2 text-spec font-bold uppercase tracking-[0.2em]">
                         Upload Art
                       </p>
                     </div>
@@ -77,10 +77,10 @@ export default function SignsPreviewCard({ artworkPreview, signsQuote }: Props) 
               ["Sides", signsQuote.doubleSided ? "Double" : "Single"],
             ].map(([label, value]) => (
               <div key={label} className=" bg-white p-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+                <p className="text-spec font-bold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
                   {label}
                 </p>
-                <p className="mt-1 text-sm font-black text-[var(--ink-black)]">{value}</p>
+                <p className="mt-1 text-sm font-bold text-[var(--ink-black)]">{value}</p>
               </div>
             ))}
           </div>

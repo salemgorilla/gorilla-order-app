@@ -53,11 +53,11 @@ export default function ApparelPreview({
     <div className="rounded-[2rem] border border-[#dfd0b8] bg-white p-5 shadow-xl sm:p-8">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-[#b7352d]">
+          <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#b7352d]">
             Apparel Proof
           </p>
 
-          <h3 className="mt-2 text-3xl font-black tracking-[-0.05em]">
+          <h3 className="mt-2 text-3xl font-bold tracking-[-0.05em]">
             Live Preview
           </h3>
         </div>
@@ -71,7 +71,7 @@ export default function ApparelPreview({
         <div className="rounded-[1.5rem] border border-[#dfd0b8] bg-[#F8F5EE] p-5">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#b7352d]">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#b7352d]">
                 Garment Mockup
               </p>
               <p className="mt-1 text-sm font-bold text-[#6f695e]">
@@ -79,7 +79,7 @@ export default function ApparelPreview({
               </p>
             </div>
 
-            <div className="rounded-full bg-white px-3 py-2 text-xs font-black text-[#2E5037] shadow-sm">
+            <div className="rounded-full bg-white px-3 py-2 text-xs font-bold text-[#2E5037] shadow-sm">
               {quantity} pcs
             </div>
           </div>
@@ -108,7 +108,7 @@ export default function ApparelPreview({
                       className="max-h-full max-w-full object-contain"
                     />
                   ) : (
-                    <p className="text-2xl font-black tracking-[-0.08em]">GS</p>
+                    <p className="text-2xl font-bold tracking-[-0.08em]">GS</p>
                   )}
                 </div>
               </div>
@@ -165,7 +165,7 @@ export default function ApparelPreview({
                         className="max-h-full max-w-full object-contain"
                       />
                     ) : (
-                      <p className="text-3xl font-black tracking-[-0.08em] text-[#2E5037]">
+                      <p className="text-3xl font-bold tracking-[-0.08em] text-[#2E5037]">
                         GS
                       </p>
                     )}
@@ -181,24 +181,24 @@ export default function ApparelPreview({
                         className="max-h-full max-w-full object-contain"
                       />
                     ) : (
-                      <p className="text-sm font-black text-[#2E5037]">GS</p>
+                      <p className="text-sm font-bold text-[#2E5037]">GS</p>
                     )}
                   </div>
                 )}
 
                 {hasLocation(printLocations, "Sleeve") && (
                   <>
-                    <div className="absolute left-7 top-36 rounded-full bg-white px-3 py-1 text-xs font-black text-[#2E5037] shadow">
+                    <div className="absolute left-7 top-36 rounded-full bg-white px-3 py-1 text-xs font-bold text-[#2E5037] shadow">
                       Sleeve
                     </div>
-                    <div className="absolute right-6 top-36 rounded-full bg-white px-3 py-1 text-xs font-black text-[#2E5037] shadow">
+                    <div className="absolute right-6 top-36 rounded-full bg-white px-3 py-1 text-xs font-bold text-[#2E5037] shadow">
                       Sleeve
                     </div>
                   </>
                 )}
 
                 {hasLocation(printLocations, "Back") && (
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#2E5037] shadow">
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] text-[#2E5037] shadow">
                     Back print requested
                   </div>
                 )}
@@ -208,38 +208,38 @@ export default function ApparelPreview({
 
           <div className="mt-4 grid grid-cols-3 gap-3 text-center">
             <div className="rounded-2xl bg-white p-3 shadow-sm">
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#6f695e]">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#6f695e]">
                 Garment
               </p>
-              <p className="mt-1 text-sm font-black text-[#171717]">
+              <p className="mt-1 text-sm font-bold text-[#171717]">
                 {garmentType}
               </p>
             </div>
 
             <div className="rounded-2xl bg-white p-3 shadow-sm">
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#6f695e]">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#6f695e]">
                 Color
               </p>
-              <p className="mt-1 text-sm font-black text-[#171717]">
+              <p className="mt-1 text-sm font-bold text-[#171717]">
                 {garmentColor}
               </p>
             </div>
 
             <div className="rounded-2xl bg-white p-3 shadow-sm">
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#6f695e]">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#6f695e]">
                 Ink
               </p>
-              <p className="mt-1 text-sm font-black text-[#171717]">
+              <p className="mt-1 text-sm font-bold text-[#171717]">
                 {inkColors}
               </p>
             </div>
           </div>
 
           <div className="mt-3 rounded-2xl bg-white p-3 text-center shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#6f695e]">
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#6f695e]">
               Print Locations
             </p>
-            <p className="mt-1 text-sm font-black text-[#171717]">
+            <p className="mt-1 text-sm font-bold text-[#171717]">
               {printLocations.length > 0
                 ? printLocations.join(" • ")
                 : "None selected"}

@@ -23,11 +23,11 @@ export default function DecalPreviewCard({
     <div className=" border border-[var(--rule)] bg-white p-5 sm:p-8">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
+          <p className="eyebrow">
             Digital Proof
           </p>
 
-          <h3 className="mt-2 text-3xl font-black tracking-[-0.05em]">
+          <h3 className="mt-2 text-head font-bold tracking-display">
             Live Preview
           </h3>
         </div>
@@ -49,7 +49,7 @@ export default function DecalPreviewCard({
       />
 
       <div className="mt-4 bg-[var(--shirt-blank)] p-4">
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
           Adjust Art Placement
         </p>
 
@@ -101,21 +101,21 @@ export default function DecalPreviewCard({
           <p className="text-xs font-bold uppercase text-[var(--ink-muted)]">
             Size
           </p>
-          <p className="mt-1 font-black">{product.size}</p>
+          <p className="mt-1 font-bold">{product.size}</p>
         </div>
 
         <div className=" bg-[var(--shirt-blank)] p-4">
           <p className="text-xs font-bold uppercase text-[var(--ink-muted)]">
             Shape
           </p>
-          <p className="mt-1 font-black">{product.shape}</p>
+          <p className="mt-1 font-bold">{product.shape}</p>
         </div>
 
         <div className=" bg-[var(--shirt-blank)] p-4">
           <p className="text-xs font-bold uppercase text-[var(--ink-muted)]">
             Each
           </p>
-          <p className="mt-1 font-black">${unitPrice.toFixed(2)}</p>
+          <p className="mt-1 font-bold">${unitPrice.toFixed(2)}</p>
         </div>
       </div>
 
@@ -124,7 +124,7 @@ export default function DecalPreviewCard({
           Needed In Hand
         </p>
 
-        <p className="mt-1 font-black">
+        <p className="mt-1 font-bold">
           {production.needBy || "Not entered yet"}
         </p>
 

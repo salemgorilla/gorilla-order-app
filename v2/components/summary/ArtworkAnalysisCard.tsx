@@ -8,7 +8,7 @@ export default function ArtworkAnalysisCard({ analysis }: Props) {
   if (!analysis) {
     return (
       <div className=" border border-[var(--rule)] bg-white p-6">
-        <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
+        <p className="eyebrow">
           Artwork Check
         </p>
 
@@ -22,7 +22,7 @@ export default function ArtworkAnalysisCard({ analysis }: Props) {
 
   return (
     <div className=" border border-[var(--rule)] bg-white p-6">
-      <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
+      <p className="eyebrow">
         Artwork Check
       </p>
 
@@ -61,7 +61,7 @@ export default function ArtworkAnalysisCard({ analysis }: Props) {
 
       {analysis.palette.length > 0 && (
         <div className="mt-5">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
             Detected Palette
           </p>
 
@@ -80,7 +80,7 @@ export default function ArtworkAnalysisCard({ analysis }: Props) {
 
       {analysis.notes.length > 0 && (
         <div className="mt-5 bg-[var(--shirt-blank)] p-4">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
             Notes
           </p>
 

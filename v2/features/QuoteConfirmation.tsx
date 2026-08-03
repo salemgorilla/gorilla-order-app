@@ -56,15 +56,15 @@ export default function QuoteConfirmationScreen({
       <div className="mx-auto grid min-h-[80vh] max-w-5xl place-items-center px-4 py-10 sm:px-8 sm:py-16">
         <div className="w-full border border-[var(--rule)] bg-white p-6 sm:p-10">
           <div className="text-center">
-            <div className="mx-auto grid h-20 w-20 place-items-center bg-[var(--gorilla-green)] text-4xl text-white">
+            <div className="mx-auto grid h-20 w-20 place-items-center bg-[var(--gorilla-green)] text-display text-white">
               ✓
             </div>
 
-            <p className="mt-8 text-sm font-black uppercase tracking-[0.2em] text-[var(--rush-red)]">
+            <p className="mt-8 text-sm font-bold uppercase tracking-[0.2em] text-[var(--rush-red)]">
               Quote Received
             </p>
 
-            <h1 className="mt-3 text-4xl font-black tracking-[-0.06em] text-[var(--ink-black)] sm:text-5xl">
+            <h1 className="mt-3 text-display font-bold tracking-[-0.06em] text-[var(--ink-black)] sm:text-display">
               Your request was sent to Gorilla Salem.
             </h1>
 
@@ -75,11 +75,11 @@ export default function QuoteConfirmationScreen({
           </div>
 
           <div className="mt-8 bg-[var(--shirt-blank)] p-6 text-center">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--ink-muted)]">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--ink-muted)]">
               Quote Number
             </p>
 
-            <p className="mt-2 text-3xl font-black tracking-[-0.05em] text-[var(--gorilla-green)] sm:text-4xl">
+            <p className="mt-2 text-head font-bold tracking-display text-[var(--gorilla-green)] sm:text-display">
               {quoteConfirmation?.quoteNumber || "Pending"}
             </p>
 
@@ -93,11 +93,11 @@ export default function QuoteConfirmationScreen({
 
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             <div className=" border border-[var(--rule)] p-5">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--rush-red)]">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--rush-red)]">
                 Customer
               </p>
 
-              <p className="mt-2 text-lg font-black text-[var(--ink-black)]">
+              <p className="mt-2 text-lg font-bold text-[var(--ink-black)]">
                 {order.customer.customerName}
               </p>
 
@@ -113,7 +113,7 @@ export default function QuoteConfirmationScreen({
             </div>
 
             <div className=" border border-[var(--rule)] p-5">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--rush-red)]">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--rush-red)]">
                 {isApparelSubmitted
                   ? "Apparel Details"
                   : isSignsSubmitted
@@ -123,7 +123,7 @@ export default function QuoteConfirmationScreen({
 
               {isSignsSubmitted ? (
                 <>
-                  <p className="mt-2 text-lg font-black text-[var(--ink-black)]">
+                  <p className="mt-2 text-lg font-bold text-[var(--ink-black)]">
                     {signsQuote.quantity.toLocaleString()}{" "}
                     {getSignProduct(signsQuote.productId).label}
                   </p>
@@ -137,7 +137,7 @@ export default function QuoteConfirmationScreen({
                 </>
               ) : isApparelSubmitted ? (
                 <>
-                  <p className="mt-2 text-lg font-black text-[var(--ink-black)]">
+                  <p className="mt-2 text-lg font-bold text-[var(--ink-black)]">
                     {apparelQuote.quantity.toLocaleString()}{" "}
                     {selectedGarmentLabel}
                   </p>
@@ -151,7 +151,7 @@ export default function QuoteConfirmationScreen({
                 </>
               ) : (
                 <>
-                  <p className="mt-2 text-lg font-black text-[var(--ink-black)]">
+                  <p className="mt-2 text-lg font-bold text-[var(--ink-black)]">
                     {order.product.quantity.toLocaleString()} stickers
                   </p>
                   <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
@@ -165,14 +165,14 @@ export default function QuoteConfirmationScreen({
             </div>
 
             <div className=" border border-[var(--rule)] p-5">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--rush-red)]">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--rush-red)]">
                 Estimate
               </p>
 
               {isSignsSubmitted ? (
                 signsTotal !== null ? (
                   <>
-                    <p className="mt-2 text-3xl font-black text-[var(--ink-black)]">
+                    <p className="mt-2 text-head font-bold text-[var(--ink-black)]">
                       ${signsTotal.toFixed(2)}
                     </p>
                     <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
@@ -181,7 +181,7 @@ export default function QuoteConfirmationScreen({
                   </>
                 ) : (
                   <>
-                    <p className="mt-2 text-2xl font-black text-[var(--ink-black)]">
+                    <p className="mt-2 text-head font-bold text-[var(--ink-black)]">
                       Quoted by hand
                     </p>
                     <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
@@ -191,7 +191,7 @@ export default function QuoteConfirmationScreen({
                 )
               ) : isApparelSubmitted ? (
                 <>
-                  <p className="mt-2 text-3xl font-black text-[var(--ink-black)]">
+                  <p className="mt-2 text-head font-bold text-[var(--ink-black)]">
                     ${apparelPricing.total.toFixed(2)}
                   </p>
                   <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
@@ -203,7 +203,7 @@ export default function QuoteConfirmationScreen({
                 </>
               ) : (
                 <>
-                  <p className="mt-2 text-3xl font-black text-[var(--ink-black)]">
+                  <p className="mt-2 text-head font-bold text-[var(--ink-black)]">
                     ${order.pricing.total.toFixed(2)}
                   </p>
                   <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
@@ -235,7 +235,7 @@ export default function QuoteConfirmationScreen({
             <button
               type="button"
               onClick={onCopy}
-              className=" border border-[var(--gorilla-green)] bg-white px-6 py-4 font-black text-[var(--gorilla-green)] transition hover:bg-[var(--shirt-blank)]"
+              className=" border border-[var(--gorilla-green)] bg-white px-6 py-4 font-bold text-[var(--gorilla-green)] transition hover:bg-[var(--shirt-blank)]"
             >
               Copy Quote Details
             </button>
@@ -244,7 +244,7 @@ export default function QuoteConfirmationScreen({
               href={emailHref}
               target="_blank"
               rel="noopener noreferrer"
-              className=" bg-[var(--rush-red)] px-6 py-4 text-center font-black text-white transition hover:bg-[var(--rush-red-dark)]"
+              className=" bg-[var(--rush-red)] px-6 py-4 text-center font-bold text-white transition hover:bg-[var(--rush-red-dark)]"
             >
               Open Gmail Draft
             </a>
@@ -252,14 +252,14 @@ export default function QuoteConfirmationScreen({
             <button
               type="button"
               onClick={onStartNew}
-              className=" bg-[var(--gorilla-green)] px-6 py-4 font-black text-white transition hover:bg-[var(--gorilla-green-dark)]"
+              className=" bg-[var(--gorilla-green)] px-6 py-4 font-bold text-white transition hover:bg-[var(--gorilla-green-dark)]"
             >
               Start New Quote
             </button>
           </div>
 
           {copyStatus === "copied" && (
-            <p className="mt-3 text-center text-sm font-black text-[var(--gorilla-green)]">
+            <p className="mt-3 text-center text-sm font-bold text-[var(--gorilla-green)]">
               Quote details copied to your clipboard.
             </p>
           )}
@@ -272,7 +272,7 @@ export default function QuoteConfirmationScreen({
           <button
             type="button"
             onClick={onBackToBuilder}
-            className="mt-4 w-full bg-[var(--shirt-blank)] px-8 py-4 font-black text-[var(--ink-muted)] transition hover:bg-[var(--shirt-blank)]"
+            className="mt-4 w-full bg-[var(--shirt-blank)] px-8 py-4 font-bold text-[var(--ink-muted)] transition hover:bg-[var(--shirt-blank)]"
           >
             Back to Builder
           </button>

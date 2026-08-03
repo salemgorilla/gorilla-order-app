@@ -42,7 +42,7 @@ export default function AddOnsCard({
 
   return (
     <div className="border border-[var(--rule)] bg-[var(--shirt-blank)] p-6">
-      <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
+      <p className="eyebrow">
         Add to this quote
       </p>
       <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
@@ -67,7 +67,7 @@ export default function AddOnsCard({
               />
               <span className="flex-1">
                 <span className="flex items-baseline justify-between gap-3">
-                  <span className="block text-sm font-black text-[var(--ink-black)]">
+                  <span className="block text-sm font-bold text-[var(--ink-black)]">
                     {offer.label}
                   </span>
                   {/* Never a "from $X" — the app already distinguishes a real
@@ -77,7 +77,7 @@ export default function AddOnsCard({
                       We&apos;ll price this
                     </span>
                   ) : (
-                    <span className="spec shrink-0 text-sm font-black text-[var(--gorilla-green)]">
+                    <span className="spec shrink-0 text-sm font-bold text-[var(--gorilla-green)]">
                       {money(amount)}
                     </span>
                   )}
@@ -111,7 +111,7 @@ export default function AddOnsCard({
       </div>
 
       {(addOns.length > 0 || note.trim()) && (
-        <p className="spec mt-4 border-t border-[var(--rule)] pt-3 text-xs font-black text-[var(--ink-black)]">
+        <p className="spec mt-4 border-t border-[var(--rule)] pt-3 text-xs font-bold text-[var(--ink-black)]">
           {/* Two figures, never merged — a single total would look like it
               covered the unpriced items too. */}
           ADDED TO THIS QUOTE:{" "}

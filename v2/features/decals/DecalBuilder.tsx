@@ -85,7 +85,7 @@ export default function DecalBuilder({
             className="mt-1 h-5 w-5 shrink-0 accent-[var(--cut-line)]"
           />
           <span>
-            <span className="flex items-center gap-2 text-sm font-black text-[var(--ink-black)]">
+            <span className="flex items-center gap-2 text-sm font-bold text-[var(--ink-black)]">
               <span
                 className="inline-block h-3 w-3"
                 // The legend swatch must be the exact colour the copy below
@@ -96,7 +96,7 @@ export default function DecalBuilder({
             </span>
             <span className="mt-1 block text-sm font-bold leading-5 text-[var(--ink-muted)]">
               Check this if your file has a{" "}
-              <span className="font-black text-[var(--cut-line)]">100% magenta</span>{" "}
+              <span className="font-bold text-[var(--cut-line)]">100% magenta</span>{" "}
               (RGB 255, 0, 255) line marking exactly where you want it cut —
               perfect for custom die-cut shapes.
             </span>
@@ -104,7 +104,7 @@ export default function DecalBuilder({
         </label>
 
         {hasArtwork && magentaDetected && (
-          <p className="mt-3 bg-[var(--surface-ok)] p-3 text-xs font-black leading-5 text-[var(--gorilla-green)]">
+          <p className="mt-3 bg-[var(--surface-ok)] p-3 text-xs font-bold leading-5 text-[var(--gorilla-green)]">
             ✓ We spotted a magenta cut line in your file and checked the box for
             you.
           </p>
@@ -113,7 +113,7 @@ export default function DecalBuilder({
         {hasArtwork && product.magentaCutLine && !magentaDetected && (
           <p className="mt-3 bg-[var(--surface-warn)] p-3 text-xs font-bold leading-5 text-[var(--ink-warn)]">
             We couldn&apos;t spot a magenta line in your file. Make sure it&apos;s
-            a <span className="font-black text-[var(--cut-line)]">100% magenta</span> (255,
+            a <span className="font-bold text-[var(--cut-line)]">100% magenta</span> (255,
             0, 255) stroke — otherwise Gorilla Salem will confirm the cut with
             you.
           </p>
@@ -123,7 +123,7 @@ export default function DecalBuilder({
           <p className="mt-3 bg-white p-3 text-xs font-bold leading-5 text-[var(--ink-muted)]">
             Put the magenta line on its own layer as a thin stroke (no fill). It
             marks the cut only —{" "}
-            <span className="font-black">it won&apos;t be printed</span>. Vector
+            <span className="font-bold">it won&apos;t be printed</span>. Vector
             files (AI, PDF, EPS, SVG) cut cleanest; on a PNG it still shows us
             where to cut. If it&apos;s missing or unclear, Gorilla Salem will
             confirm before printing.
@@ -133,7 +133,7 @@ export default function DecalBuilder({
 
       <div>
         <div className="mb-3">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
+          <p className="eyebrow">
             Delivery
           </p>
           <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
@@ -157,10 +157,10 @@ export default function DecalBuilder({
                 }`}
               >
                 <div className="flex items-center justify-between gap-3">
-                  <p className="font-black text-[var(--ink-black)]">{option.label}</p>
+                  <p className="font-bold text-[var(--ink-black)]">{option.label}</p>
 
                   <span
-                    className={` px-3 py-1 text-xs font-black ${
+                    className={` px-3 py-1 text-xs font-bold ${
                       isSelected
                         ? "bg-[var(--gorilla-green)] text-white"
                         : "bg-white text-[var(--gorilla-green)]"

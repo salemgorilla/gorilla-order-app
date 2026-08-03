@@ -39,16 +39,16 @@ export default function QuoteReviewCard({
     <div className=" border border-[var(--rule)] bg-white p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
+          <p className="eyebrow">
             Review Your Quote
           </p>
 
-          <p className="mt-2 text-2xl font-black tracking-[-0.05em] text-[var(--ink-black)]">
+          <p className="mt-2 text-head font-bold tracking-display text-[var(--ink-black)]">
             Check everything before submitting.
           </p>
         </div>
 
-        <span className=" bg-[var(--shirt-blank)] px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-[var(--gorilla-green)]">
+        <span className=" bg-[var(--shirt-blank)] px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--gorilla-green)]">
           {isApparelSelected ? "Apparel" : isSignsSelected ? "Signs" : "Stickers"}
         </span>
       </div>
@@ -213,7 +213,7 @@ export default function QuoteReviewCard({
       </div>
 
       {isReady ? (
-        <p className="mt-5 bg-[var(--surface-ok)] p-4 text-sm font-black text-[var(--gorilla-green)]">
+        <p className="mt-5 bg-[var(--surface-ok)] p-4 text-sm font-bold text-[var(--gorilla-green)]">
           Everything required is complete. This quote is ready to submit.
         </p>
       ) : (

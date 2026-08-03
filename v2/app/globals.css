@@ -80,12 +80,64 @@
   --font-mono: var(--font-spec);
 }
 
+/* ---- Type scale ----
+   Seven steps. Before this the app had no scale at all: display topped out at
+   2.14x body, where the system asks for 4-10x and calls a timid scale the
+   most common failure.
+
+   `text-price` belongs to the running estimate and to nothing else. At 375px
+   it is 4.0x body; at 1440px, 5.5x.
+
+   Tracking is its own token rather than welded into a size step, so a heading
+   can change size without silently changing its letterfit. */
+@theme {
+  --text-spec: 0.75rem;
+  --text-spec--line-height: 1.15;
+  --text-fine: 0.875rem;
+  --text-fine--line-height: 1.5;
+  --text-body: 1rem;
+  --text-body--line-height: 1.6;
+  --text-lede: 1.25rem;
+  --text-lede--line-height: 1.35;
+  --text-head: 1.75rem;
+  --text-head--line-height: 1.1;
+  --text-display: 2.75rem;
+  --text-display--line-height: 0.95;
+  --text-price: clamp(4rem, 6vw, 5.5rem);
+  --text-price--line-height: 0.85;
+
+  --tracking-eyebrow: 0.18em;
+  --tracking-display: -0.03em;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   /* Space Grotesk, loaded in layout.tsx. A hardcoded `Arial` used to sit
      here and silently defeated the entire type system. */
   font-family: var(--font-display), "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Section marker. Replaces 21 verbatim copies of the same four-class string.
+   Eyebrows are section markers, not form labels, so all-caps is permitted
+   here — the sentence-case rule governs labels and errors. */
+.eyebrow {
+  font-size: var(--text-spec);
+  line-height: var(--text-spec--line-height);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-eyebrow);
+  color: var(--rush-red);
+}
+
+/* Backstop against horizontal scroll. `clip`, NEVER `hidden`: overflow
+   hidden establishes a scrollport, which would silently kill the sticky
+   estimate bar with no error anywhere.
+   Needs to be on html as well as body — clipping body alone still lets the
+   root element report a wider scrollWidth and scroll. */
+html,
+body {
+  overflow-x: clip;
 }
 
 /* Spec furniture: ticket numbers, timestamps, statuses, size grids, index

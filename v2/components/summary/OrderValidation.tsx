@@ -18,7 +18,7 @@ export default function OrderValidation({ order }: Props) {
   if (errors.length === 0) {
     return (
       <div className="border border-[var(--rule)] border-l-4 border-l-[var(--gorilla-green)] bg-[var(--surface-ok)] p-5">
-        <p className="font-black text-[var(--gorilla-green-dark)]">
+        <p className="font-bold text-[var(--gorilla-green-dark)]">
           Ready to submit
         </p>
 
@@ -31,7 +31,7 @@ export default function OrderValidation({ order }: Props) {
 
   return (
     <div className="border border-[var(--rule)] border-l-4 border-l-[var(--ink-warn)] bg-[var(--surface-warn)] p-5">
-      <p className="font-black text-[var(--ink-warn)]">
+      <p className="font-bold text-[var(--ink-warn)]">
         Missing information
       </p>
 

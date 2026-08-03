@@ -41,7 +41,7 @@ export default function CustomerForm({
 }: Props) {
   return (
     <div className="border border-[var(--rule)] bg-[var(--shirt-blank)] p-6">
-      <h3 className="text-xl font-black">Customer Information</h3>
+      <h3 className="text-lede font-bold">Customer Information</h3>
 
       <p className="spec mt-1 text-xs text-[var(--ink-muted)]">
         REQUIRED FIELDS MARKED

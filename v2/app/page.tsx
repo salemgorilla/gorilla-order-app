@@ -8,6 +8,7 @@ import NeedByDate from "../components/NeedByDate";
 import CustomerForm from "../components/CustomerForm";
 import SubmitButton from "../components/SubmitButton";
 import OrderSummary from "../components/summary/OrderSummary";
+import EstimateBar from "../components/summary/EstimateBar";
 import OrderValidation from "../components/summary/OrderValidation";
 import ArtworkAnalysisCard from "../components/summary/ArtworkAnalysisCard";
 import ApparelPreview from "../components/preview/ApparelPreview";
@@ -220,6 +221,61 @@ export default function Home() {
     apparelQuote.garmentColor,
     selectedGarmentPrice,
     artworkAnalysis?.estimatedColorCount,
+  ]);
+
+  /**
+   * What the sticky estimate stub shows. Pure selection over values the three
+   * flows have already computed — deliberately no arithmetic of its own, so
+   * the stub can never disagree with the summary card below it.
+   */
+  const estimateBar = useMemo(() => {
+    if (isSignsSelected) {
+      const product = getSignProduct(signsQuote.productId);
+      return {
+        label: `${signsQuote.quantity} × ${product.label}`,
+        total: signsPricing.priceable ? signsPricing.total : 0,
+        priceable: signsPricing.priceable,
+        detail: signsPricing.priceable
+          ? `${getSignSizeLabel(signsQuote)} · $${signsPricing.unitPrice.toFixed(
+              2
+            )} each`
+          : "Send it over and we'll price it",
+      };
+    }
+
+    if (isApparelSelected) {
+      return {
+        label: `${apparelQuote.quantity} × ${
+          selectedGarmentLabel || "Apparel"
+        }`,
+        total: apparelPricing.total,
+        priceable: !apparelQuote.specialOrder,
+        detail: apparelQuote.specialOrder
+          ? "Special order — we'll quote it"
+          : `$${(apparelPricing.total / Math.max(1, apparelQuote.quantity)).toFixed(
+              2
+            )} each`,
+      };
+    }
+
+    return {
+      label: `${order.product.quantity} × ${order.product.size} ${order.product.shape} stickers`,
+      total: order.pricing.total,
+      priceable: true,
+      detail: `$${(
+        order.pricing.stickerPrice / Math.max(1, order.product.quantity)
+      ).toFixed(2)} each`,
+    };
+  }, [
+    isSignsSelected,
+    isApparelSelected,
+    signsQuote,
+    signsPricing,
+    apparelQuote,
+    apparelPricing,
+    selectedGarmentLabel,
+    order.product,
+    order.pricing,
   ]);
 
   useEffect(() => {
@@ -1096,27 +1152,27 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-8 sm:py-10">
         <div className="mb-10">
-          <p className="text-sm font-black uppercase tracking-[0.2em] text-[var(--rush-red)]">
+          <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--rush-red)]">
             Printed Locally in Salem, MA
           </p>
 
-          <h1 className="mt-3 max-w-4xl text-4xl font-black tracking-[-0.08em] text-[var(--ink-black)] sm:text-5xl lg:text-6xl">
+          <h1 className="mt-3 max-w-4xl text-display font-bold tracking-display text-[var(--ink-black)] sm:text-display lg:text-display">
             Custom print quotes made simple.
           </h1>
 
-          <p className="mt-5 max-w-2xl text-xl leading-8 text-[var(--ink-muted)]">
+          <p className="mt-5 max-w-2xl text-lede leading-8 text-[var(--ink-muted)]">
             Choose your details, upload your artwork, and get a live estimate or
             quote request before sending it to Gorilla Salem.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-3">
-            <span className=" bg-white px-4 py-2 text-sm font-black text-[var(--gorilla-green)]">
+            <span className=" bg-white px-4 py-2 text-sm font-bold text-[var(--gorilla-green)]">
               Hand-printed locally
             </span>
-            <span className=" bg-white px-4 py-2 text-sm font-black text-[var(--gorilla-green)]">
+            <span className=" bg-white px-4 py-2 text-sm font-bold text-[var(--gorilla-green)]">
               Salem, Massachusetts
             </span>
-            <span className=" bg-white px-4 py-2 text-sm font-black text-[var(--gorilla-green)]">
+            <span className=" bg-white px-4 py-2 text-sm font-bold text-[var(--gorilla-green)]">
               Real proof review before production
             </span>
           </div>
@@ -1125,10 +1181,10 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         <section className="mb-8 border border-[var(--rule)] bg-white p-5 sm:p-8">
           <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
+              <p className="eyebrow">
                 Product Type
               </p>
-              <h2 className="mt-2 text-3xl font-black tracking-[-0.05em] text-[var(--ink-black)]">
+              <h2 className="mt-2 text-head font-bold tracking-display text-[var(--ink-black)]">
                 What do you want to quote?
               </h2>
             </div>
@@ -1162,12 +1218,12 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   }`}
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-lg font-black text-[var(--ink-black)]">
+                    <p className="text-lg font-bold text-[var(--ink-black)]">
                       {product.title}
                     </p>
 
                     <span
-                      className={` px-3 py-1 text-xs font-black ${
+                      className={` px-3 py-1 text-xs font-bold ${
                         isSelected
                           ? "bg-[var(--gorilla-green)] text-white"
                           : "bg-[var(--shirt-blank)] text-[var(--ink-muted)]"
@@ -1181,7 +1237,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     {product.description}
                   </p>
 
-                  <p className="mt-4 text-xs font-black uppercase tracking-[0.16em] text-[var(--rush-red)]">
+                  <p className="mt-4 text-xs font-bold uppercase tracking-[0.16em] text-[var(--rush-red)]">
                     {isActive ? "Available now" : "Coming soon"}
                   </p>
                 </button>
@@ -1190,15 +1246,25 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
           </div>
         </section>
 
+        {/* Rendered ONCE, outside the flow ternaries and outside the grid, so
+            it spans the page and pins on both breakpoints. Reads values that
+            are already computed — it adds no pricing logic. */}
+        <EstimateBar
+          label={estimateBar.label}
+          total={estimateBar.total}
+          priceable={estimateBar.priceable}
+          detail={estimateBar.detail}
+        />
+
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
           <section className=" border border-[var(--rule)] bg-white p-5 sm:p-8 lg:col-span-7">
             <div className="mb-8 flex items-center justify-between">
               <div>
-                <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
+                <p className="eyebrow">
                   Step 1
                 </p>
 
-                <h2 className="mt-2 text-3xl font-black tracking-[-0.05em]">
+                <h2 className="mt-2 text-head font-bold tracking-display">
                   {isApparelSelected
                     ? "Build Your Apparel Quote"
                     : isSignsSelected
@@ -1402,12 +1468,12 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
             {isApparelSelected || isSignsSelected ? (
               <div className=" border border-[var(--rule)] bg-white p-6">
-                <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
+                <p className="eyebrow">
                   Required Info
                 </p>
 
                 {currentValidationErrors.length === 0 ? (
-                  <p className="mt-4 bg-[var(--surface-ok)] p-4 text-sm font-black text-[var(--gorilla-green)]">
+                  <p className="mt-4 bg-[var(--surface-ok)] p-4 text-sm font-bold text-[var(--gorilla-green)]">
                     {isSignsSelected
                       ? "Signs quote is ready to submit."
                       : "Apparel quote is ready to submit."}
@@ -1438,7 +1504,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   disabled
                   // Matches SubmitButton's disabled treatment exactly — it is
                   // the same button switched off, not a different one.
-                  className="w-full cursor-not-allowed border-2 border-[var(--rush-red)] bg-[var(--rush-red)] py-5 text-xl font-black text-white opacity-40"
+                  className="w-full cursor-not-allowed border-2 border-[var(--rush-red)] bg-[var(--rush-red)] py-5 text-lede font-bold text-white opacity-40"
                 >
                   Complete required info
                 </button>
@@ -1447,10 +1513,10 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
           </aside>
         </div>
         <footer className="mt-12 border border-[var(--rule)] bg-white p-6 text-center">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
+          <p className="eyebrow">
             Gorilla Salem
           </p>
-          <p className="mt-2 text-lg font-black text-[var(--ink-black)]">
+          <p className="mt-2 text-lg font-bold text-[var(--ink-black)]">
             Custom printing, local service, real people reviewing your order.
           </p>
           <p className="mt-2 text-sm font-bold text-[var(--ink-muted)]">

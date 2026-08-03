@@ -84,8 +84,8 @@ function Placeholder({ rounded }: { rounded: string }) {
       className={`grid h-full w-full place-items-center ${rounded} bg-[var(--gorilla-green)] text-center text-white`}
     >
       <div>
-        <p className="text-5xl font-black tracking-[-0.08em]">GS</p>
-        <p className="mt-2 text-[10px] font-black uppercase tracking-[0.2em]">
+        <p className="text-5xl font-bold tracking-[-0.08em]">GS</p>
+        <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.2em]">
           Upload Art
         </p>
       </div>

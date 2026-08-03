@@ -49,7 +49,7 @@ export default function SignsBuilder({
     <>
       <div>
         <div className="mb-3">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
+          <p className="eyebrow">
             Sign Type
           </p>
           <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
@@ -73,9 +73,9 @@ export default function SignsBuilder({
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <p className="font-black text-[var(--ink-black)]">{item.label}</p>
+                  <p className="font-bold text-[var(--ink-black)]">{item.label}</p>
                   {item.pricingMethod === null && (
-                    <span className="shrink-0 bg-white px-2 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-[var(--ink-muted)]">
+                    <span className="shrink-0 bg-white px-2 py-1 text-spec font-bold uppercase tracking-[0.1em] text-[var(--ink-muted)]">
                       Quote
                     </span>
                   )}
@@ -105,13 +105,13 @@ export default function SignsBuilder({
 
         {isCustomSize && (
           <div className="mt-3 border border-[var(--rule)] bg-[var(--shirt-blank)] p-4">
-            <p className="text-sm font-black text-[var(--ink-black)]">
+            <p className="text-sm font-bold text-[var(--ink-black)]">
               Enter your size (inches)
             </p>
 
             <div className="mt-3 flex items-center gap-3">
               <label className="flex-1">
-                <span className="text-xs font-black uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+                <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
                   Width
                 </span>
                 <input
@@ -123,14 +123,14 @@ export default function SignsBuilder({
                     onUpdate({ customWidthInches: Number(event.target.value) })
                   }
                   placeholder="60"
-                  className="mt-1 w-full border border-[var(--rule)] bg-white px-3 py-2 font-black text-[var(--ink-black)] outline-none focus:ring-2 focus:ring-[var(--gorilla-green)]"
+                  className="mt-1 w-full border border-[var(--rule)] bg-white px-3 py-2 font-bold text-[var(--ink-black)] outline-none focus:ring-2 focus:ring-[var(--gorilla-green)]"
                 />
               </label>
 
-              <span className="mt-5 font-black text-[var(--ink-muted)]">×</span>
+              <span className="mt-5 font-bold text-[var(--ink-muted)]">×</span>
 
               <label className="flex-1">
-                <span className="text-xs font-black uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+                <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
                   Height
                 </span>
                 <input
@@ -142,7 +142,7 @@ export default function SignsBuilder({
                     onUpdate({ customHeightInches: Number(event.target.value) })
                   }
                   placeholder="36"
-                  className="mt-1 w-full border border-[var(--rule)] bg-white px-3 py-2 font-black text-[var(--ink-black)] outline-none focus:ring-2 focus:ring-[var(--gorilla-green)]"
+                  className="mt-1 w-full border border-[var(--rule)] bg-white px-3 py-2 font-bold text-[var(--ink-black)] outline-none focus:ring-2 focus:ring-[var(--gorilla-green)]"
                 />
               </label>
             </div>
@@ -178,7 +178,7 @@ export default function SignsBuilder({
       {product.pricingMethod === "banner" && (
         <div>
           <div className="mb-3">
-            <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
+            <p className="eyebrow">
               Banner Add-Ons
             </p>
             <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
@@ -214,7 +214,7 @@ export default function SignsBuilder({
                     className="mt-1 h-5 w-5 shrink-0 accent-[var(--gorilla-green)]"
                   />
                   <span>
-                    <span className="block text-sm font-black text-[var(--ink-black)]">
+                    <span className="block text-sm font-bold text-[var(--ink-black)]">
                       {addOn.label}
                     </span>
                     <span className="mt-1 block text-sm font-bold leading-5 text-[var(--ink-muted)]">
@@ -246,7 +246,7 @@ export default function SignsBuilder({
               className="mt-1 h-5 w-5 shrink-0 accent-[var(--gorilla-green)]"
             />
             <span>
-              <span className="block text-sm font-black text-[var(--ink-black)]">
+              <span className="block text-sm font-bold text-[var(--ink-black)]">
                 Print both sides
               </span>
               <span className="mt-1 block text-sm font-bold leading-5 text-[var(--ink-muted)]">
@@ -271,7 +271,7 @@ export default function SignsBuilder({
 
       <div>
         <div className="mb-3">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
+          <p className="eyebrow">
             Delivery
           </p>
           <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
@@ -315,9 +315,9 @@ export default function SignsBuilder({
                 }`}
               >
                 <div className="flex items-center justify-between gap-3">
-                  <p className="font-black text-[var(--ink-black)]">{option.label}</p>
+                  <p className="font-bold text-[var(--ink-black)]">{option.label}</p>
                   <span
-                    className={` px-3 py-1 text-xs font-black ${
+                    className={` px-3 py-1 text-xs font-bold ${
                       isSelected
                         ? "bg-[var(--gorilla-green)] text-white"
                         : "bg-white text-[var(--gorilla-green)]"

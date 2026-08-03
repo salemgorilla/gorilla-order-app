@@ -25,7 +25,7 @@ export default function NeedByDate({
 
   return (
     <div className="border border-[var(--rule)] bg-[var(--paper)] p-6">
-      <h3 className="text-xl font-black">When do you need these in hand?</h3>
+      <h3 className="text-lede font-bold">When do you need these in hand?</h3>
 
       <p className="mt-2 text-sm text-[var(--ink-muted)]">
         This helps us confirm turnaround before production.

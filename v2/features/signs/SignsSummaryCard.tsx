@@ -36,7 +36,7 @@ export default function SignsSummaryCard({
 
   return (
     <div className=" border border-[var(--rule)] bg-white p-6">
-      <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--rush-red)]">
+      <p className="eyebrow">
         Signs Summary
       </p>
 
@@ -52,7 +52,7 @@ export default function SignsSummaryCard({
       {pricing.priceable ? (
         <>
           <div className="mt-5 bg-[var(--surface-ok)] p-4">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--gorilla-green)]">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--gorilla-green)]">
               Estimated Pricing
             </p>
 
@@ -78,7 +78,7 @@ export default function SignsSummaryCard({
                       ? "Estimated From"
                       : "Estimated Total"}
                   </span>
-                  <span className="text-right text-xl font-black text-[var(--gorilla-green)]">
+                  <span className="text-right text-lede font-bold text-[var(--gorilla-green)]">
                     {pricing.hasQuotedExtras ? "from " : ""}$
                     {pricing.total.toFixed(2)}
                   </span>
@@ -121,7 +121,7 @@ export default function SignsSummaryCard({
         </>
       ) : (
         <div className="mt-5 bg-[var(--surface-warn)] p-4">
-          <p className="text-sm font-black text-[var(--ink-black)]">
+          <p className="text-sm font-bold text-[var(--ink-black)]">
             Priced by hand
           </p>
           <p className="mt-2 text-sm font-bold leading-6 text-[var(--ink-muted)]">

@@ -37,11 +37,11 @@ export default function UploadBox({ onFileSelected }: Props) {
     >
       <label className="block cursor-pointer">
         <div className="flex flex-col items-center justify-center text-center">
-          <div className="mb-5 grid h-20 w-20 place-items-center bg-[var(--gorilla-green)] text-4xl text-white">
+          <div className="mb-5 grid h-20 w-20 place-items-center bg-[var(--gorilla-green)] text-display text-white">
             {isDragging ? "⬇️" : "📁"}
           </div>
 
-          <h3 className="text-2xl font-black tracking-[-0.03em] text-[var(--ink-black)]">
+          <h3 className="text-head font-bold tracking-[-0.03em] text-[var(--ink-black)]">
             {isDragging ? "Drop It Here" : "Upload Your Artwork"}
           </h3>
 

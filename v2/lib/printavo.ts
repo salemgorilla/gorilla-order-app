@@ -1,4 +1,4 @@
-import { SALES_TAX } from "./tax";
+import { isTaxableFlow, SALES_TAX } from "./tax";
 
 // Pushes each submitted quote into Printavo as a DRAFT/UNCONFIRMED quote.
 //
@@ -860,10 +860,12 @@ export function buildPrintavoQuotePlan(input: {
         .replace(/-$/, "")}`,
       price: num(l.amount),
     })),
-    // Tax only where money is actually collected. Stickers are the one flow
-    // that self-checks-out, so they are the one flow that is taxed; signs and
-    // apparel stay untaxed estimates the shop prices by hand.
-    salesTaxRate: !apparel && !signs ? SALES_TAX.ratePercent : null,
+    // Taxability follows the GOODS, not whether the flow checks out online.
+    // Stickers and signs are ordinary tangible goods; Massachusetts exempts
+    // clothing, so apparel carries no tax. See lib/tax.ts.
+    salesTaxRate: isTaxableFlow(apparel ? "apparel" : signs ? "signs" : "stickers")
+      ? SALES_TAX.ratePercent
+      : null,
   };
 }
 
@@ -952,7 +954,10 @@ export async function createPrintavoQuote(input: {
               position: 1,
               price: plan.lineItem.price,
               sizes: plan.lineItem.sizes,
-              taxed: true,
+              // Follows the plan so apparel does not read as "taxable" in
+              // Printavo's UI. Harmless while the rate is null, but it would
+              // be misleading to anyone looking at the quote.
+              taxed: plan.salesTaxRate !== null,
             },
             // Setup fee, custom size fee, banner add-ons — each its own line so
             // the shop can adjust one charge without unpicking a lumped total.
@@ -962,7 +967,7 @@ export async function createPrintavoQuote(input: {
               position: index + 2,
               price: fee.price,
               sizes: [{ size: "size_other", count: 1 }],
-              taxed: true,
+              taxed: plan.salesTaxRate !== null,
             })),
             ...(plan.shippingLineItem
               ? [

@@ -1,3 +1,5 @@
+import { SALES_TAX } from "./tax";
+
 // Pushes each submitted quote into Printavo as a DRAFT/UNCONFIRMED quote.
 //
 // Env vars (all optional — if any are missing, pushing is skipped safely):
@@ -366,10 +368,19 @@ export type PaymentRequestResult = {
 /**
  * Asks a customer to pay, against an existing Printavo quote/invoice.
  *
- * DELIBERATELY NOT automatic. Web submissions are unreviewed — artwork may be
- * unprintable, signs may still need hand pricing, and spam happens. Sending a
- * payment request is a decision the shop makes after looking at the job, so
- * this is only reachable through the guarded /api/payment-request route.
+ * NOT automatic in general. Web submissions are unreviewed — artwork may be
+ * unprintable, signs and apparel may still need hand pricing, and spam
+ * happens. For those flows this stays reachable only through the guarded
+ * /api/payment-request route.
+ *
+ * STICKERS ARE THE EXCEPTION, and the reason is narrow: getStickerPrice()
+ * always returns a price from a fixed quantity table, so `quoteRequired` is
+ * never true and there is nothing for the shop to price. The pricing
+ * objection simply does not apply, so waiting on a human adds delay and no
+ * safety. See createStickerCheckout below.
+ *
+ * The artwork and spam objections DO still apply to stickers — they are
+ * handled by promising a proof and a refund at checkout, not by blocking.
  */
 export async function createPaymentRequest(input: {
   /** Printavo quote or invoice id to bill against. */
@@ -474,6 +485,69 @@ export async function createPaymentRequest(input: {
   }
 }
 
+export type StickerCheckoutResult = {
+  /** True when the customer can pay right now, unassisted. */
+  ready: boolean;
+  payUrl?: string;
+  amount?: number;
+  error?: string;
+};
+
+/**
+ * Turns a freshly created sticker quote into something payable immediately.
+ *
+ * Fires the payment request automatically — the one flow where that is safe,
+ * because sticker pricing is fully determined (see createPaymentRequest's
+ * note) — and hands back the quote's public URL so the confirmation screen
+ * can offer "Pay now" instead of "we'll be in touch".
+ *
+ * Best-effort by design: if this fails, the quote and the shop email have
+ * already succeeded, so the customer still has a real order. They simply get
+ * the old "we'll follow up" path instead of a pay button. Never throw from
+ * here — a payment hiccup must not fail a submission.
+ */
+export async function createStickerCheckout(input: {
+  quoteId: string;
+  publicUrl: string;
+  customerEmail?: string;
+}): Promise<StickerCheckoutResult> {
+  if (!input.quoteId || !input.publicUrl) {
+    return { ready: false, error: "No Printavo quote to bill against." };
+  }
+
+  try {
+    const request = await createPaymentRequest({
+      quoteId: input.quoteId,
+      // No amount: bills the quote's amountOutstanding, which is the taxed
+      // total Printavo computed. The app deliberately does not pass a figure
+      // it derived itself.
+      to: input.customerEmail ? [input.customerEmail] : undefined,
+      subject: "Your Gorilla Salem sticker order — ready to pay",
+      body:
+        "Thanks for your order.\n\n" +
+        "Your stickers are priced and ready to pay using the link below. " +
+        "Once you pay we'll send a proof before anything goes to print — if " +
+        "we can't print your artwork, you get a full refund.\n\n" +
+        "Thanks,\nGorilla Salem",
+    });
+
+    if (!request.sent) {
+      return { ready: false, error: request.error };
+    }
+
+    return {
+      ready: true,
+      payUrl: input.publicUrl,
+      amount: request.amount,
+    };
+  } catch (error) {
+    return {
+      ready: false,
+      error: error instanceof Error ? error.message : "Unknown Printavo error.",
+    };
+  }
+}
+
 export type PrintavoQuotePlan = {
   nickname: string;
   customerDueAt: string;
@@ -504,6 +578,11 @@ export type PrintavoQuotePlan = {
     itemNumber: string;
     price: number;
   }[];
+  /**
+   * Sales tax rate as a percentage, or null to leave the quote untaxed.
+   * Only set on flows that take payment — see lib/tax.ts.
+   */
+  salesTaxRate: number | null;
 };
 
 /**
@@ -781,6 +860,10 @@ export function buildPrintavoQuotePlan(input: {
         .replace(/-$/, "")}`,
       price: num(l.amount),
     })),
+    // Tax only where money is actually collected. Stickers are the one flow
+    // that self-checks-out, so they are the one flow that is taxed; signs and
+    // apparel stay untaxed estimates the shop prices by hand.
+    salesTaxRate: !apparel && !signs ? SALES_TAX.ratePercent : null,
   };
 }
 
@@ -835,6 +918,11 @@ export async function createPrintavoQuote(input: {
           customerNote: asciiSafe(plan.customerNote),
           productionNote: asciiSafe(plan.productionNote),
           tags: plan.tags,
+          // Only the flows that actually take money carry tax. Printavo
+          // computes salesTaxAmount from this rate and the per-line `taxed`
+          // flags, so the app never derives a figure that could drift from
+          // the invoice the customer pays.
+          ...(plan.salesTaxRate ? { salesTax: plan.salesTaxRate } : {}),
         },
       }
     );

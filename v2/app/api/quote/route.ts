@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { sendQuoteEmail, type QuoteAttachment } from "../../../lib/email";
-import { createPrintavoQuote } from "../../../lib/printavo";
+import {
+  createPrintavoQuote,
+  createStickerCheckout,
+} from "../../../lib/printavo";
 
 // Cap the artwork we attach to an email. Big print files (large AI/PDF/PNG)
 // blow past mail-provider limits, so above this we skip the attachment and
@@ -165,6 +168,36 @@ export async function POST(request: Request) {
       );
     }
 
+    // Stickers check out on their own. Every other flow still waits for the
+    // shop, because only stickers are fully priced with nothing to review.
+    const product = (order.product || {}) as Record<string, unknown>;
+    const isStickers =
+      !product.supplier &&
+      !product.garmentType &&
+      !product.signType &&
+      !String(product.type || "")
+        .toLowerCase()
+        .includes("signs");
+
+    let checkout = null;
+
+    if (isStickers && printavo.created && printavo.quoteId) {
+      checkout = await createStickerCheckout({
+        quoteId: printavo.quoteId,
+        publicUrl: printavo.publicUrl || "",
+        customerEmail:
+          String(
+            (order.customer as Record<string, unknown> | undefined)?.email || ""
+          ) || undefined,
+      });
+
+      console.log(
+        checkout.ready
+          ? `STICKER CHECKOUT READY for ${quoteNumber}: ${checkout.payUrl}`
+          : `STICKER CHECKOUT UNAVAILABLE for ${quoteNumber}: ${checkout.error}`
+      );
+    }
+
     return NextResponse.json({
       success: true,
       message: "Quote received by Gorilla Salem.",
@@ -173,6 +206,9 @@ export async function POST(request: Request) {
       quote: quoteRecord,
       notification,
       printavo,
+      // null for signs/apparel — the confirmation screen falls back to
+      // "we'll be in touch" whenever this is absent or not ready.
+      checkout,
     });
   } catch (error) {
     console.error("QUOTE API ERROR");

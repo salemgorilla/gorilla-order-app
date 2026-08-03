@@ -5,6 +5,7 @@ import type { Order } from "../types/order";
 import type { ApparelQuote } from "../lib/apparel";
 import type { ApparelPricingResult } from "../lib/apparel-pricing";
 import type { QuoteConfirmation, SsCatalogColor } from "./types";
+import { SALES_TAX } from "../lib/tax";
 import {
   getSignProduct,
   getSignSizeLabel,
@@ -49,6 +50,16 @@ export default function QuoteConfirmationScreen({
   onStartNew,
   onBackToBuilder,
 }: Props) {
+  // Absent for signs and apparel, and absent for stickers whenever Printavo
+  // was unreachable — in every one of those cases the screen falls back to
+  // "we'll be in touch", which is still a real, submitted order.
+  const checkout = quoteConfirmation?.checkout;
+  // Narrowed to a real URL rather than a boolean, so the pay block cannot
+  // render without somewhere to send the customer.
+  const payUrl = checkout?.ready ? checkout.payUrl : undefined;
+  const payAmount = checkout?.amount;
+  const canPayNow = Boolean(payUrl);
+
   return (
     <main className="min-h-screen bg-[var(--shirt-blank)]">
       <Header />
@@ -61,18 +72,47 @@ export default function QuoteConfirmationScreen({
             </div>
 
             <p className="mt-8 text-sm font-bold uppercase tracking-[0.2em] text-[var(--rush-red)]">
-              Quote Received
+              {canPayNow ? "Ready to pay" : "Quote Received"}
             </p>
 
             <h1 className="mt-3 text-display font-bold tracking-[-0.06em] text-[var(--ink-black)] sm:text-display">
-              Your request was sent to Gorilla Salem.
+              {canPayNow
+                ? "Your order is priced and ready."
+                : "Your request was sent to Gorilla Salem."}
             </h1>
 
             <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-[var(--ink-muted)]">
-              We received your quote request. Gorilla Salem will review your artwork,
-              timeline, and details before production.
+              {canPayNow
+                ? "Sticker pricing is set, so there's nothing to wait for. Pay below and we'll send a proof before anything goes to print."
+                : "We received your quote request. Gorilla Salem will review your artwork, timeline, and details before production."}
             </p>
           </div>
+
+          {payUrl && (
+            <div className="mt-8 border-2 border-[var(--ink-black)] bg-[var(--surface-ok)] p-6 text-center">
+              <a
+                href={payUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block w-full border-2 border-[var(--gorilla-green)] bg-[var(--gorilla-green)] px-8 py-5 text-lede font-bold text-white transition-colors duration-[120ms] ease-linear hover:bg-[var(--paper)] hover:text-[var(--gorilla-green)] sm:w-auto"
+              >
+                Pay now
+                {typeof payAmount === "number" && payAmount > 0
+                  ? ` — $${payAmount.toFixed(2)}`
+                  : ""}
+              </a>
+
+              <p className="mt-4 text-fine font-bold leading-6 text-[var(--ink-black)]">
+                Includes {SALES_TAX.label}. We&rsquo;ll send a proof before
+                printing — if we can&rsquo;t print your artwork, you get a full
+                refund.
+              </p>
+
+              <p className="spec mt-2 text-spec text-[var(--ink-muted)]">
+                Payment link also emailed to you
+              </p>
+            </div>
+          )}
 
           <div className="mt-8 bg-[var(--shirt-blank)] p-6 text-center">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--ink-muted)]">

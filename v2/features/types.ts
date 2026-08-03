@@ -1,9 +1,21 @@
 // Shared types for the quote-builder feature components.
 
+/**
+ * Present and `ready` only for stickers, the one flow that prices itself
+ * completely and so can take payment without the shop looking first.
+ */
+export type StickerCheckout = {
+  ready: boolean;
+  payUrl?: string;
+  amount?: number;
+  error?: string;
+};
+
 export type QuoteConfirmation = {
   quoteNumber: string;
   receivedAt: string;
   message: string;
+  checkout?: StickerCheckout | null;
 };
 
 export type SsCatalogSize = {

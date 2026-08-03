@@ -889,6 +889,8 @@ export default function Home() {
         quoteNumber: result.quoteNumber,
         receivedAt: result.receivedAt,
         message: result.message,
+        // Stickers only, and null whenever Printavo was unreachable.
+        checkout: result.checkout ?? null,
       });
 
       setSubmittedProductId(selectedProductId);

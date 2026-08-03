@@ -1,4 +1,10 @@
-// Signs & Banners pricing — taken from Gorilla Salem's in-shop price boards.
+// Signs & Banners pricing — taken from Gorilla Salem's in-shop price boards,
+// then raised 10% on 2026-08-02 and rounded up to the nearest $0.50. The
+// printed shop boards still show the pre-raise rates and will not match this
+// file until they are reprinted.
+//
+// The two banner finishing add-ons (pole pockets, wind slits) are EXCLUDED
+// from that raise — see the note on `addOns` below.
 //
 // EDIT PRICES HERE. Nothing else needs to change when rates move.
 //
@@ -40,33 +46,33 @@ export const signsPricingConfig = {
    * (Yard signs are not included — their table already has its own
    * double-sided column.)
    */
-  doubleSidedPerSqft: 7.7,
+  doubleSidedPerSqft: 8,
   doubleSidedMethods: ["rigid", "banner"] as const,
 
   // ---------------- Corrugated / yard signs (priced per unit) -------------
   yardSigns: {
-    stepStakePerSign: 2.2,
+    stepStakePerSign: 2.5,
 
     sizes: {
       '18" x 24"': {
-        singleUnitPrice: 30.8,
+        singleUnitPrice: 31,
         tiers: [
-          { minQuantity: 30, single: 11, double: 17.6 },
-          { minQuantity: 20, single: 12.1, double: 18.7 },
-          { minQuantity: 10, single: 13.2, double: 19.8 },
-          { minQuantity: 6, single: 15.4, double: 22 },
-          { minQuantity: 2, single: 25.3, double: 44 },
+          { minQuantity: 30, single: 11, double: 18 },
+          { minQuantity: 20, single: 12.5, double: 19 },
+          { minQuantity: 10, single: 13.5, double: 20 },
+          { minQuantity: 6, single: 15.5, double: 22 },
+          { minQuantity: 2, single: 25.5, double: 44 },
         ],
       },
       '24" x 36"': {
-        singleUnitPrice: 35.2,
+        singleUnitPrice: 35.5,
         tiers: [
-          { minQuantity: 40, single: 13.75, double: 16.5 },
-          { minQuantity: 30, single: 14.85, double: 18.15 },
-          { minQuantity: 20, single: 16.5, double: 20.9 },
-          { minQuantity: 10, single: 24.2, double: 29.7 },
-          { minQuantity: 6, single: 31.9, double: 42.9 },
-          { minQuantity: 2, single: 34.1, double: 55 },
+          { minQuantity: 40, single: 14, double: 16.5 },
+          { minQuantity: 30, single: 15, double: 18.5 },
+          { minQuantity: 20, single: 16.5, double: 21 },
+          { minQuantity: 10, single: 24.5, double: 30 },
+          { minQuantity: 6, single: 32, double: 43 },
+          { minQuantity: 2, single: 34.5, double: 55 },
         ],
       },
     } as Record<string, YardSignSizePricing>,
@@ -78,29 +84,29 @@ export const signsPricingConfig = {
      * Fallback rate, used for any banner material without an explicit rate
      * below. Includes hems + standard grommets.
      */
-    perSqft: 8.8,
+    perSqft: 9,
 
     /**
      * Per-material rates. Banners used to be a single flat rate regardless of
      * material — this mirrors the rigid.perSqftByMaterial pattern so heavier
      * stock can carry its own price.
      *
-     * 18 oz is the standard rate + $3.30/sqft (was +$3 before the 10% raise).
+     * 18 oz is the standard rate + $3.50/sqft (was +$3 before the raise).
      */
     perSqftByMaterial: {
-      "13 oz Scrim Vinyl": 8.8,
-      "18 oz Heavy Duty Vinyl": 12.1, // standard rate + $3.30/sqft
-      "Mesh Vinyl (windy areas)": 8.8, // same as 13 oz
+      "13 oz Scrim Vinyl": 9,
+      "18 oz Heavy Duty Vinyl": 12.5, // standard rate + $3.50/sqft
+      "Mesh Vinyl (windy areas)": 9, // same as 13 oz
     } as Record<string, number>,
 
     /**
      * The sqft rate includes hems. 18 oz is heavy enough not to need them, so
-     * skipping the hem credits back the labour: $2.20 per linear foot of edge,
+     * skipping the hem credits back the labour: $2.50 per linear foot of edge,
      * i.e. the banner's perimeter, per banner.
      *
-     * A 3' x 6' banner has an 18 ft perimeter, so the credit is $39.60.
+     * A 3' x 6' banner has an 18 ft perimeter, so the credit is $45.
      */
-    noHemCreditPerLinearFoot: 2.2,
+    noHemCreditPerLinearFoot: 2.5,
 
     /** The finishing option that means "no hem" (must match signs.ts). */
     noHemFinishingLabel: "No Hem or Grommets",
@@ -140,17 +146,21 @@ export const signsPricingConfig = {
 
     /**
      * Finishing add-ons. Hems and standard grommets are INCLUDED in the sqft
-     * rate. The shop board reads "$8 per sqft — includes grommets"; these are
-     * the board rates plus the 10% raise of 2026-08-02, so the board and this
-     * file will not match until the board is reprinted.
+     * rate.
      *
-     *   pole pockets  $16.50 flat per banner
-     *   wind slits    $6.60 flat per banner
+     * These two came from market research rather than the shop board, and are
+     * DELIBERATELY EXCLUDED from the 10% raise of 2026-08-02 — Gabe confirmed
+     * them as Gorilla's own rates in v3.14.0 and asked to leave them as they
+     * are. Do not sweep them into a future across-the-board raise without
+     * asking.
+     *
+     *   pole pockets  $15 flat per banner
+     *   wind slits    $6 flat per banner
      *   webbing/D-rings/rope: quoted by hand, recommended over ~100 sqft
      */
     addOns: {
-      polePockets: { label: "Pole Pockets", flat: 16.5, quoteByHand: false },
-      windSlits: { label: "Wind Slits", flat: 6.6, quoteByHand: false },
+      polePockets: { label: "Pole Pockets", flat: 15, quoteByHand: false },
+      windSlits: { label: "Wind Slits", flat: 6, quoteByHand: false },
       reinforcedWebbing: {
         label: "Webbing / D-Rings / Rope",
         flat: 0,
@@ -169,8 +179,8 @@ export const signsPricingConfig = {
   rigid: {
     // Price per square foot by material, from the rigid sign board.
     perSqftByMaterial: {
-      'PVC 1/8"': 8.8,
-      'Corrugated 1/4"': 8.8,
+      'PVC 1/8"': 9,
+      'Corrugated 1/4"': 9,
 
       'Dibond 1/8"': 11,
       'PVC 1/4"': 11,
@@ -178,14 +188,14 @@ export const signsPricingConfig = {
       "Aluminum 040": 11,
       'Corrugated 1/2"': 11,
 
-      'PVC 1/2"': 13.2,
-      'AlumaCorr 0.4"': 13.2,
-      "Aluminum 080": 13.2,
-      'Dibond 1/4"': 13.2,
+      'PVC 1/2"': 13.5,
+      'AlumaCorr 0.4"': 13.5,
+      "Aluminum 080": 13.5,
+      'Dibond 1/4"': 13.5,
     } as Record<string, number>,
 
     /** Added per square foot when printed both sides. */
-    doubleSidedPerSqft: 7.7,
+    doubleSidedPerSqft: 8,
   },
 
   /** Shown on every signs estimate. */

@@ -1,6 +1,11 @@
 "use client";
 
 import StickerPreview from "../../components/preview/StickerPreview";
+import {
+  getStickerGeometry,
+  inchLabel,
+  parseSizeInches,
+} from "../../components/preview/StickerShape";
 import type { Product, Production } from "../../types/order";
 
 type Props = {
@@ -19,6 +24,14 @@ export default function DecalPreviewCard({
   onUpdateProduct,
 }: Props) {
   const isDieCut = product.shape === "Die Cut";
+
+  // Real inches, derived from the same geometry the preview renders with.
+  const geometry = getStickerGeometry({
+    shape: product.shape,
+    artScale: product.artScale,
+    artMargin: product.artMargin,
+    sizeInches: parseSizeInches(product.size),
+  });
   return (
     <div className=" border border-[var(--rule)] bg-white p-5 sm:p-8">
       <div className="flex items-center justify-between">
@@ -56,7 +69,12 @@ export default function DecalPreviewCard({
         <label className="mt-3 block">
           <span className="flex items-center justify-between text-sm font-bold text-[var(--ink-black)]">
             <span>Art Size</span>
-            <span className="text-[var(--gorilla-green)]">{product.artScale}%</span>
+            {/* Inches, not percent — "80%" means nothing on a 3" sticker. */}
+            <span className="spec text-[var(--gorilla-green)]">
+              {geometry.artInches > 0
+                ? inchLabel(geometry.artInches)
+                : `${product.artScale}%`}
+            </span>
           </span>
           {/* Ceiling is 150, not 100. The shaped preview sizes art against an
               inscribed-square safe area — 70.7% of the diameter on a circle —
@@ -84,7 +102,9 @@ export default function DecalPreviewCard({
         <label className="mt-3 block">
           <span className="flex items-center justify-between text-sm font-bold text-[var(--ink-black)]">
             <span>{isDieCut ? "Cut Border" : "Margin"}</span>
-            <span className="text-[var(--gorilla-green)]">{product.artMargin}%</span>
+            <span className="spec text-[var(--gorilla-green)]">
+              {inchLabel(geometry.borderInches)}
+            </span>
           </span>
           <input
             type="range"

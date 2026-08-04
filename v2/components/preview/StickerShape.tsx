@@ -32,6 +32,60 @@ function getMaterialClasses(material: string) {
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
+/** The card is 256px and represents the sticker's ordered size. */
+export const CARD_PX = 256;
+
+/** '3"' -> 3. Returns 0 when the size can't be read. */
+export function parseSizeInches(size: string) {
+  const match = String(size || "").match(/([\d.]+)/);
+  return match ? Number(match[1]) : 0;
+}
+
+/**
+ * Art and border dimensions in REAL INCHES.
+ *
+ * Exported so the sliders can label themselves in inches using exactly the
+ * geometry the preview renders with. Duplicating these constants in the UI
+ * would let the number a customer reads drift from the sticker they get.
+ */
+export function getStickerGeometry(input: {
+  shape: string;
+  artScale: number;
+  artMargin: number;
+  sizeInches: number;
+}) {
+  const scale = clamp(input.artScale, 20, 150);
+  const margin = clamp(input.artMargin, 0, 100);
+  const pxPerInch = input.sizeInches > 0 ? CARD_PX / input.sizeInches : 0;
+
+  if (input.shape === "Die Cut") {
+    // The contour hugs the art, so the meaningful figure is the border width.
+    const borderPx = Math.round((margin / 100) * 16);
+    return {
+      artInches: 0,
+      borderInches: pxPerInch ? borderPx / pxPerInch : 0,
+    };
+  }
+
+  const safeAreaFactor =
+    input.shape === "Circle" ? 0.707 : input.shape === "Rounded Square" ? 0.88 : 0.96;
+  const marginPx = (margin / 100) * 34;
+  const artSizePx = Math.max(
+    24,
+    (CARD_PX - marginPx * 2) * safeAreaFactor * (scale / 100)
+  );
+
+  return {
+    artInches: pxPerInch ? artSizePx / pxPerInch : 0,
+    borderInches: pxPerInch ? marginPx / pxPerInch : 0,
+  };
+}
+
+/** 2.96 -> "2.96\"", 0.16 -> "0.16\"". Two decimals reads as a real measurement. */
+export function inchLabel(inches: number) {
+  return `${inches.toFixed(2)}"`;
+}
+
 // Must match --cut-line in globals.css and isMagentaPixel() in lib/artwork.ts.
 // Literal rather than var() because this is interpolated into a drop-shadow()
 // filter chain built as a string.
@@ -174,7 +228,10 @@ export default function StickerShape({
   // the cut edge. A square inscribed in a circle is only ~70.7% of the
   // diameter, so a circle needs a much tighter safe area than a square —
   // sizing by plain percentage is what made art run off the round shapes.
-  const CARD_PX = 256; // h-64 / w-64
+  //
+  // These are the same three lines getStickerGeometry() uses. They stay here
+  // rather than calling it because this branch needs the PIXELS while the
+  // sliders need the INCHES; if either changes, change both.
   const safeAreaFactor =
     shape === "Circle" ? 0.707 : shape === "Rounded Square" ? 0.88 : 0.96;
   const marginPx = (margin / 100) * 34;

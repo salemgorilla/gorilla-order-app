@@ -58,10 +58,16 @@ export default function DecalPreviewCard({
             <span>Art Size</span>
             <span className="text-[var(--gorilla-green)]">{product.artScale}%</span>
           </span>
+          {/* Ceiling is 150, not 100. The shaped preview sizes art against an
+              inscribed-square safe area — 70.7% of the diameter on a circle —
+              so a 100% cap physically could not reach the cut edge. ~141%
+              fills a circle exactly; the rest is bleed, which the shape clips
+              via overflow-hidden. The safe area itself is deliberately left
+              alone: it is what stops square art clipping at the corners. */}
           <input
             type="range"
             min={40}
-            max={100}
+            max={150}
             step={5}
             value={product.artScale}
             onChange={(event) =>
@@ -69,6 +75,10 @@ export default function DecalPreviewCard({
             }
             className="mt-1 w-full accent-[var(--gorilla-green)]"
           />
+          <span className="mt-1 block text-fine leading-5 text-[var(--ink-muted)]">
+            Past 100% the art runs to the cut edge and bleeds — normal for
+            round art that should fill the sticker.
+          </span>
         </label>
 
         <label className="mt-3 block">

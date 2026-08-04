@@ -5,7 +5,7 @@ type Props = {
   material?: string;
   finish?: string;
   artworkPreview: string | null;
-  artScale?: number; // 20–100: how large the art is within the sticker
+  artScale?: number; // 20–150: how large the art is within the sticker
   artMargin?: number; // 0–100: die-cut border width / shape margin
   magentaCutLine?: boolean; // show the customer's magenta cut edge
 };
@@ -106,7 +106,13 @@ export default function StickerShape({
   const isClear = material === "Clear Vinyl";
   const isDieCut = shape === "Die Cut";
 
-  const scale = clamp(artScale, 20, 100);
+  // Ceiling 150, matching the slider. The shaped branch sizes art against an
+  // inscribed-square safe area (0.707 on a circle), so a ceiling of 100 could
+  // only ever reach ~63% of the diameter and round art could never fill the
+  // sticker. Past ~141% the art meets the cut edge and bleeds, which the card
+  // clips via overflow-hidden. The safe-area factors are NOT touched — they
+  // are what keeps square art off the corners at normal sizes.
+  const scale = clamp(artScale, 20, 150);
   const margin = clamp(artMargin, 0, 100);
 
   // A square art box, `scale`% of the available area, that always centers its

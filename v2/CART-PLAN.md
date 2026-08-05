@@ -90,6 +90,34 @@ Found during the design pass, all pre-existing:
 4. **Magenta auto-detect forces `magentaCutLine` onto the single product** —
    must apply to the item the file belongs to.
 
+## Also agreed: attach the rendered proof to the shop email
+
+Gabe wants the email to carry BOTH the customer's original artwork AND the
+app's proof, so there is a record of what the customer actually saw and
+approved.
+
+The proof is not an image today. It is rendered live in the browser from
+stacked CSS `drop-shadow()` filters reading the artwork's alpha channel — that
+is how the die-cut contour hugs the shape. There is nothing to attach.
+
+**Approach: redraw it on a canvas, export a PNG.**
+
+- Do NOT use a DOM-screenshot library. `filter: drop-shadow()` chains are
+  exactly what those handle worst, and the contour is the whole point.
+- The contour reproduces directly: draw the artwork 8 times at the offsets in
+  `OUTLINE_DIRS`, scaled by `borderPx`, filled with `STICKER_EDGE`, then draw
+  the artwork on top. That is literally what the CSS does.
+- Shaped stickers are simpler: fill the card at `cardW x cardH`, clip to the
+  shape, draw the art at `artSizePx`.
+- Export via `canvas.toBlob()` and append as a second form part, e.g.
+  `proof:${item.id}`, so it rides the same item-keyed convention as the
+  artwork files.
+- Attach as `proof-<quoteNumber>.png`. Counts against the same attachment
+  budget as the artwork — see the 15 MB / running-total note above.
+
+Build this WITH the cart, not before it. Both land on the same submit path,
+and doing them separately means migrating that path twice.
+
 ## Out of scope for v1
 
 - Mixed carts (stickers + signs + apparel)

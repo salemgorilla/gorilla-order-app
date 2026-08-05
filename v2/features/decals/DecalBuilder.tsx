@@ -2,7 +2,7 @@
 
 import QuantitySelector from "../../components/QuantitySelector";
 import OptionSelector from "../../components/OptionSelector";
-import { stickerCatalog } from "../../lib/catalog";
+import { CUSTOM_STICKER_SIZE, stickerCatalog } from "../../lib/catalog";
 import { DECAL_SHIPPING_PRICE } from "../../lib/pricing";
 import type { DeliveryMethod, Product } from "../../types/order";
 
@@ -55,10 +55,78 @@ export default function DecalBuilder({
 
       <OptionSelector
         title="Size"
-        options={stickerCatalog.sizes}
+        options={[...stickerCatalog.sizes, CUSTOM_STICKER_SIZE]}
         selected={product.size}
-        onSelect={(size) => onUpdate({ size })}
+        onSelect={(size) =>
+          // Picking a preset clears any dimensions, so the two can never
+          // disagree about what is being priced.
+          onUpdate(
+            size === CUSTOM_STICKER_SIZE
+              ? { size }
+              : { size, widthInches: 0, heightInches: 0 }
+          )
+        }
       />
+
+      {product.size === CUSTOM_STICKER_SIZE && (
+        <div className="border border-[var(--rule)] bg-[var(--shirt-blank)] p-4">
+          <p className="text-sm font-bold text-[var(--ink-black)]">
+            Your size, in inches
+          </p>
+
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div>
+              <label
+                htmlFor="sticker-width"
+                className="block text-fine font-bold text-[var(--ink-black)]"
+              >
+                Width
+              </label>
+              <input
+                id="sticker-width"
+                type="number"
+                inputMode="decimal"
+                min={0.25}
+                step={0.25}
+                value={product.widthInches || ""}
+                onChange={(event) =>
+                  onUpdate({ widthInches: Number(event.target.value) || 0 })
+                }
+                className="spec mt-1 w-full border border-[var(--rule)] bg-[var(--paper)] p-3 text-lede transition-colors duration-[120ms] ease-linear hover:border-[var(--ink-black)]"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="sticker-height"
+                className="block text-fine font-bold text-[var(--ink-black)]"
+              >
+                Height
+              </label>
+              <input
+                id="sticker-height"
+                type="number"
+                inputMode="decimal"
+                min={0.25}
+                step={0.25}
+                value={product.heightInches || ""}
+                onChange={(event) =>
+                  onUpdate({ heightInches: Number(event.target.value) || 0 })
+                }
+                className="spec mt-1 w-full border border-[var(--rule)] bg-[var(--paper)] p-3 text-lede transition-colors duration-[120ms] ease-linear hover:border-[var(--ink-black)]"
+              />
+            </div>
+          </div>
+
+          <p className="mt-3 text-fine leading-5 text-[var(--ink-muted)]">
+            {product.widthInches > 0 && product.heightInches > 0
+              ? `${(product.widthInches * product.heightInches).toFixed(
+                  2
+                )} sq in each. Priced on area, so any size works — no rounding to a preset.`
+              : "Enter both and the price updates. Any size works — you're charged on area."}
+          </p>
+        </div>
+      )}
 
       <OptionSelector
         title="Shape"

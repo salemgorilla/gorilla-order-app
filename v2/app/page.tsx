@@ -29,7 +29,11 @@ import { calculateSignsPricing } from "../lib/signs-pricing";
 import { productCategories } from "../lib/products";
 import { defaultOrder } from "../lib/order";
 import { AddOnOffer, toAddOn } from "../lib/addons";
-import { getShippingPrice, getStickerPrice } from "../lib/pricing";
+import {
+  describeStickerSize,
+  getShippingPrice,
+  getStickerPrice,
+} from "../lib/pricing";
 import { calculateApparelPricing } from "../lib/apparel-pricing";
 import { apparelCatalogStyles } from "../lib/apparel-catalog";
 import { getOrderValidationErrors } from "../lib/validation";
@@ -259,7 +263,13 @@ export default function Home() {
     }
 
     return {
-      label: `${order.product.quantity} × ${order.product.size} ${order.product.shape} stickers`,
+      label: `${order.product.quantity} × ${describeStickerSize(
+        order.product.size,
+        {
+          widthInches: order.product.widthInches,
+          heightInches: order.product.heightInches,
+        }
+      )} ${order.product.shape} stickers`,
       total: order.pricing.total,
       priceable: true,
       detail: `$${(
@@ -472,7 +482,11 @@ export default function Home() {
       nextOrder.product.quantity,
       nextOrder.product.material,
       finish,
-      nextOrder.product.size
+      nextOrder.product.size,
+      {
+        widthInches: nextOrder.product.widthInches,
+        heightInches: nextOrder.product.heightInches,
+      }
     );
 
     const shippingPrice = getShippingPrice(nextOrder.production.deliveryMethod);

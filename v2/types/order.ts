@@ -13,7 +13,15 @@ export type Customer = {
 export type Product = {
   type: string;
   quantity: number;
+  /** Preset label, e.g. '3"', or CUSTOM_STICKER_SIZE when dimensions are used. */
   size: string;
+  /**
+   * Real dimensions. Price is area x rate, so these are what actually drive
+   * cost — the preset `size` is just a shortcut that fills them in as a square.
+   * 0 means "not set, fall back to the preset".
+   */
+  widthInches: number;
+  heightInches: number;
   shape: string;
   material: string;
   finish: string;

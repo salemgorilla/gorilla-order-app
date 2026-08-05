@@ -5,6 +5,9 @@ const initialProduct = {
   type: "Custom Stickers",
   quantity: 100,
   size: '3"',
+  // 0 = use the preset size. Set when the customer enters real dimensions.
+  widthInches: 0,
+  heightInches: 0,
   shape: "Die Cut",
   material: "Gloss White Vinyl",
   finish: "Gloss",

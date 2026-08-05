@@ -1,3 +1,6 @@
+/** Chosen when the customer enters their own width and height. */
+export const CUSTOM_STICKER_SIZE = "Custom size";
+
 export const stickerCatalog = {
   // Re-centred 2026-08-04 on how the shop actually sells: real orders are 100,
   // 200 and 500. 250 retired in favour of 200 and 300; 2500/5000 kept but they

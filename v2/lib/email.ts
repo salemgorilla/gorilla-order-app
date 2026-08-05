@@ -169,7 +169,14 @@ export function buildQuoteEmail(input: {
     productLines.push(
       line("Type", "Custom Stickers"),
       line("Quantity", String(quantity)),
-      line("Size", str(product.size)),
+      // Real dimensions when the customer entered them — "Custom size" on its
+      // own is not something the shop can cut.
+      line(
+        "Size",
+        Number(product.widthInches) > 0 && Number(product.heightInches) > 0
+          ? `${product.widthInches}" x ${product.heightInches}"`
+          : str(product.size)
+      ),
       line("Shape", str(product.shape)),
       line("Sticker Type", str(product.material)),
       line(

@@ -44,14 +44,25 @@ export function parseStickerSizeInches(size: string | number) {
   return match ? Number(match[1]) : 0;
 }
 
+/** Real dimensions, when the customer has entered them. */
+export type StickerDimensions = {
+  widthInches: number;
+  heightInches: number;
+};
+
 /**
  * Area in square inches, taken as the bounding box.
  *
- * The shop's matrix assumes a square sticker and says to use the bounding box
- * for irregular shapes, so a circle is priced on the square it is cut from —
- * which is also what actually gets consumed off the roll.
+ * Real width x height when supplied; otherwise the preset size treated as a
+ * square. The shop's matrix says to use the bounding box for irregular
+ * shapes, so a circle is priced on the square it is cut from — which is also
+ * what actually comes off the roll.
  */
-function getAreaSqIn(size: string | number) {
+function getAreaSqIn(size: string | number, dims?: StickerDimensions) {
+  const w = Number(dims?.widthInches) || 0;
+  const h = Number(dims?.heightInches) || 0;
+  if (w > 0 && h > 0) return w * h;
+
   const inches = parseStickerSizeInches(size);
   return inches > 0 ? inches * inches : 0;
 }
@@ -80,10 +91,11 @@ export function getStickerPrice(
   quantity: number,
   material: string,
   finish: string,
-  size?: string
+  size?: string,
+  dims?: StickerDimensions
 ) {
   const qty = Math.max(1, Math.floor(quantity || 0));
-  const area = getAreaSqIn(size ?? '3"');
+  const area = getAreaSqIn(size ?? '3"', dims);
 
   const materialPerSticker =
     area * MATERIAL_RATE_PER_SQ_IN *
@@ -99,8 +111,16 @@ export function getStickerUnitPrice(
   quantity: number,
   material: string,
   finish: string,
-  size?: string
+  size?: string,
+  dims?: StickerDimensions
 ) {
   const qty = Math.max(1, Math.floor(quantity || 0));
-  return getStickerPrice(qty, material, finish, size) / qty;
+  return getStickerPrice(qty, material, finish, size, dims) / qty;
+}
+
+/** "2 x 6 in" or '3"' — whichever the customer actually chose. */
+export function describeStickerSize(size: string, dims?: StickerDimensions) {
+  const w = Number(dims?.widthInches) || 0;
+  const h = Number(dims?.heightInches) || 0;
+  return w > 0 && h > 0 ? `${w}" x ${h}"` : size;
 }

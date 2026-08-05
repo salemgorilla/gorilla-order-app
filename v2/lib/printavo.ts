@@ -741,7 +741,12 @@ export function buildPrintavoQuotePlan(input: {
       ].join("\n")
     : [
         `${quantity}x Custom Stickers`,
-        `Size: ${str(product.size, "TBD")}`,
+        // Real dimensions when entered — the shop cannot cut a "Custom size".
+        `Size: ${
+          num(product.widthInches) > 0 && num(product.heightInches) > 0
+            ? `${num(product.widthInches)}in x ${num(product.heightInches)}in`
+            : str(product.size, "TBD")
+        }`,
         `Shape: ${str(product.shape, "TBD")}`,
         `Type: ${str(product.material, "TBD")}`,
         `Art placement: ${str(product.artScale, "80")}% size, ${str(

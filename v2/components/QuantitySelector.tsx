@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import Chip from "./ui/Chip";
-import { STICKER_MIN_QUANTITY } from "../lib/pricing";
+import { STICKER_SETUP_FEE } from "../lib/pricing";
 
 type Props = {
   quantities: number[];
@@ -68,8 +68,9 @@ export default function QuantitySelector({
           />
 
           <p className="mt-2 text-fine leading-5 text-[var(--ink-muted)]">
-            Priced at the rate of the price break below your amount. Orders
-            under {STICKER_MIN_QUANTITY} are priced as {STICKER_MIN_QUANTITY}.
+            Any amount is priced exactly — no rounding to a price break. The
+            ${STICKER_SETUP_FEE} setup is split across your order, so the more
+            you order the less each one costs.
           </p>
         </div>
       )}

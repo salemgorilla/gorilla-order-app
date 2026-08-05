@@ -1,98 +1,63 @@
-/**
- * Sticker price breaks — TOTAL price at 3", the reference size.
- *
- * Rebuilt 2026-08-04 against a benchmark of verified national prices for 3"
- * die-cut white vinyl (Sticker Mule, StickerGiant, StickerApp, Vistaprint,
- * UPrinting, PrintRunner, Sticker Ninja, CustomStickers).
- *
- * WHAT CHANGED AND WHY:
- *
- * Re-centred on how Gorilla actually sells. Real orders are 100, 200 and 500;
- * 1000+ is rare. The old ladder had three of its seven rungs at 1000/2500/5000
- * and no rung at 200 or 300 at all.
- *
- *   50    $65 -> $55    was +16% over market median, 7th cheapest of 9
- *   100   $89 -> $70    was +11% over median and the most exposed rung in the
- *                       catalogue; a verified competitor lists 100 at $46.99
- *   200   NEW $110      previously fell into the custom-quantity rule and
- *                       priced at $178 - more than the 250 rung cost
- *   300   NEW $144
- *   500   $156 -> $160  barely moved: at $0.312/ea this was already 2nd
- *                       cheapest of nine nationals. It was winning.
- *   1000  $278 unchanged
- *   2500  $760 -> $600  the old curve went UP per sticker above 1000
- *   5000  $1541 -> $1100  ...and up again. No benchmarked vendor does this;
- *                       all seven checked are strictly monotonic. At the old
- *                       rate the shop charged more per sticker than it would
- *                       cost to buy the job from a retail vendor and resell it.
- *
- * The 250 rung is retired in favour of 200 and 300, which match real orders.
- *
- * These totals are a PROPOSAL built from market position, not from Gorilla's
- * own cost data - which the shop has not supplied. Sanity-check 100 and 500
- * against actual cost before treating them as final.
- */
-const baseStickerPrices: Record<number, number> = {
-  50: 55,
-  100: 70,
-  200: 110,
-  300: 144,
-  500: 160,
-  1000: 278,
-  2500: 600,
-  5000: 1100,
-};
+// Sticker pricing — formula, not a lookup table.
+//
+// Supplied by Gorilla Salem 2026-08-05:
+//
+//   price per sticker = (area in sq in x $0.032) + ($25 / quantity)
+//
+// Material is area-based, and one flat $25 setup fee is amortised across the
+// order. That is why small runs cost more per sticker.
+//
+// This replaces the old seven-rung table and its material multipliers. Three
+// things fall out of it for free that the table could never do:
+//
+//   - ANY quantity prices correctly, so the custom quantity field needs no
+//     special "rate of the break below" rule
+//   - ANY size prices correctly, which unblocks a custom size field
+//   - the per-sticker curve is ALWAYS monotonic, because material is constant
+//     and setup only ever amortises further. The old table went UP per
+//     sticker above 1000; that class of bug is now impossible.
+//
+// Matte and gloss cost the same. Shape does not change price — area is taken
+// as the bounding box (size x size), matching the shop's own reference matrix.
+
+/** Material cost per square inch. */
+const MATERIAL_RATE_PER_SQ_IN = 0.032;
+
+/** Flat setup, once per order, amortised across the quantity. */
+export const STICKER_SETUP_FEE = 25;
 
 /**
- * Size multiplier, against 3" as the reference.
+ * Chrome and holographic: 60% markup over standard vinyl.
  *
- * Price did not vary by size at all before this — a 6" cost the same as a 2",
- * which is why a custom size field could not safely be offered. Benchmarked
- * nationals vary roughly 1.6x across their size range.
- *
- * Deliberately NOT pure area (a 6" is 4x the area of a 3"): setup, artwork,
- * proofing and handling are per-job, not per-square-inch, so material is the
- * only input that scales with area. These are dampened accordingly.
- *
- * PROPOSAL, same caveat as the ladder above — easy to retune, one line each.
+ * Applied to the MATERIAL portion only, not the setup fee — the setup labour
+ * is identical whichever substrate goes on the machine. On 100 x 3" that is
+ * $71 rather than the $86 a markup on the whole price would give. One line to
+ * change if the shop wants it on the total instead.
  */
-const sizeMultipliers: Record<string, number> = {
-  '2"': 0.75,
-  '3"': 1.0, // reference
-  '4"': 1.35,
-  '5"': 1.75,
-  '6"': 2.2,
-};
+const PREMIUM_MATERIAL_MARKUP = 1.6;
+const PREMIUM_MATERIALS = ["Chrome", "Holographic"];
 
-/** Falls back to the 3" reference for an unlisted or custom size. */
-function getSizeMultiplier(size: string) {
-  return sizeMultipliers[String(size).trim()] ?? 1;
+/** '3"' -> 3. Handles plain numbers and stray quotes. */
+export function parseStickerSizeInches(size: string | number) {
+  if (typeof size === "number") return size;
+  const match = String(size || "").match(/([\d.]+)/);
+  return match ? Number(match[1]) : 0;
 }
 
-function getMaterialMultiplier(material: string) {
-  // Clear Vinyl is no longer offered (removed from catalog.ts 2026-08-04), but
-  // its multiplier stays so an existing Printavo quote that names it still
-  // reprices to the same number it was originally quoted at.
-  if (material === "Clear Vinyl") {
-    return 1.15;
-  }
-
-  if (material === "Holographic") {
-    return 1.35;
-  }
-
-  if (material === "Chrome") {
-    return 1.3;
-  }
-
-  return 1;
+/**
+ * Area in square inches, taken as the bounding box.
+ *
+ * The shop's matrix assumes a square sticker and says to use the bounding box
+ * for irregular shapes, so a circle is priced on the square it is cut from —
+ * which is also what actually gets consumed off the roll.
+ */
+function getAreaSqIn(size: string | number) {
+  const inches = parseStickerSizeInches(size);
+  return inches > 0 ? inches * inches : 0;
 }
 
-function getFinishMultiplier(finish: string) {
-  // White vinyl finish is now selected as the decal type:
-  // Gloss White Vinyl or Matte White Vinyl.
-  // Kept for compatibility with older order data.
-  return 1;
+function isPremiumMaterial(material: string) {
+  return PREMIUM_MATERIALS.includes(String(material).trim());
 }
 
 // Flat shipping for mailed decal orders. Local pickup is free.
@@ -102,69 +67,40 @@ export function getShippingPrice(deliveryMethod: string) {
   return deliveryMethod === "Ship" ? DECAL_SHIPPING_PRICE : 0;
 }
 
-/** The quantity breaks, ascending. Derived so the two can never drift. */
-const STICKER_TIERS = Object.keys(baseStickerPrices)
-  .map(Number)
-  .sort((a, b) => a - b);
-
-/** Smallest order the table prices. Anything under this pays this. */
-export const STICKER_MIN_QUANTITY = STICKER_TIERS[0];
-
 /**
- * Base price for ANY quantity, including ones off the tier table.
+ * Total price for the whole run.
  *
- * This used to be `baseStickerPrices[quantity] || baseStickerPrices[100]` — an
- * exact-match lookup with a silent fallback. Fine while the UI only offered
- * the seven tiers, but with an open quantity field it would have charged the
- * 100-sticker price for 137, 400, or 900. With self-checkout on, that
- * under-charge would go straight through to a real payment.
- *
- * Rules, in order:
- *   exact tier      the table price, unchanged — existing quotes must not move
- *   below the min   the minimum-order price (there is no break below 50)
- *   between tiers   the lower tier's per-sticker rate x quantity
- *   above the max   extrapolated at the top tier's per-sticker rate
- *
- * Confirmed by Gabe 2026-08-04: you pay the RATE of the break below, with no
- * cap. A consequence worth knowing — because the breaks are steep, a quantity
- * just under a break can cost more than the break itself. 137 prices at
- * $121.93 while 250 costs $118. That is intended: it is the same rule the
- * shop quotes by hand, and it nudges customers up to the next break.
+ * NOTE ON THE MISSING FLOOR: the shop's matrix says a minimum floor is
+ * "REMOVED for testing". Nothing here reinstates one, so small sizes at high
+ * quantities go very low — 5,000 x 1" comes to about $185, and 5,000 x 0.5"
+ * to about $65. Those are real prices this function will quote, and with
+ * sticker self-checkout enabled they would be charged automatically.
  */
-function getBaseStickerPrice(quantity: number) {
-  const qty = Math.max(1, Math.floor(quantity || 0));
-
-  const exact = baseStickerPrices[qty];
-  if (exact !== undefined) return exact;
-
-  const min = STICKER_TIERS[0];
-  const max = STICKER_TIERS[STICKER_TIERS.length - 1];
-
-  if (qty <= min) return baseStickerPrices[min];
-  if (qty >= max) return (baseStickerPrices[max] / max) * qty;
-
-  // The highest break at or below this quantity.
-  let lower = min;
-  for (const tier of STICKER_TIERS) {
-    if (tier <= qty) lower = tier;
-  }
-
-  return (baseStickerPrices[lower] / lower) * qty;
-}
-
 export function getStickerPrice(
   quantity: number,
   material: string,
   finish: string,
-  /** Optional so existing callers keep compiling; absent = the 3" reference. */
   size?: string
 ) {
-  const basePrice = getBaseStickerPrice(quantity);
-  const materialMultiplier = getMaterialMultiplier(material);
-  const finishMultiplier = getFinishMultiplier(finish);
-  const sizeMultiplier = getSizeMultiplier(size ?? '3"');
+  const qty = Math.max(1, Math.floor(quantity || 0));
+  const area = getAreaSqIn(size ?? '3"');
 
-  return Math.round(
-    basePrice * materialMultiplier * finishMultiplier * sizeMultiplier
-  );
+  const materialPerSticker =
+    area * MATERIAL_RATE_PER_SQ_IN *
+    (isPremiumMaterial(material) ? PREMIUM_MATERIAL_MARKUP : 1);
+
+  const total = materialPerSticker * qty + STICKER_SETUP_FEE;
+
+  return Math.round(total * 100) / 100;
+}
+
+/** Per-sticker price, for display. Derived, never a separate calculation. */
+export function getStickerUnitPrice(
+  quantity: number,
+  material: string,
+  finish: string,
+  size?: string
+) {
+  const qty = Math.max(1, Math.floor(quantity || 0));
+  return getStickerPrice(qty, material, finish, size) / qty;
 }

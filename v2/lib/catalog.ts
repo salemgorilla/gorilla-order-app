@@ -4,7 +4,10 @@ export const stickerCatalog = {
   // are rare. 200 previously had no button at all and fell into the custom
   // rule, which priced it at $178 while the 250 button cost $118.
   quantities: [50, 100, 200, 300, 500, 1000, 2500, 5000],
-  sizes: ['2"', '3"', '4"', '5"', '6"'],
+  // 0.5" and 1" added 2026-08-05. Both are on the shop's pricing sheet.
+  // NOTE: with no minimum floor these are the cheapest things in the
+  // catalogue by a wide margin — see the warning on getStickerPrice.
+  sizes: ['0.5"', '1"', '2"', '3"', '4"', '5"', '6"'],
   shapes: ["Die Cut", "Circle", "Square", "Rounded Square"],
   // Clear Vinyl removed 2026-08-04. Its pricing multiplier and its preview
   // rendering are deliberately KEPT — quotes already in Printavo reference it,

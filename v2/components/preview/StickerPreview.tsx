@@ -9,6 +9,9 @@ type Props = {
   artScale: number;
   artMargin: number;
   magentaCutLine: boolean;
+  /** Real dimensions, so a non-square sticker previews at its true shape. */
+  widthInches?: number;
+  heightInches?: number;
 };
 
 export default function StickerPreview({
@@ -20,6 +23,8 @@ export default function StickerPreview({
   artScale,
   artMargin,
   magentaCutLine,
+  widthInches = 0,
+  heightInches = 0,
 }: Props) {
   const proofType = shape === "Die Cut" ? "Contour Cut Proof" : `${shape} Proof`;
 
@@ -55,6 +60,8 @@ export default function StickerPreview({
             artScale={artScale}
             artMargin={artMargin}
             magentaCutLine={magentaCutLine}
+            widthInches={widthInches}
+            heightInches={heightInches}
           />
         </div>
 

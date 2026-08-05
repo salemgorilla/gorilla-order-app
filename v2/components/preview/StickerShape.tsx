@@ -6,6 +6,9 @@ type Props = {
   finish?: string;
   artworkPreview: string | null;
   artScale?: number; // 20–150: how large the art is within the sticker
+  /** Real dimensions, so a non-square sticker previews at its true shape. */
+  widthInches?: number;
+  heightInches?: number;
   artMargin?: number; // 0–100: die-cut border width / shape margin
   magentaCutLine?: boolean; // show the customer's magenta cut edge
 };
@@ -155,6 +158,8 @@ export default function StickerShape({
   artScale = 80,
   artMargin = 40,
   magentaCutLine = false,
+  widthInches = 0,
+  heightInches = 0,
 }: Props) {
   const isGloss = finish === "Gloss";
   const isClear = material === "Clear Vinyl";
@@ -232,12 +237,25 @@ export default function StickerShape({
   // These are the same three lines getStickerGeometry() uses. They stay here
   // rather than calling it because this branch needs the PIXELS while the
   // sliders need the INCHES; if either changes, change both.
+  // The card takes the sticker's real proportions. The longest side is always
+  // CARD_PX, so a 2x6 renders as a tall rectangle (or an oval, if the shape is
+  // Circle) rather than lying to the customer with a square.
+  const w = Number(widthInches) || 0;
+  const h = Number(heightInches) || 0;
+  const longest = Math.max(w, h);
+  const cardW = longest > 0 ? CARD_PX * (w / longest) : CARD_PX;
+  const cardH = longest > 0 ? CARD_PX * (h / longest) : CARD_PX;
+
+  // Art is sized against the TIGHT axis so it can never overflow the narrow
+  // side of a rectangle — the same reason the safe-area factor exists.
+  const fitPx = Math.min(cardW, cardH);
+
   const safeAreaFactor =
     shape === "Circle" ? 0.707 : shape === "Rounded Square" ? 0.88 : 0.96;
   const marginPx = (margin / 100) * 34;
   const artSizePx = Math.max(
     24,
-    (CARD_PX - marginPx * 2) * safeAreaFactor * (scale / 100)
+    (fitPx - marginPx * 2) * safeAreaFactor * (scale / 100)
   );
 
   return (
@@ -245,10 +263,15 @@ export default function StickerShape({
     // push the page wider than the viewport even if padding changes upstream.
     // The 256px card inside stays 256px, so artSizePx and CARD_PX are unaffected.
     <div className="relative mx-auto grid h-72 w-72 max-w-full place-items-center">
-      <div className={`absolute inset-3 ${rounded} bg-black/20 blur-xl`} />
-
+      {/* The blurred drop plate is gone: it was sized to the 288px stage, so a
+          narrow sticker got a halo far wider than itself. Republic bans blur
+          anyway — the card carries its own ring. */}
       <div
-        className={`relative grid h-64 w-64 place-items-center overflow-hidden ${rounded} ${materialClasses} shadow-2xl ring-8 ring-white`}
+        // Dimensions come from the sticker's real proportions, not a fixed
+        // square. h-64/w-64 is gone — cardW/cardH default to 256 when no
+        // dimensions are set, so preset sizes render exactly as before.
+        style={{ width: cardW, height: cardH }}
+        className={`relative grid place-items-center overflow-hidden ${rounded} ${materialClasses} shadow-2xl ring-8 ring-white`}
       >
         {isClear && (
           <div

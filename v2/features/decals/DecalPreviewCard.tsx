@@ -26,11 +26,20 @@ export default function DecalPreviewCard({
   const isDieCut = product.shape === "Die Cut";
 
   // Real inches, derived from the same geometry the preview renders with.
+  // The preview card maps CARD_PX to the LONGEST side, so the inch scale is
+  // set by that dimension. On a custom size the preset label is "Custom size"
+  // and parses to 0, which would have shown every measurement as 0.00".
+  const longestInches = Math.max(
+    Number(product.widthInches) || 0,
+    Number(product.heightInches) || 0,
+    0
+  );
+
   const geometry = getStickerGeometry({
     shape: product.shape,
     artScale: product.artScale,
     artMargin: product.artMargin,
-    sizeInches: parseSizeInches(product.size),
+    sizeInches: longestInches || parseSizeInches(product.size),
   });
   return (
     <div className=" border border-[var(--rule)] bg-white p-5 sm:p-8">
@@ -59,6 +68,8 @@ export default function DecalPreviewCard({
         artScale={product.artScale}
         artMargin={product.artMargin}
         magentaCutLine={product.magentaCutLine}
+        widthInches={product.widthInches}
+        heightInches={product.heightInches}
       />
 
       <div className="mt-4 bg-[var(--shirt-blank)] p-4">

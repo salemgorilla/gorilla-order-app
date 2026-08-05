@@ -94,6 +94,13 @@ export function inchLabel(inches: number) {
 // filter chain built as a string.
 const MAGENTA = "#ff00ff";
 
+/**
+ * The die-cut edge. Light grey rather than the literal white of the vinyl,
+ * because the proof stage behind it is white paper and a white-on-white edge
+ * cannot be seen. Reads as white stock, but the cut line is visible.
+ */
+const STICKER_EDGE = "#e6e4de";
+
 const OUTLINE_DIRS = [
   [1, 0],
   [-1, 0],
@@ -117,7 +124,13 @@ function stickerOutline(borderPx: number, magentaCutLine = false) {
   if (borderPx > 0) {
     layers.push(
       ...OUTLINE_DIRS.map(
-        ([x, y]) => `drop-shadow(${x * borderPx}px ${y * borderPx}px 0 #ffffff)`
+        // Light grey, not pure white. The border IS white vinyl, but the proof
+        // stage behind it is white paper — a #ffffff edge on a white stage is
+        // invisible, so the customer cannot see where their sticker will be
+        // cut. This is light enough to still read as white stock while giving
+        // the cut edge a visible boundary.
+        ([x, y]) =>
+          `drop-shadow(${x * borderPx}px ${y * borderPx}px 0 ${STICKER_EDGE})`
       )
     );
   }

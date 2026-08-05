@@ -471,7 +471,8 @@ export default function Home() {
     const stickerPrice = getStickerPrice(
       nextOrder.product.quantity,
       nextOrder.product.material,
-      finish
+      finish,
+      nextOrder.product.size
     );
 
     const shippingPrice = getShippingPrice(nextOrder.production.deliveryMethod);

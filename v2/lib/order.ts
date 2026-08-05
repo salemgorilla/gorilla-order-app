@@ -21,7 +21,8 @@ const initialDeliveryMethod = "Pickup" as const;
 const initialStickerPrice = getStickerPrice(
   initialProduct.quantity,
   initialProduct.material,
-  initialProduct.finish
+  initialProduct.finish,
+  initialProduct.size
 );
 
 const initialShippingPrice = getShippingPrice(initialDeliveryMethod);

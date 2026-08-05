@@ -1,5 +1,9 @@
 export const stickerCatalog = {
-  quantities: [50, 100, 250, 500, 1000, 2500, 5000],
+  // Re-centred 2026-08-04 on how the shop actually sells: real orders are 100,
+  // 200 and 500. 250 retired in favour of 200 and 300; 2500/5000 kept but they
+  // are rare. 200 previously had no button at all and fell into the custom
+  // rule, which priced it at $178 while the 250 button cost $118.
+  quantities: [50, 100, 200, 300, 500, 1000, 2500, 5000],
   sizes: ['2"', '3"', '4"', '5"', '6"'],
   shapes: ["Die Cut", "Circle", "Square", "Rounded Square"],
   // Clear Vinyl removed 2026-08-04. Its pricing multiplier and its preview

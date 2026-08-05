@@ -58,7 +58,8 @@ function bannerPrice() {
 function stickerPackPrice(quantity: number) {
   return () => ({
     // Gloss white vinyl, gloss finish — the shop's default stock.
-    amount: getStickerPrice(quantity, "Gloss White Vinyl", "Gloss"),
+    // 3" explicitly — the add-on offer names that size in its label.
+    amount: getStickerPrice(quantity, "Gloss White Vinyl", "Gloss", '3"'),
     quoteRequired: false,
   });
 }

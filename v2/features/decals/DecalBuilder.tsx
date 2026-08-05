@@ -2,7 +2,7 @@
 
 import QuantitySelector from "../../components/QuantitySelector";
 import OptionSelector from "../../components/OptionSelector";
-import { CUSTOM_STICKER_SIZE, stickerCatalog } from "../../lib/catalog";
+import { stickerCatalog } from "../../lib/catalog";
 import { DECAL_SHIPPING_PRICE } from "../../lib/pricing";
 import type { DeliveryMethod, Product } from "../../types/order";
 
@@ -47,88 +47,60 @@ export default function DecalBuilder({
 }: Props) {
   return (
     <>
-      <QuantitySelector
-        quantities={stickerCatalog.quantities}
-        selected={product.quantity}
-        onSelect={(quantity) => onUpdate({ quantity })}
-      />
+            {/* No preset chips for size or quantity. The price is
+          (width x height x $0.032) + ($25 / quantity), so every value is
+          computed exactly — presets were only ever shortcuts, and they forced
+          a customer who wanted 2x6 or 137 to fight the form. */}
+      <div className="border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
+        <h3 className="text-lede font-bold">Size and quantity</h3>
+        <p className="mt-1 text-sm text-[var(--ink-muted)]">
+          Any size, any amount — the price updates as you type.
+        </p>
 
-      <OptionSelector
-        title="Size"
-        options={[...stickerCatalog.sizes, CUSTOM_STICKER_SIZE]}
-        selected={product.size}
-        onSelect={(size) =>
-          // Picking a preset clears any dimensions, so the two can never
-          // disagree about what is being priced.
-          onUpdate(
-            size === CUSTOM_STICKER_SIZE
-              ? { size }
-              : { size, widthInches: 0, heightInches: 0 }
-          )
-        }
-      />
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <NumberField
+            id="sticker-width"
+            label="Width (in)"
+            value={product.widthInches}
+            min={0.25}
+            step={0.25}
+            onChange={(widthInches) => onUpdate({ widthInches })}
+          />
 
-      {product.size === CUSTOM_STICKER_SIZE && (
-        <div className="border border-[var(--rule)] bg-[var(--shirt-blank)] p-4">
-          <p className="text-sm font-bold text-[var(--ink-black)]">
-            Your size, in inches
-          </p>
+          <NumberField
+            id="sticker-height"
+            label="Height (in)"
+            value={product.heightInches}
+            min={0.25}
+            step={0.25}
+            onChange={(heightInches) => onUpdate({ heightInches })}
+          />
 
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <div>
-              <label
-                htmlFor="sticker-width"
-                className="block text-fine font-bold text-[var(--ink-black)]"
-              >
-                Width
-              </label>
-              <input
-                id="sticker-width"
-                type="number"
-                inputMode="decimal"
-                min={0.25}
-                step={0.25}
-                value={product.widthInches || ""}
-                onChange={(event) =>
-                  onUpdate({ widthInches: Number(event.target.value) || 0 })
-                }
-                className="spec mt-1 w-full border border-[var(--rule)] bg-[var(--paper)] p-3 text-lede transition-colors duration-[120ms] ease-linear hover:border-[var(--ink-black)]"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="sticker-height"
-                className="block text-fine font-bold text-[var(--ink-black)]"
-              >
-                Height
-              </label>
-              <input
-                id="sticker-height"
-                type="number"
-                inputMode="decimal"
-                min={0.25}
-                step={0.25}
-                value={product.heightInches || ""}
-                onChange={(event) =>
-                  onUpdate({ heightInches: Number(event.target.value) || 0 })
-                }
-                className="spec mt-1 w-full border border-[var(--rule)] bg-[var(--paper)] p-3 text-lede transition-colors duration-[120ms] ease-linear hover:border-[var(--ink-black)]"
-              />
-            </div>
-          </div>
-
-          <p className="mt-3 text-fine leading-5 text-[var(--ink-muted)]">
-            {product.widthInches > 0 && product.heightInches > 0
-              ? `${(product.widthInches * product.heightInches).toFixed(
-                  2
-                )} sq in each. Priced on area, so any size works — no rounding to a preset.`
-              : "Enter both and the price updates. Any size works — you're charged on area."}
-          </p>
+          <NumberField
+            id="sticker-quantity"
+            label="How many"
+            value={product.quantity}
+            min={1}
+            step={1}
+            className="col-span-2 sm:col-span-1"
+            onChange={(quantity) => onUpdate({ quantity: Math.round(quantity) })}
+          />
         </div>
-      )}
 
-      <OptionSelector
+        <p className="mt-3 text-fine leading-5 text-[var(--ink-muted)]">
+          {product.widthInches > 0 && product.heightInches > 0 ? (
+            <>
+              {(product.widthInches * product.heightInches).toFixed(2)} sq in
+              each. The $25 setup is split across the order, so the more you
+              order the less each one costs.
+            </>
+          ) : (
+            "Enter a width and height to see your price."
+          )}
+        </p>
+      </div>
+
+<OptionSelector
         title="Shape"
         options={stickerCatalog.shapes}
         selected={product.shape}
@@ -247,5 +219,50 @@ export default function DecalBuilder({
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * One labelled number input. Sentence-case label, mono value, 44px target —
+ * the accessibility floor for customer-facing forms in DESIGN-SYSTEM.md.
+ */
+function NumberField({
+  id,
+  label,
+  value,
+  min,
+  step,
+  className = "",
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: number;
+  min: number;
+  step: number;
+  className?: string;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div className={className}>
+      <label
+        htmlFor={id}
+        className="block text-fine font-bold text-[var(--ink-black)]"
+      >
+        {label}
+      </label>
+      <input
+        id={id}
+        type="number"
+        inputMode="decimal"
+        min={min}
+        step={step}
+        // Empty rather than 0 while unset, so the field does not read as a
+        // real value the customer has to clear before typing.
+        value={value || ""}
+        onChange={(event) => onChange(Number(event.target.value) || 0)}
+        className="spec mt-1 min-h-[44px] w-full border border-[var(--rule)] bg-[var(--paper)] p-3 text-lede text-[var(--ink-black)] transition-colors duration-[120ms] ease-linear hover:border-[var(--ink-black)]"
+      />
+    </div>
   );
 }

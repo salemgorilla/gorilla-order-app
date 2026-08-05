@@ -5,9 +5,10 @@ const initialProduct = {
   type: "Custom Stickers",
   quantity: 100,
   size: '3"',
-  // 0 = use the preset size. Set when the customer enters real dimensions.
-  widthInches: 0,
-  heightInches: 0,
+  // Real dimensions now that the size presets are gone. Must be non-zero:
+  // area drives the price, so 0 x 0 would quote the $25 setup and nothing else.
+  widthInches: 3,
+  heightInches: 3,
   shape: "Die Cut",
   material: "Gloss White Vinyl",
   finish: "Gloss",

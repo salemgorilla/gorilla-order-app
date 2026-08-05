@@ -151,8 +151,25 @@ export default function Home() {
       .join(", ");
   }, [sizeQuantities]);
 
-  const sizeBreakdownMatchesQuantity =
-    sizeQuantityTotal === apparelQuote.quantity;
+  // Quantity is DERIVED from the size grid, never entered separately. Typing
+  // M=4 L=6 2XL=2 is the order; there is no second number to disagree with it.
+  // This is what removed the flow's only failure state — "Size breakdown must
+  // total 24, current total is 22" — a reconciliation error the customer had
+  // to solve because the form asked the same question twice.
+  //
+  // Synced onto apparelQuote rather than replacing it, so pricing, the shop
+  // email and the Printavo push all keep reading `quantity` unchanged.
+  useEffect(() => {
+    setApparelQuote((prev) =>
+      prev.quantity === sizeQuantityTotal
+        ? prev
+        : { ...prev, quantity: sizeQuantityTotal }
+    );
+  }, [sizeQuantityTotal]);
+
+  // Kept true: the two can no longer diverge. Retained so the summary card and
+  // builder props do not need rewiring in the same change.
+  const sizeBreakdownMatchesQuantity = true;
 
   const apparelCategories = useMemo(() => {
     const categories = ssProducts
@@ -751,12 +768,10 @@ export default function Home() {
       errors.push("Choose at least one print location.");
     }
 
-    if (!apparelQuote.sizeBreakdown.trim()) {
-      errors.push("Enter a size breakdown.");
-    } else if (sizeQuantityTotal !== apparelQuote.quantity) {
-      errors.push(
-        `Size breakdown must total ${apparelQuote.quantity}. Current total is ${sizeQuantityTotal}.`
-      );
+    // The reconciliation error is gone: quantity IS the grid total, so the two
+    // cannot disagree. All that remains is asking for at least one shirt.
+    if (sizeQuantityTotal < 1) {
+      errors.push("Add how many you need in each size.");
     }
 
     return errors;

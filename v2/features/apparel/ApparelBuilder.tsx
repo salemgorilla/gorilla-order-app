@@ -81,12 +81,10 @@ export default function ApparelBuilder({
 }: Props) {
   return (
     <>
-      <QuantitySelector
-        quantities={apparelCatalog.quantities}
-        selected={apparelQuote.quantity}
-        onSelect={(quantity) => onSelectQuantity(quantity)}
-      />
-
+      {/* No quantity picker. Quantity comes from the size grid below — asking
+          for it twice is what created the "size breakdown must total 24"
+          error, and it made the customer's first decision a number they had
+          no basis for choosing. */}
       <div className=" border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -498,7 +496,9 @@ export default function ApparelBuilder({
                 : "bg-white text-[var(--rush-red)]"
             }`}
           >
-            {sizeQuantityTotal} / {apparelQuote.quantity}
+            {/* Just the total. "12 / 12" was reconciliation feedback for a
+                second number that no longer exists. */}
+            {sizeQuantityTotal} {sizeQuantityTotal === 1 ? "shirt" : "shirts"}
           </span>
         </div>
 
@@ -509,8 +509,10 @@ export default function ApparelBuilder({
               (size) => size.sizeName === sizeName
             );
             const isAvailable = sizeRecord?.isAvailable ?? true;
-            const canAdd =
-              isAvailable && sizeQuantityTotal < apparelQuote.quantity;
+            // Adding is capped only by stock now. It used to also stop at the
+            // separately chosen quantity — with quantity derived from this
+            // grid, that test is always false and would freeze every + button.
+            const canAdd = isAvailable;
 
             return (
               <div

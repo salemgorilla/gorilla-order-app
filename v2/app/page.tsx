@@ -45,6 +45,8 @@ import {
   MAX_ATTACHED_ARTWORK_LABEL,
 } from "../lib/upload-limits";
 import { uploadArtworkToBlob } from "../lib/artwork-upload";
+import { renderStickerProof } from "../lib/sticker-proof";
+import { parseSizeInches } from "../components/preview/StickerShape";
 
 import QuoteConfirmationScreen from "../features/QuoteConfirmation";
 import QuoteReviewCard from "../features/QuoteReviewCard";
@@ -1000,6 +1002,36 @@ export default function Home() {
         : null;
 
       setUploadProgress(null);
+
+      // The proof the customer just approved, rendered to a PNG so the email
+      // carries it alongside their raw art. Stickers only — it is the only
+      // flow with a preview to prove. Small by construction (~1000px), so it
+      // rides inline without troubling the body limit.
+      const isStickers = !isSignsSelected && !isApparelSelected;
+      // Falls back to the preset label, which is a square, when the customer
+      // used a size button instead of typing dimensions.
+      const presetInches = parseSizeInches(order.product.size);
+
+      const proof =
+        isStickers && artworkPreview
+          ? await renderStickerProof({
+              artworkUrl: artworkPreview,
+              shape: order.product.shape,
+              material: order.product.material,
+              finish: order.product.finish,
+              sizeLabel: order.product.size,
+              quantity: order.product.quantity,
+              widthInches: order.product.widthInches || presetInches,
+              heightInches: order.product.heightInches || presetInches,
+              artScale: order.product.artScale,
+              artMargin: order.product.artMargin,
+              magentaCutLine: order.product.magentaCutLine,
+            })
+          : null;
+
+      if (proof) {
+        formData.append("proof", proof, "gorilla-proof.png");
+      }
 
       const artworkOversized = isArtworkTooLargeToAttach(artworkFile);
 

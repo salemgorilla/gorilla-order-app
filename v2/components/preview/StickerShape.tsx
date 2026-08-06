@@ -1,6 +1,16 @@
 import { useId } from "react";
 import type { CSSProperties } from "react";
 
+import {
+  contourSigma,
+  CUT_RIM_INTERCEPT,
+  CUT_RIM_SLOPE,
+  EDGE_THRESHOLD_INTERCEPT,
+  EDGE_THRESHOLD_SLOPE,
+  MAGENTA,
+  STICKER_EDGE,
+} from "../../lib/die-cut";
+
 type Props = {
   shape: string;
   material?: string;
@@ -103,17 +113,6 @@ export function inchLabel(inches: number) {
   return `${inches.toFixed(2)}"`;
 }
 
-// Must match --cut-line in globals.css and isMagentaPixel() in lib/artwork.ts.
-// Literal rather than var() because this is interpolated into a drop-shadow()
-// filter chain built as a string.
-const MAGENTA = "#ff00ff";
-
-/**
- * The die-cut edge. Light grey rather than the literal white of the vinyl,
- * because the proof stage behind it is white paper and a white-on-white edge
- * cannot be seen. Reads as white stock, but the cut line is visible.
- */
-const STICKER_EDGE = "#e6e4de";
 
 /**
  * The die-cut contour, as an SVG filter.
@@ -156,26 +155,8 @@ const STICKER_EDGE = "#e6e4de";
  * checked for contour uniformity and edge hardness.
  */
 
-/** Threshold alpha. Below 0.5, so the shape grows. */
-const EDGE_THRESHOLD = 0.1;
-
-/** probit(1 - 0.1). Converts the wanted border width into a blur sigma. */
-const EDGE_PROBIT = 1.2816;
-
-/**
- * Curvature correction. A convex outline spreads slightly less than the
- * straight-edge maths predicts; without this a 10px border measured 9.2px.
- */
-const EDGE_GAIN = 1.08;
-
-/** Steep enough to read as hard, shallow enough to keep anti-aliasing. */
-const EDGE_THRESHOLD_SLOPE = 40;
-const EDGE_THRESHOLD_INTERCEPT = 0.5 - EDGE_THRESHOLD_SLOPE * EDGE_THRESHOLD;
-
-/** Blur sigma that puts the contour `borderPx` outside the artwork. */
-function contourSigma(borderPx: number) {
-  return Math.max(0.4, (borderPx * EDGE_GAIN) / EDGE_PROBIT);
-}
+// Constants live in lib/die-cut.ts because the emailed proof draws this same
+// contour on a canvas. If the two ever disagree, the proof stops being proof.
 
 function ContourFilter({
   id,
@@ -186,28 +167,24 @@ function ContourFilter({
   borderPx: number;
   magentaCutLine: boolean;
 }) {
-  // The magenta cut line sits just outside the vinyl border, so it is the same
-  // contour grown a little further.
-  const magentaPx = borderPx + 2;
-
+  /**
+   * Both rims come off ONE blur, differing only in threshold.
+   *
+   * Offset scales with probit(1 - t) while rounding is set by sigma, so
+   * sharing the sigma is what makes the magenta rim parallel to the vinyl
+   * edge. Blurring twice made the outer rim round harder than the edge it was
+   * tracing and it came out visibly wobbly.
+   */
   const band = (
     key: string,
-    radius: number,
+    slope: number,
+    intercept: number,
     color: string,
     result: string
   ) => (
     <>
-      <feGaussianBlur
-        in="SourceAlpha"
-        stdDeviation={contourSigma(radius)}
-        result={`${key}-soft`}
-      />
-      <feComponentTransfer in={`${key}-soft`} result={`${key}-mask`}>
-        <feFuncA
-          type="linear"
-          slope={EDGE_THRESHOLD_SLOPE}
-          intercept={EDGE_THRESHOLD_INTERCEPT}
-        />
+      <feComponentTransfer in="contour-soft" result={`${key}-mask`}>
+        <feFuncA type="linear" slope={slope} intercept={intercept} />
       </feComponentTransfer>
       <feFlood floodColor={color} result={`${key}-ink`} />
       <feComposite
@@ -234,8 +211,23 @@ function ContourFilter({
           // the grey comes out noticeably lighter than STICKER_EDGE.
           colorInterpolationFilters="sRGB"
         >
-          {magentaCutLine && band("cut", magentaPx, MAGENTA, "cutBand")}
-          {borderPx > 0 && band("vinyl", borderPx, STICKER_EDGE, "vinylBand")}
+          {/* One blur feeds both rims. */}
+          <feGaussianBlur
+            in="SourceAlpha"
+            stdDeviation={contourSigma(borderPx)}
+            result="contour-soft"
+          />
+
+          {magentaCutLine &&
+            band("cut", CUT_RIM_SLOPE, CUT_RIM_INTERCEPT, MAGENTA, "cutBand")}
+          {borderPx > 0 &&
+            band(
+              "vinyl",
+              EDGE_THRESHOLD_SLOPE,
+              EDGE_THRESHOLD_INTERCEPT,
+              STICKER_EDGE,
+              "vinylBand"
+            )}
 
           <feMerge>
             {/* Painted outermost first: magenta rim, then vinyl, then art. */}

@@ -485,6 +485,12 @@ export async function sendQuoteEmail(input: {
   order: AnyRecord;
   artworkAnalysis: AnyRecord | null;
   attachment?: QuoteAttachment | null;
+  /**
+   * Everything to attach. The quote email carries up to two: the customer's
+   * own artwork, and our rendered proof of the die-cut. `attachment` above is
+   * the older single-file form and is folded in with these.
+   */
+  attachments?: (QuoteAttachment | null)[];
   attachmentInfo?: string;
 }): Promise<QuoteEmailResult> {
   const provider = getEmailProvider();
@@ -496,6 +502,11 @@ export async function sendQuoteEmail(input: {
   const to = process.env.QUOTE_TO_EMAIL || "quote@gorillasalem.com";
   const { subject, text, html, replyTo } = buildQuoteEmail(input);
 
+  const attachments = [
+    ...(input.attachment ? [input.attachment] : []),
+    ...(input.attachments ?? []),
+  ].filter((item): item is QuoteAttachment => Boolean(item));
+
   try {
     if (provider === "gmail") {
       return await sendViaGmail({
@@ -504,7 +515,7 @@ export async function sendQuoteEmail(input: {
         text,
         html,
         replyTo,
-        attachment: input.attachment ?? null,
+        attachments,
       });
     }
 
@@ -514,7 +525,7 @@ export async function sendQuoteEmail(input: {
       text,
       html,
       replyTo,
-      attachment: input.attachment ?? null,
+      attachments,
     });
   } catch (error) {
     return {
@@ -531,7 +542,7 @@ type SendArgs = {
   text: string;
   html: string;
   replyTo?: string;
-  attachment: QuoteAttachment | null;
+  attachments: QuoteAttachment[];
 };
 
 async function sendViaResend(args: SendArgs): Promise<QuoteEmailResult> {
@@ -552,7 +563,9 @@ async function sendViaResend(args: SendArgs): Promise<QuoteEmailResult> {
       text: args.text,
       html: args.html,
       ...(args.replyTo ? { reply_to: args.replyTo } : {}),
-      ...(args.attachment ? { attachments: [args.attachment] } : {}),
+      ...(args.attachments.length
+        ? { attachments: args.attachments }
+        : {}),
     }),
   });
 
@@ -593,15 +606,13 @@ async function sendViaGmail(args: SendArgs): Promise<QuoteEmailResult> {
     text: args.text,
     html: args.html,
     ...(args.replyTo ? { replyTo: args.replyTo } : {}),
-    ...(args.attachment
+    ...(args.attachments.length
       ? {
-          attachments: [
-            {
-              filename: args.attachment.filename,
-              content: args.attachment.content,
-              encoding: "base64",
-            },
-          ],
+          attachments: args.attachments.map((item) => ({
+            filename: item.filename,
+            content: item.content,
+            encoding: "base64" as const,
+          })),
         }
       : {}),
   });

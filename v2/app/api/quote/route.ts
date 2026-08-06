@@ -23,6 +23,7 @@ type ParsedQuoteRequest = {
   artworkFile: File | null;
   oversizedArtwork: { name: string; size: number } | null;
   artworkBlob: { url: string; name: string; size: number } | null;
+  proofFile: File | null;
 };
 
 async function parseQuoteRequest(request: Request): Promise<ParsedQuoteRequest> {
@@ -36,6 +37,8 @@ async function parseQuoteRequest(request: Request): Promise<ParsedQuoteRequest> 
 
     const urlRaw = form.get("artworkUrl");
     const uploadedUrl = typeof urlRaw === "string" ? urlRaw : "";
+
+    const proofRaw = form.get("proof");
 
     return {
       order:
@@ -56,6 +59,9 @@ async function parseQuoteRequest(request: Request): Promise<ParsedQuoteRequest> 
           : null,
       // Artwork that went straight to blob storage. The file never passed
       // through here, so there is nothing to cap — only a URL to record.
+      // Our rendered proof of the die-cut, so the shop sees exactly what the
+      // customer approved rather than having to imagine it from raw art.
+      proofFile: proofRaw && typeof proofRaw !== "string" ? proofRaw : null,
       artworkBlob: uploadedUrl
         ? {
             url: uploadedUrl,
@@ -74,6 +80,7 @@ async function parseQuoteRequest(request: Request): Promise<ParsedQuoteRequest> 
     artworkFile: null,
     oversizedArtwork: null,
     artworkBlob: null,
+    proofFile: null,
   };
 }
 
@@ -118,14 +125,29 @@ function generateQuoteNumber() {
 
 export async function POST(request: Request) {
   try {
-    const { order, artworkAnalysis, artworkFile, oversizedArtwork, artworkBlob } =
-      await parseQuoteRequest(request);
+    const {
+      order,
+      artworkAnalysis,
+      artworkFile,
+      oversizedArtwork,
+      artworkBlob,
+      proofFile,
+    } = await parseQuoteRequest(request);
 
     const quoteNumber = generateQuoteNumber();
     const receivedAt = new Date().toISOString();
 
     const { attachment, info: builtAttachmentInfo } =
       await buildArtworkAttachment(artworkFile);
+
+    // We render this ourselves at ~1000px, so it is small by construction and
+    // needs no size gate the way customer artwork does.
+    const proofAttachment = proofFile
+      ? {
+          filename: "gorilla-proof.png",
+          content: Buffer.from(await proofFile.arrayBuffer()).toString("base64"),
+        }
+      : null;
 
     // An oversized file never leaves the customer's browser, so there is
     // nothing to attach — but the shop still needs to know it exists and to
@@ -191,8 +213,12 @@ export async function POST(request: Request) {
       receivedAt,
       order,
       artworkAnalysis,
-      attachment,
-      attachmentInfo,
+      // The customer's own file plus our proof of the cut, so the shop can
+      // compare what was sent against what was approved.
+      attachments: [attachment, proofAttachment],
+      attachmentInfo: proofAttachment
+        ? `${attachmentInfo} | Proof attached: gorilla-proof.png`
+        : attachmentInfo,
     });
 
     if (notification.sent) {

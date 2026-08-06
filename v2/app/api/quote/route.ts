@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { MAX_ATTACHED_ARTWORK_BYTES } from "../../../lib/upload-limits";
+
 import { sendQuoteEmail, type QuoteAttachment } from "../../../lib/email";
 import {
   createPrintavoQuote,
@@ -9,12 +11,17 @@ import {
 // Cap the artwork we attach to an email. Big print files (large AI/PDF/PNG)
 // blow past mail-provider limits, so above this we skip the attachment and
 // tell the shop to ask the customer for the file directly.
+//
+// NOTE: this is now the SECOND line of defense, not the first. Vercel kills
+// any request body over ~4.4 MB at the edge before this route runs, so a file
+// between 4.4 MB and 15 MB never arrives here at all — see lib/upload-limits.
 const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024; // 15 MB
 
 type ParsedQuoteRequest = {
   order: Record<string, unknown>;
   artworkAnalysis: Record<string, unknown> | null;
   artworkFile: File | null;
+  oversizedArtwork: { name: string; size: number } | null;
 };
 
 async function parseQuoteRequest(request: Request): Promise<ParsedQuoteRequest> {
@@ -32,6 +39,17 @@ async function parseQuoteRequest(request: Request): Promise<ParsedQuoteRequest> 
       artworkAnalysis:
         typeof analysisRaw === "string" ? JSON.parse(analysisRaw) : null,
       artworkFile: file && typeof file !== "string" ? file : null,
+      // The client deliberately withholds artwork above the platform body
+      // limit, because sending it would get the whole request killed at the
+      // edge and the order lost. It tells us the name and size instead so the
+      // shop knows exactly which file to chase.
+      oversizedArtwork:
+        form.get("artworkTooLarge") === "true"
+          ? {
+              name: String(form.get("artworkFileName") || "artwork"),
+              size: Number(form.get("artworkFileSize") || 0),
+            }
+          : null,
     };
   }
 
@@ -41,6 +59,7 @@ async function parseQuoteRequest(request: Request): Promise<ParsedQuoteRequest> 
     order: body.order ?? body,
     artworkAnalysis: body.artworkAnalysis ?? null,
     artworkFile: null,
+    oversizedArtwork: null,
   };
 }
 
@@ -85,14 +104,27 @@ function generateQuoteNumber() {
 
 export async function POST(request: Request) {
   try {
-    const { order, artworkAnalysis, artworkFile } =
+    const { order, artworkAnalysis, artworkFile, oversizedArtwork } =
       await parseQuoteRequest(request);
 
     const quoteNumber = generateQuoteNumber();
     const receivedAt = new Date().toISOString();
 
-    const { attachment, info: attachmentInfo } =
+    const { attachment, info: builtAttachmentInfo } =
       await buildArtworkAttachment(artworkFile);
+
+    // An oversized file never leaves the customer's browser, so there is
+    // nothing to attach — but the shop still needs to know it exists and to
+    // go collect it, or the job stalls waiting on art nobody asked for.
+    const attachmentInfo = oversizedArtwork
+      ? `ARTWORK NOT UPLOADED — "${oversizedArtwork.name}" is ${(
+          oversizedArtwork.size /
+          (1024 * 1024)
+        ).toFixed(1)} MB, over the ${(
+          MAX_ATTACHED_ARTWORK_BYTES /
+          (1024 * 1024)
+        ).toFixed(1)} MB form limit. Email the customer to collect it.`
+      : builtAttachmentInfo;
 
     const quoteRecord = {
       quoteNumber,
@@ -108,9 +140,10 @@ export async function POST(request: Request) {
       addOnsNote: order.addOnsNote ?? "",
       artworkAnalysis,
       artwork: {
-        fileName: artworkFile?.name ?? null,
-        fileSize: artworkFile?.size ?? null,
+        fileName: artworkFile?.name ?? oversizedArtwork?.name ?? null,
+        fileSize: artworkFile?.size ?? oversizedArtwork?.size ?? null,
         attachment: attachmentInfo,
+        awaitingArtwork: Boolean(oversizedArtwork),
       },
       internalNotes: [
         "This quote was generated from the Gorilla Order app.",

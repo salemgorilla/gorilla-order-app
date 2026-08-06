@@ -2,12 +2,20 @@
 
 import { useRef, useState } from "react";
 
+import {
+  formatBytes,
+  MAX_ATTACHED_ARTWORK_BYTES,
+  MAX_ATTACHED_ARTWORK_LABEL,
+} from "../../lib/upload-limits";
+
 type Props = {
   onFileSelected: (file: File) => void;
   /** The file already chosen, if any. Null shows the empty state. */
   fileName?: string | null;
   /** Object URL for a thumbnail, when the file is an image. */
   previewUrl?: string | null;
+  /** Byte size of the chosen file, used to warn before submit. */
+  fileSizeBytes?: number | null;
 };
 
 /**
@@ -34,6 +42,7 @@ export default function UploadBox({
   onFileSelected,
   fileName = null,
   previewUrl = null,
+  fileSizeBytes = null,
 }: Props) {
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -51,6 +60,10 @@ export default function UploadBox({
   function openPicker() {
     inputRef.current?.click();
   }
+
+  const isOversized =
+    typeof fileSizeBytes === "number" &&
+    fileSizeBytes > MAX_ATTACHED_ARTWORK_BYTES;
 
   return (
     <div
@@ -109,10 +122,19 @@ export default function UploadBox({
           <>
             <p className="spec mt-3 max-w-md break-all text-[var(--ink-black)]">
               {fileName}
+              {fileSizeBytes ? ` · ${formatBytes(fileSizeBytes)}` : ""}
             </p>
-            <p className="mt-2 text-fine text-[var(--ink-muted)]">
-              Drop another file or click to replace it.
-            </p>
+            {isOversized ? (
+              <p className="mt-3 max-w-md border-2 border-[var(--rush-red)] px-4 py-3 text-fine text-[var(--rush-red)]">
+                Too big to send with this form (limit{" "}
+                {MAX_ATTACHED_ARTWORK_LABEL}). Submit the quote anyway — we
+                will email you to collect the artwork.
+              </p>
+            ) : (
+              <p className="mt-2 text-fine text-[var(--ink-muted)]">
+                Drop another file or click to replace it.
+              </p>
+            )}
           </>
         ) : (
           <p className="mt-3 max-w-md text-[var(--ink-muted)]">
@@ -138,8 +160,12 @@ export default function UploadBox({
           {fileName ? "Choose a different file" : "Browse Files"}
         </button>
 
+        {/* This used to say 100 MB. The platform rejects anything over ~4.4 MB
+            before our code runs, so that number was a promise the app could
+            not keep — and it is why large print files failed silently. */}
         <p className="mt-4 text-sm text-[var(--ink-muted)]">
-          Maximum file size: 100 MB
+          Files up to {MAX_ATTACHED_ARTWORK_LABEL} upload here. Larger artwork
+          is fine — submit the quote and we&rsquo;ll collect it by email.
         </p>
       </div>
 

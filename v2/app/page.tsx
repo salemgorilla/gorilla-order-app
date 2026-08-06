@@ -39,6 +39,10 @@ import { calculateApparelPricing } from "../lib/apparel-pricing";
 import { apparelCatalogStyles } from "../lib/apparel-catalog";
 import { getOrderValidationErrors } from "../lib/validation";
 import { analyzeArtworkFile, ArtworkAnalysis } from "../lib/artwork";
+import {
+  isArtworkTooLargeToAttach,
+  MAX_ATTACHED_ARTWORK_LABEL,
+} from "../lib/upload-limits";
 
 import QuoteConfirmationScreen from "../features/QuoteConfirmation";
 import QuoteReviewCard from "../features/QuoteReviewCard";
@@ -953,8 +957,23 @@ export default function Home() {
       formData.append("order", JSON.stringify(buildQuotePayload()));
       formData.append("artworkAnalysis", JSON.stringify(artworkAnalysis));
 
-      if (order.artwork.file) {
-        formData.append("artwork", order.artwork.file, order.artwork.file.name);
+      // Artwork over the platform body limit is deliberately LEFT OUT rather
+      // than sent. Sending it gets the whole request killed at the edge with a
+      // 413 the server never sees, which used to surface as "Please try again
+      // in a moment" — advice that could never work, because the same file
+      // failed identically every time. The quote goes through without the
+      // attachment and the shop asks for the file directly.
+      const artworkFile = order.artwork.file;
+      const artworkOversized = isArtworkTooLargeToAttach(artworkFile);
+
+      if (artworkFile && !artworkOversized) {
+        formData.append("artwork", artworkFile, artworkFile.name);
+      }
+
+      if (artworkFile && artworkOversized) {
+        formData.append("artworkTooLarge", "true");
+        formData.append("artworkFileName", artworkFile.name);
+        formData.append("artworkFileSize", String(artworkFile.size));
       }
 
       const response = await fetch("/api/quote", {
@@ -963,6 +982,11 @@ export default function Home() {
       });
 
       if (!response.ok) {
+        // 413 is the platform, not the app: the body never reached the route.
+        // Say so plainly instead of suggesting a retry that cannot succeed.
+        if (response.status === 413) {
+          throw new Error("PAYLOAD_TOO_LARGE");
+        }
         throw new Error("Server returned an error.");
       }
 
@@ -983,9 +1007,17 @@ export default function Home() {
       setQuoteSubmitted(true);
     } catch (error) {
       console.error(error);
-      setSubmitError(
-        "Unable to submit your quote right now. Please try again in a moment."
-      );
+
+      if (error instanceof Error && error.message === "PAYLOAD_TOO_LARGE") {
+        setSubmitError(
+          `Your artwork is too large to send through this form (the limit is ${MAX_ATTACHED_ARTWORK_LABEL}). ` +
+            "Remove the file and submit the quote without it — we'll email you to collect the artwork."
+        );
+      } else {
+        setSubmitError(
+          "Unable to submit your quote right now. Please try again in a moment."
+        );
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -1455,6 +1487,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 // Without these the box can never show that a file arrived,
                 // which made a working drop look like a failed one.
                 fileName={order.artwork.file?.name || null}
+                fileSizeBytes={order.artwork.file?.size ?? null}
                 previewUrl={artworkPreview}
               />
 

@@ -648,6 +648,43 @@ export default function Home() {
     });
   }
 
+  /**
+   * Accept a dropped file anywhere on the page.
+   *
+   * Without this, a drop that lands even slightly outside the dashed upload
+   * box hits the browser default — Chrome OPENS the file and navigates away
+   * from the app. To the customer that is indistinguishable from "drag and
+   * drop is broken", and the upload box sits well down the form, so missing
+   * it is easy.
+   *
+   * Listeners are on window and capture-phase so they win regardless of what
+   * is under the cursor. A drop carrying no files (dragging selected text, or
+   * an image from another tab) is swallowed rather than allowed to navigate.
+   */
+  useEffect(() => {
+    const allowDrop = (event: DragEvent) => {
+      if (!event.dataTransfer?.types?.includes("Files")) return;
+      event.preventDefault();
+    };
+
+    const onDrop = (event: DragEvent) => {
+      if (!event.dataTransfer?.types?.includes("Files")) return;
+      event.preventDefault();
+      const file = event.dataTransfer.files?.[0];
+      if (file) handleArtworkUpload(file);
+    };
+
+    window.addEventListener("dragover", allowDrop, true);
+    window.addEventListener("drop", onDrop, true);
+
+    return () => {
+      window.removeEventListener("dragover", allowDrop, true);
+      window.removeEventListener("drop", onDrop, true);
+    };
+    // handleArtworkUpload is stable for the life of the page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function handleArtworkUpload(file: File) {
     const previewUrl = URL.createObjectURL(file);
 

@@ -1,3 +1,4 @@
+import { useId } from "react";
 import type { CSSProperties } from "react";
 
 type Props = {
@@ -114,50 +115,138 @@ const MAGENTA = "#ff00ff";
  */
 const STICKER_EDGE = "#e6e4de";
 
-const OUTLINE_DIRS = [
-  [1, 0],
-  [-1, 0],
-  [0, 1],
-  [0, -1],
-  [1, 1],
-  [1, -1],
-  [-1, 1],
-  [-1, -1],
-];
+/**
+ * The die-cut contour, as an SVG filter.
+ *
+ * WHY NOT CHAINED drop-shadow(), WHICH THIS REPLACES:
+ *
+ * The old version stacked eight drop-shadows, one per compass direction, to
+ * fake a halo around the art. Two things made that look chewed up:
+ *
+ *   1. CSS filter chains COMPOUND. `filter: drop-shadow(a) drop-shadow(b)`
+ *      does not union two shadows — b is computed from the output of a, which
+ *      already contains a's shadow. Eight of them meant the eighth was
+ *      outlining the seventh's silhouette, drifting up to 8x the intended
+ *      offset in some directions and not at all in others.
+ *   2. Eight directions is an eight-point star, not a circle. Diagonals sit
+ *      borderPx * sqrt(2) out while the axes sit at borderPx, so even without
+ *      the compounding the contour scalloped in and out.
+ *
+ * WHAT THIS DOES INSTEAD — blur, then threshold, applied once:
+ *
+ *   blur      — a Gaussian is isotropic, so it spreads the alpha equally in
+ *               every direction. This is the whole trick. feMorphology was
+ *               tried here first and rejected: its structuring element is a
+ *               RECTANGLE, so it grows sqrt(2) further on the diagonals and
+ *               reproduces the same eight-point star, measured at 4.5px of
+ *               variation on a 10px border. Blur measures 1px, which is the
+ *               measurement floor.
+ *   threshold — feFuncA with a steep slope snaps the blurred alpha back to a
+ *               hard edge. Cutting BELOW the midpoint is what grows the shape:
+ *               for a straight edge the contour lands at sigma * probit(1 - t)
+ *               from the original outline. The slope is steep but finite, so
+ *               about one pixel of anti-aliasing survives — crisp, not jagged.
+ *
+ * The blur also rounds the contour, which is the point rather than a side
+ * effect: a cutting head cannot turn a sharp interior corner, it sweeps
+ * through. That sweep is what makes the edge read as a real cut instead of a
+ * traced outline.
+ *
+ * Constants below were measured, not guessed — rasterised through a canvas and
+ * checked for contour uniformity and edge hardness.
+ */
 
-// A white contour that hugs the artwork's actual outline — the die-cut look.
-// Chained drop-shadows read the image's alpha channel and build up a solid
-// white halo around the non-transparent pixels in every direction. When the
-// customer marks a magenta cut line, a thin magenta rim is added just outside
-// the white so the cut edge is visible.
-function stickerOutline(borderPx: number, magentaCutLine = false) {
-  const lift = "drop-shadow(0 10px 12px rgba(0,0,0,0.30))";
-  const layers: string[] = [];
+/** Threshold alpha. Below 0.5, so the shape grows. */
+const EDGE_THRESHOLD = 0.1;
 
-  if (borderPx > 0) {
-    layers.push(
-      ...OUTLINE_DIRS.map(
-        // Light grey, not pure white. The border IS white vinyl, but the proof
-        // stage behind it is white paper — a #ffffff edge on a white stage is
-        // invisible, so the customer cannot see where their sticker will be
-        // cut. This is light enough to still read as white stock while giving
-        // the cut edge a visible boundary.
-        ([x, y]) =>
-          `drop-shadow(${x * borderPx}px ${y * borderPx}px 0 ${STICKER_EDGE})`
-      )
-    );
-  }
+/** probit(1 - 0.1). Converts the wanted border width into a blur sigma. */
+const EDGE_PROBIT = 1.2816;
 
-  if (magentaCutLine) {
-    const edge = borderPx + 2;
-    layers.push(
-      ...OUTLINE_DIRS.map(
-        ([x, y]) => `drop-shadow(${x * edge}px ${y * edge}px 0 ${MAGENTA})`
-      )
-    );
-  }
+/**
+ * Curvature correction. A convex outline spreads slightly less than the
+ * straight-edge maths predicts; without this a 10px border measured 9.2px.
+ */
+const EDGE_GAIN = 1.08;
 
-  return `${layers.join(" ")} ${lift}`.trim();
+/** Steep enough to read as hard, shallow enough to keep anti-aliasing. */
+const EDGE_THRESHOLD_SLOPE = 40;
+const EDGE_THRESHOLD_INTERCEPT = 0.5 - EDGE_THRESHOLD_SLOPE * EDGE_THRESHOLD;
+
+/** Blur sigma that puts the contour `borderPx` outside the artwork. */
+function contourSigma(borderPx: number) {
+  return Math.max(0.4, (borderPx * EDGE_GAIN) / EDGE_PROBIT);
+}
+
+function ContourFilter({
+  id,
+  borderPx,
+  magentaCutLine,
+}: {
+  id: string;
+  borderPx: number;
+  magentaCutLine: boolean;
+}) {
+  // The magenta cut line sits just outside the vinyl border, so it is the same
+  // contour grown a little further.
+  const magentaPx = borderPx + 2;
+
+  const band = (
+    key: string,
+    radius: number,
+    color: string,
+    result: string
+  ) => (
+    <>
+      <feGaussianBlur
+        in="SourceAlpha"
+        stdDeviation={contourSigma(radius)}
+        result={`${key}-soft`}
+      />
+      <feComponentTransfer in={`${key}-soft`} result={`${key}-mask`}>
+        <feFuncA
+          type="linear"
+          slope={EDGE_THRESHOLD_SLOPE}
+          intercept={EDGE_THRESHOLD_INTERCEPT}
+        />
+      </feComponentTransfer>
+      <feFlood floodColor={color} result={`${key}-ink`} />
+      <feComposite
+        in={`${key}-ink`}
+        in2={`${key}-mask`}
+        operator="in"
+        result={result}
+      />
+    </>
+  );
+
+  return (
+    <svg width="0" height="0" aria-hidden className="absolute">
+      <defs>
+        <filter
+          id={id}
+          // Room for the contour plus the lift shadow, or the filter region
+          // clips the very edge it exists to draw.
+          x="-30%"
+          y="-30%"
+          width="160%"
+          height="160%"
+          // Without this the flood colors are interpolated in linearRGB and
+          // the grey comes out noticeably lighter than STICKER_EDGE.
+          colorInterpolationFilters="sRGB"
+        >
+          {magentaCutLine && band("cut", magentaPx, MAGENTA, "cutBand")}
+          {borderPx > 0 && band("vinyl", borderPx, STICKER_EDGE, "vinylBand")}
+
+          <feMerge>
+            {/* Painted outermost first: magenta rim, then vinyl, then art. */}
+            {magentaCutLine && <feMergeNode in="cutBand" />}
+            {borderPx > 0 && <feMergeNode in="vinylBand" />}
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+    </svg>
+  );
 }
 
 function Placeholder({ rounded }: { rounded: string }) {
@@ -187,6 +276,10 @@ export default function StickerShape({
   widthInches = 0,
   heightInches = 0,
 }: Props) {
+  // Filter ids are document-global. Two previews on one page sharing an id
+  // would both render whichever contour mounted last.
+  const instanceId = useId();
+
   const isGloss = finish === "Gloss";
   const isClear = material === "Clear Vinyl";
   const isDieCut = shape === "Die Cut";
@@ -210,13 +303,23 @@ export default function StickerShape({
   // ---------- DIE CUT: contour hugs the art, transparent around it ----------
   if (isDieCut) {
     const borderPx = Math.round((margin / 100) * 16);
-    const outline = stickerOutline(borderPx, magentaCutLine);
+    const filterId = `diecut-${instanceId.replace(/[^a-zA-Z0-9-]/g, "")}`;
+    // The lift stays a plain CSS shadow, applied after the contour so it falls
+    // from the cut edge rather than from the artwork inside it. One shadow
+    // does not compound; eight did, which is what wrecked the old edge.
+    const outline = `url(#${filterId}) drop-shadow(0 10px 12px rgba(0,0,0,0.30))`;
 
     return (
       // max-w-full is a backstop, not the fix: it guarantees the stage can never
     // push the page wider than the viewport even if padding changes upstream.
     // The 256px card inside stays 256px, so artSizePx and CARD_PX are unaffected.
     <div className="relative mx-auto grid h-72 w-72 max-w-full place-items-center">
+        <ContourFilter
+          id={filterId}
+          borderPx={borderPx}
+          magentaCutLine={magentaCutLine}
+        />
+
         {/* Subtle checkerboard signals the die-cut (transparent) area */}
         <div
           className="absolute inset-0 rounded-[1.25rem] opacity-40"

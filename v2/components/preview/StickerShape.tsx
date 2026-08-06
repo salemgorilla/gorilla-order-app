@@ -14,9 +14,16 @@ type Props = {
 };
 
 function getShapeRounding(shape: string) {
-  if (shape === "Circle") return "rounded-full";
-  if (shape === "Square") return "rounded-xl";
-  return "rounded-[2rem]"; // Rounded Square
+  // Circle and Oval are the same rule: 50% radius on the card. On a square
+  // card that draws a circle; on a 2x6 card it draws the oval it actually is.
+  if (shape === "Circle" || shape === "Oval") return "rounded-full";
+
+  // Square Corners means square corners. This used to be "Square" returning
+  // rounded-xl, which drew a rounded square — visually almost the same as the
+  // Rounded Square option next to it, so the two were near-indistinguishable.
+  if (shape === "Square Corners") return "";
+
+  return "rounded-[2rem]"; // Rounded Corners
 }
 
 function getMaterialClasses(material: string) {
@@ -71,7 +78,13 @@ export function getStickerGeometry(input: {
   }
 
   const safeAreaFactor =
-    input.shape === "Circle" ? 0.707 : input.shape === "Rounded Square" ? 0.88 : 0.96;
+    // Oval shares the circle's factor: a rectangle inscribed in an ellipse is
+    // the same proportion of its bounding box as one inscribed in a circle.
+    input.shape === "Circle" || input.shape === "Oval"
+      ? 0.707
+      : input.shape === "Rounded Corners"
+      ? 0.88
+      : 0.96;
   const marginPx = (margin / 100) * 34;
   const artSizePx = Math.max(
     24,
@@ -264,7 +277,11 @@ export default function StickerShape({
   const fitPx = Math.min(cardW, cardH);
 
   const safeAreaFactor =
-    shape === "Circle" ? 0.707 : shape === "Rounded Square" ? 0.88 : 0.96;
+    shape === "Circle" || shape === "Oval"
+      ? 0.707
+      : shape === "Rounded Corners"
+      ? 0.88
+      : 0.96;
   const marginPx = (margin / 100) * 34;
   const artSizePx = Math.max(
     24,

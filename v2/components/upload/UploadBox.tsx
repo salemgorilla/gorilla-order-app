@@ -1,75 +1,122 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 type Props = {
   onFileSelected: (file: File) => void;
 };
 
+/**
+ * Order Desk — artwork upload.
+ *
+ * WHY THIS IS NOT A <label> WRAPPING THE DROP ZONE:
+ *
+ * It used to be, and drag and drop did not work on desktop. Dropping a file
+ * onto a label that contains a file input makes the browser forward the drop
+ * to that input as its default action — and the input was `display: none`, so
+ * the forwarding silently did nothing and the file never arrived.
+ *
+ * Now the drop zone is a plain div that owns the drop, and the picker is
+ * opened explicitly through a ref. The two paths no longer fight.
+ */
 export default function UploadBox({ onFileSelected }: Props) {
   const [isDragging, setIsDragging] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  function handleFile(file: File | undefined) {
+  // dragenter/dragleave fire for every child element crossed, so a naive
+  // handler flickers the whole time the cursor moves across the panel.
+  // Counting enters against leaves is what makes the state stable.
+  const dragDepth = useRef(0);
+
+  function handleFile(file: File | undefined | null) {
     if (!file) return;
-
     onFileSelected(file);
+  }
+
+  function openPicker() {
+    inputRef.current?.click();
   }
 
   return (
     <div
-      onDragOver={(event) => {
+      onDragEnter={(event) => {
         event.preventDefault();
+        dragDepth.current += 1;
         setIsDragging(true);
       }}
-      onDragLeave={() => setIsDragging(false)}
+      onDragOver={(event) => {
+        // Required on EVERY dragover or the browser refuses the drop and
+        // opens the file in a new tab instead.
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+      }}
+      onDragLeave={(event) => {
+        event.preventDefault();
+        dragDepth.current = Math.max(0, dragDepth.current - 1);
+        if (dragDepth.current === 0) setIsDragging(false);
+      }}
       onDrop={(event) => {
         event.preventDefault();
+        dragDepth.current = 0;
         setIsDragging(false);
-
-        const file = event.dataTransfer.files?.[0];
-        handleFile(file);
+        handleFile(event.dataTransfer?.files?.[0]);
       }}
-      className={` border-2 border-dashed p-8 transition ${
+      onClick={openPicker}
+      className={`cursor-pointer border-2 border-dashed p-8 transition ${
         isDragging
-          ? "border-[var(--gorilla-green)] bg-[var(--surface-ok)] scale-[1.01]"
+          ? "border-[var(--gorilla-green)] bg-[var(--surface-ok)]"
           : "border-[var(--rule)] bg-[var(--paper)] hover:border-[var(--gorilla-green)] hover:bg-[var(--shirt-blank)]"
       }`}
     >
-      <label className="block cursor-pointer">
-        <div className="flex flex-col items-center justify-center text-center">
-          <div className="mb-5 grid h-20 w-20 place-items-center bg-[var(--gorilla-green)] text-display text-white">
-            {isDragging ? "⬇️" : "📁"}
-          </div>
-
-          <h3 className="text-head font-bold tracking-[-0.03em] text-[var(--ink-black)]">
-            {isDragging ? "Drop It Here" : "Upload Your Artwork"}
-          </h3>
-
-          <p className="mt-3 max-w-md text-[var(--ink-muted)]">
-            Drag and drop your artwork here, or click anywhere to browse your
-            files.
-          </p>
-
-          <div className="mt-6 bg-white px-6 py-3 text-sm font-bold">
-            AI • EPS • PDF • SVG • PNG • JPG
-          </div>
-
-          <div className="mt-8 bg-[var(--gorilla-green)] px-8 py-4 font-bold text-white transition hover:bg-[var(--gorilla-green-dark)]">
-            Browse Files
-          </div>
-
-          <p className="mt-4 text-sm text-[var(--ink-muted)]">
-            Maximum file size: 100 MB
-          </p>
+      <div className="flex flex-col items-center justify-center text-center">
+        <div className="mb-5 grid h-20 w-20 place-items-center bg-[var(--gorilla-green)] text-display text-white">
+          {isDragging ? "⬇️" : "📁"}
         </div>
 
-        <input
-          type="file"
-          className="hidden"
-          accept=".png,.jpg,.jpeg,.pdf,.svg,.ai,.eps"
-          onChange={(event) => handleFile(event.target.files?.[0])}
-        />
-      </label>
+        <h3 className="text-head font-bold tracking-[-0.03em] text-[var(--ink-black)]">
+          {isDragging ? "Drop It Here" : "Upload Your Artwork"}
+        </h3>
+
+        <p className="mt-3 max-w-md text-[var(--ink-muted)]">
+          Drag and drop your artwork here, or click anywhere to browse your
+          files.
+        </p>
+
+        <div className="mt-6 bg-white px-6 py-3 text-sm font-bold">
+          AI • EPS • PDF • SVG • PNG • JPG
+        </div>
+
+        {/* A real button, so the picker is reachable by keyboard. The div's
+            click is a convenience for mouse users and is not the only path. */}
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            openPicker();
+          }}
+          className="mt-8 min-h-[44px] border-2 border-[var(--gorilla-green)] bg-[var(--gorilla-green)] px-8 py-4 font-bold text-white transition-colors duration-[120ms] ease-linear hover:bg-[var(--paper)] hover:text-[var(--gorilla-green)]"
+        >
+          Browse Files
+        </button>
+
+        <p className="mt-4 text-sm text-[var(--ink-muted)]">
+          Maximum file size: 100 MB
+        </p>
+      </div>
+
+      <input
+        ref={inputRef}
+        type="file"
+        className="sr-only"
+        accept=".png,.jpg,.jpeg,.pdf,.svg,.ai,.eps"
+        onChange={(event) => {
+          handleFile(event.target.files?.[0]);
+          // Reset so choosing the SAME file twice still fires onChange —
+          // otherwise a customer who re-picks the file they just removed gets
+          // nothing at all.
+          event.target.value = "";
+        }}
+      />
     </div>
   );
 }

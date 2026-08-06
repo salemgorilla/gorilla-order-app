@@ -11,7 +11,11 @@ export const stickerCatalog = {
   // NOTE: with no minimum floor these are the cheapest things in the
   // catalogue by a wide margin — see the warning on getStickerPrice.
   sizes: ['0.5"', '1"', '2"', '3"', '4"', '5"', '6"'],
-  shapes: ["Die Cut", "Circle", "Square", "Rounded Square"],
+  // "Square" renamed to "Square Corners" — it used to render rounded corners,
+  // which made it near-identical to Rounded Square sitting next to it.
+  // Oval added: with width and height typed separately it is a real shape,
+  // not just a circle on a non-square card.
+  shapes: ["Die Cut", "Circle", "Oval", "Square Corners", "Rounded Corners"],
   // Clear Vinyl removed 2026-08-04. Its pricing multiplier and its preview
   // rendering are deliberately KEPT — quotes already in Printavo reference it,
   // and dropping them would make an old order reprice or render wrong.

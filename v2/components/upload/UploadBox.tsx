@@ -4,6 +4,10 @@ import { useRef, useState } from "react";
 
 type Props = {
   onFileSelected: (file: File) => void;
+  /** The file already chosen, if any. Null shows the empty state. */
+  fileName?: string | null;
+  /** Object URL for a thumbnail, when the file is an image. */
+  previewUrl?: string | null;
 };
 
 /**
@@ -18,8 +22,19 @@ type Props = {
  *
  * Now the drop zone is a plain div that owns the drop, and the picker is
  * opened explicitly through a ref. The two paths no longer fight.
+ *
+ * AND WHY IT SHOWS THE CHOSEN FILE:
+ *
+ * Fixing the drop was not enough. The box took only `onFileSelected`, so it
+ * had no idea a file had ever arrived and kept rendering "Upload Your
+ * Artwork" afterwards. The upload worked; it just looked like it hadn't —
+ * which is indistinguishable from broken, and got reported as broken twice.
  */
-export default function UploadBox({ onFileSelected }: Props) {
+export default function UploadBox({
+  onFileSelected,
+  fileName = null,
+  previewUrl = null,
+}: Props) {
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -69,18 +84,42 @@ export default function UploadBox({ onFileSelected }: Props) {
       }`}
     >
       <div className="flex flex-col items-center justify-center text-center">
-        <div className="mb-5 grid h-20 w-20 place-items-center bg-[var(--gorilla-green)] text-display text-white">
-          {isDragging ? "⬇️" : "📁"}
+        <div className="mb-5 grid h-20 w-20 place-items-center overflow-hidden bg-[var(--gorilla-green)] text-display text-white">
+          {previewUrl && fileName ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={previewUrl}
+              alt=""
+              className="h-full w-full object-contain"
+            />
+          ) : (
+            <span>{isDragging ? "⬇️" : fileName ? "✓" : "📁"}</span>
+          )}
         </div>
 
         <h3 className="text-head font-bold tracking-[-0.03em] text-[var(--ink-black)]">
-          {isDragging ? "Drop It Here" : "Upload Your Artwork"}
+          {isDragging
+            ? "Drop It Here"
+            : fileName
+            ? "Artwork received"
+            : "Upload Your Artwork"}
         </h3>
 
-        <p className="mt-3 max-w-md text-[var(--ink-muted)]">
-          Drag and drop your artwork here, or click anywhere to browse your
-          files.
-        </p>
+        {fileName ? (
+          <>
+            <p className="spec mt-3 max-w-md break-all text-[var(--ink-black)]">
+              {fileName}
+            </p>
+            <p className="mt-2 text-fine text-[var(--ink-muted)]">
+              Drop another file or click to replace it.
+            </p>
+          </>
+        ) : (
+          <p className="mt-3 max-w-md text-[var(--ink-muted)]">
+            Drag and drop your artwork here, or click anywhere to browse your
+            files.
+          </p>
+        )}
 
         <div className="mt-6 bg-white px-6 py-3 text-sm font-bold">
           AI • EPS • PDF • SVG • PNG • JPG
@@ -96,7 +135,7 @@ export default function UploadBox({ onFileSelected }: Props) {
           }}
           className="mt-8 min-h-[44px] border-2 border-[var(--gorilla-green)] bg-[var(--gorilla-green)] px-8 py-4 font-bold text-white transition-colors duration-[120ms] ease-linear hover:bg-[var(--paper)] hover:text-[var(--gorilla-green)]"
         >
-          Browse Files
+          {fileName ? "Choose a different file" : "Browse Files"}
         </button>
 
         <p className="mt-4 text-sm text-[var(--ink-muted)]">

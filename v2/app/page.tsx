@@ -1413,7 +1413,13 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 />
               )}
 
-              <UploadBox onFileSelected={handleArtworkUpload} />
+              <UploadBox
+                onFileSelected={handleArtworkUpload}
+                // Without these the box can never show that a file arrived,
+                // which made a working drop look like a failed one.
+                fileName={order.artwork.file?.name || null}
+                previewUrl={artworkPreview}
+              />
 
               <NeedByDate
                 needBy={order.production.needBy}

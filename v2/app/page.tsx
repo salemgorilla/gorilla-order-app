@@ -46,6 +46,7 @@ import {
 } from "../lib/upload-limits";
 import { uploadArtworkToBlob } from "../lib/artwork-upload";
 import { renderStickerProof } from "../lib/sticker-proof";
+import { sanitizeSizeInches, snapQuantity } from "../lib/units";
 import { parseSizeInches } from "../components/preview/StickerShape";
 
 import QuoteConfirmationScreen from "../features/QuoteConfirmation";
@@ -530,15 +531,24 @@ export default function Home() {
   function recalculateOrder(nextOrder: typeof order) {
     const finish = getDecalFinishFromMaterial(nextOrder.product.material);
 
+    // Sanitise here rather than only in the input's blur handler.
+    //
+    // Not a constraint on size — any dimension is allowed. This exists because
+    // buildQuotePayload returns `order` verbatim for stickers, so whatever is
+    // in state goes straight to the price, the payload and the shop's cut
+    // spec. Normalising at the single point where price is computed keeps the
+    // number shown, the number charged, and the size cut identical, and keeps
+    // float noise like 1.7500000000000002 out of the order.
+    const widthInches = sanitizeSizeInches(nextOrder.product.widthInches);
+    const heightInches = sanitizeSizeInches(nextOrder.product.heightInches);
+    const quantity = snapQuantity(nextOrder.product.quantity);
+
     const stickerPrice = getStickerPrice(
-      nextOrder.product.quantity,
+      quantity,
       nextOrder.product.material,
       finish,
       nextOrder.product.size,
-      {
-        widthInches: nextOrder.product.widthInches,
-        heightInches: nextOrder.product.heightInches,
-      }
+      { widthInches, heightInches }
     );
 
     const shippingPrice = getShippingPrice(nextOrder.production.deliveryMethod);
@@ -548,6 +558,9 @@ export default function Home() {
       product: {
         ...nextOrder.product,
         finish,
+        widthInches,
+        heightInches,
+        quantity,
       },
       pricing: {
         ...nextOrder.pricing,
@@ -1058,6 +1071,18 @@ export default function Home() {
         if (response.status === 413) {
           throw new Error("PAYLOAD_TOO_LARGE");
         }
+
+        // 502 means the route ran but neither the email nor Printavo took the
+        // quote. It carries a quote number, which the customer should keep.
+        if (response.status === 502) {
+          const failed = await response.json().catch(() => null);
+          throw new Error(
+            failed?.quoteNumber
+              ? `UNDELIVERED:${failed.quoteNumber}`
+              : "UNDELIVERED:"
+          );
+        }
+
         throw new Error("Server returned an error.");
       }
 
@@ -1065,6 +1090,18 @@ export default function Home() {
 
       console.log("QUOTE RESPONSE");
       console.log(result);
+
+      // Belt and braces. The route now 502s when nothing landed, but it also
+      // reports per-channel status, and claiming success while the quote sat
+      // in nobody's inbox is the exact failure this guards against.
+      if (result?.notification && result?.printavo) {
+        const reachedShop =
+          Boolean(result.notification.sent) || Boolean(result.printavo.created);
+
+        if (!reachedShop) {
+          throw new Error(`UNDELIVERED:${result.quoteNumber || ""}`);
+        }
+      }
 
       setQuoteConfirmation({
         quoteNumber: result.quoteNumber,
@@ -1079,7 +1116,18 @@ export default function Home() {
     } catch (error) {
       console.error(error);
 
-      if (error instanceof Error && error.message === "PAYLOAD_TOO_LARGE") {
+      if (error instanceof Error && error.message.startsWith("UNDELIVERED:")) {
+        const reference = error.message.slice("UNDELIVERED:".length);
+
+        setSubmitError(
+          `We could not deliver your request${
+            reference ? ` (reference ${reference})` : ""
+          }. Nothing was sent to the shop. Use "Copy Quote Details" below and email or call Gorilla Salem directly — please do not assume this went through.`
+        );
+      } else if (
+        error instanceof Error &&
+        error.message === "PAYLOAD_TOO_LARGE"
+      ) {
         setSubmitError(
           `Your artwork is too large to send through this form (the limit is ${MAX_ATTACHED_ARTWORK_LABEL}). ` +
             "Remove the file and submit the quote without it — we'll email you to collect the artwork."

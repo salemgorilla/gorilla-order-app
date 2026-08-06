@@ -2,7 +2,7 @@
 
 import OptionSelector from "../../components/OptionSelector";
 import NumberField from "../../components/ui/NumberField";
-import { snapQuantity, snapToQuarterInch } from "../../lib/units";
+import { sanitizeSizeInches, snapQuantity } from "../../lib/units";
 import {
   YARD_SIGN_HEIGHT_INCHES,
   YARD_SIGN_WIDTH_INCHES,
@@ -106,7 +106,7 @@ export default function SignsBuilder({
         <p className="mt-1 text-sm text-[var(--ink-muted)]">
           {isYardSign
             ? 'Yard signs are made at 18" x 24". Tell us how many.'
-            : 'Any size. Cut in quarter-inch steps, so 1.1" becomes 1.25".'}
+            : "Any size. Enter the exact width and height you need."}
         </p>
 
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -126,9 +126,11 @@ export default function SignsBuilder({
                 label="Width (in)"
                 unit="in"
                 value={signsQuote.customWidthInches}
-                min={0.25}
-                step={0.25}
-                snap={snapToQuarterInch}
+                min={0.01}
+                // "any" rather than a fixed step: a step of 0.25 made the
+                // browser reject 1.1 as invalid, which is now allowed.
+                step="any"
+                snap={sanitizeSizeInches}
                 onChange={(customWidthInches) => onUpdate({ customWidthInches })}
               />
 
@@ -137,9 +139,11 @@ export default function SignsBuilder({
                 label="Height (in)"
                 unit="in"
                 value={signsQuote.customHeightInches}
-                min={0.25}
-                step={0.25}
-                snap={snapToQuarterInch}
+                min={0.01}
+                // "any" rather than a fixed step: a step of 0.25 made the
+                // browser reject 1.1 as invalid, which is now allowed.
+                step="any"
+                snap={sanitizeSizeInches}
                 onChange={(customHeightInches) =>
                   onUpdate({ customHeightInches })
                 }

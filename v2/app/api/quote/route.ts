@@ -287,6 +287,39 @@ export async function POST(request: Request) {
       );
     }
 
+    // Did this quote actually reach anyone?
+    //
+    // Both channels are best-effort and NEITHER throws — sendQuoteEmail
+    // returns {sent:false} and createPrintavoQuote returns {created:false} on
+    // failure. This route used to return 200 success regardless, so if Resend
+    // was down and the Printavo token had expired, the customer got a green
+    // checkmark and a quote number for an order that existed nowhere. The only
+    // trace was a console.error in a function log nobody watches.
+    //
+    // An email that is SKIPPED (no provider configured) is not a delivery, so
+    // it does not count here either.
+    const reachedShop = Boolean(notification.sent) || Boolean(printavo.created);
+
+    if (!reachedShop) {
+      console.error(
+        `QUOTE UNDELIVERED for ${quoteNumber} — email: ${
+          notification.error || (notification.skipped ? "skipped" : "failed")
+        }; printavo: ${printavo.error || "failed"}`
+      );
+
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "We could not deliver your request. Nothing was sent — please call the shop or email us directly.",
+          quoteNumber,
+          notification,
+          printavo,
+        },
+        { status: 502 }
+      );
+    }
+
     return NextResponse.json({
       success: true,
       message: "Quote received by Gorilla Salem.",

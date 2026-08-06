@@ -1,39 +1,35 @@
 /**
- * The shop cuts and prices in quarter inches.
+ * Sizes are entered freely.
  *
- * A typed 1.1" is not a thing that can be made — it snaps to 1.25". This is
- * enforced in code rather than left to the input's `step` attribute, because
- * `step` only governs the arrow keys and native validation: a customer can
- * still type 1.1 straight into the box and the app would happily price it.
+ * There WAS a quarter-inch rule here: typed sizes snapped up to the next 0.25"
+ * so 1.1" became 1.25". Removed 2026-08-06 at Gabe's request — the shop will
+ * cut what the customer asks for.
+ *
+ * The sanitising below is deliberately NOT a constraint on what can be
+ * ordered. It only keeps the number sane: positive, and rounded to hundredths
+ * so float noise like 1.7500000000000002 never reaches the price, the order
+ * payload, or the cut spec the shop works from.
  */
-export const SIZE_INCREMENT_INCHES = 0.25;
 
-/** Smallest thing the shop will cut. */
-export const MIN_SIZE_INCHES = 0.25;
+/** Smallest thing worth quoting. Anything at or below this reads as unset. */
+export const MIN_SIZE_INCHES = 0.01;
 
 /**
- * Snap UP to the next quarter inch, never below the minimum.
+ * A usable measurement, without forcing it onto any grid.
  *
- * Up, not nearest. Gabe's rule was "no 1.1, only 1.25 or 1.75" — nearest
- * would send 1.1 down to 1.0, which is both the wrong answer and the wrong
- * direction: the shop cannot cut smaller than what was asked for, and
- * rounding down would quietly undercharge for the material actually used.
- *
- *   1.1  -> 1.25      1.3  -> 1.5       1.4 -> 1.5
- *   1.75 -> 1.75      0.1  -> 0.25      0   -> 0 (unset, field can be cleared)
+ * Returns 0 for blank or non-positive input so a cleared field stays cleared
+ * rather than springing back to a minimum while the customer is typing.
  */
-export function snapToQuarterInch(value: number) {
+export function sanitizeSizeInches(value: number) {
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) return 0;
 
-  // Nudge before ceiling so an exact quarter does not float its way upward:
-  // 1.75 / 0.25 can land on 7.000000000000001, which would ceil to 8.
-  const steps = Math.ceil(n / SIZE_INCREMENT_INCHES - 1e-9);
-  const snapped = steps * SIZE_INCREMENT_INCHES;
-
-  // Round-trip through cents to kill float drift — 0.1+0.2 arithmetic would
-  // otherwise leave values like 1.7500000000000002 in the order payload.
-  return Math.max(MIN_SIZE_INCHES, Math.round(snapped * 100) / 100);
+  // Four decimals, not two. Rounding to hundredths was tried and it mangled
+  // ordinary shop fractions: 3.375" (3 3/8) became 3.38" and repriced. Four
+  // decimals holds every sixteenth and thirty-second exactly while still
+  // killing float drift like 1.7500000000000002 before it reaches the price,
+  // the payload, or the cut spec.
+  return Math.round(n * 10000) / 10000;
 }
 
 /** Whole units, at least one. Quantities are counts, not measurements. */

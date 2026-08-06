@@ -7,7 +7,12 @@ type Props = {
   label: string;
   value: number;
   min: number;
-  step: number;
+  /**
+   * Accepts "any" as well as a number. Sizes use "any" — a numeric step makes
+   * the browser mark anything off that grid as invalid, and sizes are no
+   * longer restricted to an increment.
+   */
+  step: number | "any";
   /** Suffix shown after the value, e.g. "in". */
   unit?: string;
   className?: string;

@@ -1,9 +1,12 @@
 import {
   contourSigma,
+  CUT_EDGE_INTERCEPT,
+  CUT_EDGE_SLOPE,
   CUT_RIM_INTERCEPT,
   CUT_RIM_SLOPE,
   EDGE_THRESHOLD_INTERCEPT,
   EDGE_THRESHOLD_SLOPE,
+  getStickerBodyColor,
   hexToRgb,
   MAGENTA,
   STICKER_EDGE,
@@ -219,8 +222,23 @@ export async function renderStickerProof(
         if (rim) ctx.drawImage(rim, cardX - pad, cardY - pad);
       }
 
-      const vinyl = buildBand(layer, borderPx, STICKER_EDGE);
+      const vinyl = buildBand(
+        layer,
+        borderPx,
+        STICKER_EDGE,
+        CUT_EDGE_SLOPE,
+        CUT_EDGE_INTERCEPT
+      );
       if (vinyl) ctx.drawImage(vinyl, cardX - pad, cardY - pad);
+
+      // Opaque stock under the art. Every material the shop runs is opaque, so
+      // a transparent area of the file is bare vinyl rather than a hole.
+      const body = buildBand(
+        layer,
+        borderPx,
+        getStickerBodyColor(spec.material)
+      );
+      if (body) ctx.drawImage(body, cardX - pad, cardY - pad);
 
       ctx.drawImage(layer, cardX - pad, cardY - pad);
     } else {
@@ -229,7 +247,7 @@ export async function renderStickerProof(
       // grey was tried and read as a grey sticker rather than white vinyl,
       // and it disagreed with the white card the on-screen preview shows.
       ctx.save();
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = getStickerBodyColor(spec.material);
 
       if (spec.shape === "Circle" || spec.shape === "Oval") {
         ctx.beginPath();

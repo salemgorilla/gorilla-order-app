@@ -32,6 +32,28 @@ export function sanitizeSizeInches(value: number) {
   return Math.round(n * 10000) / 10000;
 }
 
+/** 3 -> `3"`, 3.375 -> `3.375"`. No trailing zeros on a round number. */
+export function formatInches(value: number) {
+  const n = sanitizeSizeInches(value);
+  return `${Number(n.toFixed(4))}"`;
+}
+
+/**
+ * The customer-facing size label, built from the real dimensions.
+ *
+ * `product.size` used to be a preset the customer picked ('3"'), and every
+ * display plus the shop email reads it. Once the size buttons were replaced by
+ * typed width and height, nothing updated that string any more — so a 5" x 5"
+ * order priced correctly at $105 while the review card, the proof card and the
+ * emailed spec all said 3". The shop would have made the wrong sticker.
+ *
+ * Deriving it from the dimensions keeps every one of those readers correct
+ * without touching them individually.
+ */
+export function formatSizeLabel(widthInches: number, heightInches: number) {
+  return `${formatInches(widthInches)} x ${formatInches(heightInches)}`;
+}
+
 /** Whole units, at least one. Quantities are counts, not measurements. */
 export function snapQuantity(value: number) {
   const n = Math.floor(Number(value) || 0);

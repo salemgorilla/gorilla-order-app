@@ -3,10 +3,13 @@ import type { CSSProperties } from "react";
 
 import {
   contourSigma,
+  CUT_EDGE_INTERCEPT,
+  CUT_EDGE_SLOPE,
   CUT_RIM_INTERCEPT,
   CUT_RIM_SLOPE,
   EDGE_THRESHOLD_INTERCEPT,
   EDGE_THRESHOLD_SLOPE,
+  getStickerBodyColor,
   MAGENTA,
   STICKER_EDGE,
 } from "../../lib/die-cut";
@@ -45,7 +48,10 @@ function getMaterialClasses(material: string) {
     return "bg-gradient-to-br from-zinc-100 via-white to-zinc-400";
   }
   if (material === "Clear Vinyl") {
-    return "bg-white/35";
+    // Opaque, despite the name. The shop only prints opaque stock — white,
+    // chrome and holographic — so this legacy material must not render
+    // see-through either. Kept only for quotes placed before it was retired.
+    return "bg-white";
   }
   return "bg-white";
 }
@@ -162,10 +168,12 @@ function ContourFilter({
   id,
   borderPx,
   magentaCutLine,
+  bodyColor,
 }: {
   id: string;
   borderPx: number;
   magentaCutLine: boolean;
+  bodyColor: string;
 }) {
   /**
    * Both rims come off ONE blur, differing only in threshold.
@@ -223,16 +231,27 @@ function ContourFilter({
           {borderPx > 0 &&
             band(
               "vinyl",
-              EDGE_THRESHOLD_SLOPE,
-              EDGE_THRESHOLD_INTERCEPT,
+              CUT_EDGE_SLOPE,
+              CUT_EDGE_INTERCEPT,
               STICKER_EDGE,
               "vinylBand"
             )}
+          {/* Opaque stock. Every material the shop runs is opaque, so a
+              transparent area of the artwork is bare vinyl, not a hole —
+              without this an uploaded PNG previewed as see-through. */}
+          {band(
+            "body",
+            EDGE_THRESHOLD_SLOPE,
+            EDGE_THRESHOLD_INTERCEPT,
+            bodyColor,
+            "bodyFill"
+          )}
 
           <feMerge>
-            {/* Painted outermost first: magenta rim, then vinyl, then art. */}
+            {/* Outermost first: magenta rim, grey cut edge, stock, then art. */}
             {magentaCutLine && <feMergeNode in="cutBand" />}
             {borderPx > 0 && <feMergeNode in="vinylBand" />}
+            <feMergeNode in="bodyFill" />
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
@@ -310,6 +329,7 @@ export default function StickerShape({
           id={filterId}
           borderPx={borderPx}
           magentaCutLine={magentaCutLine}
+          bodyColor={getStickerBodyColor(material)}
         />
 
         {/* Subtle checkerboard signals the die-cut (transparent) area */}

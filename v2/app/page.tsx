@@ -46,7 +46,11 @@ import {
 } from "../lib/upload-limits";
 import { uploadArtworkToBlob } from "../lib/artwork-upload";
 import { renderStickerProof } from "../lib/sticker-proof";
-import { sanitizeSizeInches, snapQuantity } from "../lib/units";
+import {
+  formatSizeLabel,
+  sanitizeSizeInches,
+  snapQuantity,
+} from "../lib/units";
 import { parseSizeInches } from "../components/preview/StickerShape";
 
 import QuoteConfirmationScreen from "../features/QuoteConfirmation";
@@ -543,6 +547,15 @@ export default function Home() {
     const heightInches = sanitizeSizeInches(nextOrder.product.heightInches);
     const quantity = snapQuantity(nextOrder.product.quantity);
 
+    // Keep the label in step with the dimensions. Everything that shows a size
+    // to the customer or to the shop — the review card, the proof card, the
+    // quote email, the Printavo line — reads product.size, and nothing had
+    // updated it since the size buttons were replaced by typed dimensions.
+    const size =
+      widthInches > 0 && heightInches > 0
+        ? formatSizeLabel(widthInches, heightInches)
+        : nextOrder.product.size;
+
     const stickerPrice = getStickerPrice(
       quantity,
       nextOrder.product.material,
@@ -561,6 +574,7 @@ export default function Home() {
         widthInches,
         heightInches,
         quantity,
+        size,
       },
       pricing: {
         ...nextOrder.pricing,

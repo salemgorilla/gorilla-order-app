@@ -45,9 +45,37 @@ export const STICKER_EDGE = "#e6e4de";
 export const EDGE_THRESHOLD = 0.1;
 export const CUT_RIM_THRESHOLD = 0.02;
 
+/**
+ * The grey cut edge sits BETWEEN the white body and the magenta rim.
+ *
+ * A die-cut sticker is white vinyl cut to the contour, so everything inside
+ * the cut is white — including any transparent area of the artwork. Rendering
+ * the body as transparent made an uploaded PNG preview as see-through, which
+ * is not what gets made. The body is now filled white at EDGE_THRESHOLD and
+ * the grey shows as a rim just outside it.
+ */
+export const CUT_EDGE_THRESHOLD = 0.05;
+
 /** probit(1 - t) for each threshold. Converts a border width into a sigma. */
 export const EDGE_PROBIT = 1.2816;
+export const CUT_EDGE_PROBIT = 1.6449;
 export const CUT_RIM_PROBIT = 2.0537;
+
+/**
+ * The stock the artwork is printed on.
+ *
+ * Every material the shop runs is OPAQUE — white vinyl, chrome, holographic.
+ * Nothing is see-through, so a transparent area of the customer's file is not
+ * a hole: it is bare stock. Chrome and holographic get a flat representative
+ * tint here rather than the gradient the shaped card uses, because this value
+ * is flooded into a filter and a gradient cannot be.
+ */
+export function getStickerBodyColor(material: string) {
+  const name = String(material || "").trim();
+  if (name === "Holographic") return "#f1e9f7";
+  if (name === "Chrome") return "#e9eaec";
+  return "#ffffff";
+}
 
 /**
  * Curvature correction. A convex outline spreads slightly less than the
@@ -76,6 +104,10 @@ export const EDGE_THRESHOLD_INTERCEPT =
  */
 export const CUT_RIM_SLOPE = Math.round(EDGE_THRESHOLD_SLOPE * 3.63);
 export const CUT_RIM_INTERCEPT = 0.5 - CUT_RIM_SLOPE * CUT_RIM_THRESHOLD;
+
+/** Same scaling for the grey edge: phi(1.2816)/phi(1.6449) = 1.70. */
+export const CUT_EDGE_SLOPE = Math.round(EDGE_THRESHOLD_SLOPE * 1.7);
+export const CUT_EDGE_INTERCEPT = 0.5 - CUT_EDGE_SLOPE * CUT_EDGE_THRESHOLD;
 
 /** Blur sigma that puts the contour `borderPx` outside the artwork. */
 export function contourSigma(borderPx: number) {

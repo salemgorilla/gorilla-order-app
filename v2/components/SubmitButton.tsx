@@ -2,6 +2,12 @@ type Props = {
   onSubmit: () => void;
   disabled?: boolean;
   isLoading?: boolean;
+  /**
+   * Artwork upload percentage, or null when nothing is uploading. A 60 MB
+   * file takes real time; a button reading "REQUESTING QUOTE…" for a minute
+   * with no movement reads as a hang, and people click away.
+   */
+  uploadProgress?: number | null;
 };
 
 /**
@@ -15,6 +21,7 @@ export default function SubmitButton({
   onSubmit,
   disabled = false,
   isLoading = false,
+  uploadProgress = null,
 }: Props) {
   const inactive = disabled || isLoading;
 
@@ -34,7 +41,11 @@ export default function SubmitButton({
       ].join(" ")}
     >
       {isLoading ? (
-        <span className="spec">REQUESTING QUOTE…</span>
+        <span className="spec">
+          {typeof uploadProgress === "number"
+            ? `UPLOADING ARTWORK ${Math.round(uploadProgress)}%`
+            : "REQUESTING QUOTE…"}
+        </span>
       ) : (
         "Request Quote →"
       )}

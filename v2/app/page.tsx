@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import Header from "../components/Header";
 import UploadBox from "../components/upload/UploadBox";
+import ArtworkGuidance from "../components/upload/ArtworkGuidance";
 import NeedByDate from "../components/NeedByDate";
 import CustomerForm from "../components/CustomerForm";
 import SubmitButton from "../components/SubmitButton";
@@ -43,6 +44,7 @@ import {
   isArtworkTooLargeToAttach,
   MAX_ATTACHED_ARTWORK_LABEL,
 } from "../lib/upload-limits";
+import { uploadArtworkToBlob } from "../lib/artwork-upload";
 
 import QuoteConfirmationScreen from "../features/QuoteConfirmation";
 import QuoteReviewCard from "../features/QuoteReviewCard";
@@ -85,6 +87,14 @@ export default function Home() {
   const [quoteConfirmation, setQuoteConfirmation] =
     useState<QuoteConfirmation | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // Percentage while artwork goes up to blob storage; null when not uploading.
+  // A 60 MB file takes real time, and a submit button that just sits there
+  // reads as a hang.
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  // Whether a blob store is connected. Starts false so the box advertises the
+  // smaller, always-true limit until we know better — never the other way
+  // round, which is how it ended up promising 100 MB it could not deliver.
+  const [directUploadEnabled, setDirectUploadEnabled] = useState(false);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">(
     "idle"
   );
@@ -666,6 +676,23 @@ export default function Home() {
    * an image from another tab) is swallowed rather than allowed to navigate.
    */
   useEffect(() => {
+    let cancelled = false;
+
+    fetch("/api/artwork-upload")
+      .then((res) => (res.ok ? res.json() : { configured: false }))
+      .then((data) => {
+        if (!cancelled) setDirectUploadEnabled(Boolean(data?.configured));
+      })
+      .catch(() => {
+        // Leave it false. The smaller limit is always safe to advertise.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     const allowDrop = (event: DragEvent) => {
       if (!event.dataTransfer?.types?.includes("Files")) return;
       event.preventDefault();
@@ -964,13 +991,25 @@ export default function Home() {
       // failed identically every time. The quote goes through without the
       // attachment and the shop asks for the file directly.
       const artworkFile = order.artwork.file;
+
+      // Preferred path: straight to blob storage, bypassing the function and
+      // its body limit entirely. Falls back on its own if no blob store is
+      // connected, so the form keeps working either way.
+      const blobUrl = artworkFile
+        ? await uploadArtworkToBlob(artworkFile, setUploadProgress)
+        : null;
+
+      setUploadProgress(null);
+
       const artworkOversized = isArtworkTooLargeToAttach(artworkFile);
 
-      if (artworkFile && !artworkOversized) {
+      if (blobUrl) {
+        formData.append("artworkUrl", blobUrl);
+        formData.append("artworkFileName", artworkFile!.name);
+        formData.append("artworkFileSize", String(artworkFile!.size));
+      } else if (artworkFile && !artworkOversized) {
         formData.append("artwork", artworkFile, artworkFile.name);
-      }
-
-      if (artworkFile && artworkOversized) {
+      } else if (artworkFile) {
         formData.append("artworkTooLarge", "true");
         formData.append("artworkFileName", artworkFile.name);
         formData.append("artworkFileSize", String(artworkFile.size));
@@ -1488,8 +1527,11 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 // which made a working drop look like a failed one.
                 fileName={order.artwork.file?.name || null}
                 fileSizeBytes={order.artwork.file?.size ?? null}
+                directUploadEnabled={directUploadEnabled}
                 previewUrl={artworkPreview}
               />
+
+              <ArtworkGuidance directUploadEnabled={directUploadEnabled} />
 
               <NeedByDate
                 needBy={order.production.needBy}
@@ -1624,7 +1666,11 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 </p>
               )}
               {readyToSubmit ? (
-                <SubmitButton onSubmit={submitOrder} isLoading={isSubmitting} />
+                <SubmitButton
+                  onSubmit={submitOrder}
+                  isLoading={isSubmitting}
+                  uploadProgress={uploadProgress}
+                />
               ) : (
                 <button
                   type="button"

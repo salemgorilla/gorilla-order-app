@@ -6,6 +6,8 @@ import {
   formatBytes,
   MAX_ATTACHED_ARTWORK_BYTES,
   MAX_ATTACHED_ARTWORK_LABEL,
+  MAX_BLOB_ARTWORK_BYTES,
+  MAX_BLOB_ARTWORK_LABEL,
 } from "../../lib/upload-limits";
 
 type Props = {
@@ -16,6 +18,12 @@ type Props = {
   previewUrl?: string | null;
   /** Byte size of the chosen file, used to warn before submit. */
   fileSizeBytes?: number | null;
+  /**
+   * True once a blob store is connected, which lifts the ceiling from the
+   * ~4.4 MB function body limit to 100 MB. Until then the box must keep
+   * telling the truth about the smaller cap.
+   */
+  directUploadEnabled?: boolean;
 };
 
 /**
@@ -43,6 +51,7 @@ export default function UploadBox({
   fileName = null,
   previewUrl = null,
   fileSizeBytes = null,
+  directUploadEnabled = false,
 }: Props) {
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -61,9 +70,16 @@ export default function UploadBox({
     inputRef.current?.click();
   }
 
+  const ceilingBytes = directUploadEnabled
+    ? MAX_BLOB_ARTWORK_BYTES
+    : MAX_ATTACHED_ARTWORK_BYTES;
+
+  const ceilingLabel = directUploadEnabled
+    ? MAX_BLOB_ARTWORK_LABEL
+    : MAX_ATTACHED_ARTWORK_LABEL;
+
   const isOversized =
-    typeof fileSizeBytes === "number" &&
-    fileSizeBytes > MAX_ATTACHED_ARTWORK_BYTES;
+    typeof fileSizeBytes === "number" && fileSizeBytes > ceilingBytes;
 
   return (
     <div
@@ -126,9 +142,8 @@ export default function UploadBox({
             </p>
             {isOversized ? (
               <p className="mt-3 max-w-md border-2 border-[var(--rush-red)] px-4 py-3 text-fine text-[var(--rush-red)]">
-                Too big to send with this form (limit{" "}
-                {MAX_ATTACHED_ARTWORK_LABEL}). Submit the quote anyway — we
-                will email you to collect the artwork.
+                Too big to send with this form (limit {ceilingLabel}). Submit
+                the quote anyway — we will email you to collect the artwork.
               </p>
             ) : (
               <p className="mt-2 text-fine text-[var(--ink-muted)]">
@@ -160,12 +175,18 @@ export default function UploadBox({
           {fileName ? "Choose a different file" : "Browse Files"}
         </button>
 
-        {/* This used to say 100 MB. The platform rejects anything over ~4.4 MB
-            before our code runs, so that number was a promise the app could
-            not keep — and it is why large print files failed silently. */}
+        {/* This once said 100 MB while the platform rejected anything over
+            ~4.4 MB, which is why large print files failed silently. The number
+            shown now tracks what the deployment can actually accept. */}
         <p className="mt-4 text-sm text-[var(--ink-muted)]">
-          Files up to {MAX_ATTACHED_ARTWORK_LABEL} upload here. Larger artwork
-          is fine — submit the quote and we&rsquo;ll collect it by email.
+          {directUploadEnabled ? (
+            <>Maximum file size: {ceilingLabel}</>
+          ) : (
+            <>
+              Files up to {ceilingLabel} upload here. Larger artwork is fine —
+              submit the quote and we&rsquo;ll collect it by email.
+            </>
+          )}
         </p>
       </div>
 

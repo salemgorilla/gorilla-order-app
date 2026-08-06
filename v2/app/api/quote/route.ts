@@ -22,6 +22,7 @@ type ParsedQuoteRequest = {
   artworkAnalysis: Record<string, unknown> | null;
   artworkFile: File | null;
   oversizedArtwork: { name: string; size: number } | null;
+  artworkBlob: { url: string; name: string; size: number } | null;
 };
 
 async function parseQuoteRequest(request: Request): Promise<ParsedQuoteRequest> {
@@ -32,6 +33,9 @@ async function parseQuoteRequest(request: Request): Promise<ParsedQuoteRequest> 
     const orderRaw = form.get("order");
     const analysisRaw = form.get("artworkAnalysis");
     const file = form.get("artwork");
+
+    const urlRaw = form.get("artworkUrl");
+    const uploadedUrl = typeof urlRaw === "string" ? urlRaw : "";
 
     return {
       order:
@@ -50,6 +54,15 @@ async function parseQuoteRequest(request: Request): Promise<ParsedQuoteRequest> 
               size: Number(form.get("artworkFileSize") || 0),
             }
           : null,
+      // Artwork that went straight to blob storage. The file never passed
+      // through here, so there is nothing to cap — only a URL to record.
+      artworkBlob: uploadedUrl
+        ? {
+            url: uploadedUrl,
+            name: String(form.get("artworkFileName") || "artwork"),
+            size: Number(form.get("artworkFileSize") || 0),
+          }
+        : null,
     };
   }
 
@@ -60,6 +73,7 @@ async function parseQuoteRequest(request: Request): Promise<ParsedQuoteRequest> 
     artworkAnalysis: body.artworkAnalysis ?? null,
     artworkFile: null,
     oversizedArtwork: null,
+    artworkBlob: null,
   };
 }
 
@@ -104,7 +118,7 @@ function generateQuoteNumber() {
 
 export async function POST(request: Request) {
   try {
-    const { order, artworkAnalysis, artworkFile, oversizedArtwork } =
+    const { order, artworkAnalysis, artworkFile, oversizedArtwork, artworkBlob } =
       await parseQuoteRequest(request);
 
     const quoteNumber = generateQuoteNumber();
@@ -116,15 +130,28 @@ export async function POST(request: Request) {
     // An oversized file never leaves the customer's browser, so there is
     // nothing to attach — but the shop still needs to know it exists and to
     // go collect it, or the job stalls waiting on art nobody asked for.
-    const attachmentInfo = oversizedArtwork
-      ? `ARTWORK NOT UPLOADED — "${oversizedArtwork.name}" is ${(
-          oversizedArtwork.size /
-          (1024 * 1024)
-        ).toFixed(1)} MB, over the ${(
-          MAX_ATTACHED_ARTWORK_BYTES /
-          (1024 * 1024)
-        ).toFixed(1)} MB form limit. Email the customer to collect it.`
-      : builtAttachmentInfo;
+    let attachmentInfo = builtAttachmentInfo;
+
+    if (artworkBlob) {
+      // The file uploaded straight to storage, so there is no attachment to
+      // build — the shop opens the link instead. This is the normal path once
+      // a blob store is connected, at any size up to 100 MB.
+      attachmentInfo = `Uploaded — ${artworkBlob.name} (${(
+        artworkBlob.size /
+        (1024 * 1024)
+      ).toFixed(1)} MB): ${artworkBlob.url}`;
+    } else if (oversizedArtwork) {
+      // An oversized file never leaves the customer's browser, so there is
+      // nothing to attach — but the shop still needs to know it exists and to
+      // go collect it, or the job stalls waiting on art nobody asked for.
+      attachmentInfo = `ARTWORK NOT UPLOADED — "${oversizedArtwork.name}" is ${(
+        oversizedArtwork.size /
+        (1024 * 1024)
+      ).toFixed(1)} MB, over the ${(
+        MAX_ATTACHED_ARTWORK_BYTES /
+        (1024 * 1024)
+      ).toFixed(1)} MB form limit. Email the customer to collect it.`;
+    }
 
     const quoteRecord = {
       quoteNumber,
@@ -140,8 +167,11 @@ export async function POST(request: Request) {
       addOnsNote: order.addOnsNote ?? "",
       artworkAnalysis,
       artwork: {
-        fileName: artworkFile?.name ?? oversizedArtwork?.name ?? null,
-        fileSize: artworkFile?.size ?? oversizedArtwork?.size ?? null,
+        fileName:
+          artworkBlob?.name ?? artworkFile?.name ?? oversizedArtwork?.name ?? null,
+        fileSize:
+          artworkBlob?.size ?? artworkFile?.size ?? oversizedArtwork?.size ?? null,
+        url: artworkBlob?.url ?? null,
         attachment: attachmentInfo,
         awaitingArtwork: Boolean(oversizedArtwork),
       },

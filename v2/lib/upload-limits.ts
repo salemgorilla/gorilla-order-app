@@ -43,3 +43,16 @@ export function isArtworkTooLargeToAttach(file: File | null | undefined) {
 
 /** Human-readable cap, for customer-facing copy. */
 export const MAX_ATTACHED_ARTWORK_LABEL = "3.5 MB";
+
+/**
+ * The real ceiling once artwork goes straight to blob storage.
+ *
+ * A direct-to-blob upload never passes through a serverless function, so the
+ * 4.4 MB body limit above simply does not apply to it. This is the number the
+ * customer should see whenever a blob store is connected.
+ */
+export const MAX_BLOB_ARTWORK_BYTES = 100 * 1024 * 1024;
+export const MAX_BLOB_ARTWORK_LABEL = "100 MB";
+
+/** Above this the file is uploaded in parallel chunks rather than one request. */
+export const MULTIPART_THRESHOLD_BYTES = 8 * 1024 * 1024;

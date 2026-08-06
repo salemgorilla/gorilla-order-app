@@ -1,6 +1,5 @@
 "use client";
 
-import QuantitySelector from "../../components/QuantitySelector";
 import OptionSelector from "../../components/OptionSelector";
 import { stickerCatalog } from "../../lib/catalog";
 import { DECAL_SHIPPING_PRICE } from "../../lib/pricing";

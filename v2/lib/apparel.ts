@@ -25,7 +25,11 @@ export const apparelCatalog = {
 export const defaultApparelQuote = {
   garmentType: "T-Shirts",
   quantity: 24,
-  garmentColor: "Black",
+  // White, deliberately. Every non-White garment gets charged an underbase
+  // (see hasUnderbase in app/page.tsx), so defaulting to Black meant every
+  // customer opened apparel with a surcharge already applied for a choice
+  // they had not made. White is the honest zero.
+  garmentColor: "White",
   printLocations: ["Front"],
   inkColors: "1 color",
   sizeBreakdown: "",

@@ -97,15 +97,16 @@ export default function ApparelBuilder({
             </p>
           </div>
 
-          <span className=" bg-white px-3 py-2 text-xs font-bold text-[var(--gorilla-green)]">
-            {ssCatalogStatus === "loaded"
-              ? "Loaded"
-              : ssCatalogStatus === "loading"
-              ? "Loading"
-              : ssCatalogStatus === "error"
-              ? "Error"
-              : "Ready"}
-          </span>
+          {/* Only shown while something is actually happening. This used to
+              print internal fetch state in the panel's most prominent slot,
+              and its idle branch said "Ready" — which a customer reads as a
+              promise about their order but only meant "the fetch has not
+              started". A loaded catalogue needs no announcement. */}
+          {ssCatalogStatus === "loading" && (
+            <span className="spec bg-white px-3 py-2 text-spec font-bold text-[var(--ink-muted)]">
+              LOADING GARMENTS
+            </span>
+          )}
         </div>
 
         {ssCatalogStatus === "error" && (

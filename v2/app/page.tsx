@@ -327,8 +327,23 @@ export default function Home() {
         setSsProducts(data.products);
         setSsCatalogStatus("loaded");
 
-        const firstProduct = data.products[0];
+        // Pin the Starter Tee rather than taking products[0]. The catalog is
+        // sorted by displayName, so index 0 is an alphabetical accident — the
+        // customer landed on whichever garment happened to sort first.
+        const firstProduct =
+          data.products.find((product) =>
+            /starter tee/i.test(
+              product.customerLabel || product.displayName || ""
+            )
+          ) || data.products[0];
+
+        // Prefer White for the same reason the default is White: every other
+        // colour carries an underbase charge, so anything else is a surcharge
+        // the customer did not ask for.
         const firstColor =
+          firstProduct?.colors.find(
+            (color) => /^white$/i.test(color.colorName) && color.isAvailable
+          ) ||
           firstProduct?.colors.find((color) => color.isAvailable) ||
           firstProduct?.colors[0];
         const firstSize =

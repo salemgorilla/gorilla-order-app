@@ -1,7 +1,12 @@
 "use client";
 
-import QuantitySelector from "../../components/QuantitySelector";
 import OptionSelector from "../../components/OptionSelector";
+import NumberField from "../../components/ui/NumberField";
+import { snapQuantity, snapToQuarterInch } from "../../lib/units";
+import {
+  YARD_SIGN_HEIGHT_INCHES,
+  YARD_SIGN_WIDTH_INCHES,
+} from "../../lib/signs";
 import { signsPricingConfig } from "../../lib/signs-pricing-config";
 
 /**
@@ -43,6 +48,8 @@ export default function SignsBuilder({
 }: Props) {
   const product = getSignProduct(signsQuote.productId);
   const isCustomSize = signsQuote.size === CUSTOM_SIZE;
+  // Yard signs price from a per-unit table keyed on size, so they are frozen.
+  const isYardSign = product.pricingMethod === "yard";
   const sizeOptions = getSizeOptions(product);
 
   return (
@@ -89,76 +96,88 @@ export default function SignsBuilder({
         </div>
       </div>
 
-      <QuantitySelector
-        quantities={signsCatalog.quantities}
-        selected={signsQuote.quantity}
-        onSelect={(quantity) => onUpdate({ quantity })}
-      />
+      {/* Quantity and size are typed, not picked from chips.
+          YARD SIGNS ARE THE EXCEPTION: their price comes from a per-unit
+          quantity table keyed on the size string, so the size is frozen at
+          18" x 24" rather than opened up. Free entry there would push every
+          yard sign into hand-pricing. */}
+      <div className="border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
+        <h3 className="text-lede font-bold">Size and quantity</h3>
+        <p className="mt-1 text-sm text-[var(--ink-muted)]">
+          {isYardSign
+            ? 'Yard signs are made at 18" x 24". Tell us how many.'
+            : 'Any size. Cut in quarter-inch steps, so 1.1" becomes 1.25".'}
+        </p>
 
-      <div>
-        <OptionSelector
-          title="Size"
-          options={sizeOptions}
-          selected={signsQuote.size}
-          onSelect={(size) => onUpdate({ size })}
-        />
-
-        {isCustomSize && (
-          <div className="mt-3 border border-[var(--rule)] bg-[var(--shirt-blank)] p-4">
-            <p className="text-sm font-bold text-[var(--ink-black)]">
-              Enter your size (inches)
-            </p>
-
-            <div className="mt-3 flex items-center gap-3">
-              <label className="flex-1">
-                <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
-                  Width
-                </span>
-                <input
-                  type="number"
-                  min={1}
-                  inputMode="numeric"
-                  value={signsQuote.customWidthInches || ""}
-                  onChange={(event) =>
-                    onUpdate({ customWidthInches: Number(event.target.value) })
-                  }
-                  placeholder="60"
-                  className="mt-1 w-full border border-[var(--rule)] bg-white px-3 py-2 font-bold text-[var(--ink-black)] outline-none focus:ring-2 focus:ring-[var(--gorilla-green)]"
-                />
-              </label>
-
-              <span className="mt-5 font-bold text-[var(--ink-muted)]">×</span>
-
-              <label className="flex-1">
-                <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
-                  Height
-                </span>
-                <input
-                  type="number"
-                  min={1}
-                  inputMode="numeric"
-                  value={signsQuote.customHeightInches || ""}
-                  onChange={(event) =>
-                    onUpdate({ customHeightInches: Number(event.target.value) })
-                  }
-                  placeholder="36"
-                  className="mt-1 w-full border border-[var(--rule)] bg-white px-3 py-2 font-bold text-[var(--ink-black)] outline-none focus:ring-2 focus:ring-[var(--gorilla-green)]"
-                />
-              </label>
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {isYardSign ? (
+            <div className="col-span-2">
+              <span className="block text-fine font-bold text-[var(--ink-black)]">
+                Size
+              </span>
+              <p className="spec mt-1 flex min-h-[44px] items-center border border-[var(--rule)] bg-[var(--paper)] p-3 text-lede text-[var(--ink-black)]">
+                {YARD_SIGN_WIDTH_INCHES}&quot; &times; {YARD_SIGN_HEIGHT_INCHES}&quot;
+              </p>
             </div>
+          ) : (
+            <>
+              <NumberField
+                id="sign-width"
+                label="Width (in)"
+                unit="in"
+                value={signsQuote.customWidthInches}
+                min={0.25}
+                step={0.25}
+                snap={snapToQuarterInch}
+                onChange={(customWidthInches) => onUpdate({ customWidthInches })}
+              />
 
-            <p className="mt-3 text-xs font-bold leading-5 text-[var(--ink-muted)]">
+              <NumberField
+                id="sign-height"
+                label="Height (in)"
+                unit="in"
+                value={signsQuote.customHeightInches}
+                min={0.25}
+                step={0.25}
+                snap={snapToQuarterInch}
+                onChange={(customHeightInches) =>
+                  onUpdate({ customHeightInches })
+                }
+              />
+            </>
+          )}
+
+          <NumberField
+            id="sign-quantity"
+            label="How many"
+            value={signsQuote.quantity}
+            min={1}
+            step={1}
+            className="col-span-2 sm:col-span-1"
+            snap={snapQuantity}
+            onChange={(quantity) => onUpdate({ quantity })}
+          />
+        </div>
+
+        {!isYardSign &&
+          signsQuote.customWidthInches > 0 &&
+          signsQuote.customHeightInches > 0 && (
+            <p className="mt-3 text-fine leading-5 text-[var(--ink-muted)]">
+              {(
+                (signsQuote.customWidthInches * signsQuote.customHeightInches) /
+                144
+              ).toFixed(2)}{" "}
+              sq ft each.{" "}
               {product.pricingMethod === "banner" ||
               product.pricingMethod === "poster"
                 ? "Any size — no extra charge, these print on roll material."
-                : `Custom sizes on hard stock add a ${priceCopy(
+                : `Hard stock adds a ${priceCopy(
                     signsPricingConfig.customSizeFee
                   )} fee, since odd sizes leave drop pieces when cut from our ${
                     signsPricingConfig.sheetStockInches.width
                   }″ × ${signsPricingConfig.sheetStockInches.height}″ sheets.`}
             </p>
-          </div>
-        )}
+          )}
       </div>
 
       <OptionSelector

@@ -1,6 +1,8 @@
 "use client";
 
 import OptionSelector from "../../components/OptionSelector";
+import NumberField from "../../components/ui/NumberField";
+import { snapQuantity, snapToQuarterInch } from "../../lib/units";
 import { stickerCatalog } from "../../lib/catalog";
 import { DECAL_SHIPPING_PRICE } from "../../lib/pricing";
 import type { DeliveryMethod, Product } from "../../types/order";
@@ -53,7 +55,7 @@ export default function DecalBuilder({
       <div className="border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
         <h3 className="text-lede font-bold">Size and quantity</h3>
         <p className="mt-1 text-sm text-[var(--ink-muted)]">
-          Any size, any amount — the price updates as you type.
+          Any size, any amount. Sizes are cut in quarter-inch steps, so 1.1&quot; becomes 1.25&quot;.
         </p>
 
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -63,6 +65,8 @@ export default function DecalBuilder({
             value={product.widthInches}
             min={0.25}
             step={0.25}
+            unit="in"
+            snap={snapToQuarterInch}
             onChange={(widthInches) => onUpdate({ widthInches })}
           />
 
@@ -72,6 +76,8 @@ export default function DecalBuilder({
             value={product.heightInches}
             min={0.25}
             step={0.25}
+            unit="in"
+            snap={snapToQuarterInch}
             onChange={(heightInches) => onUpdate({ heightInches })}
           />
 
@@ -82,7 +88,8 @@ export default function DecalBuilder({
             min={1}
             step={1}
             className="col-span-2 sm:col-span-1"
-            onChange={(quantity) => onUpdate({ quantity: Math.round(quantity) })}
+            snap={snapQuantity}
+            onChange={(quantity) => onUpdate({ quantity })}
           />
         </div>
 
@@ -225,43 +232,3 @@ export default function DecalBuilder({
  * One labelled number input. Sentence-case label, mono value, 44px target —
  * the accessibility floor for customer-facing forms in DESIGN-SYSTEM.md.
  */
-function NumberField({
-  id,
-  label,
-  value,
-  min,
-  step,
-  className = "",
-  onChange,
-}: {
-  id: string;
-  label: string;
-  value: number;
-  min: number;
-  step: number;
-  className?: string;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <div className={className}>
-      <label
-        htmlFor={id}
-        className="block text-fine font-bold text-[var(--ink-black)]"
-      >
-        {label}
-      </label>
-      <input
-        id={id}
-        type="number"
-        inputMode="decimal"
-        min={min}
-        step={step}
-        // Empty rather than 0 while unset, so the field does not read as a
-        // real value the customer has to clear before typing.
-        value={value || ""}
-        onChange={(event) => onChange(Number(event.target.value) || 0)}
-        className="spec mt-1 min-h-[44px] w-full border border-[var(--rule)] bg-[var(--paper)] p-3 text-lede text-[var(--ink-black)] transition-colors duration-[120ms] ease-linear hover:border-[var(--ink-black)]"
-      />
-    </div>
-  );
-}

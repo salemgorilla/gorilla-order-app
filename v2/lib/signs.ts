@@ -14,6 +14,28 @@ import { signsPricingConfig } from "./signs-pricing-config";
 
 export const CUSTOM_SIZE = "Custom size";
 
+/**
+ * Yard signs are frozen at one size.
+ *
+ * Unlike banners and rigid signs, which price per square foot at any
+ * dimension, yard signs price from a per-unit quantity table keyed on the
+ * size STRING ('18" x 24"'). Opening them to free entry would mean every
+ * typed dimension missed the table and fell through to hand-pricing.
+ */
+export const YARD_SIGN_WIDTH_INCHES = 18;
+export const YARD_SIGN_HEIGHT_INCHES = 24;
+export const YARD_SIGN_SIZE_KEY = '18" x 24"';
+
+/**
+ * The key the yard-sign price table is looked up by, derived from real
+ * dimensions so the table still resolves once sizes are typed rather than
+ * picked. Returns "" when the dimensions match no table entry, which the
+ * pricing engine correctly treats as priced-by-hand.
+ */
+export function getYardSignSizeKey(widthInches: number, heightInches: number) {
+  return `${widthInches}" x ${heightInches}"`;
+}
+
 export type SignPricingMethod = "yard" | "banner" | "poster" | "rigid" | null;
 
 export type SignSize = {
@@ -238,14 +260,26 @@ export function getSignSizeLabel(quote: SignsQuote) {
 
 /** Finished dimensions of one piece, in inches. */
 export function getSignDimensions(quote: SignsQuote) {
-  if (quote.size === CUSTOM_SIZE) {
+  const product = getSignProduct(quote.productId);
+
+  // Yard signs are frozen — the customer never types their dimensions.
+  if (product.pricingMethod === "yard") {
+    return {
+      widthInches: YARD_SIGN_WIDTH_INCHES,
+      heightInches: YARD_SIGN_HEIGHT_INCHES,
+    };
+  }
+
+  // Everything else is typed. Presets are gone, so the custom fields are the
+  // only source; the old label lookup is kept below purely so a quote created
+  // before this change still resolves.
+  if (quote.customWidthInches > 0 && quote.customHeightInches > 0) {
     return {
       widthInches: quote.customWidthInches,
       heightInches: quote.customHeightInches,
     };
   }
 
-  const product = getSignProduct(quote.productId);
   const size = product.sizes.find((s) => s.label === quote.size);
 
   return {

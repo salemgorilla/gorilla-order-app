@@ -24,6 +24,7 @@ import {
   getSignProduct,
   getSignSizeLabel,
   getSizeOptions,
+  getYardSignSizeKey,
 } from "../lib/signs";
 import { calculateSignsPricing } from "../lib/signs-pricing";
 import { productCategories } from "../lib/products";
@@ -212,7 +213,10 @@ export default function Home() {
     return calculateSignsPricing({
       method: product.pricingMethod,
       quantity: signsQuote.quantity,
-      sizeKey: signsQuote.size,
+      // Derived from real dimensions, not the old preset label. Yard signs are
+      // frozen at 18x24 so this resolves to their table key; anything else
+      // misses the table and is correctly priced by hand.
+      sizeKey: getYardSignSizeKey(widthInches, heightInches),
       widthInches,
       heightInches,
       material: signsQuote.material,

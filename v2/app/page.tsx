@@ -1490,15 +1490,17 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                       {product.title}
                     </p>
 
-                    <span
-                      className={` px-3 py-1 text-xs font-bold ${
-                        isSelected
-                          ? "bg-[var(--gorilla-green)] text-white"
-                          : "bg-[var(--shirt-blank)] text-[var(--ink-muted)]"
-                      }`}
-                    >
-                      {product.badge}
-                    </span>
+                    {product.badge && (
+                      <span
+                        className={` px-3 py-1 text-xs font-bold ${
+                          isSelected
+                            ? "bg-[var(--gorilla-green)] text-white"
+                            : "bg-[var(--shirt-blank)] text-[var(--ink-muted)]"
+                        }`}
+                      >
+                        {product.badge}
+                      </span>
+                    )}
                   </div>
 
                   <p className="mt-3 text-sm font-bold leading-6 text-[var(--ink-muted)]">
@@ -1801,8 +1803,24 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
           <p className="mt-2 text-lg font-bold text-[var(--ink-black)]">
             Custom printing, local service, real people reviewing your order.
           </p>
+          {/* The shop closes quotes fastest by phone, and until now the only
+              contact route on the page was email. tel: so a phone taps to
+              dial; both are real links rather than plain text. */}
           <p className="mt-2 text-sm font-bold text-[var(--ink-muted)]">
-            Salem, Massachusetts • quote@gorillasalem.com
+            Salem, Massachusetts •{" "}
+            <a
+              className="underline decoration-1 underline-offset-2 transition-colors duration-[120ms] ease-linear hover:text-[var(--gorilla-green)]"
+              href="tel:+19787457755"
+            >
+              (978) 745-7755
+            </a>{" "}
+            •{" "}
+            <a
+              className="underline decoration-1 underline-offset-2 transition-colors duration-[120ms] ease-linear hover:text-[var(--gorilla-green)]"
+              href="mailto:quote@gorillasalem.com"
+            >
+              quote@gorillasalem.com
+            </a>
           </p>
         </footer>
       </div>

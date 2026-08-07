@@ -1,7 +1,8 @@
 export type ProductCategory = {
   id: string;
   title: string;
-  badge: string;
+  /** null when the product needs no qualifier. */
+  badge: string | null;
   description: string;
   status: "active" | "coming-soon";
 };
@@ -10,7 +11,11 @@ export const productCategories: ProductCategory[] = [
   {
     id: "stickers",
     title: "Custom Stickers",
-    badge: "Beta",
+    // No badge. Stickers are the one flow that takes payment unattended, and
+    // "Beta" sat on the card right where the customer is deciding whether to
+    // trust it with a card number. Signs keeps its badge — that one really is
+    // still settling.
+    badge: null,
     description:
       "Die-cut stickers, logo stickers, product labels, and custom vinyl stickers.",
     status: "active",

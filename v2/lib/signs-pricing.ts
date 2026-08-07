@@ -1,4 +1,5 @@
 import { signsPricingConfig } from "./signs-pricing-config";
+import { allowsReinforcement, REINFORCEMENT_ADD_ON_KEY } from "./signs";
 
 export type SignsPricingInput = {
   /** "yard" = per-unit corrugated table; the rest are per square foot. */
@@ -256,6 +257,16 @@ export function calculateSignsPricing(
       const addOn =
         cfg.banner.addOns[key as keyof typeof cfg.banner.addOns];
       if (!addOn) continue;
+
+      // Reinforcement is a 13 oz double-sided option. Checking it here as well
+      // as in the UI is what stops a stale key in the quote payload billing for
+      // work that was never offered.
+      if (
+        key === REINFORCEMENT_ADD_ON_KEY &&
+        !allowsReinforcement(input.material || "", Boolean(input.doubleSided))
+      ) {
+        continue;
+      }
 
       if (addOn.quoteByHand) {
         hasQuotedExtras = true;

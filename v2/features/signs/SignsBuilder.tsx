@@ -19,7 +19,7 @@ function priceCopy(amount: number) {
 }
 import {
   allowsDoubleSided,
-  BANNER_ADD_ONS,
+  getBannerAddOns,
   CUSTOM_SIZE,
   getDoubleSidedMethod,
   getFinishingOptions,
@@ -210,7 +210,10 @@ export default function SignsBuilder({
           </div>
 
           <div className="space-y-3">
-            {BANNER_ADD_ONS.map((addOn) => {
+            {getBannerAddOns(
+              signsQuote.material,
+              signsQuote.doubleSided
+            ).map((addOn) => {
               const checked = signsQuote.bannerAddOns.includes(addOn.key);
               // Pole pockets replace grommets on an edge, so the shop treats
               // them as an alternative to the included grommet finishing.

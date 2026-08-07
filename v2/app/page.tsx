@@ -18,6 +18,8 @@ import AddOnsCard from "../features/addons/AddOnsCard";
 import { defaultApparelQuote } from "../lib/apparel";
 import {
   allowsDoubleSided,
+  allowsReinforcement,
+  REINFORCEMENT_ADD_ON_KEY,
   CUSTOM_SIZE,
   defaultSignsQuote,
   getFinishingOptions,
@@ -797,6 +799,19 @@ export default function Home() {
     const validFinishing = getFinishingOptions(product, next.material);
     if (!validFinishing.includes(next.finishing)) {
       next.finishing = validFinishing[0];
+    }
+
+    // Same hazard for reinforcement: it is offered on 13 oz double-sided only,
+    // so switching material or turning double-sided off must drop a stale
+    // selection. Otherwise the checkbox disappears while the $6/linear-foot
+    // charge stays on the quote.
+    if (
+      next.bannerAddOns.includes(REINFORCEMENT_ADD_ON_KEY) &&
+      !allowsReinforcement(next.material, next.doubleSided)
+    ) {
+      next.bannerAddOns = next.bannerAddOns.filter(
+        (key) => key !== REINFORCEMENT_ADD_ON_KEY
+      );
     }
 
     setSignsQuote(next);

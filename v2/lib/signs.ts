@@ -182,6 +182,34 @@ export const BANNER_ADD_ONS = [
   },
 ] as const;
 
+/** The one material/build the shop reinforces. */
+export const REINFORCEMENT_MATERIAL = "13 oz Scrim Vinyl";
+export const REINFORCEMENT_ADD_ON_KEY = "reinforcedWebbing";
+
+/**
+ * Webbing / D-rings / rope is offered on 13 oz double-sided banners only.
+ *
+ * A double-sided 13 oz is built "sewn" — two banners sewn back to back, since
+ * 13 oz shows through — and that is the heavy, high-load construction the
+ * reinforcement exists for. Anything else either does not need it or is not
+ * built in a way that takes it.
+ *
+ * The UI and the pricing engine both go through this, so the checkbox and the
+ * charge can never disagree. A rule enforced only in the UI leaks: the quote
+ * payload carries whatever is in state.
+ */
+export function allowsReinforcement(material: string, doubleSided: boolean) {
+  return doubleSided && String(material).trim() === REINFORCEMENT_MATERIAL;
+}
+
+/** Add-ons valid for the chosen material and build. */
+export function getBannerAddOns(material: string, doubleSided: boolean) {
+  if (allowsReinforcement(material, doubleSided)) return BANNER_ADD_ONS;
+  return BANNER_ADD_ONS.filter(
+    (addOn) => addOn.key !== REINFORCEMENT_ADD_ON_KEY
+  );
+}
+
 export const defaultSignsQuote = {
   productId: "vinyl-banner",
   quantity: 1,

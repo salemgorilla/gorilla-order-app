@@ -90,7 +90,11 @@ export const signProducts: SignProduct[] = [
       { label: '18" x 24"', widthInches: 24, heightInches: 18 },
       { label: '24" x 36"', widthInches: 36, heightInches: 24 },
     ],
-    materials: ["4mm Coroplast", "10mm Coroplast"],
+    // One stock, no thickness choice. The shop runs a single coroplast for
+    // yard signs, so "4mm vs 10mm" was a question with only one real answer —
+    // and the yard price table is keyed on size, never on material, so the
+    // second entry never changed a price either.
+    materials: ["Coroplast"],
     finishing: ["Signs Only", "With Step Stakes"],
     allowDoubleSided: true,
     allowStakes: true,

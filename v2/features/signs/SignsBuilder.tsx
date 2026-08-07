@@ -184,12 +184,18 @@ export default function SignsBuilder({
           )}
       </div>
 
-      <OptionSelector
-        title="Material"
-        options={product.materials}
-        selected={signsQuote.material}
-        onSelect={(material) => onUpdate({ material })}
-      />
+      {/* A single-material product has nothing to choose. Yard signs are one
+          coroplast, so offering a thickness pick asked the customer a question
+          with only one answer. Driven off the catalog rather than a yard-sign
+          special case, so any future single-material product behaves the same. */}
+      {product.materials.length > 1 && (
+        <OptionSelector
+          title="Material"
+          options={product.materials}
+          selected={signsQuote.material}
+          onSelect={(material) => onUpdate({ material })}
+        />
+      )}
 
       <OptionSelector
         title="Finishing"

@@ -51,7 +51,7 @@ export async function GET() {
     // is stripped by the minifier, so a fresh deployment produced byte
     // identical chunks and was indistinguishable from no deployment at all.
     // That cost hours of chasing a broken-deploys theory that was never true.
-    build: "2026-08-07-blob-token",
+    build: "2026-08-07-yardsign-material",
     detail: {
       BLOB_READ_WRITE_TOKEN: hasReadWriteToken,
       BLOB_STORE_ID: hasStoreId,

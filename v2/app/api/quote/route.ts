@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { MAX_ATTACHED_ARTWORK_BYTES } from "../../../lib/upload-limits";
+import { getShippingPrice, getStickerPrice } from "../../../lib/pricing";
 
 import { sendQuoteEmail, type QuoteAttachment } from "../../../lib/email";
 import {
@@ -110,6 +111,72 @@ async function buildArtworkAttachment(
   };
 }
 
+/** True for the sticker flow, which is the only one that self-checks-out. */
+function isStickerOrder(order: Record<string, unknown>) {
+  const product = (order.product || {}) as Record<string, unknown>;
+  return (
+    !product.supplier &&
+    !product.garmentType &&
+    !product.signType &&
+    !String(product.type || "")
+      .toLowerCase()
+      .includes("signs")
+  );
+}
+
+/**
+ * Recompute a sticker total from its spec, server-side.
+ *
+ * Returns the order with server pricing substituted, plus what the browser
+ * claimed, so a disagreement can be logged. Non-sticker flows pass straight
+ * through: they are hand-quoted or priced by a different engine, and nothing
+ * auto-bills them.
+ */
+function repriceStickers(order: Record<string, unknown>) {
+  const clientPricing = (order.pricing || {}) as Record<string, unknown>;
+  const clientTotal = Number(clientPricing.total) || 0;
+
+  if (!isStickerOrder(order)) {
+    return { order, mismatch: false, clientTotal, serverTotal: clientTotal };
+  }
+
+  const product = (order.product || {}) as Record<string, unknown>;
+  const production = (order.production || {}) as Record<string, unknown>;
+
+  const stickerPrice = getStickerPrice(
+    Number(product.quantity) || 0,
+    String(product.material || ""),
+    String(product.finish || ""),
+    String(product.size || ""),
+    {
+      widthInches: Number(product.widthInches) || 0,
+      heightInches: Number(product.heightInches) || 0,
+    }
+  );
+
+  const shippingPrice = getShippingPrice(
+    String(production.deliveryMethod || "")
+  );
+
+  const serverTotal = Math.round((stickerPrice + shippingPrice) * 100) / 100;
+
+  return {
+    order: {
+      ...order,
+      pricing: {
+        ...clientPricing,
+        stickerPrice,
+        shippingPrice,
+        total: serverTotal,
+      },
+    },
+    // Cents of float drift are not worth shouting about; real tampering is.
+    mismatch: Math.abs(serverTotal - clientTotal) > 0.01,
+    clientTotal,
+    serverTotal,
+  };
+}
+
 function generateQuoteNumber() {
   const now = new Date();
 
@@ -136,6 +203,29 @@ export async function POST(request: Request) {
 
     const quoteNumber = generateQuoteNumber();
     const receivedAt = new Date().toISOString();
+
+    // Reprice stickers on the SERVER before anything bills for them.
+    //
+    // order.pricing arrives from the browser, and for stickers this route
+    // hands it to Printavo which auto-generates a payment link — no human
+    // looks at it, because self-checkout is the point of that flow. Trusting
+    // the client meant anyone with devtools could post a $2 total for a 1,000
+    // sticker order and get a payment link for $2.
+    //
+    // lib/pricing.ts is pure and runs anywhere, so the same function the
+    // customer was quoted from is the one that charges them. The browser's
+    // number is kept only to log a disagreement.
+    const priced = repriceStickers(order);
+
+    if (priced.mismatch) {
+      console.error(
+        `PRICE MISMATCH on ${quoteNumber}: browser said $${priced.clientTotal}, server computed $${priced.serverTotal}. Charging the server figure.`
+      );
+    }
+
+    // Everything downstream — the record, the email, Printavo, the payment
+    // link — reads this, never the raw request.
+    const pricedOrder = priced.order;
 
     const { attachment, info: builtAttachmentInfo } =
       await buildArtworkAttachment(artworkFile);
@@ -182,7 +272,9 @@ export async function POST(request: Request) {
       customer: order.customer,
       product: order.product,
       production: order.production,
-      pricing: order.pricing,
+      // Server figure, not the browser's — this record is what the shop and
+      // Printavo work from.
+      pricing: pricedOrder.pricing,
       // Extra items the customer asked to add. They ride alongside pricing,
       // never inside it.
       addOns: Array.isArray(order.addOns) ? order.addOns : [],
@@ -211,7 +303,7 @@ export async function POST(request: Request) {
     const notification = await sendQuoteEmail({
       quoteNumber,
       receivedAt,
-      order,
+      order: pricedOrder,
       artworkAnalysis,
       // The customer's own file plus our proof of the cut, so the shop can
       // compare what was sent against what was approved.
@@ -238,7 +330,7 @@ export async function POST(request: Request) {
     // Push into Printavo as a draft/unconfirmed quote (best-effort too).
     const printavo = await createPrintavoQuote({
       quoteNumber,
-      order,
+      order: pricedOrder,
       artworkAnalysis,
       attachmentInfo,
     });
@@ -259,14 +351,7 @@ export async function POST(request: Request) {
 
     // Stickers check out on their own. Every other flow still waits for the
     // shop, because only stickers are fully priced with nothing to review.
-    const product = (order.product || {}) as Record<string, unknown>;
-    const isStickers =
-      !product.supplier &&
-      !product.garmentType &&
-      !product.signType &&
-      !String(product.type || "")
-        .toLowerCase()
-        .includes("signs");
+    const isStickers = isStickerOrder(pricedOrder);
 
     let checkout = null;
 

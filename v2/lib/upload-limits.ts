@@ -56,4 +56,3 @@ export const MAX_BLOB_ARTWORK_LABEL = "100 MB";
 
 /** Above this the file is uploaded in parallel chunks rather than one request. */
 export const MULTIPART_THRESHOLD_BYTES = 8 * 1024 * 1024;
-// Build marker: blob-token-check-20260807

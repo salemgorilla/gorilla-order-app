@@ -22,8 +22,31 @@ import { MAX_BLOB_ARTWORK_BYTES } from "../../../lib/upload-limits";
  * Reports only a boolean — never the token.
  */
 export async function GET() {
+  // Report WHICH credential is missing, not just that something is.
+  //
+  // A connected blob store can provision either of two credential sets, and
+  // they are not interchangeable here: OIDC (BLOB_STORE_ID plus a token Vercel
+  // injects at runtime) works for server-side blob calls, but handleUpload —
+  // the client-upload path, which is the only one that bypasses the ~4.4 MB
+  // function body limit — resolves credentials through
+  // getReadWriteBlobTokenFromOptionsOrEnv and accepts BLOB_READ_WRITE_TOKEN
+  // alone.
+  //
+  // Without this breakdown the endpoint just said "not configured" next to a
+  // perfectly good store, and the store looked correctly connected in the
+  // dashboard. Naming the missing variable turns that into a five-second fix.
+  const hasReadWriteToken = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  const hasStoreId = Boolean(process.env.BLOB_STORE_ID);
+
   return NextResponse.json({
-    configured: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
+    configured: hasReadWriteToken,
+    detail: {
+      BLOB_READ_WRITE_TOKEN: hasReadWriteToken,
+      BLOB_STORE_ID: hasStoreId,
+      needed: hasReadWriteToken
+        ? null
+        : "BLOB_READ_WRITE_TOKEN — client uploads cannot use OIDC. Copy the read-write token from the blob store and add it to this project's environment variables (Production), then redeploy.",
+    },
   });
 }
 

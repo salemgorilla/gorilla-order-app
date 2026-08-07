@@ -1,29 +1,19 @@
-import { useId } from "react";
-import type { CSSProperties } from "react";
+﻿import type { CSSProperties } from "react";
 
-import {
-  contourSigma,
-  CUT_EDGE_INTERCEPT,
-  CUT_EDGE_SLOPE,
-  CUT_RIM_INTERCEPT,
-  CUT_RIM_SLOPE,
-  EDGE_THRESHOLD_INTERCEPT,
-  EDGE_THRESHOLD_SLOPE,
-  getStickerBodyColor,
-  MAGENTA,
-  STICKER_EDGE,
-} from "../../lib/die-cut";
+import DieCutCanvas from "./DieCutCanvas";
+
+import { getStickerBodyColor, MAGENTA } from "../../lib/die-cut";
 
 type Props = {
   shape: string;
   material?: string;
   finish?: string;
   artworkPreview: string | null;
-  artScale?: number; // 20–150: how large the art is within the sticker
+  artScale?: number; // 20â€“150: how large the art is within the sticker
   /** Real dimensions, so a non-square sticker previews at its true shape. */
   widthInches?: number;
   heightInches?: number;
-  artMargin?: number; // 0–100: die-cut border width / shape margin
+  artMargin?: number; // 0â€“100: die-cut border width / shape margin
   magentaCutLine?: boolean; // show the customer's magenta cut edge
 };
 
@@ -33,7 +23,7 @@ function getShapeRounding(shape: string) {
   if (shape === "Circle" || shape === "Oval") return "rounded-full";
 
   // Square Corners means square corners. This used to be "Square" returning
-  // rounded-xl, which drew a rounded square — visually almost the same as the
+  // rounded-xl, which drew a rounded square â€” visually almost the same as the
   // Rounded Square option next to it, so the two were near-indistinguishable.
   if (shape === "Square Corners") return "";
 
@@ -48,8 +38,8 @@ function getMaterialClasses(material: string) {
     return "bg-gradient-to-br from-zinc-100 via-white to-zinc-400";
   }
   if (material === "Clear Vinyl") {
-    // Opaque, despite the name. The shop only prints opaque stock — white,
-    // chrome and holographic — so this legacy material must not render
+    // Opaque, despite the name. The shop only prints opaque stock â€” white,
+    // chrome and holographic â€” so this legacy material must not render
     // see-through either. Kept only for quotes placed before it was retired.
     return "bg-white";
   }
@@ -66,6 +56,11 @@ export const CARD_PX = 256;
 export function parseSizeInches(size: string) {
   const match = String(size || "").match(/([\d.]+)/);
   return match ? Number(match[1]) : 0;
+}
+
+/** 2.96 -> `2.96"`, 0.16 -> `0.16"`. Two decimals reads as a real measurement. */
+export function inchLabel(inches: number) {
+  return `${inches.toFixed(2)}"`;
 }
 
 /**
@@ -114,156 +109,10 @@ export function getStickerGeometry(input: {
   };
 }
 
-/** 2.96 -> "2.96\"", 0.16 -> "0.16\"". Two decimals reads as a real measurement. */
-export function inchLabel(inches: number) {
-  return `${inches.toFixed(2)}"`;
-}
-
-
-/**
- * The die-cut contour, as an SVG filter.
- *
- * WHY NOT CHAINED drop-shadow(), WHICH THIS REPLACES:
- *
- * The old version stacked eight drop-shadows, one per compass direction, to
- * fake a halo around the art. Two things made that look chewed up:
- *
- *   1. CSS filter chains COMPOUND. `filter: drop-shadow(a) drop-shadow(b)`
- *      does not union two shadows — b is computed from the output of a, which
- *      already contains a's shadow. Eight of them meant the eighth was
- *      outlining the seventh's silhouette, drifting up to 8x the intended
- *      offset in some directions and not at all in others.
- *   2. Eight directions is an eight-point star, not a circle. Diagonals sit
- *      borderPx * sqrt(2) out while the axes sit at borderPx, so even without
- *      the compounding the contour scalloped in and out.
- *
- * WHAT THIS DOES INSTEAD — blur, then threshold, applied once:
- *
- *   blur      — a Gaussian is isotropic, so it spreads the alpha equally in
- *               every direction. This is the whole trick. feMorphology was
- *               tried here first and rejected: its structuring element is a
- *               RECTANGLE, so it grows sqrt(2) further on the diagonals and
- *               reproduces the same eight-point star, measured at 4.5px of
- *               variation on a 10px border. Blur measures 1px, which is the
- *               measurement floor.
- *   threshold — feFuncA with a steep slope snaps the blurred alpha back to a
- *               hard edge. Cutting BELOW the midpoint is what grows the shape:
- *               for a straight edge the contour lands at sigma * probit(1 - t)
- *               from the original outline. The slope is steep but finite, so
- *               about one pixel of anti-aliasing survives — crisp, not jagged.
- *
- * The blur also rounds the contour, which is the point rather than a side
- * effect: a cutting head cannot turn a sharp interior corner, it sweeps
- * through. That sweep is what makes the edge read as a real cut instead of a
- * traced outline.
- *
- * Constants below were measured, not guessed — rasterised through a canvas and
- * checked for contour uniformity and edge hardness.
- */
-
-// Constants live in lib/die-cut.ts because the emailed proof draws this same
-// contour on a canvas. If the two ever disagree, the proof stops being proof.
-
-function ContourFilter({
-  id,
-  borderPx,
-  magentaCutLine,
-  bodyColor,
-}: {
-  id: string;
-  borderPx: number;
-  magentaCutLine: boolean;
-  bodyColor: string;
-}) {
-  /**
-   * Both rims come off ONE blur, differing only in threshold.
-   *
-   * Offset scales with probit(1 - t) while rounding is set by sigma, so
-   * sharing the sigma is what makes the magenta rim parallel to the vinyl
-   * edge. Blurring twice made the outer rim round harder than the edge it was
-   * tracing and it came out visibly wobbly.
-   */
-  const band = (
-    key: string,
-    slope: number,
-    intercept: number,
-    color: string,
-    result: string
-  ) => (
-    <>
-      <feComponentTransfer in="contour-soft" result={`${key}-mask`}>
-        <feFuncA type="linear" slope={slope} intercept={intercept} />
-      </feComponentTransfer>
-      <feFlood floodColor={color} result={`${key}-ink`} />
-      <feComposite
-        in={`${key}-ink`}
-        in2={`${key}-mask`}
-        operator="in"
-        result={result}
-      />
-    </>
-  );
-
-  return (
-    <svg width="0" height="0" aria-hidden className="absolute">
-      <defs>
-        <filter
-          id={id}
-          // Room for the contour plus the lift shadow, or the filter region
-          // clips the very edge it exists to draw.
-          x="-30%"
-          y="-30%"
-          width="160%"
-          height="160%"
-          // Without this the flood colors are interpolated in linearRGB and
-          // the grey comes out noticeably lighter than STICKER_EDGE.
-          colorInterpolationFilters="sRGB"
-        >
-          {/* One blur feeds both rims. */}
-          <feGaussianBlur
-            in="SourceAlpha"
-            stdDeviation={contourSigma(borderPx)}
-            result="contour-soft"
-          />
-
-          {magentaCutLine &&
-            band("cut", CUT_RIM_SLOPE, CUT_RIM_INTERCEPT, MAGENTA, "cutBand")}
-          {borderPx > 0 &&
-            band(
-              "vinyl",
-              CUT_EDGE_SLOPE,
-              CUT_EDGE_INTERCEPT,
-              STICKER_EDGE,
-              "vinylBand"
-            )}
-          {/* Opaque stock. Every material the shop runs is opaque, so a
-              transparent area of the artwork is bare vinyl, not a hole —
-              without this an uploaded PNG previewed as see-through. */}
-          {band(
-            "body",
-            EDGE_THRESHOLD_SLOPE,
-            EDGE_THRESHOLD_INTERCEPT,
-            bodyColor,
-            "bodyFill"
-          )}
-
-          <feMerge>
-            {/* Outermost first: magenta rim, grey cut edge, stock, then art. */}
-            {magentaCutLine && <feMergeNode in="cutBand" />}
-            {borderPx > 0 && <feMergeNode in="vinylBand" />}
-            <feMergeNode in="bodyFill" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
-    </svg>
-  );
-}
-
 function Placeholder({ rounded }: { rounded: string }) {
   return (
     <div
-      // `rounded` stays — it carries the real die-cut shape, not UI chrome.
+      // `rounded` stays â€” it carries the real die-cut shape, not UI chrome.
       className={`grid h-full w-full place-items-center ${rounded} bg-[var(--gorilla-green)] text-center text-white`}
     >
       <div>
@@ -287,10 +136,6 @@ export default function StickerShape({
   widthInches = 0,
   heightInches = 0,
 }: Props) {
-  // Filter ids are document-global. Two previews on one page sharing an id
-  // would both render whichever contour mounted last.
-  const instanceId = useId();
-
   const isGloss = finish === "Gloss";
   const isClear = material === "Clear Vinyl";
   const isDieCut = shape === "Die Cut";
@@ -299,7 +144,7 @@ export default function StickerShape({
   // inscribed-square safe area (0.707 on a circle), so a ceiling of 100 could
   // only ever reach ~63% of the diameter and round art could never fill the
   // sticker. Past ~141% the art meets the cut edge and bleeds, which the card
-  // clips via overflow-hidden. The safe-area factors are NOT touched — they
+  // clips via overflow-hidden. The safe-area factors are NOT touched â€” they
   // are what keeps square art off the corners at normal sizes.
   const scale = clamp(artScale, 20, 150);
   const margin = clamp(artMargin, 0, 100);
@@ -311,27 +156,15 @@ export default function StickerShape({
     height: `${scale}%`,
   };
 
-  // ---------- DIE CUT: contour hugs the art, transparent around it ----------
+  // ---------- DIE CUT: contour hugs the art, opaque stock inside it ----------
   if (isDieCut) {
     const borderPx = Math.round((margin / 100) * 16);
-    const filterId = `diecut-${instanceId.replace(/[^a-zA-Z0-9-]/g, "")}`;
-    // The lift stays a plain CSS shadow, applied after the contour so it falls
-    // from the cut edge rather than from the artwork inside it. One shadow
-    // does not compound; eight did, which is what wrecked the old edge.
-    const outline = `url(#${filterId}) drop-shadow(0 10px 12px rgba(0,0,0,0.30))`;
 
     return (
       // max-w-full is a backstop, not the fix: it guarantees the stage can never
     // push the page wider than the viewport even if padding changes upstream.
     // The 256px card inside stays 256px, so artSizePx and CARD_PX are unaffected.
     <div className="relative mx-auto grid h-72 w-72 max-w-full place-items-center">
-        <ContourFilter
-          id={filterId}
-          borderPx={borderPx}
-          magentaCutLine={magentaCutLine}
-          bodyColor={getStickerBodyColor(material)}
-        />
-
         {/* Subtle checkerboard signals the die-cut (transparent) area */}
         <div
           className="absolute inset-0 rounded-[1.25rem] opacity-40"
@@ -344,23 +177,22 @@ export default function StickerShape({
         />
 
         <div className="relative z-10 flex h-64 w-64 items-center justify-center p-3">
-          <div className="flex items-center justify-center" style={artBoxStyle}>
-            {artworkPreview ? (
-              <img
-                src={artworkPreview}
-                alt="Die-cut contour preview"
-                className="max-h-full max-w-full object-contain"
-                style={{ filter: outline }}
-              />
-            ) : (
-              <div
-                className="aspect-square w-full"
-                style={{ filter: outline }}
-              >
+          {artworkPreview ? (
+            <DieCutCanvas
+              artworkUrl={artworkPreview}
+              borderPx={borderPx}
+              bodyColor={getStickerBodyColor(material)}
+              magentaCutLine={magentaCutLine}
+              scale={scale}
+              sizePx={CARD_PX}
+            />
+          ) : (
+            <div className="flex items-center justify-center" style={artBoxStyle}>
+              <div className="aspect-square w-full">
                 <Placeholder rounded="rounded-[36%]" />
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -372,7 +204,7 @@ export default function StickerShape({
 
   // The art is sized in real pixels against the card so it can never spill past
   // the cut edge. A square inscribed in a circle is only ~70.7% of the
-  // diameter, so a circle needs a much tighter safe area than a square —
+  // diameter, so a circle needs a much tighter safe area than a square â€”
   // sizing by plain percentage is what made art run off the round shapes.
   //
   // These are the same three lines getStickerGeometry() uses. They stay here
@@ -388,7 +220,7 @@ export default function StickerShape({
   const cardH = longest > 0 ? CARD_PX * (h / longest) : CARD_PX;
 
   // Art is sized against the TIGHT axis so it can never overflow the narrow
-  // side of a rectangle — the same reason the safe-area factor exists.
+  // side of a rectangle â€” the same reason the safe-area factor exists.
   const fitPx = Math.min(cardW, cardH);
 
   const safeAreaFactor =
@@ -410,10 +242,10 @@ export default function StickerShape({
     <div className="relative mx-auto grid h-72 w-72 max-w-full place-items-center">
       {/* The blurred drop plate is gone: it was sized to the 288px stage, so a
           narrow sticker got a halo far wider than itself. Republic bans blur
-          anyway — the card carries its own ring. */}
+          anyway â€” the card carries its own ring. */}
       <div
         // Dimensions come from the sticker's real proportions, not a fixed
-        // square. h-64/w-64 is gone — cardW/cardH default to 256 when no
+        // square. h-64/w-64 is gone â€” cardW/cardH default to 256 when no
         // dimensions are set, so preset sizes render exactly as before.
         style={{ width: cardW, height: cardH }}
         className={`relative grid place-items-center overflow-hidden ${rounded} ${materialClasses} shadow-2xl ring-8 ring-white`}
@@ -432,7 +264,7 @@ export default function StickerShape({
         )}
 
         {/* An absolute layer the exact size of the card, so the art is centered
-            on the shape itself — not on whatever padding happened to be left. */}
+            on the shape itself â€” not on whatever padding happened to be left. */}
         <div className="absolute inset-0 z-10 flex items-center justify-center">
           <div
             className="flex items-center justify-center"

@@ -1,17 +1,5 @@
-import {
-  contourSigma,
-  CUT_EDGE_INTERCEPT,
-  CUT_EDGE_SLOPE,
-  CUT_RIM_INTERCEPT,
-  CUT_RIM_SLOPE,
-  EDGE_THRESHOLD_INTERCEPT,
-  EDGE_THRESHOLD_SLOPE,
-  getStickerBodyColor,
-  hexToRgb,
-  MAGENTA,
-  STICKER_EDGE,
-  thresholdAlphaToColor,
-} from "./die-cut";
+import { getStickerBodyColor, MAGENTA, STICKER_EDGE } from "./die-cut";
+import { composeDieCut } from "./die-cut-canvas";
 
 export type ProofSpec = {
   artworkUrl: string;
@@ -61,46 +49,6 @@ function loadImage(src: string) {
     img.onerror = () => resolve(null);
     img.src = src;
   });
-}
-
-/**
- * One blurred-and-thresholded band around the art, in the given colour.
- *
- * Sigma and threshold are separate on purpose: the magenta rim shares the
- * vinyl edge's sigma and only lowers the threshold, which is what keeps the
- * two rims parallel instead of the outer one rounding harder than the inner.
- */
-function buildBand(
-  art: HTMLCanvasElement,
-  borderPx: number,
-  color: string,
-  slope: number = EDGE_THRESHOLD_SLOPE,
-  intercept: number = EDGE_THRESHOLD_INTERCEPT
-): HTMLCanvasElement | null {
-  if (borderPx <= 0) return null;
-
-  const band = document.createElement("canvas");
-  band.width = art.width;
-  band.height = art.height;
-
-  const ctx = band.getContext("2d", { willReadFrequently: true });
-  if (!ctx) return null;
-
-  // Canvas `blur(Npx)` is a Gaussian with standard deviation N, the same
-  // quantity as the SVG filter's stdDeviation — so the two renderers produce
-  // an identical contour.
-  ctx.filter = `blur(${contourSigma(borderPx)}px)`;
-  ctx.drawImage(art, 0, 0);
-  ctx.filter = "none";
-
-  const pixels = ctx.getImageData(0, 0, band.width, band.height);
-  ctx.putImageData(
-    thresholdAlphaToColor(pixels, hexToRgb(color), slope, intercept),
-    0,
-    0
-  );
-
-  return band;
 }
 
 function roundedRect(
@@ -207,40 +155,16 @@ export async function renderStickerProof(
         drawH
       );
 
-      // Outermost first: magenta cut rim, then the vinyl edge, then the art.
-      if (spec.magentaCutLine) {
-        // Same borderPx, so the same sigma and the same rounding; only the
-        // threshold differs, which pushes this rim further out while keeping
-        // it parallel to the vinyl edge.
-        const rim = buildBand(
-          layer,
-          borderPx,
-          MAGENTA,
-          CUT_RIM_SLOPE,
-          CUT_RIM_INTERCEPT
-        );
-        if (rim) ctx.drawImage(rim, cardX - pad, cardY - pad);
-      }
-
-      const vinyl = buildBand(
-        layer,
+      // One shared compositor with the on-screen preview, so the proof cannot
+      // show a different cut from the one the customer approved.
+      const composed = composeDieCut({
+        art: layer,
         borderPx,
-        STICKER_EDGE,
-        CUT_EDGE_SLOPE,
-        CUT_EDGE_INTERCEPT
-      );
-      if (vinyl) ctx.drawImage(vinyl, cardX - pad, cardY - pad);
+        bodyColor: getStickerBodyColor(spec.material),
+        magentaCutLine: spec.magentaCutLine,
+      });
 
-      // Opaque stock under the art. Every material the shop runs is opaque, so
-      // a transparent area of the file is bare vinyl rather than a hole.
-      const body = buildBand(
-        layer,
-        borderPx,
-        getStickerBodyColor(spec.material)
-      );
-      if (body) ctx.drawImage(body, cardX - pad, cardY - pad);
-
-      ctx.drawImage(layer, cardX - pad, cardY - pad);
+      ctx.drawImage(composed ?? layer, cardX - pad, cardY - pad);
     } else {
       // Shaped stickers: the card IS the vinyl, so its outline is the cut.
       // White stock with a grey rule on the boundary — filling the whole card

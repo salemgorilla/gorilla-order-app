@@ -263,6 +263,27 @@ export function calculateSignsPricing(
         continue;
       }
 
+      // Webbing/D-rings/rope is sewn AROUND THE EDGE, so it prices by the
+      // linear foot of perimeter rather than as a flat fee. A 24" x 96" banner
+      // is 2 x (24 + 96) = 240" = 20 linear ft, which at $6 comes to $120.
+      const perFoot = "perLinearFoot" in addOn ? addOn.perLinearFoot : 0;
+
+      if (perFoot > 0) {
+        const perimeterFeet =
+          (2 * ((input.widthInches || 0) + (input.heightInches || 0))) / 12;
+        const each = perimeterFeet * perFoot;
+        const amount = each * quantity;
+
+        productTotal += amount;
+        lines.push({
+          label: `${addOn.label} (${round2(perimeterFeet)} linear ft × $${perFoot}${
+            quantity > 1 ? ` × ${quantity}` : ""
+          })`,
+          amount: round2(amount),
+        });
+        continue;
+      }
+
       // Finishing is per banner, so it scales with quantity.
       const amount = addOn.flat * quantity;
       productTotal += amount;

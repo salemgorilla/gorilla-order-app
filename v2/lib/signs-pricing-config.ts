@@ -164,7 +164,14 @@ export const signsPricingConfig = {
       reinforcedWebbing: {
         label: "Webbing / D-Rings / Rope",
         flat: 0,
-        quoteByHand: true,
+        quoteByHand: false,
+        // Priced by the linear foot of EDGE, because that is what the work
+        // actually is — webbing is sewn around the perimeter, so it scales
+        // with the distance around the banner, not with its area.
+        //
+        //   24" x 96"  ->  2 x (24 + 96) = 240" = 20 linear ft
+        //   20 ft x $6 = $120
+        perLinearFoot: 6,
       },
     },
 

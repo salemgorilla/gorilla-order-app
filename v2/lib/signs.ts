@@ -177,7 +177,8 @@ export const BANNER_ADD_ONS = [
   {
     key: "reinforcedWebbing",
     label: "Webbing / D-Rings / Rope",
-    detail: "Heavy-duty reinforcement for big or high-wind banners. Quoted separately.",
+    detail:
+      "Heavy-duty reinforcement for big or high-wind banners. $6 per linear foot around the edge.",
   },
 ] as const;
 

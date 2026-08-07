@@ -38,6 +38,13 @@ export async function GET() {
   const hasReadWriteToken = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
   const hasStoreId = Boolean(process.env.BLOB_STORE_ID);
 
+  // NAMES ONLY, never values. A typo in the variable name is invisible from
+  // the dashboard — the row looks right at a glance — and it is the last
+  // candidate once a fresh build still reports the token missing.
+  const blobVarNames = Object.keys(process.env)
+    .filter((key) => key.startsWith("BLOB"))
+    .sort();
+
   return NextResponse.json({
     configured: hasReadWriteToken,
     // Which build is answering. Real emitted code, not a comment — a comment
@@ -48,6 +55,7 @@ export async function GET() {
     detail: {
       BLOB_READ_WRITE_TOKEN: hasReadWriteToken,
       BLOB_STORE_ID: hasStoreId,
+      blobVarNames,
       needed: hasReadWriteToken
         ? null
         : "BLOB_READ_WRITE_TOKEN — client uploads cannot use OIDC. Copy the read-write token from the blob store and add it to this project's environment variables (Production), then redeploy.",

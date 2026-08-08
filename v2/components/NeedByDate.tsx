@@ -5,6 +5,8 @@ type Props = {
   deadlineType: string;
   onNeedByChange: (value: string) => void;
   onDeadlineTypeChange: (value: string) => void;
+  /** Short message shown under the date, once submit has been attempted. */
+  error?: string;
 };
 
 /**
@@ -19,6 +21,7 @@ export default function NeedByDate({
   deadlineType,
   onNeedByChange,
   onDeadlineTypeChange,
+  error,
 }: Props) {
   // A date in the past is never valid input.
   const today = new Date().toISOString().slice(0, 10);
@@ -31,23 +34,42 @@ export default function NeedByDate({
         This helps us confirm turnaround before production.
       </p>
 
-      <label
-        htmlFor="need-by-date"
-        className="mt-5 block text-sm font-bold text-[var(--ink-black)]"
-      >
-        Date needed in hand{" "}
-        <span className="font-normal text-[var(--rush-red)]">(required)</span>
-      </label>
+      {/* Wrapped so data-invalid — what submit scrolls to — covers the label
+          and the message, not just the box. */}
+      <div className="mt-5" data-invalid={error ? "true" : undefined}>
+        <label
+          htmlFor="need-by-date"
+          className="block text-sm font-bold text-[var(--ink-black)]"
+        >
+          Date needed in hand{" "}
+          <span className="font-normal text-[var(--rush-red)]">(required)</span>
+        </label>
 
-      <input
-        id="need-by-date"
-        type="date"
-        required
-        min={today}
-        value={needBy}
-        onChange={(event) => onNeedByChange(event.target.value)}
-        className="spec mt-1 w-full border border-[var(--rule)] bg-[var(--paper)] px-4 py-3 font-bold transition-colors duration-[120ms] ease-linear hover:border-[var(--ink-black)]"
-      />
+        <input
+          id="need-by-date"
+          type="date"
+          required
+          min={today}
+          value={needBy}
+          onChange={(event) => onNeedByChange(event.target.value)}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? "need-by-date-error" : undefined}
+          className={`spec mt-1 w-full bg-[var(--paper)] px-4 py-3 font-bold transition-colors duration-[120ms] ease-linear ${
+            error
+              ? "border-2 border-[var(--rush-red)]"
+              : "border border-[var(--rule)] hover:border-[var(--ink-black)]"
+          }`}
+        />
+
+        {error && (
+          <p
+            id="need-by-date-error"
+            className="mt-1 text-fine font-bold text-[var(--rush-red)]"
+          >
+            {error}
+          </p>
+        )}
+      </div>
 
       <div className="mt-5 grid grid-cols-2 gap-3">
         <Chip
@@ -62,7 +84,10 @@ export default function NeedByDate({
         />
       </div>
 
-      {!needBy && (
+      {/* Suppressed once the field is marked: the amber notice and the red
+          error say the same sentence, and printing both makes the customer
+          read the same instruction twice to find out it was one problem. */}
+      {!needBy && !error && (
         <p className="mt-4 border border-[var(--rule)] border-l-4 border-l-[var(--ink-warn)] bg-[var(--surface-warn)] p-3 text-sm font-bold text-[var(--ink-warn)]">
           Required before submitting: enter the date you need this order in hand.
         </p>

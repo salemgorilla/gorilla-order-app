@@ -5,6 +5,7 @@ import NumberField from "../../components/ui/NumberField";
 import { sanitizeSizeInches, snapQuantity } from "../../lib/units";
 import { stickerCatalog } from "../../lib/catalog";
 import { DECAL_SHIPPING_PRICE } from "../../lib/pricing";
+import type { FieldErrors } from "../../lib/validation";
 import type { DeliveryMethod, Product } from "../../types/order";
 
 type Props = {
@@ -12,6 +13,8 @@ type Props = {
   deliveryMethod: DeliveryMethod;
   hasArtwork: boolean;
   magentaDetected: boolean;
+  /** Only populated after a failed submit; empty until then. */
+  fieldErrors?: FieldErrors;
   onUpdate: (updates: Partial<Product>) => void;
   onSelectMaterial: (material: string) => void;
   onSelectDeliveryMethod: (deliveryMethod: DeliveryMethod) => void;
@@ -42,6 +45,7 @@ export default function DecalBuilder({
   deliveryMethod,
   hasArtwork,
   magentaDetected,
+  fieldErrors,
   onUpdate,
   onSelectMaterial,
   onSelectDeliveryMethod,
@@ -69,6 +73,7 @@ export default function DecalBuilder({
             step="any"
             unit="in"
             snap={sanitizeSizeInches}
+            error={fieldErrors?.width}
             onChange={(widthInches) => onUpdate({ widthInches })}
           />
 
@@ -82,6 +87,7 @@ export default function DecalBuilder({
             step="any"
             unit="in"
             snap={sanitizeSizeInches}
+            error={fieldErrors?.height}
             onChange={(heightInches) => onUpdate({ heightInches })}
           />
 
@@ -93,6 +99,7 @@ export default function DecalBuilder({
             step={1}
             className="col-span-2 sm:col-span-1"
             snap={snapQuantity}
+            error={fieldErrors?.quantity}
             onChange={(quantity) => onUpdate({ quantity })}
           />
         </div>

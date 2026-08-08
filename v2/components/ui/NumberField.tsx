@@ -24,6 +24,12 @@ type Props = {
    */
   snap: (value: number) => number;
   onChange: (value: number) => void;
+  /**
+   * Short message shown under the field, which also switches it to the
+   * invalid treatment. Undefined leaves the field exactly as it was, so the
+   * call sites that never pass it are unaffected.
+   */
+  error?: string | null;
 };
 
 /**
@@ -44,13 +50,18 @@ export default function NumberField({
   className = "",
   snap,
   onChange,
+  error = null,
 }: Props) {
   // While focused the field shows exactly what was typed, so a half-finished
   // "1." or "0.7" is not rewritten under the cursor.
   const [draft, setDraft] = useState<string | null>(null);
 
+  const errorId = `${id}-error`;
+
   return (
-    <div className={className}>
+    // data-invalid is what submit scrolls to, so it sits on the wrapper — the
+    // label has to come into view with the box, not just the box.
+    <div className={className} data-invalid={error ? "true" : undefined}>
       <label
         htmlFor={id}
         className="block text-fine font-bold text-[var(--ink-black)]"
@@ -65,6 +76,8 @@ export default function NumberField({
           inputMode="decimal"
           min={min}
           step={step}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
           value={draft ?? (value || "")}
           onChange={(event) => {
             setDraft(event.target.value);
@@ -76,9 +89,15 @@ export default function NumberField({
             onChange(snapped);
             setDraft(null);
           }}
-          className={`spec min-h-[44px] w-full border border-[var(--rule)] bg-[var(--paper)] p-3 text-lede text-[var(--ink-black)] transition-colors duration-[120ms] ease-linear hover:border-[var(--ink-black)] ${
-            unit ? "pr-10" : ""
-          }`}
+          // The border classes are branched rather than appended, because
+          // `border` and `border-2` are the same property and which one wins
+          // is decided by stylesheet order, not by the order they appear in
+          // this string.
+          className={`spec min-h-[44px] w-full bg-[var(--paper)] p-3 text-lede text-[var(--ink-black)] transition-colors duration-[120ms] ease-linear ${
+            error
+              ? "border-2 border-[var(--rush-red)]"
+              : "border border-[var(--rule)] hover:border-[var(--ink-black)]"
+          } ${unit ? "pr-10" : ""}`}
         />
 
         {unit && (
@@ -87,6 +106,12 @@ export default function NumberField({
           </span>
         )}
       </div>
+
+      {error && (
+        <p id={errorId} className="mt-1 text-fine font-bold text-[var(--rush-red)]">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

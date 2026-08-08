@@ -24,6 +24,8 @@ type Props = {
    * telling the truth about the smaller cap.
    */
   directUploadEnabled?: boolean;
+  /** Short message shown under the box, once submit has been attempted. */
+  error?: string | null;
 };
 
 /**
@@ -52,6 +54,7 @@ export default function UploadBox({
   previewUrl = null,
   fileSizeBytes = null,
   directUploadEnabled = false,
+  error = null,
 }: Props) {
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -106,9 +109,17 @@ export default function UploadBox({
         handleFile(event.dataTransfer?.files?.[0]);
       }}
       onClick={openPicker}
+      // data-invalid sits on the drop zone itself — it is the thing submit
+      // scrolls to, and the box already carries a 2px border, so the invalid
+      // state re-inks it rather than adding a second frame.
+      data-invalid={error ? "true" : undefined}
       className={`cursor-pointer border-2 border-dashed p-8 transition ${
         isDragging
           ? "border-[var(--gorilla-green)] bg-[var(--surface-ok)]"
+          : error
+          ? // Dragging still wins: mid-drop the box must confirm the drop, not
+            // keep complaining about the file that has not landed yet.
+            "border-[var(--rush-red)] bg-[var(--paper)] hover:bg-[var(--shirt-blank)]"
           : "border-[var(--rule)] bg-[var(--paper)] hover:border-[var(--gorilla-green)] hover:bg-[var(--shirt-blank)]"
       }`}
     >
@@ -158,6 +169,15 @@ export default function UploadBox({
           </p>
         )}
 
+        {error && (
+          <p
+            id="artwork-error"
+            className="mt-3 max-w-md text-fine font-bold text-[var(--rush-red)]"
+          >
+            {error}
+          </p>
+        )}
+
         <div className="mt-6 bg-white px-6 py-3 text-sm font-bold">
           AI • EPS • PDF • SVG • PNG • JPG
         </div>
@@ -170,6 +190,9 @@ export default function UploadBox({
             event.stopPropagation();
             openPicker();
           }}
+          // Described by the error too, because this — not the sr-only file
+          // input — is where a failed submit puts focus.
+          aria-describedby={error ? "artwork-error" : undefined}
           className="mt-8 min-h-[44px] border-2 border-[var(--gorilla-green)] bg-[var(--gorilla-green)] px-8 py-4 font-bold text-white transition-colors duration-[120ms] ease-linear hover:bg-[var(--paper)] hover:text-[var(--gorilla-green)]"
         >
           {fileName ? "Choose a different file" : "Browse Files"}
@@ -195,6 +218,8 @@ export default function UploadBox({
         type="file"
         className="sr-only"
         accept=".png,.jpg,.jpeg,.pdf,.svg,.ai,.eps"
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? "artwork-error" : undefined}
         onChange={(event) => {
           handleFile(event.target.files?.[0]);
           // Reset so choosing the SAME file twice still fires onChange —

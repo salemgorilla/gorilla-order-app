@@ -4,6 +4,7 @@ import QuantitySelector from "../../components/QuantitySelector";
 import OptionSelector from "../../components/OptionSelector";
 import { apparelCatalog, type ApparelQuote } from "../../lib/apparel";
 import type { ArtworkAnalysis } from "../../lib/artwork";
+import type { FieldErrors } from "../../lib/validation";
 import type {
   SsCatalogColor,
   SsCatalogProduct,
@@ -29,6 +30,9 @@ type Props = {
   sizeQuantityTotal: number;
   sizeBreakdownFromButtons: string;
   sizeBreakdownMatchesQuantity: boolean;
+
+  /** Only populated after a failed submit; empty until then. */
+  fieldErrors?: FieldErrors;
 
   onSelectQuantity: (quantity: number) => void;
   onSelectCategory: (category: string) => void;
@@ -65,6 +69,7 @@ export default function ApparelBuilder({
   sizeQuantityTotal,
   sizeBreakdownFromButtons,
   sizeBreakdownMatchesQuantity,
+  fieldErrors,
   onSelectQuantity,
   onSelectCategory,
   onSelectProduct,
@@ -340,7 +345,7 @@ export default function ApparelBuilder({
         )}
       </div>
 
-      <div>
+      <div data-invalid={fieldErrors?.printLocations ? "true" : undefined}>
         <div className="mb-3">
           <p className="eyebrow">
             Print Locations
@@ -350,7 +355,21 @@ export default function ApparelBuilder({
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        {/* The 2px frame is always in the box model and only changes ink, so
+            marking this group never reflows the page under the customer. */}
+        <div
+          className={`grid grid-cols-2 gap-3 border-2 ${
+            fieldErrors?.printLocations
+              ? "border-[var(--rush-red)]"
+              : "border-transparent"
+          }`}
+          role="group"
+          // Described, not aria-invalid: a group has no value to be invalid,
+          // and the message it points at states the problem in words.
+          aria-describedby={
+            fieldErrors?.printLocations ? "print-locations-error" : undefined
+          }
+        >
           {apparelCatalog.printLocations.map((location) => {
             const isSelected = apparelQuote.printLocations.includes(location);
 
@@ -370,6 +389,15 @@ export default function ApparelBuilder({
             );
           })}
         </div>
+
+        {fieldErrors?.printLocations && (
+          <p
+            id="print-locations-error"
+            className="mt-2 text-fine font-bold text-[var(--rush-red)]"
+          >
+            {fieldErrors.printLocations}
+          </p>
+        )}
       </div>
 
       <OptionSelector
@@ -408,7 +436,10 @@ export default function ApparelBuilder({
         </label>
 
         {apparelQuote.specialOrder && (
-          <div className="mt-4">
+          <div
+            className="mt-4"
+            data-invalid={fieldErrors?.specialOrderNotes ? "true" : undefined}
+          >
             <label className="block">
               <span className="text-sm font-bold text-[var(--ink-black)]">
                 Tell us what you need
@@ -422,9 +453,28 @@ export default function ApparelBuilder({
                 }
                 rows={3}
                 placeholder="e.g. 40 crewnecks, left chest logo + full back, plus 12 embroidered hats"
-                className="mt-2 w-full border border-[var(--rule)] bg-white px-4 py-3 font-bold text-[var(--ink-black)] outline-none focus:ring-2 focus:ring-[var(--rush-red)]"
+                aria-invalid={fieldErrors?.specialOrderNotes ? true : undefined}
+                aria-describedby={
+                  fieldErrors?.specialOrderNotes
+                    ? "special-order-notes-error"
+                    : undefined
+                }
+                className={`mt-2 w-full bg-white px-4 py-3 font-bold text-[var(--ink-black)] outline-none focus:ring-2 focus:ring-[var(--rush-red)] ${
+                  fieldErrors?.specialOrderNotes
+                    ? "border-2 border-[var(--rush-red)]"
+                    : "border border-[var(--rule)]"
+                }`}
               />
             </label>
+
+            {fieldErrors?.specialOrderNotes && (
+              <p
+                id="special-order-notes-error"
+                className="mt-1 text-fine font-bold text-[var(--rush-red)]"
+              >
+                {fieldErrors.specialOrderNotes}
+              </p>
+            )}
 
             <p className="mt-3 bg-white p-3 text-xs font-bold leading-5 text-[var(--ink-muted)]">
               Heads up: special orders don&apos;t get an online price. Everything
@@ -479,7 +529,14 @@ export default function ApparelBuilder({
         </div>
       )}
 
-      <div className=" border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
+      <div
+        className={` bg-[var(--shirt-blank)] p-5 ${
+          fieldErrors?.sizeBreakdown
+            ? "border-2 border-[var(--rush-red)]"
+            : "border border-[var(--rule)]"
+        }`}
+        data-invalid={fieldErrors?.sizeBreakdown ? "true" : undefined}
+      >
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="eyebrow">
@@ -581,6 +638,12 @@ export default function ApparelBuilder({
           <p className="mt-2 text-sm font-bold text-[var(--ink-black)]">
             {sizeBreakdownFromButtons || "No sizes selected yet"}
           </p>
+
+          {fieldErrors?.sizeBreakdown && (
+            <p className="mt-2 text-fine font-bold text-[var(--rush-red)]">
+              {fieldErrors.sizeBreakdown}
+            </p>
+          )}
 
           {!sizeBreakdownMatchesQuantity && (
             <p className="mt-2 text-sm font-bold leading-6 text-[var(--rush-red)]">

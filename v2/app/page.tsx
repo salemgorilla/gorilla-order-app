@@ -40,7 +40,11 @@ import {
 } from "../lib/pricing";
 import { calculateApparelPricing } from "../lib/apparel-pricing";
 import { apparelCatalogStyles } from "../lib/apparel-catalog";
-import { getOrderValidationErrors } from "../lib/validation";
+import {
+  getOrderFieldErrors,
+  getOrderValidationErrors,
+  type FieldErrors,
+} from "../lib/validation";
 import { analyzeArtworkFile, ArtworkAnalysis } from "../lib/artwork";
 import {
   isArtworkTooLargeToAttach,
@@ -96,6 +100,14 @@ export default function Home() {
   const [quoteConfirmation, setQuoteConfirmation] =
     useState<QuoteConfirmation | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // Fields are marked only after a submit is attempted. Marking them on first
+  // paint would meet a customer who has typed nothing with a page of red, and
+  // the marks would be describing their own defaults back at them.
+  const [showFieldErrors, setShowFieldErrors] = useState(false);
+  // Bumped on every failed submit rather than set, because the scroll must
+  // repeat on the second attempt and a flag that is already true would not
+  // re-run the effect.
+  const [scrollToInvalidToken, setScrollToInvalidToken] = useState(0);
   // Percentage while artwork goes up to blob storage; null when not uploading.
   // A 60 MB file takes real time, and a submit button that just sits there
   // reads as a hang.
@@ -837,52 +849,82 @@ export default function Home() {
     });
   }
 
-  function getSignsValidationErrors() {
-    const errors: string[] = [];
+  /**
+   * Signs, per field.
+   *
+   * Same shape as the sticker rules in lib/validation.ts: this map is the
+   * single source, and the summary list below is derived from it so the
+   * checklist and the marked boxes can never name different problems.
+   */
+  function getSignsFieldErrors(): FieldErrors {
+    const errors: FieldErrors = {};
 
     if (!order.customer.customerName.trim()) {
-      errors.push("Enter your name.");
+      errors.customerName = "Enter your name.";
     }
 
     if (!order.customer.email.trim()) {
-      errors.push("Enter your email.");
+      errors.customerEmail = "Enter your email.";
     }
 
     if (!order.artwork.file) {
-      errors.push("Upload your artwork.");
+      errors.artwork = "Upload your artwork before submitting.";
     }
 
     if (!order.production.needBy.trim()) {
-      errors.push("Enter the date you need this in hand.");
+      errors.needBy = "Enter the date you need this in hand.";
     }
 
-    if (
-      signsQuote.size === CUSTOM_SIZE &&
-      (signsQuote.customWidthInches <= 0 || signsQuote.customHeightInches <= 0)
-    ) {
+    // Only a custom size is typed — every other size resolves from the
+    // product's own table, so a blank width there is not a missing answer.
+    if (signsQuote.size === CUSTOM_SIZE) {
+      if (!(signsQuote.customWidthInches > 0)) {
+        errors.width = "Enter a width.";
+      }
+
+      if (!(signsQuote.customHeightInches > 0)) {
+        errors.height = "Enter a height.";
+      }
+    }
+
+    return errors;
+  }
+
+  function getSignsValidationErrors() {
+    const fields = getSignsFieldErrors();
+    const errors: string[] = [];
+
+    if (fields.customerName) errors.push(fields.customerName);
+    if (fields.customerEmail) errors.push(fields.customerEmail);
+    if (fields.artwork) errors.push("Upload your artwork.");
+    if (fields.needBy) errors.push(fields.needBy);
+
+    // One sentence for two boxes: the summary reads as prose, the fields get
+    // their own short messages.
+    if (fields.width || fields.height) {
       errors.push("Enter the width and height for your custom size.");
     }
 
     return errors;
   }
 
-  function getApparelValidationErrors() {
-    const errors: string[] = [];
+  function getApparelFieldErrors(): FieldErrors {
+    const errors: FieldErrors = {};
 
     if (!order.customer.customerName.trim()) {
-      errors.push("Customer name is required.");
+      errors.customerName = "Enter your name.";
     }
 
     if (!order.customer.email.trim()) {
-      errors.push("Customer email is required.");
+      errors.customerEmail = "Enter your email.";
     }
 
     if (!order.artwork.file) {
-      errors.push("Artwork upload is required.");
+      errors.artwork = "Upload your artwork before submitting.";
     }
 
     if (!order.production.needBy.trim()) {
-      errors.push("Needed-in-hand date is required.");
+      errors.needBy = "Enter the date you need this in hand.";
     }
 
     // A special order is priced by hand, so the strict menu rules (print
@@ -890,22 +932,53 @@ export default function Home() {
     // what they want.
     if (apparelQuote.specialOrder) {
       if (!apparelQuote.specialOrderNotes.trim()) {
-        errors.push("Tell us what you need for your special order.");
+        errors.specialOrderNotes = "Tell us what you need.";
       }
       return errors;
     }
 
     if (apparelQuote.printLocations.length === 0) {
-      errors.push("Choose at least one print location.");
+      errors.printLocations = "Choose at least one print location.";
     }
 
     // The reconciliation error is gone: quantity IS the grid total, so the two
     // cannot disagree. All that remains is asking for at least one shirt.
     if (sizeQuantityTotal < 1) {
-      errors.push("Add how many you need in each size.");
+      errors.sizeBreakdown = "Add at least one size.";
     }
 
     return errors;
+  }
+
+  function getApparelValidationErrors() {
+    const fields = getApparelFieldErrors();
+    const errors: string[] = [];
+
+    if (fields.customerName) errors.push("Customer name is required.");
+    if (fields.customerEmail) errors.push("Customer email is required.");
+    if (fields.artwork) errors.push("Artwork upload is required.");
+    if (fields.needBy) errors.push("Needed-in-hand date is required.");
+
+    if (fields.specialOrderNotes) {
+      errors.push("Tell us what you need for your special order.");
+    }
+
+    if (fields.printLocations) errors.push(fields.printLocations);
+    if (fields.sizeBreakdown) errors.push("Add how many you need in each size.");
+
+    return errors;
+  }
+
+  function getCurrentFieldErrors(): FieldErrors {
+    if (isApparelSelected) {
+      return getApparelFieldErrors();
+    }
+
+    if (isSignsSelected) {
+      return getSignsFieldErrors();
+    }
+
+    return getOrderFieldErrors(order);
   }
 
   function getCurrentValidationErrors() {
@@ -1006,6 +1079,41 @@ export default function Home() {
     return order;
   }
 
+  /**
+   * Take the customer to the first thing they still have to fix.
+   *
+   * Runs after the render that marked the fields, which is the only point at
+   * which [data-invalid] exists to be found. Document order is the reading
+   * order of the form, so the first match is the topmost problem.
+   */
+  useEffect(() => {
+    if (scrollToInvalidToken === 0) return;
+
+    const target = document.querySelector<HTMLElement>('[data-invalid="true"]');
+    if (!target) return;
+
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+    target.scrollIntoView({
+      behavior: reduceMotion ? "auto" : "smooth",
+      block: "center",
+    });
+
+    // Focus the control, not the wrapper, so a keyboard or screen-reader user
+    // lands in the box and hears its message rather than being told only that
+    // something somewhere is wrong. The file input is skipped deliberately —
+    // it is visually hidden, so the upload box's own button is the honest
+    // place to land.
+    const control = target.querySelector<HTMLElement>(
+      "input:not([type='file']), textarea, select, button"
+    );
+
+    // preventScroll, or focus would jump the page and undo the smooth scroll.
+    control?.focus({ preventScroll: true });
+  }, [scrollToInvalidToken]);
+
   async function submitOrder() {
     const errors = getCurrentValidationErrors();
 
@@ -1022,10 +1130,13 @@ export default function Home() {
           : `${errors.length} things left: ${errors.join(" ")}`
       );
 
-      // STILL MISSING: per-field marking. Each field wants data-invalid plus a
-      // 2px RUSH RED border and its own message, and submit should scroll to
-      // the first one. That is a pass over every input in the form, not a line
-      // here — naming the fields in the message is the useful half of it.
+      // Mark the individual boxes and take the customer to the first one.
+      // The scroll itself cannot happen here: the marks are rendered from
+      // state, so no [data-invalid] element exists in the DOM until React has
+      // committed this update. The token drives an effect that runs after it.
+      setShowFieldErrors(true);
+      setScrollToInvalidToken((token) => token + 1);
+
       return;
     }
 
@@ -1392,6 +1503,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     setQuoteSubmitted(false);
     setIsSubmitting(false);
     setSubmitError(null);
+    setShowFieldErrors(false);
     setCopyStatus("idle");
   }
 
@@ -1401,6 +1513,13 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
   // Every flow now routes through getCurrentValidationErrors(), which returns
   // the sticker rules for stickers, so one check covers all three.
   const readyToSubmit = currentValidationErrors.length === 0;
+
+  // Recomputed from live state every render, so a field stops being marked the
+  // moment it becomes valid — fixing one box does not require another submit
+  // to find out it was accepted.
+  const fieldErrors: FieldErrors = showFieldErrors
+    ? getCurrentFieldErrors()
+    : {};
 
   if (quoteSubmitted) {
     return (
@@ -1568,6 +1687,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 <SignsBuilder
                   signsQuote={signsQuote}
                   deliveryMethod={order.production.deliveryMethod}
+                  fieldErrors={fieldErrors}
                   onUpdate={(updates) => updateSignsQuote(updates)}
                   onSelectProduct={handleSignProductSelect}
                   onSelectDeliveryMethod={(deliveryMethod) =>
@@ -1592,6 +1712,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   sizeQuantityTotal={sizeQuantityTotal}
                   sizeBreakdownFromButtons={sizeBreakdownFromButtons}
                   sizeBreakdownMatchesQuantity={sizeBreakdownMatchesQuantity}
+                  fieldErrors={fieldErrors}
                   onSelectQuantity={(quantity) =>
                     updateApparelQuote({ quantity })
                   }
@@ -1630,6 +1751,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   deliveryMethod={order.production.deliveryMethod}
                   hasArtwork={Boolean(order.artwork.file)}
                   magentaDetected={Boolean(artworkAnalysis?.magentaDetected)}
+                  fieldErrors={fieldErrors}
                   onSelectDeliveryMethod={(deliveryMethod) =>
                     updateProduction({ deliveryMethod })
                   }
@@ -1651,6 +1773,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 fileSizeBytes={order.artwork.file?.size ?? null}
                 directUploadEnabled={directUploadEnabled}
                 previewUrl={artworkPreview}
+                error={fieldErrors.artwork}
               />
 
               <ArtworkGuidance directUploadEnabled={directUploadEnabled} />
@@ -1664,6 +1787,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     deadlineType: deadlineType as "Firm" | "Flexible",
                   })
                 }
+                error={fieldErrors.needBy}
               />
 
               <CustomerForm
@@ -1673,6 +1797,10 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 phone={order.customer.phone}
                 notes={order.customer.notes}
                 onChange={(updates) => updateCustomer(updates)}
+                errors={{
+                  customerName: fieldErrors.customerName,
+                  email: fieldErrors.customerEmail,
+                }}
               />
             </div>
           </section>
@@ -1783,7 +1911,12 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
             <div className="mt-6">
               {submitError && (
-                <p className="mb-3 bg-[var(--surface-rush)] p-4 text-sm font-bold leading-6 text-[var(--rush-red)]">
+                <p
+                  // Announced, not just seen — the field marks are up the page
+                  // and a screen-reader user is standing at the button.
+                  role="alert"
+                  className="mb-3 bg-[var(--surface-rush)] p-4 text-sm font-bold leading-6 text-[var(--rush-red)]"
+                >
                   {submitError}
                 </p>
               )}
@@ -1794,14 +1927,22 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   uploadProgress={uploadProgress}
                 />
               ) : (
+                // Pressable, not disabled. A disabled button is a dead end on a
+                // form this long: it refuses without saying which box is empty,
+                // and submitOrder — the only thing that marks the fields and
+                // scrolls to the first one — could never run, so the marking
+                // below would be unreachable code. Pressing this fails
+                // validation and returns immediately; nothing is ever sent.
+                //
+                // Inverted ink rather than the 40% disabled treatment, because
+                // white on 40% RUSH RED does not hold 4.5:1 and this is now a
+                // real target the customer is meant to hit.
                 <button
                   type="button"
-                  disabled
-                  // Matches SubmitButton's disabled treatment exactly — it is
-                  // the same button switched off, not a different one.
-                  className="w-full cursor-not-allowed border-2 border-[var(--rush-red)] bg-[var(--rush-red)] py-5 text-lede font-bold text-white opacity-40"
+                  onClick={submitOrder}
+                  className="w-full cursor-pointer border-2 border-[var(--rush-red)] bg-[var(--paper)] py-5 text-lede font-bold text-[var(--rush-red)] transition-colors duration-[120ms] ease-linear hover:bg-[var(--surface-rush)] active:translate-x-[2px] active:translate-y-[2px]"
                 >
-                  Complete required info
+                  Show what&rsquo;s missing
                 </button>
               )}
             </div>

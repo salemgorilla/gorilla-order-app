@@ -29,11 +29,14 @@ import {
   type SignsQuote,
 } from "../../lib/signs";
 import { DECAL_SHIPPING_PRICE } from "../../lib/pricing";
+import type { FieldErrors } from "../../lib/validation";
 import type { DeliveryMethod } from "../../types/order";
 
 type Props = {
   signsQuote: SignsQuote;
   deliveryMethod: DeliveryMethod;
+  /** Only populated after a failed submit; empty until then. */
+  fieldErrors?: FieldErrors;
   onUpdate: (updates: Partial<SignsQuote>) => void;
   onSelectProduct: (productId: string) => void;
   onSelectDeliveryMethod: (deliveryMethod: DeliveryMethod) => void;
@@ -42,6 +45,7 @@ type Props = {
 export default function SignsBuilder({
   signsQuote,
   deliveryMethod,
+  fieldErrors,
   onUpdate,
   onSelectProduct,
   onSelectDeliveryMethod,
@@ -131,6 +135,7 @@ export default function SignsBuilder({
                 // browser reject 1.1 as invalid, which is now allowed.
                 step="any"
                 snap={sanitizeSizeInches}
+                error={fieldErrors?.width}
                 onChange={(customWidthInches) => onUpdate({ customWidthInches })}
               />
 
@@ -144,6 +149,7 @@ export default function SignsBuilder({
                 // browser reject 1.1 as invalid, which is now allowed.
                 step="any"
                 snap={sanitizeSizeInches}
+                error={fieldErrors?.height}
                 onChange={(customHeightInches) =>
                   onUpdate({ customHeightInches })
                 }

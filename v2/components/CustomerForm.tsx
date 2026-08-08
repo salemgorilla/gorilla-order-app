@@ -12,12 +12,27 @@ type Props = {
     phone?: string;
     notes?: string;
   }) => void;
+
+  /** Per-field messages, keyed by the field they belong under. */
+  errors?: {
+    customerName?: string;
+    email?: string;
+  };
 };
 
-const FIELD =
-  "w-full border border-[var(--rule)] bg-[var(--paper)] p-3 text-[var(--ink-black)] " +
+// Split so the invalid state can swap the border rather than stack a second
+// width on top of it — `border` and `border-2` are the same property, and the
+// winner is decided by stylesheet order, not by class order in the string.
+const FIELD_BASE =
+  "w-full bg-[var(--paper)] p-3 text-[var(--ink-black)] " +
   "transition-colors duration-[120ms] ease-linear " +
-  "placeholder:text-[var(--ink-muted)]/60 hover:border-[var(--ink-black)]";
+  "placeholder:text-[var(--ink-muted)]/60";
+
+const FIELD_RULE = "border border-[var(--rule)] hover:border-[var(--ink-black)]";
+
+const FIELD_INVALID = "border-2 border-[var(--rush-red)]";
+
+const FIELD = `${FIELD_BASE} ${FIELD_RULE}`;
 
 /**
  * Order Desk — customer capture.
@@ -38,6 +53,7 @@ export default function CustomerForm({
   phone,
   notes,
   onChange,
+  errors,
 }: Props) {
   return (
     <div className="border border-[var(--rule)] bg-[var(--shirt-blank)] p-6">
@@ -54,6 +70,7 @@ export default function CustomerForm({
           required
           value={customerName}
           autoComplete="name"
+          error={errors?.customerName}
           onChange={(v) => onChange({ customerName: v })}
         />
 
@@ -74,6 +91,7 @@ export default function CustomerForm({
           inputMode="email"
           value={email}
           autoComplete="email"
+          error={errors?.email}
           onChange={(v) => onChange({ email: v })}
         />
 
@@ -121,6 +139,7 @@ function Field({
   inputMode,
   value,
   autoComplete,
+  error,
   onChange,
 }: {
   id: string;
@@ -131,10 +150,15 @@ function Field({
   inputMode?: "email" | "tel" | "text";
   value: string;
   autoComplete?: string;
+  error?: string;
   onChange: (value: string) => void;
 }) {
+  const errorId = `${id}-error`;
+
   return (
-    <div>
+    // data-invalid is the scroll target on a failed submit, so it wraps the
+    // label as well as the box.
+    <div data-invalid={error ? "true" : undefined}>
       <label
         htmlFor={id}
         className="block text-sm font-bold text-[var(--ink-black)]"
@@ -154,10 +178,18 @@ function Field({
         inputMode={inputMode}
         required={required}
         autoComplete={autoComplete}
-        className={`mt-1 ${FIELD}`}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errorId : undefined}
+        className={`mt-1 ${FIELD_BASE} ${error ? FIELD_INVALID : FIELD_RULE}`}
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
+
+      {error && (
+        <p id={errorId} className="mt-1 text-fine font-bold text-[var(--rush-red)]">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

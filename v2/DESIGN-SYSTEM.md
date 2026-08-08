@@ -108,7 +108,44 @@ the file; keep them in sync with `globals.css` by hand.
 
 ---
 
-## 4. Accessibility floor (customer-facing forms)
+## 4. Steps
+
+The order form is five steps, not one scroll: **Product · Details · Artwork ·
+Contact · Review**. `lib/steps.ts` is the only description of them.
+
+The rule that keeps the step bar honest is `FIELD_STEP` — a **full**
+`Record<FieldKey, StepId>`, not a `Partial`. `FieldKey` is the one union of
+everything any flow can mark invalid, so adding a field in `lib/validation.ts`
+without deciding which step owns it is a build error rather than a field that
+submit can mark red but never navigate to.
+
+Two things follow from that and must not be broken:
+
+- **Submit navigates before it marks.** Submit lives on the last step, so the
+  missing box is almost never on screen, and only the current step is mounted.
+  `getFirstStepWithError()` picks the step in ORDER_STEPS order, `page.tsx`
+  switches to it, *then* sets `showFieldErrors` — otherwise there is no
+  `[data-invalid]` in the document for the scroll effect to find and pressing
+  submit appears to do nothing.
+- **Two scroll effects, two tokens.** `stepScrollToken` (top of a new step) and
+  `scrollToInvalidToken` (onto the offending field) must never fire in the same
+  commit. Customer-driven navigation bumps the first; a failed submit bumps
+  only the second.
+
+Steps do not gate. Every step is reachable at any time and "Continue" never
+validates — same reasoning as the submit button being pressable rather than
+disabled. Submit is the single gate, where it can name everything missing at
+once instead of stopping the customer five times on the way down.
+
+Completion is read from **live** errors, not marked ones: marks wait for a
+submit attempt, but a step must stop claiming "done" the moment a box is
+emptied. Steps owning no fields are handled explicitly — Product completes on
+visit, Review is `terminal` and never completes, because "done" there would
+claim the order was placed.
+
+---
+
+## 5. Accessibility floor (customer-facing forms)
 
 This app is a form filled in by walk-in customers, often on a phone. The
 following override the taste rules and are not negotiable:
@@ -126,12 +163,12 @@ following override the taste rules and are not negotiable:
 
 ---
 
-## 5. Still open
+## 6. Still open
 
 - Type scale is still fairly flat — display is ~2.25x body where the system
   asks for 4–10x. Headings are uniformly `font-black`.
 - No ticket grammar in the UI yet (`GP-[SCR|EMB|DTF|TBD]-[YY]-[RUN]`).
-- Price and proof are still rows among rows rather than the focal points.
-- No step bar, KPI strip, or status flow chips from the reference build.
+- No KPI strip or status flow chips from the reference build. The step bar
+  landed — see §4.
 - `ApparelPreview` still holds pre-system colours; apparel is hidden behind
   "Coming Soon", so it was left until that flow launches.

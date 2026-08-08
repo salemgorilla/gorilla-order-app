@@ -1,0 +1,176 @@
+"use client";
+
+import {
+  ORDER_STEPS,
+  STEP_COUNT,
+  getStepIndex,
+  type StepId,
+} from "../lib/steps";
+
+type Props = {
+  currentStepId: StepId;
+  /** Steps the customer has actually landed on. */
+  visitedStepIds: readonly StepId[];
+  /**
+   * Steps holding a failing field *right now*, regardless of whether the
+   * marks are being shown. Completion is read from this, so a step stops
+   * claiming to be done the moment a customer empties a box in it.
+   */
+  errorStepIds: ReadonlySet<StepId>;
+  /**
+   * Whether a submit has been attempted. Problems are only surfaced after
+   * one — the same rule the field marks follow. Meeting someone who has
+   * typed nothing with a bar of red is describing their own defaults back
+   * at them.
+   */
+  showProblems: boolean;
+  onSelect: (id: StepId) => void;
+};
+
+type StepState = "done" | "problem" | "todo";
+
+/**
+ * Order Desk — the step bar.
+ *
+ * Five real steps, all reachable at any time. Deliberately NOT a gate: the
+ * house position on the submit button is already "pressable, not disabled —
+ * a disabled control refuses without saying why", and locking a step behind
+ * the one before it is the same dead end one screen earlier. Submit stays the
+ * single validation gate; this bar is orientation, not permission.
+ *
+ * Status never rides on colour alone. Done carries a check, a problem carries
+ * an exclamation, the current step carries a 2px ink rule and `aria-current`,
+ * and every state names itself for a screen reader.
+ */
+export default function StepNav({
+  currentStepId,
+  visitedStepIds,
+  errorStepIds,
+  showProblems,
+  onSelect,
+}: Props) {
+  const currentIndex = getStepIndex(currentStepId);
+
+  function getState(id: StepId, terminal: boolean | undefined): StepState {
+    const hasErrors = errorStepIds.has(id);
+
+    if (showProblems && hasErrors) {
+      return "problem";
+    }
+
+    // Terminal steps never complete — see the note in lib/steps.ts.
+    if (!terminal && visitedStepIds.includes(id) && !hasErrors) {
+      return "done";
+    }
+
+    return "todo";
+  }
+
+  return (
+    <nav aria-label="Order steps" className="mb-6">
+      <p className="spec mb-2 text-spec text-[var(--ink-muted)]">
+        Step {currentIndex + 1} of {STEP_COUNT}
+      </p>
+
+      <ol className="grid grid-cols-5 border border-[var(--rule)] bg-[var(--paper)]">
+        {ORDER_STEPS.map((step, index) => {
+          const isCurrent = step.id === currentStepId;
+          const state = getState(step.id, step.terminal);
+
+          // Reserved slot, always rendered, so a step changing state does not
+          // reflow the label under it.
+          const glyph =
+            state === "done" ? "✓" : state === "problem" ? "!" : "";
+
+          const statusLabel =
+            state === "done"
+              ? "completed"
+              : state === "problem"
+              ? "needs attention"
+              : isCurrent
+              ? "in progress"
+              : "not started yet";
+
+          return (
+            <li
+              key={step.id}
+              className="border-l border-[var(--rule)] first:border-l-0"
+            >
+              <button
+                type="button"
+                onClick={() => onSelect(step.id)}
+                aria-current={isCurrent ? "step" : undefined}
+                className={[
+                  "group flex h-full min-h-[44px] w-full cursor-pointer flex-col",
+                  "justify-center gap-1 px-2 py-3 text-left",
+                  "transition-colors duration-[120ms] ease-linear",
+                  "active:translate-x-[2px] active:translate-y-[2px]",
+                  // The current step is marked structurally, not by fill, so
+                  // it survives greyscale.
+                  isCurrent
+                    ? "border-t-2 border-t-[var(--ink-black)] bg-[var(--shirt-blank)]"
+                    : [
+                        "border-t-2 border-t-transparent",
+                        // Ink inversion — the house hover move. The current
+                        // step is left alone; inverting where you already are
+                        // reads as a control that goes somewhere.
+                        "hover:bg-[var(--ink-black)]",
+                      ].join(" "),
+                ].join(" ")}
+              >
+                <span className="flex items-baseline justify-between gap-1">
+                  <span
+                    className={[
+                      "spec text-spec",
+                      isCurrent
+                        ? "text-[var(--ink-black)]"
+                        : "text-[var(--ink-muted)] group-hover:text-[var(--paper)]",
+                    ].join(" ")}
+                  >
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+
+                  <span
+                    aria-hidden
+                    className={[
+                      "spec w-3 shrink-0 text-right text-spec font-bold",
+                      // GREEN BRIGHT is the ink-on-black lift; GORILLA GREEN
+                      // does not hold up on the inverted fill.
+                      state === "done"
+                        ? "text-[var(--gorilla-green)] group-hover:text-[var(--green-bright)]"
+                        : "",
+                      state === "problem"
+                        ? "text-[var(--rush-red)] group-hover:text-[var(--paper)]"
+                        : "",
+                    ].join(" ")}
+                  >
+                    {glyph}
+                  </span>
+                </span>
+
+                <span
+                  className={[
+                    "text-spec leading-tight sm:text-fine",
+                    isCurrent ? "font-bold" : "font-semibold",
+                    isCurrent
+                      ? "text-[var(--ink-black)]"
+                      : [
+                          state === "problem"
+                            ? "text-[var(--rush-red)]"
+                            : "text-[var(--ink-muted)]",
+                          "group-hover:text-[var(--paper)]",
+                        ].join(" "),
+                  ].join(" ")}
+                >
+                  {step.label}
+                </span>
+
+                <span className="sr-only">, {statusLabel}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}

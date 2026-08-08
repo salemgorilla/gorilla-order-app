@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 
 import Header from "../components/Header";
+import StepNav from "../components/StepNav";
+import StepFooter from "../components/StepFooter";
 import UploadBox from "../components/upload/UploadBox";
 import ArtworkGuidance from "../components/upload/ArtworkGuidance";
 import NeedByDate from "../components/NeedByDate";
@@ -45,6 +47,12 @@ import {
   getOrderValidationErrors,
   type FieldErrors,
 } from "../lib/validation";
+import {
+  getFirstStepWithError,
+  getStep,
+  getStepsWithErrors,
+  type StepId,
+} from "../lib/steps";
 import { analyzeArtworkFile, ArtworkAnalysis } from "../lib/artwork";
 import {
   isArtworkTooLargeToAttach,
@@ -77,6 +85,17 @@ import type {
 } from "../features/types";
 
 export default function Home() {
+  // Which step is on screen. The form is no longer one scroll — see
+  // lib/steps.ts for the step list and the field-to-step map.
+  const [currentStepId, setCurrentStepId] = useState<StepId>("product");
+  // Steps the customer has actually landed on. Completion is only claimed for
+  // visited steps: several fields ship with valid defaults, so "no errors
+  // here" is not evidence anybody looked at them.
+  const [visitedStepIds, setVisitedStepIds] = useState<StepId[]>(["product"]);
+  // Bumped on customer-driven navigation only, so the scroll-to-top of a new
+  // step and the scroll-to-first-invalid after a failed submit never fight
+  // over the same commit. A failed submit bumps the other token.
+  const [stepScrollToken, setStepScrollToken] = useState(0);
   const [selectedProductId, setSelectedProductId] = useState("stickers");
   const [submittedProductId, setSubmittedProductId] = useState("stickers");
   const [order, setOrder] = useState(defaultOrder);
@@ -1124,6 +1143,44 @@ export default function Home() {
     control?.focus({ preventScroll: true });
   }, [scrollToInvalidToken]);
 
+  /**
+   * Move to a step, recording that it has been seen.
+   *
+   * Never validates. Steps are orientation, not permission — see StepNav.
+   */
+  function goToStep(id: StepId) {
+    setCurrentStepId(id);
+    setVisitedStepIds((seen) => (seen.includes(id) ? seen : [...seen, id]));
+    setStepScrollToken((token) => token + 1);
+  }
+
+  /**
+   * Put the customer at the top of the step they just moved to.
+   *
+   * Without this, pressing "Continue" from the bottom of a long step leaves
+   * the viewport at that scroll position and the new step appears to open
+   * halfway down itself.
+   *
+   * Deliberately keyed on its own token rather than on currentStepId: a
+   * failed submit also changes the step, and there the scroll that matters is
+   * the one onto the offending field, which the effect above owns.
+   */
+  useEffect(() => {
+    if (stepScrollToken === 0) return;
+
+    const anchor = document.getElementById("order-steps");
+    if (!anchor) return;
+
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+    anchor.scrollIntoView({
+      behavior: reduceMotion ? "auto" : "smooth",
+      block: "start",
+    });
+  }, [stepScrollToken]);
+
   async function submitOrder() {
     const errors = getCurrentValidationErrors();
 
@@ -1139,6 +1196,25 @@ export default function Home() {
           ? errors[0]
           : `${errors.length} things left: ${errors.join(" ")}`
       );
+
+      // Submit lives on the last step, so the thing that is missing is almost
+      // never on screen. Move to the step that owns the first problem BEFORE
+      // marking the boxes: only the current step is mounted, so marking alone
+      // would leave no [data-invalid] in the document for the scroll effect
+      // to find, and pressing submit would appear to do nothing at all.
+      //
+      // Not goToStep() — that bumps the step-scroll token, which would scroll
+      // to the top of the step in the same commit the effect below is trying
+      // to scroll onto the offending field. Recording the visit by hand keeps
+      // the step bar honest without starting that fight.
+      const firstBrokenStep = getFirstStepWithError(getCurrentFieldErrors());
+
+      if (firstBrokenStep) {
+        setCurrentStepId(firstBrokenStep);
+        setVisitedStepIds((seen) =>
+          seen.includes(firstBrokenStep) ? seen : [...seen, firstBrokenStep]
+        );
+      }
 
       // Mark the individual boxes and take the customer to the first one.
       // The scroll itself cannot happen here: the marks are rendered from
@@ -1515,6 +1591,9 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     setSubmitError(null);
     setShowFieldErrors(false);
     setCopyStatus("idle");
+    setCurrentStepId("product");
+    setVisitedStepIds(["product"]);
+    setStepScrollToken(0);
   }
 
   // Price per sticker, excluding shipping — shipping is shown as its own line.
@@ -1530,9 +1609,21 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
   // Recomputed from live state every render, so a field stops being marked the
   // moment it becomes valid — fixing one box does not require another submit
   // to find out it was accepted.
-  const fieldErrors: FieldErrors = showFieldErrors
-    ? getCurrentFieldErrors()
-    : {};
+  const liveFieldErrors = getCurrentFieldErrors();
+  const fieldErrors: FieldErrors = showFieldErrors ? liveFieldErrors : {};
+
+  // The step bar reads the LIVE errors, not the marked ones. Marking is gated
+  // on a submit attempt so nobody is met with red before they have typed
+  // anything, but completion is a fact about the order and is true either
+  // way — a step must stop claiming to be done the moment a box is emptied.
+  const errorStepIds = getStepsWithErrors(liveFieldErrors);
+
+  const step = getStep(currentStepId);
+  const flowLabel = isApparelSelected
+    ? "Manual quote"
+    : isSignsSelected
+    ? "Quote request"
+    : "Sticker estimate";
 
   if (quoteSubmitted) {
     return (
@@ -1557,11 +1648,87 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     );
   }
 
+  // The live proof and the running summary are reference, not a step: they
+  // stay pinned beside every step that can change them. Built once here rather
+  // than inline, because the review step needs the same two cards in a
+  // different column and duplicating the three-way flow ternary is how the
+  // two copies drift apart.
+  const previewCard = isSignsSelected ? (
+    <SignsPreviewCard artworkPreview={artworkPreview} signsQuote={signsQuote} />
+  ) : isApparelSelected ? (
+    <ApparelPreview
+      artworkPreview={artworkPreview}
+      garmentType={selectedGarmentLabel}
+      garmentColor={selectedSsColor?.colorName || apparelQuote.garmentColor}
+      garmentImage={selectedGarmentImage}
+      printLocations={apparelQuote.printLocations}
+      inkColors={apparelQuote.inkColors}
+      quantity={apparelQuote.quantity}
+    />
+  ) : (
+    <DecalPreviewCard
+      artworkPreview={artworkPreview}
+      product={order.product}
+      production={order.production}
+      unitPrice={unitPrice}
+      onUpdateProduct={(updates) => updateProduct(updates)}
+    />
+  );
+
+  const summaryCard = isSignsSelected ? (
+    <SignsSummaryCard
+      signsQuote={signsQuote}
+      production={order.production}
+      pricing={signsPricing}
+    />
+  ) : isApparelSelected ? (
+    <ApparelSummaryCard
+      apparelQuote={apparelQuote}
+      selectedSsSize={selectedSsSize}
+      apparelPricing={apparelPricing}
+      artworkAnalysis={artworkAnalysis}
+    />
+  ) : (
+    <OrderSummary order={order} />
+  );
+
+  const stepHeading = (
+    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <p className="eyebrow">{step.label}</p>
+
+        <h2 className="mt-2 text-head font-bold tracking-display text-[var(--ink-black)]">
+          {currentStepId === "details"
+            ? isApparelSelected
+              ? "Build your apparel quote"
+              : isSignsSelected
+              ? "Build your signs quote"
+              : "Choose your sticker details"
+            : step.title}
+        </h2>
+
+        <p className="mt-2 max-w-xl text-fine text-[var(--ink-muted)]">
+          {step.blurb}
+        </p>
+      </div>
+
+      {currentStepId !== "product" && (
+        <div className="spec shrink-0 border border-[var(--rule)] bg-[var(--paper)] px-4 py-2 text-spec text-[var(--ink-muted)]">
+          {flowLabel}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <main className="min-h-screen bg-[var(--shirt-blank)]">
       <Header />
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-8 sm:py-10">
+        {/* The masthead belongs to the decision to start, not to the work.
+            Once a customer is building, it is a screen of marketing between
+            them and the step they are on. */}
+        {currentStepId === "product" && (
         <div className="mb-10">
           <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--rush-red)]">
             Printed Locally in Salem, MA
@@ -1588,23 +1755,38 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             </span>
           </div>
         </div>
+        )}
 
-        <section className="mb-8 border border-[var(--rule)] bg-white p-5 sm:p-8">
-          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="eyebrow">
-                Product Type
-              </p>
-              <h2 className="mt-2 text-head font-bold tracking-display text-[var(--ink-black)]">
-                What do you want to quote?
-              </h2>
-            </div>
+        {/* Scroll target for step changes. Above the estimate stub in document
+            order, so landing here never puts the sticky bar over the heading. */}
+        <div id="order-steps" className="scroll-mt-4">
+          <StepNav
+            currentStepId={currentStepId}
+            visitedStepIds={visitedStepIds}
+            errorStepIds={errorStepIds}
+            showProblems={showFieldErrors}
+            onSelect={goToStep}
+          />
+        </div>
 
-            <p className="max-w-md text-sm font-bold leading-6 text-[var(--ink-muted)]">
-              Start with stickers or apparel. More Gorilla Salem products can be
-              added to this system without rebuilding the whole app.
-            </p>
-          </div>
+        {/* Rendered ONCE, outside the flow ternaries and outside the grid, so
+            it spans the page and pins on both breakpoints. Reads values that
+            are already computed — it adds no pricing logic.
+
+            Held back on the product step: there is nothing configured yet, so
+            it would be quoting a default nobody chose. */}
+        {currentStepId !== "product" && (
+          <EstimateBar
+            label={estimateBar.label}
+            total={estimateBar.total}
+            priceable={estimateBar.priceable}
+            detail={estimateBar.detail}
+          />
+        )}
+
+        {currentStepId === "product" && (
+        <section className="border border-[var(--rule)] bg-white p-5 sm:p-8">
+          {stepHeading}
 
           <div className="grid gap-4 md:grid-cols-3">
             {productCategories.map((product) => {
@@ -1662,45 +1844,19 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               );
             })}
           </div>
+
+          <StepFooter currentStepId={currentStepId} onNavigate={goToStep} />
         </section>
+        )}
 
-        {/* Rendered ONCE, outside the flow ternaries and outside the grid, so
-            it spans the page and pins on both breakpoints. Reads values that
-            are already computed — it adds no pricing logic. */}
-        <EstimateBar
-          label={estimateBar.label}
-          total={estimateBar.total}
-          priceable={estimateBar.priceable}
-          detail={estimateBar.detail}
-        />
-
+        {currentStepId !== "product" && currentStepId !== "review" && (
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
           <section className=" border border-[var(--rule)] bg-white p-5 sm:p-8 lg:col-span-7">
-            <div className="mb-8 flex items-center justify-between">
-              <div>
-                <p className="eyebrow">
-                  Step 1
-                </p>
-
-                <h2 className="mt-2 text-head font-bold tracking-display">
-                  {isApparelSelected
-                    ? "Build Your Apparel Quote"
-                    : isSignsSelected
-                    ? "Build Your Signs Quote"
-                    : "Choose Your Sticker Details"}
-                </h2>
-              </div>
-
-              <div className=" bg-[var(--shirt-blank)] px-4 py-2 text-sm font-bold text-[var(--ink-muted)]">
-                {isApparelSelected
-                  ? "Manual Quote"
-                  : isSignsSelected
-                  ? "Quote Request"
-                  : "Sticker Estimate"}
-              </div>
-            </div>
+            {stepHeading}
 
             <div className="space-y-8">
+              {currentStepId === "details" && (
+              <>
               {isSignsSelected ? (
                 <SignsBuilder
                   signsQuote={signsQuote}
@@ -1783,6 +1939,22 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 />
               )}
 
+              <NeedByDate
+                needBy={order.production.needBy}
+                deadlineType={order.production.deadlineType}
+                onNeedByChange={(needBy) => updateProduction({ needBy })}
+                onDeadlineTypeChange={(deadlineType) =>
+                  updateProduction({
+                    deadlineType: deadlineType as "Firm" | "Flexible",
+                  })
+                }
+                error={fieldErrors.needBy}
+              />
+              </>
+              )}
+
+              {currentStepId === "artwork" && (
+              <>
               <UploadBox
                 onFileSelected={handleArtworkUpload}
                 // Without these the box can never show that a file arrived,
@@ -1795,19 +1967,10 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               />
 
               <ArtworkGuidance directUploadEnabled={directUploadEnabled} />
+              </>
+              )}
 
-              <NeedByDate
-                needBy={order.production.needBy}
-                deadlineType={order.production.deadlineType}
-                onNeedByChange={(needBy) => updateProduction({ needBy })}
-                onDeadlineTypeChange={(deadlineType) =>
-                  updateProduction({
-                    deadlineType: deadlineType as "Firm" | "Flexible",
-                  })
-                }
-                error={fieldErrors.needBy}
-              />
-
+              {currentStepId === "contact" && (
               <CustomerForm
                 customerName={order.customer.customerName}
                 company={order.customer.company}
@@ -1820,34 +1983,14 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   email: fieldErrors.customerEmail,
                 }}
               />
+              )}
             </div>
+
+            <StepFooter currentStepId={currentStepId} onNavigate={goToStep} />
           </section>
 
           <aside className="space-y-6 lg:col-span-5">
-            {isSignsSelected ? (
-              <SignsPreviewCard
-                artworkPreview={artworkPreview}
-                signsQuote={signsQuote}
-              />
-            ) : isApparelSelected ? (
-              <ApparelPreview
-                artworkPreview={artworkPreview}
-                garmentType={selectedGarmentLabel}
-                garmentColor={selectedSsColor?.colorName || apparelQuote.garmentColor}
-                garmentImage={selectedGarmentImage}
-                printLocations={apparelQuote.printLocations}
-                inkColors={apparelQuote.inkColors}
-                quantity={apparelQuote.quantity}
-              />
-            ) : (
-              <DecalPreviewCard
-                artworkPreview={artworkPreview}
-                product={order.product}
-                production={order.production}
-                unitPrice={unitPrice}
-                onUpdateProduct={(updates) => updateProduct(updates)}
-              />
-            )}
+            {previewCard}
 
             <div className=" border border-[var(--rule)] bg-white p-5 text-sm font-bold leading-6 text-[var(--ink-muted)] sm:p-6">
               Not sure what to choose? Send the quote anyway. Gorilla Salem will
@@ -1855,28 +1998,31 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               goes to print.
             </div>
 
-            {isSignsSelected ? (
-              <SignsSummaryCard
-                signsQuote={signsQuote}
-                production={order.production}
-                pricing={signsPricing}
-              />
-            ) : isApparelSelected ? (
-              <ApparelSummaryCard
-                apparelQuote={apparelQuote}
-                selectedSsSize={selectedSsSize}
-                apparelPricing={apparelPricing}
-                artworkAnalysis={artworkAnalysis}
-              />
-            ) : (
-              <OrderSummary order={order} />
-            )}
+            {summaryCard}
+          </aside>
+        </div>
+        )}
 
-            {/* Rendered once, outside the three-way flow ternary above, so
+        {currentStepId === "review" && (
+        <div>
+          {stepHeading}
+
+          {/* The review step is the one place the aside is not an aside. On
+              phones the two columns stack in document order, so keeping the
+              submit button in a right-hand rail would put it ABOVE the proof
+              and the price it is meant to confirm. What you are buying comes
+              first; what you can still change, then send, comes second. */}
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+            <div className="space-y-6 lg:col-span-7">
+              {previewCard}
+              {summaryCard}
+            </div>
+
+            <div className="space-y-6 lg:col-span-5">
+            {/* Rendered once, outside the three-way flow ternary, so
                 stickers / signs / apparel all get it from one place. It sits
-                directly after the price because that is the only slot that is
-                after the estimate on BOTH breakpoints — below `lg` the aside
-                stacks under the entire form. */}
+                after the price on both breakpoints — an add-on is a decision
+                you make once you know what the order already costs. */}
             <AddOnsCard
               flow={selectedProductId}
               addOns={order.addOns}
@@ -1964,8 +2110,13 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 </button>
               )}
             </div>
-          </aside>
+
+            <StepFooter currentStepId={currentStepId} onNavigate={goToStep} />
+            </div>
+          </div>
         </div>
+        )}
+
         <footer className="mt-12 border border-[var(--rule)] bg-white p-6 text-center">
           <p className="eyebrow">
             Gorilla Salem

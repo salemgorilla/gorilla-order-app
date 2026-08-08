@@ -4,7 +4,13 @@ export type ProductCategory = {
   /** null when the product needs no qualifier. */
   badge: string | null;
   description: string;
-  status: "active" | "coming-soon";
+  /**
+   * `request` is selectable but carries no online price — the flow collects
+   * enough to quote it by hand. Apparel sat on `coming-soon` (a disabled
+   * card) while being the shop's highest-value segment, so every visitor who
+   * came here for shirts left without the shop even learning their name.
+   */
+  status: "active" | "request" | "coming-soon";
 };
 
 export const productCategories: ProductCategory[] = [
@@ -23,10 +29,10 @@ export const productCategories: ProductCategory[] = [
   {
     id: "apparel",
     title: "T-Shirts & Apparel",
-    badge: "Soon",
+    badge: "By request",
     description:
-      "Screen printed tees and hoodies. Need something else? Just ask.",
-    status: "coming-soon",
+      "Screen printed tees, hoodies, crewnecks and hats. Quoted by hand, usually same day.",
+    status: "request",
   },
   {
     id: "signs",

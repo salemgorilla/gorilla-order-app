@@ -72,6 +72,7 @@ import QuoteReviewCard from "../features/QuoteReviewCard";
 import DecalBuilder from "../features/decals/DecalBuilder";
 import DecalPreviewCard from "../features/decals/DecalPreviewCard";
 import ApparelBuilder from "../features/apparel/ApparelBuilder";
+import ApparelRequestBuilder from "../features/apparel/ApparelRequestBuilder";
 import ApparelSummaryCard from "../features/apparel/ApparelSummaryCard";
 import SignsBuilder from "../features/signs/SignsBuilder";
 import SignsSummaryCard from "../features/signs/SignsSummaryCard";
@@ -140,6 +141,13 @@ export default function Home() {
   );
 
   const isApparelSelected = selectedProductId === "apparel";
+  // Apparel currently ships as a hand-quote request rather than the
+  // configurator. Kept as its own flag so the day the configurator is signed
+  // off, flipping products.tsx back to "active" is the whole change.
+  const isApparelRequest =
+    isApparelSelected &&
+    productCategories.find((product) => product.id === "apparel")?.status ===
+      "request";
   const isApparelSubmitted = submittedProductId === "apparel";
   const isSignsSelected = selectedProductId === "signs";
   const isSignsSubmitted = submittedProductId === "signs";
@@ -215,12 +223,19 @@ export default function Home() {
   // Synced onto apparelQuote rather than replacing it, so pricing, the shop
   // email and the Printavo push all keep reading `quantity` unchanged.
   useEffect(() => {
+    // Only where the size grid exists. The apparel REQUEST flow has no grid —
+    // the customer types a rough count — so letting this run there drove that
+    // number straight back to the empty grid's total of 0 on every render.
+    // The result was a form that complained "enter roughly how many you need"
+    // about a box the customer had just filled in, and no way to clear it.
+    if (isApparelRequest) return;
+
     setApparelQuote((prev) =>
       prev.quantity === sizeQuantityTotal
         ? prev
         : { ...prev, quantity: sizeQuantityTotal }
     );
-  }, [sizeQuantityTotal]);
+  }, [sizeQuantityTotal, isApparelRequest]);
 
   // Kept true: the two can no longer diverge. Retained so the summary card and
   // builder props do not need rewiring in the same change.
@@ -948,10 +963,6 @@ export default function Home() {
       errors.customerEmail = "Enter your email.";
     }
 
-    if (!order.artwork.file) {
-      errors.artwork = "Upload your artwork before submitting.";
-    }
-
     if (!order.production.needBy.trim()) {
       errors.needBy = "Enter the date you need this in hand.";
     }
@@ -963,7 +974,22 @@ export default function Home() {
       if (!apparelQuote.specialOrderNotes.trim()) {
         errors.specialOrderNotes = "Tell us what you need.";
       }
+
+      if (!(apparelQuote.quantity > 0)) {
+        errors.quantity = "Enter roughly how many you need.";
+      }
+
+      // Artwork is deliberately NOT required here. This is the apparel
+      // request flow, and a customer asking what 40 hoodies cost usually has
+      // no print-ready file yet — demanding one turns the shop's highest-value
+      // enquiry into an upload problem and loses the lead outright. The shop
+      // collects artwork in the reply; the quote email already renders "No
+      // file uploaded" without complaint.
       return errors;
+    }
+
+    if (!order.artwork.file) {
+      errors.artwork = "Upload your artwork before submitting.";
     }
 
     if (apparelQuote.printLocations.length === 0) {
@@ -991,6 +1017,8 @@ export default function Home() {
     if (fields.specialOrderNotes) {
       errors.push("Tell us what you need for your special order.");
     }
+
+    if (fields.quantity) errors.push(fields.quantity);
 
     if (fields.printLocations) errors.push(fields.printLocations);
     if (fields.sizeBreakdown) errors.push("Add how many you need in each size.");
@@ -1619,7 +1647,9 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
   const errorStepIds = getStepsWithErrors(liveFieldErrors);
 
   const step = getStep(currentStepId);
-  const flowLabel = isApparelSelected
+  const flowLabel = isApparelRequest
+    ? "Quoted by hand"
+    : isApparelSelected
     ? "Manual quote"
     : isSignsSelected
     ? "Quote request"
@@ -1655,6 +1685,32 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
   // two copies drift apart.
   const previewCard = isSignsSelected ? (
     <SignsPreviewCard artworkPreview={artworkPreview} signsQuote={signsQuote} />
+  ) : isApparelRequest ? (
+    // ApparelPreview draws a garment mock from the S&S colour and image. On a
+    // hand-quote request none of that has been chosen, so it would be drawing
+    // a shirt nobody specified. Show the file they actually sent instead.
+    <div className="border border-[var(--rule)] bg-[var(--paper)] p-6">
+      <p className="eyebrow">Your request</p>
+
+      <h3 className="mt-2 text-head font-bold tracking-display">
+        {apparelQuote.quantity > 0
+          ? `${apparelQuote.quantity} × ${apparelQuote.garmentType}`
+          : apparelQuote.garmentType}
+      </h3>
+
+      {artworkPreview ? (
+        <img
+          src={artworkPreview}
+          alt="Your uploaded artwork"
+          className="mt-5 max-h-64 w-full border border-[var(--rule)] bg-[var(--shirt-blank)] object-contain p-4"
+        />
+      ) : (
+        <p className="mt-5 border border-[var(--rule)] border-l-4 border-l-[var(--rule)] bg-[var(--shirt-blank)] p-4 text-fine font-bold text-[var(--ink-muted)]">
+          No artwork yet — that is fine for apparel. Send the request and we
+          will sort the file out together.
+        </p>
+      )}
+    </div>
   ) : isApparelSelected ? (
     <ApparelPreview
       artworkPreview={artworkPreview}
@@ -1681,6 +1737,39 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       production={order.production}
       pricing={signsPricing}
     />
+  ) : isApparelRequest ? (
+    // ApparelSummaryCard is a price breakdown. There is no price here, and a
+    // breakdown of zeros reads as a bug rather than as "we'll tell you".
+    <div className="border border-[var(--rule)] bg-[var(--paper)] p-6">
+      <p className="eyebrow">What we&rsquo;ll quote</p>
+
+      <dl className="mt-4 space-y-3 text-fine">
+        <div className="flex justify-between gap-4 border-b border-[var(--rule)] pb-3">
+          <dt className="font-bold text-[var(--ink-muted)]">Garment</dt>
+          <dd className="font-bold text-[var(--ink-black)]">
+            {apparelQuote.garmentType}
+          </dd>
+        </div>
+
+        <div className="flex justify-between gap-4 border-b border-[var(--rule)] pb-3">
+          <dt className="font-bold text-[var(--ink-muted)]">Roughly</dt>
+          <dd className="spec font-bold text-[var(--ink-black)]">
+            {apparelQuote.quantity > 0 ? apparelQuote.quantity : "—"}
+          </dd>
+        </div>
+
+        <div className="flex justify-between gap-4">
+          <dt className="font-bold text-[var(--ink-muted)]">Price</dt>
+          <dd className="font-bold text-[var(--ink-black)]">Quoted by hand</dd>
+        </div>
+      </dl>
+
+      {apparelQuote.specialOrderNotes.trim() && (
+        <p className="mt-4 whitespace-pre-wrap border-t border-[var(--rule)] pt-4 text-fine text-[var(--ink-muted)]">
+          {apparelQuote.specialOrderNotes}
+        </p>
+      )}
+    </div>
   ) : isApparelSelected ? (
     <ApparelSummaryCard
       apparelQuote={apparelQuote}
@@ -1699,7 +1788,9 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
         <h2 className="mt-2 text-head font-bold tracking-display text-[var(--ink-black)]">
           {currentStepId === "details"
-            ? isApparelSelected
+            ? isApparelRequest
+              ? "What do you need printed?"
+              : isApparelSelected
               ? "Build your apparel quote"
               : isSignsSelected
               ? "Build your signs quote"
@@ -1708,7 +1799,12 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         </h2>
 
         <p className="mt-2 max-w-xl text-fine text-[var(--ink-muted)]">
-          {step.blurb}
+          {/* The stock details blurb promises size options, which the apparel
+              request flow does not collect. Naming fields that are not on the
+              screen is how a form starts feeling broken. */}
+          {currentStepId === "details" && isApparelRequest
+            ? "Enough for us to price it by hand, and when you need it."
+            : step.blurb}
         </p>
       </div>
 
@@ -1803,7 +1899,8 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
           <div className="grid gap-4 md:grid-cols-3">
             {productCategories.map((product) => {
-              const isActive = product.status === "active";
+              // "request" is selectable — it just has no online price.
+              const isActive = product.status !== "coming-soon";
               const isSelected = selectedProductId === product.id;
 
               return (
@@ -1814,6 +1911,19 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   onClick={() => {
                     setSelectedProductId(product.id);
                     updateProduct({ type: product.title });
+
+                    // Apparel is a hand-quote request, not the configurator.
+                    // Pinning specialOrder here routes it down the path that
+                    // already exists for "priced by hand": no online estimate,
+                    // quoteRequired on the payload, and — because that payload
+                    // carries garmentType and supplier — never classified as a
+                    // sticker order, which is the only flow that self-bills.
+                    if (product.status === "request") {
+                      setApparelQuote((current) => ({
+                        ...current,
+                        specialOrder: true,
+                      }));
+                    }
                     // Errors belong to the flow that produced them. Without
                     // this, failing submit on stickers and then switching to
                     // signs carried the red marks across to a form the
@@ -1824,7 +1934,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     isSelected
                       ? "border-[var(--gorilla-green)] bg-[var(--surface-ok)]"
                       : isActive
-                      ? "border-[var(--rule)] bg-white hover:-translate-y-0.5"
+                      ? "cursor-pointer border-[var(--rule)] bg-white hover:-translate-y-0.5"
                       : "cursor-not-allowed border-[var(--rule)] bg-[var(--shirt-blank)] opacity-70"
                   }`}
                 >
@@ -1851,7 +1961,11 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   </p>
 
                   <p className="mt-4 text-xs font-bold uppercase tracking-[0.16em] text-[var(--rush-red)]">
-                    {isActive ? "Available now" : "Coming soon"}
+                    {product.status === "active"
+                      ? "Available now"
+                      : product.status === "request"
+                      ? "Quoted by hand"
+                      : "Coming soon"}
                   </p>
                 </button>
               );
@@ -1891,6 +2005,17 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   onSelectDeliveryMethod={(deliveryMethod) =>
                     updateProduction({ deliveryMethod })
                   }
+                />
+              ) : isApparelRequest ? (
+                // The full ApparelBuilder is deliberately not rendered. See
+                // ApparelRequestBuilder — its pricing is not signed off, and
+                // showing an unbacked number is worse than showing none.
+                <ApparelRequestBuilder
+                  garmentType={apparelQuote.garmentType}
+                  quantity={apparelQuote.quantity}
+                  notes={apparelQuote.specialOrderNotes}
+                  fieldErrors={fieldErrors}
+                  onUpdate={(updates) => updateApparelQuote(updates)}
                 />
               ) : isApparelSelected ? (
                 <ApparelBuilder

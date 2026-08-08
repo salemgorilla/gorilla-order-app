@@ -536,6 +536,52 @@ export async function sendQuoteEmail(input: {
   }
 }
 
+/**
+ * Send a plain message to the shop through whichever provider is configured.
+ *
+ * sendQuoteEmail() above IS the quote pipeline — it builds a quote body and
+ * its result feeds the "did this reach the shop" check. This is the bare
+ * channel underneath, for notices that are explicitly NOT quotes. Kept as its
+ * own entry point so a notice can never acquire a quote number, an
+ * attachment, or anything downstream that reads as a submitted order.
+ *
+ * Same contract as sendQuoteEmail when nothing is configured: skipped, not
+ * thrown. A notice failing to send must never take a request down with it.
+ */
+export async function sendShopEmail(input: {
+  subject: string;
+  text: string;
+  html: string;
+  replyTo?: string;
+}): Promise<QuoteEmailResult> {
+  const provider = getEmailProvider();
+
+  if (!provider) {
+    return { sent: false, skipped: true };
+  }
+
+  const to = process.env.QUOTE_TO_EMAIL || "quote@gorillasalem.com";
+
+  try {
+    const args: SendArgs = { to, ...input, attachments: [] };
+
+    return provider === "gmail"
+      ? await sendViaGmail(args)
+      : await sendViaResend(args);
+  } catch (error) {
+    return {
+      sent: false,
+      provider,
+      error: error instanceof Error ? error.message : "Unknown email error.",
+    };
+  }
+}
+
+/** Shared by the quote body and the plain notices above. */
+export function escapeEmailHtml(value: string) {
+  return escapeHtml(value);
+}
+
 type SendArgs = {
   to: string;
   subject: string;

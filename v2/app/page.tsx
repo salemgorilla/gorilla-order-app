@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import Header from "../components/Header";
 import StepNav from "../components/StepNav";
@@ -1209,6 +1209,94 @@ export default function Home() {
     });
   }, [stepScrollToken]);
 
+  /**
+   * Tell the shop about a quote that was abandoned after an email was given.
+   *
+   * Read through a ref rather than closed over, so the listeners below are
+   * registered once instead of being torn down and rebuilt on every keystroke
+   * in the customer form.
+   */
+  const leadSnapshotRef = useRef<{
+    name: string;
+    email: string;
+    phone: string;
+    company: string;
+    flow: string;
+    step: StepId;
+    summary: string;
+    submitted: boolean;
+  } | null>(null);
+
+  // Synced in an effect, not written during render: a ref mutated mid-render
+  // is not safe under concurrent rendering, where a render can be thrown away
+  // after the write. No dependency array on purpose — this must hold the
+  // latest values on every commit, and it is a single object assignment.
+  useEffect(() => {
+    leadSnapshotRef.current = {
+      name: order.customer.customerName,
+      email: order.customer.email,
+      phone: order.customer.phone,
+      company: order.customer.company,
+      flow: selectedProductId,
+      step: currentStepId,
+      summary: estimateBar.label,
+      submitted: quoteSubmitted,
+    };
+  });
+
+  // Once per page life. A customer who tabs away and back three times is one
+  // lead, not three emails into the shop's inbox.
+  const leadSentRef = useRef(false);
+
+  useEffect(() => {
+    function reportAbandonedQuote() {
+      const snapshot = leadSnapshotRef.current;
+
+      if (!snapshot || leadSentRef.current) return;
+      // They finished. The quote itself is the record; a second notice saying
+      // they did not finish would be actively wrong.
+      if (snapshot.submitted) return;
+      // No address means nothing to follow up on.
+      if (!/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(snapshot.email.trim())) return;
+
+      leadSentRef.current = true;
+
+      const payload = JSON.stringify({
+        name: snapshot.name,
+        email: snapshot.email,
+        phone: snapshot.phone,
+        company: snapshot.company,
+        flow: snapshot.flow,
+        step: snapshot.step,
+        summary: snapshot.summary,
+      });
+
+      // sendBeacon, not fetch: the page is being torn down, and a normal
+      // request is cancelled with it. Beacons are queued by the browser and
+      // survive the unload, which is the entire point.
+      navigator.sendBeacon?.(
+        "/api/lead",
+        new Blob([payload], { type: "application/json" })
+      );
+    }
+
+    // pagehide covers real navigation; visibilitychange covers the mobile
+    // case that matters most — switching apps, where pagehide may never fire.
+    // `unload` is deliberately not used: it suppresses the back/forward cache
+    // and is ignored on iOS anyway.
+    function onVisibilityChange() {
+      if (document.visibilityState === "hidden") reportAbandonedQuote();
+    }
+
+    window.addEventListener("pagehide", reportAbandonedQuote);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.removeEventListener("pagehide", reportAbandonedQuote);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, []);
+
   async function submitOrder() {
     const errors = getCurrentValidationErrors();
 
@@ -1622,6 +1710,8 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     setCurrentStepId("product");
     setVisitedStepIds(["product"]);
     setStepScrollToken(0);
+    // A fresh quote is a fresh chance to abandon one.
+    leadSentRef.current = false;
   }
 
   // Price per sticker, excluding shipping — shipping is shown as its own line.

@@ -1606,6 +1606,11 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   onClick={() => {
                     setSelectedProductId(product.id);
                     updateProduct({ type: product.title });
+                    // Errors belong to the flow that produced them. Without
+                    // this, failing submit on stickers and then switching to
+                    // signs carried the red marks across to a form the
+                    // customer had not tried to submit yet.
+                    setShowFieldErrors(false);
                   }}
                   className={` border p-5 text-left transition ${
                     isSelected

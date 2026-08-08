@@ -105,12 +105,17 @@ export default function StepNav({
                   "justify-center gap-1 px-2 py-3 text-left",
                   "transition-colors duration-[120ms] ease-linear",
                   "active:translate-x-[2px] active:translate-y-[2px]",
-                  // The current step is marked structurally, not by fill, so
-                  // it survives greyscale.
+                  // The current step is the one cell on PAPER; the rest sit
+                  // recessed in the blank tint. The first cut had this the
+                  // other way round, and a tinted cell among white siblings
+                  // reads as recessed — which is the disabled signal, working
+                  // against the state it was meant to carry. The 2px ink rule
+                  // and the bold label do the rest, so the state still
+                  // survives greyscale.
                   isCurrent
-                    ? "border-t-2 border-t-[var(--ink-black)] bg-[var(--shirt-blank)]"
+                    ? "border-t-2 border-t-[var(--ink-black)] bg-[var(--paper)]"
                     : [
-                        "border-t-2 border-t-transparent",
+                        "border-t-2 border-t-transparent bg-[var(--shirt-blank)]",
                         // Ink inversion — the house hover move. The current
                         // step is left alone; inverting where you already are
                         // reads as a control that goes somewhere.

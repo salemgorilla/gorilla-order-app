@@ -112,6 +112,11 @@ export async function POST(request: Request) {
   // shop's mail provider is having a moment is not their problem.
   try {
     await sendShopEmail({
+      // Its own inbox when one is configured, falling back to the quote
+      // inbox. These are follow-up prompts, not orders, and they arrive far
+      // more often than real submissions — left in the same inbox they bury
+      // the quotes that actually need working.
+      to: process.env.LEAD_TO_EMAIL,
       subject: `INCOMPLETE quote — ${name || email} (${flow})`,
       text,
       html,

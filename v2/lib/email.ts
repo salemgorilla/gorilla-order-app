@@ -9,6 +9,10 @@
 //
 // Shared:
 //   QUOTE_TO_EMAIL   - where quotes are sent (default quote@gorillasalem.com)
+//   LEAD_TO_EMAIL    - where INCOMPLETE-quote notices go. Optional; falls back
+//                      to QUOTE_TO_EMAIL. Worth splitting: abandoned quotes
+//                      arrive far more often than real ones, and in a shared
+//                      inbox they bury the submissions that need working.
 //   QUOTE_FROM_EMAIL - sender. Ignored for Gmail, which must send as GMAIL_USER.
 //
 // If neither provider is configured, sendQuoteEmail() returns
@@ -553,6 +557,11 @@ export async function sendShopEmail(input: {
   text: string;
   html: string;
   replyTo?: string;
+  /**
+   * Override the destination. Defaults to the quote inbox, so a notice with
+   * nowhere special to go still reaches a human rather than being dropped.
+   */
+  to?: string;
 }): Promise<QuoteEmailResult> {
   const provider = getEmailProvider();
 
@@ -560,10 +569,12 @@ export async function sendShopEmail(input: {
     return { sent: false, skipped: true };
   }
 
-  const to = process.env.QUOTE_TO_EMAIL || "quote@gorillasalem.com";
+  const { to: requestedTo, ...message } = input;
+  const to =
+    requestedTo?.trim() || process.env.QUOTE_TO_EMAIL || "quote@gorillasalem.com";
 
   try {
-    const args: SendArgs = { to, ...input, attachments: [] };
+    const args: SendArgs = { to, ...message, attachments: [] };
 
     return provider === "gmail"
       ? await sendViaGmail(args)

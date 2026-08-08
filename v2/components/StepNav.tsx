@@ -82,13 +82,16 @@ export default function StepNav({
           const glyph =
             state === "done" ? "✓" : state === "problem" ? "!" : "";
 
+          // Said plainly, the way the shop says it. "Needs attention" is the
+          // canned support phrasing the brand voice rules out, and it is also
+          // vaguer than the thing it is describing.
           const statusLabel =
             state === "done"
-              ? "completed"
+              ? "done"
               : state === "problem"
-              ? "needs attention"
+              ? "something's missing"
               : isCurrent
-              ? "in progress"
+              ? "you're here"
               : "not started yet";
 
           return (

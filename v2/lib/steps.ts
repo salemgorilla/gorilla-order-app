@@ -42,8 +42,7 @@ export const ORDER_STEPS: readonly OrderStep[] = [
     id: "product",
     label: "Product",
     title: "What do you want to quote?",
-    blurb:
-      "Pick what you're ordering. Everything after this is tailored to it.",
+    blurb: "Pick what you're ordering. Everything after this follows from it.",
   },
   {
     id: "details",

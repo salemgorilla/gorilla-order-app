@@ -71,7 +71,29 @@ export default function NeedByDate({
         )}
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-3">
+      {/* Two unlabelled chips under a required date read as if one of them
+          might BE the answer to the date — pick "Flexible" and maybe you can
+          leave it blank. You cannot: the date is required either way, and
+          this pair only says how hard to hold it. Saying so removes the
+          ambiguity, and the group gets a real accessible name at the same
+          time — these are buttons, so no fieldset legend names them. */}
+      <p
+        id="deadline-type-label"
+        className="mt-5 text-sm font-bold text-[var(--ink-black)]"
+      >
+        How firm is that date?
+      </p>
+
+      <p className="mt-1 text-sm text-[var(--ink-muted)]">
+        We need the date either way — this just tells us how much room we have
+        to schedule it.
+      </p>
+
+      <div
+        role="group"
+        aria-labelledby="deadline-type-label"
+        className="mt-3 grid grid-cols-2 gap-3"
+      >
         <Chip
           label="Flexible"
           selected={deadlineType === "Flexible"}

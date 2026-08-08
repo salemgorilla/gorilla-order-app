@@ -1743,6 +1743,19 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             quote request before sending it to Gorilla Salem.
           </p>
 
+          {/* The shop closes quotes fastest by phone, and the number was only
+              in the footer — the bottom of what used to be an eight-screen
+              scroll. Offered here, next to the decision to start. */}
+          <p className="mt-4 text-body font-bold text-[var(--ink-black)]">
+            Prefer to call?{" "}
+            <a
+              className="underline decoration-1 underline-offset-2 transition-colors duration-[120ms] ease-linear hover:text-[var(--gorilla-green)]"
+              href="tel:+19787457755"
+            >
+              (978) 745-7755
+            </a>
+          </p>
+
           <div className="mt-6 flex flex-wrap gap-3">
             <span className=" bg-white px-4 py-2 text-sm font-bold text-[var(--gorilla-green)]">
               Hand-printed locally
@@ -1844,6 +1857,17 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               );
             })}
           </div>
+
+          {/* The "not sure what to choose" reassurance also sits beside the
+              price, but the hesitation it answers starts HERE — choosing
+              between stickers, apparel and signs — not partway through a
+              configurator the customer has already committed to. Splitting the
+              form into steps took the aside off this screen entirely, so
+              without this the product step lost it altogether. */}
+          <p className="mt-6 border border-[var(--rule)] border-l-4 border-l-[var(--gorilla-green)] bg-[var(--surface-ok)] p-4 text-fine font-bold text-[var(--gorilla-green-dark)]">
+            Not sure which one you need? Pick the closest and send it anyway.
+            Gorilla Salem will confirm the best setup before anything prints.
+          </p>
 
           <StepFooter currentStepId={currentStepId} onNavigate={goToStep} />
         </section>

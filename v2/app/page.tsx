@@ -559,7 +559,17 @@ export default function Home() {
     // float noise like 1.7500000000000002 out of the order.
     const widthInches = sanitizeSizeInches(nextOrder.product.widthInches);
     const heightInches = sanitizeSizeInches(nextOrder.product.heightInches);
-    const quantity = snapQuantity(nextOrder.product.quantity);
+    // Quantity is NOT clamped into state — only into the price.
+    //
+    // snapQuantity is Math.max(1, ...), and running it on state meant an empty
+    // quantity box silently became 1. The validation rule for quantity could
+    // therefore never fire, so a customer who cleared the field saw no
+    // complaint and a quiet "1 x 3\" stickers: $25.29" estimate. Keeping the
+    // real value in state is what lets the field mark itself as missing and
+    // block submit; the price still uses the snapped figure, so no quote's
+    // number changes.
+    const quantity = nextOrder.product.quantity;
+    const quantityForPricing = snapQuantity(quantity);
 
     // Keep the label in step with the dimensions. Everything that shows a size
     // to the customer or to the shop — the review card, the proof card, the
@@ -571,7 +581,7 @@ export default function Home() {
         : nextOrder.product.size;
 
     const stickerPrice = getStickerPrice(
-      quantity,
+      quantityForPricing,
       nextOrder.product.material,
       finish,
       nextOrder.product.size,
@@ -1508,7 +1518,10 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
   }
 
   // Price per sticker, excluding shipping — shipping is shown as its own line.
-  const unitPrice = order.pricing.stickerPrice / order.product.quantity;
+  // Guarded, because quantity is no longer clamped in state — an empty box is
+  // genuinely 0 now, and dividing by it renders "$Infinity each".
+  const unitPrice =
+    order.pricing.stickerPrice / Math.max(1, order.product.quantity);
   const currentValidationErrors = getCurrentValidationErrors();
   // Every flow now routes through getCurrentValidationErrors(), which returns
   // the sticker rules for stickers, so one check covers all three.

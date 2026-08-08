@@ -1012,9 +1012,20 @@ export default function Home() {
     setSubmitError(null);
 
     if (errors.length > 0) {
+      // Name what is missing, rather than "complete the missing information".
+      // The validator already knows each item; the message threw that away and
+      // sent the customer hunting back up a long single-scroll form. The
+      // strings are already sentence case, so they read as a list.
       setSubmitError(
-        "Please complete the missing information below before requesting a quote."
+        errors.length === 1
+          ? errors[0]
+          : `${errors.length} things left: ${errors.join(" ")}`
       );
+
+      // STILL MISSING: per-field marking. Each field wants data-invalid plus a
+      // 2px RUSH RED border and its own message, and submit should scroll to
+      // the first one. That is a pass over every input in the form, not a line
+      // here — naming the fields in the message is the useful half of it.
       return;
     }
 

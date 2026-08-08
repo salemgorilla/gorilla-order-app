@@ -42,10 +42,19 @@ Working and verified in production:
 
 ## Next work, in order
 
-1. **`ApparelPreview` Order Desk pass.** Still has `rounded-[2rem]`,
-   `shadow-xl` and seven raw hexes — it was deliberately excluded while
-   apparel was hidden. Launch apparel without this and it looks like a
-   different app. This is the last thing blocking apparel going live.
+1. ~~**`ApparelPreview` Order Desk pass.**~~ **Done.** Rebuilt on the
+   `SignsPreviewCard` pattern. The CSS garment was deleted rather than
+   restyled: the real S&S photograph already covered it, and the artwork
+   overlays were pinned to the drawn body's coordinates, so a customer was
+   shown their art at an arbitrary spot on a real garment and told it was a
+   proof. Garment and artwork are now two framed items side by side with the
+   locations as text — a composite needs placement derived from the
+   photograph, which is its own job.
+
+   Apparel is no longer blocked on this. It ships today as a hand-quote
+   request (`status: "request"` in `lib/products.tsx`); the remaining blocker
+   for the full configurator is sign-off on S&S and screen-print pricing, not
+   the preview.
 2. **Sticker cart + proof attachment** — fully specced in `CART-PLAN.md`.
    Build them together; they land on the same submit path.
 

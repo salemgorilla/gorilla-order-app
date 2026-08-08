@@ -83,8 +83,9 @@ the palette would be a bug:
 
 **`components/preview/ApparelPreview.tsx`** — the `garmentColors` map is the
 colour of physical blanks. Design *onto* the blank; it is not a UI surface.
-The drawn collar, sleeves and hem also keep their radius — that is a garment,
-not a card.
+It now feeds only a swatch in the spec row, and the catalog's real `colorHex`
+wins over it when the catalog has loaded. (The drawn garment that used to
+carry these colours is gone — see §6.)
 
 **`components/preview/StickerShape.tsx`** — the white vinyl border, the
 transparency checkerboard, the die-cut contour, and the `rounded-full` /
@@ -170,5 +171,9 @@ following override the taste rules and are not negotiable:
 - No ticket grammar in the UI yet (`GP-[SCR|EMB|DTF|TBD]-[YY]-[RUN]`).
 - No KPI strip or status flow chips from the reference build. The step bar
   landed — see §4.
-- `ApparelPreview` still holds pre-system colours; apparel is hidden behind
-  "Coming Soon", so it was left until that flow launches.
+- A composite apparel proof — artwork placed on the garment photograph — is
+  deliberately not built. The old one pinned artwork at constants tuned to a
+  CSS drawing, so on an `object-contain` photo it landed nowhere in
+  particular while calling itself a proof. Placement has to be derived from
+  the photograph; until it is, garment and artwork are shown side by side and
+  the caption promises nothing about position.

@@ -2371,13 +2371,43 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               neighbours down the street — and reviewed by them afterwards.
             </p>
 
-            <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {/* items-start so each card is the height of its own review.
+                Stretching them to match the tallest in the row left a short
+                review sitting in a mostly empty box, which reads as a
+                rendering fault rather than as a short review. */}
+            <ul className="mt-6 grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {reviews.map((review) => (
                 <li
                   key={`${review.author}-${review.quote.slice(0, 24)}`}
                   className="border border-[var(--rule)] bg-[var(--shirt-blank)] p-5"
                 >
-                  <blockquote className="text-fine leading-6 text-[var(--ink-black)]">
+                  {review.rating !== undefined && (
+                    <p className="mb-3 flex items-baseline gap-2">
+                      {/* Mono figure first, so the rating is carried by a
+                          value and not only by a row of glyphs. Stars in INK
+                          BLACK rather than an invented gold — there is no
+                          amber in the palette and this is not the place to
+                          add one. */}
+                      <span className="spec text-spec text-[var(--ink-muted)]">
+                        {review.rating.toFixed(1)}
+                      </span>
+                      <span
+                        aria-hidden
+                        className="text-fine tracking-[0.1em] text-[var(--ink-black)]"
+                      >
+                        {"★".repeat(Math.round(review.rating))}
+                      </span>
+                      <span className="sr-only">
+                        {review.rating} out of 5 stars
+                      </span>
+                    </p>
+                  )}
+
+                  {/* whitespace-pre-line: reviews are quoted exactly as
+                      written, and some were written across several lines.
+                      Collapsing them would be a small edit to someone else's
+                      words, which is the one thing this section must not do. */}
+                  <blockquote className="whitespace-pre-line text-fine leading-6 text-[var(--ink-black)]">
                     &ldquo;{review.quote}&rdquo;
                   </blockquote>
 

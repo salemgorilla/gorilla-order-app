@@ -1930,19 +1930,6 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             quote request before sending it to Gorilla Salem.
           </p>
 
-          {/* The shop closes quotes fastest by phone, and the number was only
-              in the footer — the bottom of what used to be an eight-screen
-              scroll. Offered here, next to the decision to start. */}
-          <p className="mt-4 text-body font-bold text-[var(--ink-black)]">
-            Prefer to call?{" "}
-            <a
-              className="underline decoration-1 underline-offset-2 transition-colors duration-[120ms] ease-linear hover:text-[var(--gorilla-green)]"
-              href="tel:+19787457755"
-            >
-              (978) 745-7755
-            </a>
-          </p>
-
           <div className="mt-6 flex flex-wrap gap-3">
             <span className=" bg-white px-4 py-2 text-sm font-bold text-[var(--gorilla-green)]">
               Hand-printed locally
@@ -2364,18 +2351,8 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
           <p className="mt-2 text-lg font-bold text-[var(--ink-black)]">
             Custom printing, local service, real people reviewing your order.
           </p>
-          {/* The shop closes quotes fastest by phone, and until now the only
-              contact route on the page was email. tel: so a phone taps to
-              dial; both are real links rather than plain text. */}
           <p className="mt-2 text-sm font-bold text-[var(--ink-muted)]">
             Salem, Massachusetts •{" "}
-            <a
-              className="underline decoration-1 underline-offset-2 transition-colors duration-[120ms] ease-linear hover:text-[var(--gorilla-green)]"
-              href="tel:+19787457755"
-            >
-              (978) 745-7755
-            </a>{" "}
-            •{" "}
             <a
               className="underline decoration-1 underline-offset-2 transition-colors duration-[120ms] ease-linear hover:text-[var(--gorilla-green)]"
               href="mailto:quote@gorillasalem.com"

@@ -33,6 +33,7 @@ import {
 } from "../lib/signs";
 import { calculateSignsPricing } from "../lib/signs-pricing";
 import { productCategories } from "../lib/products";
+import { reviews } from "../lib/reviews";
 import { defaultOrder } from "../lib/order";
 import { AddOnOffer, toAddOn } from "../lib/addons";
 import {
@@ -2342,6 +2343,58 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             </div>
           </div>
         </div>
+        )}
+
+        {/* Renders only when there are real reviews to show. An empty array is
+            a valid shipping state — see lib/reviews.ts. The site says nothing
+            about what customers think until it can quote someone who actually
+            said it. */}
+        {reviews.length > 0 && (
+          <section
+            aria-labelledby="reviews-heading"
+            className="mt-12 border border-[var(--rule)] bg-white p-6 sm:p-8"
+          >
+            <p className="eyebrow">What our customers say</p>
+
+            {/* The shop's own words, from gorillasalem.com. Its confidence
+                shows through competence rather than hype, so the heading
+                claims nothing the reviews below do not already prove. */}
+            <h2
+              id="reviews-heading"
+              className="mt-2 max-w-2xl text-head font-bold tracking-display text-[var(--ink-black)]"
+            >
+              Quality work, no drama.
+            </h2>
+
+            <p className="mt-2 max-w-2xl text-fine text-[var(--ink-muted)]">
+              Printed in Salem for schools, bands, restaurants, museums and
+              neighbours down the street — and reviewed by them afterwards.
+            </p>
+
+            <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {reviews.map((review) => (
+                <li
+                  key={`${review.author}-${review.quote.slice(0, 24)}`}
+                  className="border border-[var(--rule)] bg-[var(--shirt-blank)] p-5"
+                >
+                  <blockquote className="text-fine leading-6 text-[var(--ink-black)]">
+                    &ldquo;{review.quote}&rdquo;
+                  </blockquote>
+
+                  <figcaption className="mt-4 border-t border-[var(--rule)] pt-3">
+                    <span className="block text-fine font-bold text-[var(--ink-black)]">
+                      {review.author}
+                    </span>
+                    {/* Named, because an unsourced quote is marketing and a
+                        sourced one is evidence. */}
+                    <span className="spec mt-1 block text-spec uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+                      via {review.source}
+                    </span>
+                  </figcaption>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
 
         <footer className="mt-12 border border-[var(--rule)] bg-white p-6 text-center">

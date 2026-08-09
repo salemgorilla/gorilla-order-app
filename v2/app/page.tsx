@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import Header from "../components/Header";
+import StepNav from "../components/StepNav";
+import StepFooter from "../components/StepFooter";
 import UploadBox from "../components/upload/UploadBox";
 import ArtworkGuidance from "../components/upload/ArtworkGuidance";
 import NeedByDate from "../components/NeedByDate";
@@ -45,6 +47,12 @@ import {
   getOrderValidationErrors,
   type FieldErrors,
 } from "../lib/validation";
+import {
+  getFirstStepWithError,
+  getStep,
+  getStepsWithErrors,
+  type StepId,
+} from "../lib/steps";
 import { analyzeArtworkFile, ArtworkAnalysis } from "../lib/artwork";
 import {
   isArtworkTooLargeToAttach,
@@ -64,6 +72,7 @@ import QuoteReviewCard from "../features/QuoteReviewCard";
 import DecalBuilder from "../features/decals/DecalBuilder";
 import DecalPreviewCard from "../features/decals/DecalPreviewCard";
 import ApparelBuilder from "../features/apparel/ApparelBuilder";
+import ApparelRequestBuilder from "../features/apparel/ApparelRequestBuilder";
 import ApparelSummaryCard from "../features/apparel/ApparelSummaryCard";
 import SignsBuilder from "../features/signs/SignsBuilder";
 import SignsSummaryCard from "../features/signs/SignsSummaryCard";
@@ -77,6 +86,17 @@ import type {
 } from "../features/types";
 
 export default function Home() {
+  // Which step is on screen. The form is no longer one scroll — see
+  // lib/steps.ts for the step list and the field-to-step map.
+  const [currentStepId, setCurrentStepId] = useState<StepId>("product");
+  // Steps the customer has actually landed on. Completion is only claimed for
+  // visited steps: several fields ship with valid defaults, so "no errors
+  // here" is not evidence anybody looked at them.
+  const [visitedStepIds, setVisitedStepIds] = useState<StepId[]>(["product"]);
+  // Bumped on customer-driven navigation only, so the scroll-to-top of a new
+  // step and the scroll-to-first-invalid after a failed submit never fight
+  // over the same commit. A failed submit bumps the other token.
+  const [stepScrollToken, setStepScrollToken] = useState(0);
   const [selectedProductId, setSelectedProductId] = useState("stickers");
   const [submittedProductId, setSubmittedProductId] = useState("stickers");
   const [order, setOrder] = useState(defaultOrder);
@@ -121,6 +141,13 @@ export default function Home() {
   );
 
   const isApparelSelected = selectedProductId === "apparel";
+  // Apparel currently ships as a hand-quote request rather than the
+  // configurator. Kept as its own flag so the day the configurator is signed
+  // off, flipping products.tsx back to "active" is the whole change.
+  const isApparelRequest =
+    isApparelSelected &&
+    productCategories.find((product) => product.id === "apparel")?.status ===
+      "request";
   const isApparelSubmitted = submittedProductId === "apparel";
   const isSignsSelected = selectedProductId === "signs";
   const isSignsSubmitted = submittedProductId === "signs";
@@ -196,12 +223,19 @@ export default function Home() {
   // Synced onto apparelQuote rather than replacing it, so pricing, the shop
   // email and the Printavo push all keep reading `quantity` unchanged.
   useEffect(() => {
+    // Only where the size grid exists. The apparel REQUEST flow has no grid —
+    // the customer types a rough count — so letting this run there drove that
+    // number straight back to the empty grid's total of 0 on every render.
+    // The result was a form that complained "enter roughly how many you need"
+    // about a box the customer had just filled in, and no way to clear it.
+    if (isApparelRequest) return;
+
     setApparelQuote((prev) =>
       prev.quantity === sizeQuantityTotal
         ? prev
         : { ...prev, quantity: sizeQuantityTotal }
     );
-  }, [sizeQuantityTotal]);
+  }, [sizeQuantityTotal, isApparelRequest]);
 
   // Kept true: the two can no longer diverge. Retained so the summary card and
   // builder props do not need rewiring in the same change.
@@ -929,10 +963,6 @@ export default function Home() {
       errors.customerEmail = "Enter your email.";
     }
 
-    if (!order.artwork.file) {
-      errors.artwork = "Upload your artwork before submitting.";
-    }
-
     if (!order.production.needBy.trim()) {
       errors.needBy = "Enter the date you need this in hand.";
     }
@@ -944,7 +974,22 @@ export default function Home() {
       if (!apparelQuote.specialOrderNotes.trim()) {
         errors.specialOrderNotes = "Tell us what you need.";
       }
+
+      if (!(apparelQuote.quantity > 0)) {
+        errors.quantity = "Enter roughly how many you need.";
+      }
+
+      // Artwork is deliberately NOT required here. This is the apparel
+      // request flow, and a customer asking what 40 hoodies cost usually has
+      // no print-ready file yet — demanding one turns the shop's highest-value
+      // enquiry into an upload problem and loses the lead outright. The shop
+      // collects artwork in the reply; the quote email already renders "No
+      // file uploaded" without complaint.
       return errors;
+    }
+
+    if (!order.artwork.file) {
+      errors.artwork = "Upload your artwork before submitting.";
     }
 
     if (apparelQuote.printLocations.length === 0) {
@@ -972,6 +1017,8 @@ export default function Home() {
     if (fields.specialOrderNotes) {
       errors.push("Tell us what you need for your special order.");
     }
+
+    if (fields.quantity) errors.push(fields.quantity);
 
     if (fields.printLocations) errors.push(fields.printLocations);
     if (fields.sizeBreakdown) errors.push("Add how many you need in each size.");
@@ -1124,6 +1171,132 @@ export default function Home() {
     control?.focus({ preventScroll: true });
   }, [scrollToInvalidToken]);
 
+  /**
+   * Move to a step, recording that it has been seen.
+   *
+   * Never validates. Steps are orientation, not permission — see StepNav.
+   */
+  function goToStep(id: StepId) {
+    setCurrentStepId(id);
+    setVisitedStepIds((seen) => (seen.includes(id) ? seen : [...seen, id]));
+    setStepScrollToken((token) => token + 1);
+  }
+
+  /**
+   * Put the customer at the top of the step they just moved to.
+   *
+   * Without this, pressing "Continue" from the bottom of a long step leaves
+   * the viewport at that scroll position and the new step appears to open
+   * halfway down itself.
+   *
+   * Deliberately keyed on its own token rather than on currentStepId: a
+   * failed submit also changes the step, and there the scroll that matters is
+   * the one onto the offending field, which the effect above owns.
+   */
+  useEffect(() => {
+    if (stepScrollToken === 0) return;
+
+    const anchor = document.getElementById("order-steps");
+    if (!anchor) return;
+
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+    anchor.scrollIntoView({
+      behavior: reduceMotion ? "auto" : "smooth",
+      block: "start",
+    });
+  }, [stepScrollToken]);
+
+  /**
+   * Tell the shop about a quote that was abandoned after an email was given.
+   *
+   * Read through a ref rather than closed over, so the listeners below are
+   * registered once instead of being torn down and rebuilt on every keystroke
+   * in the customer form.
+   */
+  const leadSnapshotRef = useRef<{
+    name: string;
+    email: string;
+    phone: string;
+    company: string;
+    flow: string;
+    step: StepId;
+    summary: string;
+    submitted: boolean;
+  } | null>(null);
+
+  // Synced in an effect, not written during render: a ref mutated mid-render
+  // is not safe under concurrent rendering, where a render can be thrown away
+  // after the write. No dependency array on purpose — this must hold the
+  // latest values on every commit, and it is a single object assignment.
+  useEffect(() => {
+    leadSnapshotRef.current = {
+      name: order.customer.customerName,
+      email: order.customer.email,
+      phone: order.customer.phone,
+      company: order.customer.company,
+      flow: selectedProductId,
+      step: currentStepId,
+      summary: estimateBar.label,
+      submitted: quoteSubmitted,
+    };
+  });
+
+  // Once per page life. A customer who tabs away and back three times is one
+  // lead, not three emails into the shop's inbox.
+  const leadSentRef = useRef(false);
+
+  useEffect(() => {
+    function reportAbandonedQuote() {
+      const snapshot = leadSnapshotRef.current;
+
+      if (!snapshot || leadSentRef.current) return;
+      // They finished. The quote itself is the record; a second notice saying
+      // they did not finish would be actively wrong.
+      if (snapshot.submitted) return;
+      // No address means nothing to follow up on.
+      if (!/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(snapshot.email.trim())) return;
+
+      leadSentRef.current = true;
+
+      const payload = JSON.stringify({
+        name: snapshot.name,
+        email: snapshot.email,
+        phone: snapshot.phone,
+        company: snapshot.company,
+        flow: snapshot.flow,
+        step: snapshot.step,
+        summary: snapshot.summary,
+      });
+
+      // sendBeacon, not fetch: the page is being torn down, and a normal
+      // request is cancelled with it. Beacons are queued by the browser and
+      // survive the unload, which is the entire point.
+      navigator.sendBeacon?.(
+        "/api/lead",
+        new Blob([payload], { type: "application/json" })
+      );
+    }
+
+    // pagehide covers real navigation; visibilitychange covers the mobile
+    // case that matters most — switching apps, where pagehide may never fire.
+    // `unload` is deliberately not used: it suppresses the back/forward cache
+    // and is ignored on iOS anyway.
+    function onVisibilityChange() {
+      if (document.visibilityState === "hidden") reportAbandonedQuote();
+    }
+
+    window.addEventListener("pagehide", reportAbandonedQuote);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.removeEventListener("pagehide", reportAbandonedQuote);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, []);
+
   async function submitOrder() {
     const errors = getCurrentValidationErrors();
 
@@ -1139,6 +1312,25 @@ export default function Home() {
           ? errors[0]
           : `${errors.length} things left: ${errors.join(" ")}`
       );
+
+      // Submit lives on the last step, so the thing that is missing is almost
+      // never on screen. Move to the step that owns the first problem BEFORE
+      // marking the boxes: only the current step is mounted, so marking alone
+      // would leave no [data-invalid] in the document for the scroll effect
+      // to find, and pressing submit would appear to do nothing at all.
+      //
+      // Not goToStep() — that bumps the step-scroll token, which would scroll
+      // to the top of the step in the same commit the effect below is trying
+      // to scroll onto the offending field. Recording the visit by hand keeps
+      // the step bar honest without starting that fight.
+      const firstBrokenStep = getFirstStepWithError(getCurrentFieldErrors());
+
+      if (firstBrokenStep) {
+        setCurrentStepId(firstBrokenStep);
+        setVisitedStepIds((seen) =>
+          seen.includes(firstBrokenStep) ? seen : [...seen, firstBrokenStep]
+        );
+      }
 
       // Mark the individual boxes and take the customer to the first one.
       // The scroll itself cannot happen here: the marks are rendered from
@@ -1515,6 +1707,11 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     setSubmitError(null);
     setShowFieldErrors(false);
     setCopyStatus("idle");
+    setCurrentStepId("product");
+    setVisitedStepIds(["product"]);
+    setStepScrollToken(0);
+    // A fresh quote is a fresh chance to abandon one.
+    leadSentRef.current = false;
   }
 
   // Price per sticker, excluding shipping — shipping is shown as its own line.
@@ -1530,9 +1727,23 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
   // Recomputed from live state every render, so a field stops being marked the
   // moment it becomes valid — fixing one box does not require another submit
   // to find out it was accepted.
-  const fieldErrors: FieldErrors = showFieldErrors
-    ? getCurrentFieldErrors()
-    : {};
+  const liveFieldErrors = getCurrentFieldErrors();
+  const fieldErrors: FieldErrors = showFieldErrors ? liveFieldErrors : {};
+
+  // The step bar reads the LIVE errors, not the marked ones. Marking is gated
+  // on a submit attempt so nobody is met with red before they have typed
+  // anything, but completion is a fact about the order and is true either
+  // way — a step must stop claiming to be done the moment a box is emptied.
+  const errorStepIds = getStepsWithErrors(liveFieldErrors);
+
+  const step = getStep(currentStepId);
+  const flowLabel = isApparelRequest
+    ? "Quoted by hand"
+    : isApparelSelected
+    ? "Manual quote"
+    : isSignsSelected
+    ? "Quote request"
+    : "Sticker estimate";
 
   if (quoteSubmitted) {
     return (
@@ -1557,11 +1768,154 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     );
   }
 
+  // The live proof and the running summary are reference, not a step: they
+  // stay pinned beside every step that can change them. Built once here rather
+  // than inline, because the review step needs the same two cards in a
+  // different column and duplicating the three-way flow ternary is how the
+  // two copies drift apart.
+  const previewCard = isSignsSelected ? (
+    <SignsPreviewCard artworkPreview={artworkPreview} signsQuote={signsQuote} />
+  ) : isApparelRequest ? (
+    // ApparelPreview draws a garment mock from the S&S colour and image. On a
+    // hand-quote request none of that has been chosen, so it would be drawing
+    // a shirt nobody specified. Show the file they actually sent instead.
+    <div className="border border-[var(--rule)] bg-[var(--paper)] p-6">
+      <p className="eyebrow">Your request</p>
+
+      <h3 className="mt-2 text-head font-bold tracking-display">
+        {apparelQuote.quantity > 0
+          ? `${apparelQuote.quantity} × ${apparelQuote.garmentType}`
+          : apparelQuote.garmentType}
+      </h3>
+
+      {artworkPreview ? (
+        <img
+          src={artworkPreview}
+          alt="Your uploaded artwork"
+          className="mt-5 max-h-64 w-full border border-[var(--rule)] bg-[var(--shirt-blank)] object-contain p-4"
+        />
+      ) : (
+        <p className="mt-5 border border-[var(--rule)] border-l-4 border-l-[var(--rule)] bg-[var(--shirt-blank)] p-4 text-fine font-bold text-[var(--ink-muted)]">
+          No artwork yet — that is fine for apparel. Send the request and we
+          will sort the file out together.
+        </p>
+      )}
+    </div>
+  ) : isApparelSelected ? (
+    <ApparelPreview
+      artworkPreview={artworkPreview}
+      garmentType={selectedGarmentLabel}
+      garmentColor={selectedSsColor?.colorName || apparelQuote.garmentColor}
+      garmentImage={selectedGarmentImage}
+      garmentColorHex={selectedSsColor?.colorHex}
+      printLocations={apparelQuote.printLocations}
+      inkColors={apparelQuote.inkColors}
+      quantity={apparelQuote.quantity}
+    />
+  ) : (
+    <DecalPreviewCard
+      artworkPreview={artworkPreview}
+      product={order.product}
+      production={order.production}
+      unitPrice={unitPrice}
+      onUpdateProduct={(updates) => updateProduct(updates)}
+    />
+  );
+
+  const summaryCard = isSignsSelected ? (
+    <SignsSummaryCard
+      signsQuote={signsQuote}
+      production={order.production}
+      pricing={signsPricing}
+    />
+  ) : isApparelRequest ? (
+    // ApparelSummaryCard is a price breakdown. There is no price here, and a
+    // breakdown of zeros reads as a bug rather than as "we'll tell you".
+    <div className="border border-[var(--rule)] bg-[var(--paper)] p-6">
+      <p className="eyebrow">What we&rsquo;ll quote</p>
+
+      <dl className="mt-4 space-y-3 text-fine">
+        <div className="flex justify-between gap-4 border-b border-[var(--rule)] pb-3">
+          <dt className="font-bold text-[var(--ink-muted)]">Garment</dt>
+          <dd className="font-bold text-[var(--ink-black)]">
+            {apparelQuote.garmentType}
+          </dd>
+        </div>
+
+        <div className="flex justify-between gap-4 border-b border-[var(--rule)] pb-3">
+          <dt className="font-bold text-[var(--ink-muted)]">Roughly</dt>
+          <dd className="spec font-bold text-[var(--ink-black)]">
+            {apparelQuote.quantity > 0 ? apparelQuote.quantity : "—"}
+          </dd>
+        </div>
+
+        <div className="flex justify-between gap-4">
+          <dt className="font-bold text-[var(--ink-muted)]">Price</dt>
+          <dd className="font-bold text-[var(--ink-black)]">Quoted by hand</dd>
+        </div>
+      </dl>
+
+      {apparelQuote.specialOrderNotes.trim() && (
+        <p className="mt-4 whitespace-pre-wrap border-t border-[var(--rule)] pt-4 text-fine text-[var(--ink-muted)]">
+          {apparelQuote.specialOrderNotes}
+        </p>
+      )}
+    </div>
+  ) : isApparelSelected ? (
+    <ApparelSummaryCard
+      apparelQuote={apparelQuote}
+      selectedSsSize={selectedSsSize}
+      apparelPricing={apparelPricing}
+      artworkAnalysis={artworkAnalysis}
+    />
+  ) : (
+    <OrderSummary order={order} />
+  );
+
+  const stepHeading = (
+    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <p className="eyebrow">{step.label}</p>
+
+        <h2 className="mt-2 text-head font-bold tracking-display text-[var(--ink-black)]">
+          {currentStepId === "details"
+            ? isApparelRequest
+              ? "What do you need printed?"
+              : isApparelSelected
+              ? "Build your apparel quote"
+              : isSignsSelected
+              ? "Build your signs quote"
+              : "Choose your sticker details"
+            : step.title}
+        </h2>
+
+        <p className="mt-2 max-w-xl text-fine text-[var(--ink-muted)]">
+          {/* The stock details blurb promises size options, which the apparel
+              request flow does not collect. Naming fields that are not on the
+              screen is how a form starts feeling broken. */}
+          {currentStepId === "details" && isApparelRequest
+            ? "Enough for us to price it by hand, and when you need it."
+            : step.blurb}
+        </p>
+      </div>
+
+      {currentStepId !== "product" && (
+        <div className="spec shrink-0 border border-[var(--rule)] bg-[var(--paper)] px-4 py-2 text-spec text-[var(--ink-muted)]">
+          {flowLabel}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <main className="min-h-screen bg-[var(--shirt-blank)]">
       <Header />
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-8 sm:py-10">
+        {/* The masthead belongs to the decision to start, not to the work.
+            Once a customer is building, it is a screen of marketing between
+            them and the step they are on. */}
+        {currentStepId === "product" && (
         <div className="mb-10">
           <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--rush-red)]">
             Printed Locally in Salem, MA
@@ -1576,6 +1930,19 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             quote request before sending it to Gorilla Salem.
           </p>
 
+          {/* The shop closes quotes fastest by phone, and the number was only
+              in the footer — the bottom of what used to be an eight-screen
+              scroll. Offered here, next to the decision to start. */}
+          <p className="mt-4 text-body font-bold text-[var(--ink-black)]">
+            Prefer to call?{" "}
+            <a
+              className="underline decoration-1 underline-offset-2 transition-colors duration-[120ms] ease-linear hover:text-[var(--gorilla-green)]"
+              href="tel:+19787457755"
+            >
+              (978) 745-7755
+            </a>
+          </p>
+
           <div className="mt-6 flex flex-wrap gap-3">
             <span className=" bg-white px-4 py-2 text-sm font-bold text-[var(--gorilla-green)]">
               Hand-printed locally
@@ -1588,27 +1955,43 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             </span>
           </div>
         </div>
+        )}
 
-        <section className="mb-8 border border-[var(--rule)] bg-white p-5 sm:p-8">
-          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="eyebrow">
-                Product Type
-              </p>
-              <h2 className="mt-2 text-head font-bold tracking-display text-[var(--ink-black)]">
-                What do you want to quote?
-              </h2>
-            </div>
+        {/* Scroll target for step changes. Above the estimate stub in document
+            order, so landing here never puts the sticky bar over the heading. */}
+        <div id="order-steps" className="scroll-mt-4">
+          <StepNav
+            currentStepId={currentStepId}
+            visitedStepIds={visitedStepIds}
+            errorStepIds={errorStepIds}
+            showProblems={showFieldErrors}
+            onSelect={goToStep}
+          />
+        </div>
 
-            <p className="max-w-md text-sm font-bold leading-6 text-[var(--ink-muted)]">
-              Start with stickers or apparel. More Gorilla Salem products can be
-              added to this system without rebuilding the whole app.
-            </p>
-          </div>
+        {/* Rendered ONCE, outside the flow ternaries and outside the grid, so
+            it spans the page and pins on both breakpoints. Reads values that
+            are already computed — it adds no pricing logic.
+
+            Held back on the product step: there is nothing configured yet, so
+            it would be quoting a default nobody chose. */}
+        {currentStepId !== "product" && (
+          <EstimateBar
+            label={estimateBar.label}
+            total={estimateBar.total}
+            priceable={estimateBar.priceable}
+            detail={estimateBar.detail}
+          />
+        )}
+
+        {currentStepId === "product" && (
+        <section className="border border-[var(--rule)] bg-white p-5 sm:p-8">
+          {stepHeading}
 
           <div className="grid gap-4 md:grid-cols-3">
             {productCategories.map((product) => {
-              const isActive = product.status === "active";
+              // "request" is selectable — it just has no online price.
+              const isActive = product.status !== "coming-soon";
               const isSelected = selectedProductId === product.id;
 
               return (
@@ -1619,6 +2002,19 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   onClick={() => {
                     setSelectedProductId(product.id);
                     updateProduct({ type: product.title });
+
+                    // Apparel is a hand-quote request, not the configurator.
+                    // Pinning specialOrder here routes it down the path that
+                    // already exists for "priced by hand": no online estimate,
+                    // quoteRequired on the payload, and — because that payload
+                    // carries garmentType and supplier — never classified as a
+                    // sticker order, which is the only flow that self-bills.
+                    if (product.status === "request") {
+                      setApparelQuote((current) => ({
+                        ...current,
+                        specialOrder: true,
+                      }));
+                    }
                     // Errors belong to the flow that produced them. Without
                     // this, failing submit on stickers and then switching to
                     // signs carried the red marks across to a form the
@@ -1629,7 +2025,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     isSelected
                       ? "border-[var(--gorilla-green)] bg-[var(--surface-ok)]"
                       : isActive
-                      ? "border-[var(--rule)] bg-white hover:-translate-y-0.5"
+                      ? "cursor-pointer border-[var(--rule)] bg-white hover:-translate-y-0.5"
                       : "cursor-not-allowed border-[var(--rule)] bg-[var(--shirt-blank)] opacity-70"
                   }`}
                 >
@@ -1656,51 +2052,40 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   </p>
 
                   <p className="mt-4 text-xs font-bold uppercase tracking-[0.16em] text-[var(--rush-red)]">
-                    {isActive ? "Available now" : "Coming soon"}
+                    {product.status === "active"
+                      ? "Available now"
+                      : product.status === "request"
+                      ? "Quoted by hand"
+                      : "Coming soon"}
                   </p>
                 </button>
               );
             })}
           </div>
+
+          {/* The "not sure what to choose" reassurance also sits beside the
+              price, but the hesitation it answers starts HERE — choosing
+              between stickers, apparel and signs — not partway through a
+              configurator the customer has already committed to. Splitting the
+              form into steps took the aside off this screen entirely, so
+              without this the product step lost it altogether. */}
+          <p className="mt-6 border border-[var(--rule)] border-l-4 border-l-[var(--gorilla-green)] bg-[var(--surface-ok)] p-4 text-fine font-bold text-[var(--gorilla-green-dark)]">
+            Not sure which one you need? Pick the closest and send it anyway.
+            Gorilla Salem will confirm the best setup before anything prints.
+          </p>
+
+          <StepFooter currentStepId={currentStepId} onNavigate={goToStep} />
         </section>
+        )}
 
-        {/* Rendered ONCE, outside the flow ternaries and outside the grid, so
-            it spans the page and pins on both breakpoints. Reads values that
-            are already computed — it adds no pricing logic. */}
-        <EstimateBar
-          label={estimateBar.label}
-          total={estimateBar.total}
-          priceable={estimateBar.priceable}
-          detail={estimateBar.detail}
-        />
-
+        {currentStepId !== "product" && currentStepId !== "review" && (
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
           <section className=" border border-[var(--rule)] bg-white p-5 sm:p-8 lg:col-span-7">
-            <div className="mb-8 flex items-center justify-between">
-              <div>
-                <p className="eyebrow">
-                  Step 1
-                </p>
-
-                <h2 className="mt-2 text-head font-bold tracking-display">
-                  {isApparelSelected
-                    ? "Build Your Apparel Quote"
-                    : isSignsSelected
-                    ? "Build Your Signs Quote"
-                    : "Choose Your Sticker Details"}
-                </h2>
-              </div>
-
-              <div className=" bg-[var(--shirt-blank)] px-4 py-2 text-sm font-bold text-[var(--ink-muted)]">
-                {isApparelSelected
-                  ? "Manual Quote"
-                  : isSignsSelected
-                  ? "Quote Request"
-                  : "Sticker Estimate"}
-              </div>
-            </div>
+            {stepHeading}
 
             <div className="space-y-8">
+              {currentStepId === "details" && (
+              <>
               {isSignsSelected ? (
                 <SignsBuilder
                   signsQuote={signsQuote}
@@ -1711,6 +2096,17 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   onSelectDeliveryMethod={(deliveryMethod) =>
                     updateProduction({ deliveryMethod })
                   }
+                />
+              ) : isApparelRequest ? (
+                // The full ApparelBuilder is deliberately not rendered. See
+                // ApparelRequestBuilder — its pricing is not signed off, and
+                // showing an unbacked number is worse than showing none.
+                <ApparelRequestBuilder
+                  garmentType={apparelQuote.garmentType}
+                  quantity={apparelQuote.quantity}
+                  notes={apparelQuote.specialOrderNotes}
+                  fieldErrors={fieldErrors}
+                  onUpdate={(updates) => updateApparelQuote(updates)}
                 />
               ) : isApparelSelected ? (
                 <ApparelBuilder
@@ -1783,6 +2179,22 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 />
               )}
 
+              <NeedByDate
+                needBy={order.production.needBy}
+                deadlineType={order.production.deadlineType}
+                onNeedByChange={(needBy) => updateProduction({ needBy })}
+                onDeadlineTypeChange={(deadlineType) =>
+                  updateProduction({
+                    deadlineType: deadlineType as "Firm" | "Flexible",
+                  })
+                }
+                error={fieldErrors.needBy}
+              />
+              </>
+              )}
+
+              {currentStepId === "artwork" && (
+              <>
               <UploadBox
                 onFileSelected={handleArtworkUpload}
                 // Without these the box can never show that a file arrived,
@@ -1795,19 +2207,10 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               />
 
               <ArtworkGuidance directUploadEnabled={directUploadEnabled} />
+              </>
+              )}
 
-              <NeedByDate
-                needBy={order.production.needBy}
-                deadlineType={order.production.deadlineType}
-                onNeedByChange={(needBy) => updateProduction({ needBy })}
-                onDeadlineTypeChange={(deadlineType) =>
-                  updateProduction({
-                    deadlineType: deadlineType as "Firm" | "Flexible",
-                  })
-                }
-                error={fieldErrors.needBy}
-              />
-
+              {currentStepId === "contact" && (
               <CustomerForm
                 customerName={order.customer.customerName}
                 company={order.customer.company}
@@ -1820,34 +2223,14 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   email: fieldErrors.customerEmail,
                 }}
               />
+              )}
             </div>
+
+            <StepFooter currentStepId={currentStepId} onNavigate={goToStep} />
           </section>
 
           <aside className="space-y-6 lg:col-span-5">
-            {isSignsSelected ? (
-              <SignsPreviewCard
-                artworkPreview={artworkPreview}
-                signsQuote={signsQuote}
-              />
-            ) : isApparelSelected ? (
-              <ApparelPreview
-                artworkPreview={artworkPreview}
-                garmentType={selectedGarmentLabel}
-                garmentColor={selectedSsColor?.colorName || apparelQuote.garmentColor}
-                garmentImage={selectedGarmentImage}
-                printLocations={apparelQuote.printLocations}
-                inkColors={apparelQuote.inkColors}
-                quantity={apparelQuote.quantity}
-              />
-            ) : (
-              <DecalPreviewCard
-                artworkPreview={artworkPreview}
-                product={order.product}
-                production={order.production}
-                unitPrice={unitPrice}
-                onUpdateProduct={(updates) => updateProduct(updates)}
-              />
-            )}
+            {previewCard}
 
             <div className=" border border-[var(--rule)] bg-white p-5 text-sm font-bold leading-6 text-[var(--ink-muted)] sm:p-6">
               Not sure what to choose? Send the quote anyway. Gorilla Salem will
@@ -1855,28 +2238,31 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               goes to print.
             </div>
 
-            {isSignsSelected ? (
-              <SignsSummaryCard
-                signsQuote={signsQuote}
-                production={order.production}
-                pricing={signsPricing}
-              />
-            ) : isApparelSelected ? (
-              <ApparelSummaryCard
-                apparelQuote={apparelQuote}
-                selectedSsSize={selectedSsSize}
-                apparelPricing={apparelPricing}
-                artworkAnalysis={artworkAnalysis}
-              />
-            ) : (
-              <OrderSummary order={order} />
-            )}
+            {summaryCard}
+          </aside>
+        </div>
+        )}
 
-            {/* Rendered once, outside the three-way flow ternary above, so
+        {currentStepId === "review" && (
+        <div>
+          {stepHeading}
+
+          {/* The review step is the one place the aside is not an aside. On
+              phones the two columns stack in document order, so keeping the
+              submit button in a right-hand rail would put it ABOVE the proof
+              and the price it is meant to confirm. What you are buying comes
+              first; what you can still change, then send, comes second. */}
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+            <div className="space-y-6 lg:col-span-7">
+              {previewCard}
+              {summaryCard}
+            </div>
+
+            <div className="space-y-6 lg:col-span-5">
+            {/* Rendered once, outside the three-way flow ternary, so
                 stickers / signs / apparel all get it from one place. It sits
-                directly after the price because that is the only slot that is
-                after the estimate on BOTH breakpoints — below `lg` the aside
-                stacks under the entire form. */}
+                after the price on both breakpoints — an add-on is a decision
+                you make once you know what the order already costs. */}
             <AddOnsCard
               flow={selectedProductId}
               addOns={order.addOns}
@@ -1964,8 +2350,13 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 </button>
               )}
             </div>
-          </aside>
+
+            <StepFooter currentStepId={currentStepId} onNavigate={goToStep} />
+            </div>
+          </div>
         </div>
+        )}
+
         <footer className="mt-12 border border-[var(--rule)] bg-white p-6 text-center">
           <p className="eyebrow">
             Gorilla Salem

@@ -95,6 +95,16 @@ export default function CustomerForm({
           onChange={(v) => onChange({ email: v })}
         />
 
+        {/* Said plainly, because it is true and the customer cannot see it
+            happen: if they leave without submitting, the shop is told their
+            address so it can follow up. Quietly emailing a half-finished
+            form to the shop without saying so is the kind of thing a
+            customer should not have to discover. */}
+        <p className="text-fine text-[var(--ink-muted)] sm:col-span-2">
+          We only use this to reach you about this quote — including if you
+          leave before sending it and we can help finish it off.
+        </p>
+
         <Field
           id="customer-phone"
           label="Phone"

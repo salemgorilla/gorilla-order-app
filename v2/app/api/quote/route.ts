@@ -114,13 +114,30 @@ async function buildArtworkAttachment(
 /** True for the sticker flow, which is the only one that self-checks-out. */
 function isStickerOrder(order: Record<string, unknown>) {
   const product = (order.product || {}) as Record<string, unknown>;
+  const type = String(product.type || "").toLowerCase();
+
+  // Positive requirement, checked FIRST.
+  //
+  // This used to be defined purely by absence — no supplier, no garmentType,
+  // no signType, "signs" not in the type. Membership by omission means any
+  // NEW flow that fails to set one of those fields is silently classified as
+  // stickers, gets repriced against the sticker table, and auto-generates a
+  // Printavo payment link with no human in the loop. A lead-capture or
+  // hand-quote payload is exactly the shape that slips through.
+  //
+  // Requiring the type to actually say stickers can only ever shrink the set
+  // that auto-bills, so the worst case here is a sticker order that does not
+  // self-check-out and gets followed up by hand — not a customer billed for
+  // something nobody priced.
+  if (!type.includes("sticker")) {
+    return false;
+  }
+
   return (
     !product.supplier &&
     !product.garmentType &&
     !product.signType &&
-    !String(product.type || "")
-      .toLowerCase()
-      .includes("signs")
+    !type.includes("signs")
   );
 }
 

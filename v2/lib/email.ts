@@ -9,6 +9,10 @@
 //
 // Shared:
 //   QUOTE_TO_EMAIL   - where quotes are sent (default quote@gorillasalem.com)
+//   LEAD_TO_EMAIL    - where INCOMPLETE-quote notices go. Optional; falls back
+//                      to QUOTE_TO_EMAIL. Worth splitting: abandoned quotes
+//                      arrive far more often than real ones, and in a shared
+//                      inbox they bury the submissions that need working.
 //   QUOTE_FROM_EMAIL - sender. Ignored for Gmail, which must send as GMAIL_USER.
 //
 // If neither provider is configured, sendQuoteEmail() returns
@@ -534,6 +538,59 @@ export async function sendQuoteEmail(input: {
       error: error instanceof Error ? error.message : "Unknown email error.",
     };
   }
+}
+
+/**
+ * Send a plain message to the shop through whichever provider is configured.
+ *
+ * sendQuoteEmail() above IS the quote pipeline — it builds a quote body and
+ * its result feeds the "did this reach the shop" check. This is the bare
+ * channel underneath, for notices that are explicitly NOT quotes. Kept as its
+ * own entry point so a notice can never acquire a quote number, an
+ * attachment, or anything downstream that reads as a submitted order.
+ *
+ * Same contract as sendQuoteEmail when nothing is configured: skipped, not
+ * thrown. A notice failing to send must never take a request down with it.
+ */
+export async function sendShopEmail(input: {
+  subject: string;
+  text: string;
+  html: string;
+  replyTo?: string;
+  /**
+   * Override the destination. Defaults to the quote inbox, so a notice with
+   * nowhere special to go still reaches a human rather than being dropped.
+   */
+  to?: string;
+}): Promise<QuoteEmailResult> {
+  const provider = getEmailProvider();
+
+  if (!provider) {
+    return { sent: false, skipped: true };
+  }
+
+  const { to: requestedTo, ...message } = input;
+  const to =
+    requestedTo?.trim() || process.env.QUOTE_TO_EMAIL || "quote@gorillasalem.com";
+
+  try {
+    const args: SendArgs = { to, ...message, attachments: [] };
+
+    return provider === "gmail"
+      ? await sendViaGmail(args)
+      : await sendViaResend(args);
+  } catch (error) {
+    return {
+      sent: false,
+      provider,
+      error: error instanceof Error ? error.message : "Unknown email error.",
+    };
+  }
+}
+
+/** Shared by the quote body and the plain notices above. */
+export function escapeEmailHtml(value: string) {
+  return escapeHtml(value);
 }
 
 type SendArgs = {

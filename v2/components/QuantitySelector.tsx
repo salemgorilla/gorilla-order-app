@@ -68,8 +68,12 @@ export default function QuantitySelector({
           />
 
           <p className="mt-2 text-fine leading-5 text-[var(--ink-muted)]">
+            {/* "across your order" was accurate only while an order held one
+                design. With a cart the fee is per design — $25 for the first,
+                $12.50 for each after — so the sentence has to name what it is
+                actually split across. */}
             Any amount is priced exactly — no rounding to a price break. The
-            ${STICKER_SETUP_FEE} setup is split across your order, so the more
+            ${STICKER_SETUP_FEE} setup is split across this design, so the more
             you order the less each one costs.
           </p>
         </div>

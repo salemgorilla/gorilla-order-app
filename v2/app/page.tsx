@@ -1506,7 +1506,12 @@ export default function Home() {
 Name: ${order.customer.customerName}
 Company: ${order.customer.company || "N/A"}
 Email: ${order.customer.email}
-Phone: ${order.customer.phone || "N/A"}`;
+Phone: ${order.customer.phone || "N/A"}
+Heard about us via: ${
+      order.customer.heardAbout.length
+        ? order.customer.heardAbout.join(", ")
+        : "Not answered"
+    }`;
 
     const timelineSection = `TIMELINE
 Needed In Hand: ${order.production.needBy || "Not entered"}
@@ -2205,6 +2210,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 email={order.customer.email}
                 phone={order.customer.phone}
                 notes={order.customer.notes}
+                heardAbout={order.customer.heardAbout}
                 onChange={(updates) => updateCustomer(updates)}
                 errors={{
                   customerName: fieldErrors.customerName,

@@ -1,9 +1,12 @@
+import { HEARD_ABOUT_OPTIONS } from "../lib/attribution";
+
 type Props = {
   customerName: string;
   company: string;
   email: string;
   phone: string;
   notes: string;
+  heardAbout: string[];
 
   onChange: (updates: {
     customerName?: string;
@@ -11,6 +14,7 @@ type Props = {
     email?: string;
     phone?: string;
     notes?: string;
+    heardAbout?: string[];
   }) => void;
 
   /** Per-field messages, keyed by the field they belong under. */
@@ -52,9 +56,18 @@ export default function CustomerForm({
   email,
   phone,
   notes,
+  heardAbout,
   onChange,
   errors,
 }: Props) {
+  function toggleHeardAbout(option: string, checked: boolean) {
+    onChange({
+      heardAbout: checked
+        ? [...heardAbout.filter((item) => item !== option), option]
+        : heardAbout.filter((item) => item !== option),
+    });
+  }
+
   return (
     <div className="border border-[var(--rule)] bg-[var(--shirt-blank)] p-6">
       <h3 className="text-lede font-bold">Customer Information</h3>
@@ -115,6 +128,59 @@ export default function CustomerForm({
           autoComplete="tel"
           onChange={(v) => onChange({ phone: v })}
         />
+
+        {/* A real fieldset/legend, because these are real checkboxes sharing
+            one question — a screen reader announces the question with each
+            box rather than reading six unrelated labels.
+
+            Optional, and said so. The shop's own audit found abandonment is
+            this form's failure mode, and a required marketing question sits
+            between a customer and a quote for the shop's benefit, not theirs.
+            Multi-select because someone can be sent by a friend and still
+            check the Google listing before calling. */}
+        <fieldset className="sm:col-span-2">
+          <legend className="text-sm font-bold text-[var(--ink-black)]">
+            How did you hear about us?{" "}
+            <span className="font-normal text-[var(--ink-muted)]">
+              (optional — tick any that apply)
+            </span>
+          </legend>
+
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {HEARD_ABOUT_OPTIONS.map((option) => {
+              const checked = heardAbout.includes(option);
+
+              return (
+                // The label supplies the hit area — a checkbox on its own is
+                // far under 44px, and DESIGN-SYSTEM §5 makes wrapping it the
+                // house answer rather than styling the box larger.
+                <label
+                  key={option}
+                  className={[
+                    "flex min-h-[44px] cursor-pointer items-center gap-3",
+                    "border bg-[var(--paper)] px-4 py-2 text-sm font-bold",
+                    "transition-colors duration-[120ms] ease-linear",
+                    // Selected carries a heavier border as well as the tick,
+                    // so the state survives greyscale.
+                    checked
+                      ? "border-2 border-[var(--gorilla-green)] text-[var(--ink-black)]"
+                      : "border-[var(--rule)] text-[var(--ink-black)] hover:border-[var(--ink-black)]",
+                  ].join(" ")}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(event) =>
+                      toggleHeardAbout(option, event.target.checked)
+                    }
+                    className="size-4 shrink-0 accent-[var(--gorilla-green)]"
+                  />
+                  {option}
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
 
         <div>
           <label

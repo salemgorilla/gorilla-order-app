@@ -337,6 +337,14 @@ export function buildQuoteEmail(input: {
     line("Company", str(customer.company, "N/A")),
     line("Email", str(customer.email, "Not entered")),
     line("Phone", str(customer.phone, "N/A")),
+    // Optional, so "Not answered" rather than an omitted line — a missing row
+    // reads as a rendering bug, and knowing nobody answered is itself data.
+    line(
+      "Heard about us via",
+      Array.isArray(customer.heardAbout) && customer.heardAbout.length
+        ? customer.heardAbout.join(", ")
+        : "Not answered"
+    ),
     ``,
     apparel ? `APPAREL DETAILS` : signs ? `SIGNS DETAILS` : `STICKER DETAILS`,
     ...productLines,
@@ -445,6 +453,12 @@ function buildHtml(input: {
     line("Company", str(input.customer.company, "N/A")),
     line("Email", str(input.customer.email, "Not entered")),
     line("Phone", str(input.customer.phone, "N/A")),
+    line(
+      "Heard about us via",
+      Array.isArray(input.customer.heardAbout) && input.customer.heardAbout.length
+        ? input.customer.heardAbout.join(", ")
+        : "Not answered"
+    ),
   ];
 
   return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;padding:24px;background:${SHIRT_BLANK};color:${INK_BLACK};">

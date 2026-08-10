@@ -38,6 +38,7 @@ export const defaultOrder: Order = {
     email: "",
     phone: "",
     notes: "",
+    heardAbout: [],
   },
   product: initialProduct,
   artwork: {

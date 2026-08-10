@@ -8,6 +8,16 @@ export type Customer = {
   email: string;
   phone: string;
   notes: string;
+  /**
+   * How they found the shop. Multi-select — someone can be sent by a friend
+   * AND check the Google listing before calling, and forcing one answer would
+   * record the wrong one.
+   *
+   * Optional by design: it is marketing intel, not order data, and this form's
+   * known failure is abandonment. Nothing validates it and nothing downstream
+   * depends on it.
+   */
+  heardAbout: string[];
 };
 
 export type Product = {

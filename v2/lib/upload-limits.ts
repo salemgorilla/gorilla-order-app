@@ -22,6 +22,29 @@ export const PLATFORM_BODY_LIMIT_BYTES = 4.4 * 1024 * 1024;
 /** Budget for the file alone, leaving room for the JSON fields beside it. */
 export const MAX_ATTACHED_ARTWORK_BYTES = 3.5 * 1024 * 1024;
 
+/**
+ * Budget for ALL inline artwork in one submission.
+ *
+ * With one design, per-file and per-request were the same number and that
+ * equivalence was load-bearing — nothing had to add anything up. A cart breaks
+ * it: three 2 MB files each pass the per-file check and together blow the
+ * 4.4 MB platform limit, which kills the whole request at the edge and loses
+ * the ORDER, not just an attachment.
+ *
+ * Deliberately the same 3.5 MB as the single-file budget rather than a
+ * multiple of it, because the ceiling being protected is the request body and
+ * that has not grown.
+ *
+ * DROP POLICY: files are attached in cart order until this is spent. Anything
+ * that does not fit is left behind and reported to the shop by design and
+ * filename, so the shop knows exactly what to ask for. It is never a reason to
+ * fail the submission — see isArtworkTooLargeToAttach.
+ *
+ * None of this applies when a blob store is connected: those files never enter
+ * the request body at all.
+ */
+export const MAX_INLINE_ARTWORK_TOTAL_BYTES = 3.5 * 1024 * 1024;
+
 export function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;

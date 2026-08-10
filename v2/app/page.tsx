@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import Header from "../components/Header";
 import StepNav from "../components/StepNav";
+import DesignCard from "../components/DesignCard";
 import StepFooter from "../components/StepFooter";
 import UploadBox from "../components/upload/UploadBox";
 import ArtworkGuidance from "../components/upload/ArtworkGuidance";
@@ -33,19 +34,25 @@ import {
 } from "../lib/signs";
 import { calculateSignsPricing } from "../lib/signs-pricing";
 import { productCategories } from "../lib/products";
-import { defaultOrder } from "../lib/order";
+import { reviews } from "../lib/reviews";
+import { createStickerItem, defaultOrder } from "../lib/order";
 import { AddOnOffer, toAddOn } from "../lib/addons";
 import {
   describeStickerSize,
   getShippingPrice,
-  getStickerPrice,
+  getStickerMaterialPrice,
+  getCartSetupFee,
+  STICKER_SETUP_FEE,
+  STICKER_SETUP_FEE_ADDITIONAL,
 } from "../lib/pricing";
 import { calculateApparelPricing } from "../lib/apparel-pricing";
 import { apparelCatalogStyles } from "../lib/apparel-catalog";
 import {
+  getItemFieldErrors,
   getOrderFieldErrors,
   getOrderValidationErrors,
   type FieldErrors,
+  type ItemFieldErrors,
 } from "../lib/validation";
 import {
   getFirstStepWithError,
@@ -57,6 +64,7 @@ import { analyzeArtworkFile, ArtworkAnalysis } from "../lib/artwork";
 import {
   isArtworkTooLargeToAttach,
   MAX_ATTACHED_ARTWORK_LABEL,
+  MAX_INLINE_ARTWORK_TOTAL_BYTES,
 } from "../lib/upload-limits";
 import { uploadArtworkToBlob } from "../lib/artwork-upload";
 import { renderStickerProof } from "../lib/sticker-proof";
@@ -112,7 +120,15 @@ export default function Home() {
     "idle" | "loading" | "loaded" | "error"
   >("idle");
   const [ssCatalogError, setSsCatalogError] = useState("");
+  // Signs and apparel are single-file flows and keep the singular slots.
   const [artworkPreview, setArtworkPreview] = useState<string | null>(null);
+  // Stickers are a cart, so preview and analysis are per design, keyed by
+  // item id. Not by index — removing a middle design would re-point every
+  // later preview at the wrong artwork.
+  const [itemPreviews, setItemPreviews] = useState<Record<string, string>>({});
+  const [itemAnalyses, setItemAnalyses] = useState<
+    Record<string, ArtworkAnalysis | null>
+  >({});
   const [artworkAnalysis, setArtworkAnalysis] =
     useState<ArtworkAnalysis | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -352,18 +368,36 @@ export default function Home() {
       };
     }
 
+    const designs = order.items.length;
+    const totalStickers = order.items.reduce(
+      (sum, item) => sum + Math.max(0, item.quantity),
+      0
+    );
+
+    // With one design the stub reads exactly as it always did. With several,
+    // a per-sticker price across different sizes would be an average of
+    // unlike things, so it names the cart instead of inventing a unit price.
+    if (designs > 1) {
+      return {
+        label: `${designs} designs · ${totalStickers.toLocaleString()} stickers`,
+        total: order.pricing.total,
+        priceable: true,
+        detail: `Setup $${order.pricing.setupPrice.toFixed(2)} across ${designs} designs`,
+      };
+    }
+
+    const first = order.items[0];
+
     return {
-      label: `${order.product.quantity} × ${describeStickerSize(
-        order.product.size,
-        {
-          widthInches: order.product.widthInches,
-          heightInches: order.product.heightInches,
-        }
-      )} ${order.product.shape} stickers`,
+      label: `${first.quantity} × ${describeStickerSize(first.size, {
+        widthInches: first.widthInches,
+        heightInches: first.heightInches,
+      })} ${first.shape} stickers`,
       total: order.pricing.total,
       priceable: true,
       detail: `$${(
-        order.pricing.stickerPrice / Math.max(1, order.product.quantity)
+        (order.pricing.stickerPrice + order.pricing.setupPrice) /
+        Math.max(1, first.quantity)
       ).toFixed(2)} each`,
     };
   }, [
@@ -374,7 +408,7 @@ export default function Home() {
     apparelQuote,
     apparelPricing,
     selectedGarmentLabel,
-    order.product,
+    order.items,
     order.pricing,
   ]);
 
@@ -580,19 +614,22 @@ export default function Home() {
     return "Gloss";
   }
 
-  function recalculateOrder(nextOrder: typeof order) {
-    const finish = getDecalFinishFromMaterial(nextOrder.product.material);
+  /**
+   * Normalise one design and return it plus its material cost.
+   *
+   * Sanitising happens here rather than only in the input's blur handler.
+   * Not a constraint on size — any dimension is allowed. It exists because
+   * whatever is in state goes straight to the price, the payload and the
+   * shop's cut spec, so normalising at the single point where price is
+   * computed keeps the number shown, the number charged and the size cut
+   * identical, and keeps float noise like 1.7500000000000002 out of the order.
+   */
+  function priceStickerItem(item: (typeof order.items)[number]) {
+    const finish = getDecalFinishFromMaterial(item.material);
 
-    // Sanitise here rather than only in the input's blur handler.
-    //
-    // Not a constraint on size — any dimension is allowed. This exists because
-    // buildQuotePayload returns `order` verbatim for stickers, so whatever is
-    // in state goes straight to the price, the payload and the shop's cut
-    // spec. Normalising at the single point where price is computed keeps the
-    // number shown, the number charged, and the size cut identical, and keeps
-    // float noise like 1.7500000000000002 out of the order.
-    const widthInches = sanitizeSizeInches(nextOrder.product.widthInches);
-    const heightInches = sanitizeSizeInches(nextOrder.product.heightInches);
+    const widthInches = sanitizeSizeInches(item.widthInches);
+    const heightInches = sanitizeSizeInches(item.heightInches);
+
     // Quantity is NOT clamped into state — only into the price.
     //
     // snapQuantity is Math.max(1, ...), and running it on state meant an empty
@@ -602,57 +639,113 @@ export default function Home() {
     // real value in state is what lets the field mark itself as missing and
     // block submit; the price still uses the snapped figure, so no quote's
     // number changes.
-    const quantity = nextOrder.product.quantity;
-    const quantityForPricing = snapQuantity(quantity);
+    const quantityForPricing = snapQuantity(item.quantity);
 
     // Keep the label in step with the dimensions. Everything that shows a size
     // to the customer or to the shop — the review card, the proof card, the
-    // quote email, the Printavo line — reads product.size, and nothing had
-    // updated it since the size buttons were replaced by typed dimensions.
+    // quote email, the Printavo line — reads `size`, and nothing had updated
+    // it since the size buttons were replaced by typed dimensions.
     const size =
       widthInches > 0 && heightInches > 0
         ? formatSizeLabel(widthInches, heightInches)
-        : nextOrder.product.size;
+        : item.size;
 
-    const stickerPrice = getStickerPrice(
-      quantityForPricing,
-      nextOrder.product.material,
-      finish,
-      nextOrder.product.size,
-      { widthInches, heightInches }
-    );
+    return {
+      item: { ...item, finish, widthInches, heightInches, size },
+      // Material only. Setup is charged once per CART, not per design — see
+      // getCartSetupFee — so it cannot be folded in here.
+      materialPrice: getStickerMaterialPrice(
+        quantityForPricing,
+        item.material,
+        item.size,
+        { widthInches, heightInches }
+      ),
+    };
+  }
 
+  function recalculateOrder(nextOrder: typeof order) {
+    const priced = nextOrder.items.map(priceStickerItem);
+
+    const stickerPrice =
+      Math.round(
+        priced.reduce((sum, entry) => sum + entry.materialPrice, 0) * 100
+      ) / 100;
+
+    // $25 for the first design, $12.50 for each after. One design returns
+    // exactly $25, so a single-design order is priced identically to before
+    // the cart existed.
+    const setupPrice = getCartSetupFee(nextOrder.items.length);
     const shippingPrice = getShippingPrice(nextOrder.production.deliveryMethod);
 
     return {
       ...nextOrder,
-      product: {
-        ...nextOrder.product,
-        finish,
-        widthInches,
-        heightInches,
-        quantity,
-        size,
-      },
+      items: priced.map((entry) => entry.item),
       pricing: {
         ...nextOrder.pricing,
         stickerPrice,
+        setupPrice,
         shippingPrice,
-        total: stickerPrice + shippingPrice,
+        total:
+          Math.round((stickerPrice + setupPrice + shippingPrice) * 100) / 100,
       },
     };
   }
 
-  function updateProduct(updates: Partial<typeof order.product>) {
-    const nextOrder = recalculateOrder({
-      ...order,
-      product: {
-        ...order.product,
-        ...updates,
-      },
-    });
+  /**
+   * Add a design to the cart.
+   *
+   * Priced immediately through recalculateOrder, so the estimate stub moves
+   * the moment the design appears — a customer adding a second design should
+   * see the $12.50 land, not discover it at review.
+   */
+  function addDesign() {
+    setOrder(
+      recalculateOrder({
+        ...order,
+        items: [...order.items, createStickerItem()],
+      })
+    );
+  }
 
-    setOrder(nextOrder);
+  function removeDesign(itemId: string) {
+    // Never remove the last one. An empty cart has no price, no proof and no
+    // way back, and the customer would be looking at a form with nothing in it.
+    if (order.items.length <= 1) return;
+
+    // Revoke this design's preview. Removing the item drops the only reference
+    // to the object URL, so without this the blob is pinned for the life of
+    // the page. (CART-PLAN bug 2.)
+    const preview = itemPreviews[itemId];
+    if (preview) {
+      URL.revokeObjectURL(preview);
+    }
+
+    setItemPreviews(({ [itemId]: _removed, ...rest }) => rest);
+    setItemAnalyses(({ [itemId]: _dropped, ...rest }) => rest);
+
+    setOrder(
+      recalculateOrder({
+        ...order,
+        items: order.items.filter((item) => item.id !== itemId),
+      })
+    );
+  }
+
+  /** Edit one design. Defaults to the first, which is the only one today. */
+  function updateItem(
+    updates: Partial<(typeof order.items)[number]>,
+    itemId?: string
+  ) {
+    const targetId = itemId ?? order.items[0]?.id;
+
+    setOrder(
+      recalculateOrder({
+        ...order,
+        items: order.items.map((item) =>
+          item.id === targetId ? { ...item, ...updates } : item
+        ),
+      })
+    );
   }
 
   function updateCustomer(updates: Partial<typeof order.customer>) {
@@ -803,37 +896,74 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function handleArtworkUpload(file: File) {
+  async function handleArtworkUpload(file: File, itemId?: string) {
+    const isStickers = !isSignsSelected && !isApparelSelected;
+    /** Which design this file belongs to. */
+    const targetId = itemId ?? order.items[0]?.id;
+
+    // Revoke the URL we are replacing. createObjectURL pins the blob in memory
+    // until revoked, and re-uploading repeatedly used to leak every previous
+    // file for the life of the page. (CART-PLAN bug 2; removal and reset
+    // revoke at their own call sites.)
+    const replacing = isStickers ? itemPreviews[targetId] : artworkPreview;
+    if (replacing) {
+      URL.revokeObjectURL(replacing);
+    }
+
     const previewUrl = URL.createObjectURL(file);
 
-    setArtworkPreview(previewUrl);
+    if (isStickers) {
+      setItemPreviews((prev) => ({ ...prev, [targetId]: previewUrl }));
+    } else {
+      setArtworkPreview(previewUrl);
+    }
 
     const analysis = await analyzeArtworkFile(file);
+
+    if (isStickers) {
+      setItemAnalyses((prev) => ({ ...prev, [targetId]: analysis }));
+    }
 
     setArtworkAnalysis(analysis);
 
     if (isApparelSelected) {
-      const estimatedInkCount = getEstimatedInkColorCount(
-        analysis,
-        apparelQuote.garmentColor
-      );
-
-      setApparelQuote({
-        ...apparelQuote,
-        inkColors: formatInkColorOption(estimatedInkCount),
-      });
+      setApparelQuote((prev) => ({
+        ...prev,
+        inkColors: formatInkColorOption(
+          getEstimatedInkColorCount(analysis, prev.garmentColor)
+        ),
+      }));
     }
 
-    setOrder({
-      ...order,
-      // Auto-check the magenta cut line when we detect one in the file.
-      // (Only ever turns it on; never overrides a manual choice to off.)
-      product: analysis.magentaDetected
-        ? { ...order.product, magentaCutLine: true }
-        : order.product,
-      artwork: {
-        file,
-      },
+    // Functional form, not a spread of `order`.
+    //
+    // This runs after an await, so the `order` captured when the upload
+    // started is stale by the time it lands — anything the customer changed
+    // while the file was being analysed was silently reverted. (CART-PLAN
+    // bug 1.)
+    setOrder((prev) => {
+      if (!isStickers) {
+        return { ...prev, artwork: { file } };
+      }
+
+      return {
+        ...prev,
+        items: prev.items.map((item) =>
+          item.id === targetId
+            ? {
+                ...item,
+                artwork: { file },
+                // Auto-check the magenta cut line when one is detected, on
+                // the design the file actually belongs to rather than on
+                // "the product". Only ever turns it on; never overrides a
+                // manual choice to off. (CART-PLAN bug 4.)
+                magentaCutLine: analysis.magentaDetected
+                  ? true
+                  : item.magentaCutLine,
+              }
+            : item
+        ),
+      };
     });
   }
 
@@ -1133,7 +1263,49 @@ export default function Home() {
       };
     }
 
-    return order;
+    // Stickers.
+    //
+    // `product` is SYNTHESISED here and must stay. isStickerOrder() in
+    // app/api/quote/route.ts decides which submissions auto-generate a
+    // Printavo payment link, and it reads product.type plus the absence of
+    // supplier/garmentType/signType. Ship a payload without `product` and
+    // stickers silently stop checking out — no error anywhere, just no money.
+    //
+    // It describes the ORDER, not one design: the type the classifier needs,
+    // the combined quantity, and the first design's spec so single-design
+    // quotes read exactly as they always have. `items` carries the truth.
+    const firstItem = order.items[0];
+    const totalQuantity = order.items.reduce(
+      (sum, item) => sum + Math.max(0, item.quantity),
+      0
+    );
+
+    return {
+      ...order,
+      product: {
+        ...firstItem,
+        quantity: totalQuantity,
+        designCount: order.items.length,
+      },
+      items: order.items.map((item) => ({
+        id: item.id,
+        type: item.type,
+        quantity: item.quantity,
+        size: item.size,
+        widthInches: item.widthInches,
+        heightInches: item.heightInches,
+        shape: item.shape,
+        material: item.material,
+        finish: item.finish,
+        artScale: item.artScale,
+        artMargin: item.artMargin,
+        magentaCutLine: item.magentaCutLine,
+        artworkFileName: item.artwork.file?.name || null,
+      })),
+      // The order-level slot stays for the shop email's existing artwork
+      // block; per-design files are named on each item above.
+      artwork: { file: firstItem.artwork.file },
+    };
   }
 
   /**
@@ -1358,14 +1530,65 @@ export default function Home() {
       // in a moment" — advice that could never work, because the same file
       // failed identically every time. The quote goes through without the
       // attachment and the shop asks for the file directly.
-      const artworkFile = order.artwork.file;
+      const isStickerFlow = !isSignsSelected && !isApparelSelected;
+
+      // Every design that has a file, in cart order. Signs and apparel are
+      // single-file flows and keep the order-level slot.
+      const artworkParts = isStickerFlow
+        ? order.items
+            .filter((item) => item.artwork.file)
+            .map((item) => ({ id: item.id, file: item.artwork.file! }))
+        : order.artwork.file
+        ? [{ id: "order", file: order.artwork.file }]
+        : [];
 
       // Preferred path: straight to blob storage, bypassing the function and
       // its body limit entirely. Falls back on its own if no blob store is
       // connected, so the form keeps working either way.
-      const blobUrl = artworkFile
-        ? await uploadArtworkToBlob(artworkFile, setUploadProgress)
-        : null;
+      //
+      // Parts are keyed by design id — NEVER appended to a shared "artwork"
+      // key. form.getAll() on a shared key returns an array whose indices
+      // silently shift when one design has no file, which misaligns every
+      // later file with the wrong design (CART-PLAN §Per-item artwork).
+      let inlineBytesUsed = 0;
+      const droppedArtwork: { id: string; name: string; size: number }[] = [];
+
+      for (const part of artworkParts) {
+        const blobUrl = await uploadArtworkToBlob(part.file, setUploadProgress);
+
+        if (blobUrl) {
+          formData.append(`artworkUrl:${part.id}`, blobUrl);
+          formData.append(`artworkName:${part.id}`, part.file.name);
+          formData.append(`artworkSize:${part.id}`, String(part.file.size));
+          continue;
+        }
+
+        // No blob store. The file has to ride in the request body, which the
+        // platform kills above ~4.4 MB before the route ever runs — so the
+        // budget is enforced here, where a drop costs an attachment instead of
+        // the whole order.
+        const wouldExceed =
+          isArtworkTooLargeToAttach(part.file) ||
+          inlineBytesUsed + part.file.size > MAX_INLINE_ARTWORK_TOTAL_BYTES;
+
+        if (wouldExceed) {
+          droppedArtwork.push({
+            id: part.id,
+            name: part.file.name,
+            size: part.file.size,
+          });
+          continue;
+        }
+
+        formData.append(`artwork:${part.id}`, part.file, part.file.name);
+        inlineBytesUsed += part.file.size;
+      }
+
+      // Named, not silently missing. The shop needs to know which design's
+      // file to chase, and the customer's quote still goes through.
+      if (droppedArtwork.length) {
+        formData.append("artworkDropped", JSON.stringify(droppedArtwork));
+      }
 
       setUploadProgress(null);
 
@@ -1374,43 +1597,33 @@ export default function Home() {
       // flow with a preview to prove. Small by construction (~1000px), so it
       // rides inline without troubling the body limit.
       const isStickers = !isSignsSelected && !isApparelSelected;
+      const proofItem = order.items[0];
       // Falls back to the preset label, which is a square, when the customer
       // used a size button instead of typing dimensions.
-      const presetInches = parseSizeInches(order.product.size);
+      const presetInches = parseSizeInches(proofItem.size);
 
+      // One proof, for the first design. The per-design canvas proof is its
+      // own piece of work (CART-PLAN §"attach the rendered proof"); until the
+      // cart UI can create a second design there is exactly one to render.
       const proof =
         isStickers && artworkPreview
           ? await renderStickerProof({
               artworkUrl: artworkPreview,
-              shape: order.product.shape,
-              material: order.product.material,
-              finish: order.product.finish,
-              sizeLabel: order.product.size,
-              quantity: order.product.quantity,
-              widthInches: order.product.widthInches || presetInches,
-              heightInches: order.product.heightInches || presetInches,
-              artScale: order.product.artScale,
-              artMargin: order.product.artMargin,
-              magentaCutLine: order.product.magentaCutLine,
+              shape: proofItem.shape,
+              material: proofItem.material,
+              finish: proofItem.finish,
+              sizeLabel: proofItem.size,
+              quantity: proofItem.quantity,
+              widthInches: proofItem.widthInches || presetInches,
+              heightInches: proofItem.heightInches || presetInches,
+              artScale: proofItem.artScale,
+              artMargin: proofItem.artMargin,
+              magentaCutLine: proofItem.magentaCutLine,
             })
           : null;
 
       if (proof) {
         formData.append("proof", proof, "gorilla-proof.png");
-      }
-
-      const artworkOversized = isArtworkTooLargeToAttach(artworkFile);
-
-      if (blobUrl) {
-        formData.append("artworkUrl", blobUrl);
-        formData.append("artworkFileName", artworkFile!.name);
-        formData.append("artworkFileSize", String(artworkFile!.size));
-      } else if (artworkFile && !artworkOversized) {
-        formData.append("artwork", artworkFile, artworkFile.name);
-      } else if (artworkFile) {
-        formData.append("artworkTooLarge", "true");
-        formData.append("artworkFileName", artworkFile.name);
-        formData.append("artworkFileSize", String(artworkFile.size));
       }
 
       const response = await fetch("/api/quote", {
@@ -1505,7 +1718,12 @@ export default function Home() {
 Name: ${order.customer.customerName}
 Company: ${order.customer.company || "N/A"}
 Email: ${order.customer.email}
-Phone: ${order.customer.phone || "N/A"}`;
+Phone: ${order.customer.phone || "N/A"}
+Heard about us via: ${
+      order.customer.heardAbout.length
+        ? order.customer.heardAbout.join(", ")
+        : "Not answered"
+    }`;
 
     const timelineSection = `TIMELINE
 Needed In Hand: ${order.production.needBy || "Not entered"}
@@ -1640,26 +1858,47 @@ ${customerSection}
 
 STICKER DETAILS
 Product: Custom Stickers
-Quantity: ${order.product.quantity.toLocaleString()}
-Size: ${order.product.size}
-Shape: ${order.product.shape}
-Sticker Type: ${order.product.material}
-Art Placement: ${order.product.artScale}% size, ${order.product.artMargin}% ${
-      order.product.shape === "Die Cut" ? "cut border" : "margin"
-    }
-Magenta Cut Line: ${order.product.magentaCutLine ? "Yes — art includes a magenta cut line" : "No"}
+Designs: ${order.items.length}
+${order.items
+      .map((item, index) =>
+        [
+          order.items.length > 1 ? `--- Design ${index + 1} ---` : null,
+          `Quantity: ${item.quantity.toLocaleString()}`,
+          `Size: ${item.size}`,
+          `Shape: ${item.shape}`,
+          `Sticker Type: ${item.material}`,
+          `Art Placement: ${item.artScale}% size, ${item.artMargin}% ${
+            item.shape === "Die Cut" ? "cut border" : "margin"
+          }`,
+          `Magenta Cut Line: ${
+            item.magentaCutLine ? "Yes — art includes a magenta cut line" : "No"
+          }`,
+          `Artwork File: ${item.artwork.file?.name || "No file uploaded"}`,
+        ]
+          .filter(Boolean)
+          .join("\n")
+      )
+      .join("\n\n")}
 
 ${timelineSection}
 
 ESTIMATE
 Stickers: $${order.pricing.stickerPrice.toFixed(2)}
+Setup: $${order.pricing.setupPrice.toFixed(2)}${
+      order.items.length > 1
+        ? ` ($25 first design + $12.50 x ${order.items.length - 1})`
+        : ""
+    }
 Shipping: ${
       order.pricing.shippingPrice > 0
         ? `$${order.pricing.shippingPrice.toFixed(2)}`
         : "Free (local pickup)"
     }
-Estimated Total: $${order.pricing.total.toFixed(2)}
-Estimated Each: $${unitPrice.toFixed(2)} per sticker
+Estimated Total: $${order.pricing.total.toFixed(2)}${
+      order.items.length === 1
+        ? `\nEstimated Each: $${unitPrice.toFixed(2)} per sticker`
+        : ""
+    }
 
 ${artworkSection}
 
@@ -1693,7 +1932,17 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       URL.revokeObjectURL(artworkPreview);
     }
 
-    setOrder(defaultOrder);
+    // Every design's preview, not just the last one touched. Starting a new
+    // quote used to strand one object URL per design for the life of the tab.
+    // (CART-PLAN bug 2.)
+    Object.values(itemPreviews).forEach((url) => URL.revokeObjectURL(url));
+    setItemPreviews({});
+    setItemAnalyses({});
+
+    // A fresh item, not the one baked into defaultOrder at import time —
+    // reusing it would hand every reset order the same design id, and ids are
+    // what submit keys artwork parts on.
+    setOrder({ ...defaultOrder, items: [createStickerItem()] });
     setApparelQuote(defaultApparelQuote);
     setSignsQuote(defaultSignsQuote);
     setSelectedProductId("stickers");
@@ -1717,8 +1966,29 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
   // Price per sticker, excluding shipping — shipping is shown as its own line.
   // Guarded, because quantity is no longer clamped in state — an empty box is
   // genuinely 0 now, and dividing by it renders "$Infinity each".
-  const unitPrice =
-    order.pricing.stickerPrice / Math.max(1, order.product.quantity);
+  /**
+   * What one sticker of a given design costs.
+   *
+   * That design's material plus its OWN share of setup — the first design
+   * carries $25 and each later one $12.50, which is exactly what that design
+   * added to the bill. Dividing the whole cart's setup across one design's
+   * quantity would make design 1 look dearer every time another was added.
+   */
+  function getItemUnitPrice(item: (typeof order.items)[number]) {
+    const index = order.items.findIndex((entry) => entry.id === item.id);
+    const share = index === 0 ? STICKER_SETUP_FEE : STICKER_SETUP_FEE_ADDITIONAL;
+
+    const material = getStickerMaterialPrice(
+      snapQuantity(item.quantity),
+      item.material,
+      item.size,
+      { widthInches: item.widthInches, heightInches: item.heightInches }
+    );
+
+    return (material + share) / Math.max(1, item.quantity);
+  }
+
+  const unitPrice = getItemUnitPrice(order.items[0]);
   const currentValidationErrors = getCurrentValidationErrors();
   // Every flow now routes through getCurrentValidationErrors(), which returns
   // the sticker rules for stickers, so one check covers all three.
@@ -1735,6 +2005,15 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
   // anything, but completion is a fact about the order and is true either
   // way — a step must stop claiming to be done the moment a box is emptied.
   const errorStepIds = getStepsWithErrors(liveFieldErrors);
+
+  // Per-design marks. The flat map above reports the FIRST broken design, which
+  // is what submit jumps to; this is what lets each card mark its own boxes so
+  // a customer with three designs can see which one is short.
+  const itemFieldErrors: Record<string, ItemFieldErrors> = showFieldErrors
+    ? Object.fromEntries(
+        order.items.map((item) => [item.id, getItemFieldErrors(item)])
+      )
+    : {};
 
   const step = getStep(currentStepId);
   const flowLabel = isApparelRequest
@@ -1813,13 +2092,30 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       quantity={apparelQuote.quantity}
     />
   ) : (
-    <DecalPreviewCard
-      artworkPreview={artworkPreview}
-      product={order.product}
-      production={order.production}
-      unitPrice={unitPrice}
-      onUpdateProduct={(updates) => updateProduct(updates)}
-    />
+    // One live proof per design. Showing only the first design's proof beside
+    // a two-design cart is worse than showing none: the art placement sliders
+    // on it edit that design, so a customer adjusting "the preview" would be
+    // changing a design they are not looking at.
+    <div className="space-y-6">
+      {order.items.map((item, index) => (
+        <div key={item.id}>
+          {order.items.length > 1 && (
+            <p className="spec mb-2 text-spec uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+              Design {String(index + 1).padStart(2, "0")} /{" "}
+              {String(order.items.length).padStart(2, "0")}
+            </p>
+          )}
+
+          <DecalPreviewCard
+            artworkPreview={itemPreviews[item.id] || null}
+            product={item}
+            production={order.production}
+            unitPrice={getItemUnitPrice(item)}
+            onUpdateProduct={(updates) => updateItem(updates, item.id)}
+          />
+        </div>
+      ))}
+    </div>
   );
 
   const summaryCard = isSignsSelected ? (
@@ -1930,19 +2226,6 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             quote request before sending it to Gorilla Salem.
           </p>
 
-          {/* The shop closes quotes fastest by phone, and the number was only
-              in the footer — the bottom of what used to be an eight-screen
-              scroll. Offered here, next to the decision to start. */}
-          <p className="mt-4 text-body font-bold text-[var(--ink-black)]">
-            Prefer to call?{" "}
-            <a
-              className="underline decoration-1 underline-offset-2 transition-colors duration-[120ms] ease-linear hover:text-[var(--gorilla-green)]"
-              href="tel:+19787457755"
-            >
-              (978) 745-7755
-            </a>
-          </p>
-
           <div className="mt-6 flex flex-wrap gap-3">
             <span className=" bg-white px-4 py-2 text-sm font-bold text-[var(--gorilla-green)]">
               Hand-printed locally
@@ -2001,7 +2284,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   disabled={!isActive}
                   onClick={() => {
                     setSelectedProductId(product.id);
-                    updateProduct({ type: product.title });
+                    updateItem({ type: product.title });
 
                     // Apparel is a hand-quote request, not the configurator.
                     // Pinning specialOrder here routes it down the path that
@@ -2160,23 +2443,65 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   onResetSizeBreakdown={resetSizeBreakdown}
                 />
               ) : (
-                <DecalBuilder
-                  product={order.product}
-                  deliveryMethod={order.production.deliveryMethod}
-                  hasArtwork={Boolean(order.artwork.file)}
-                  magentaDetected={Boolean(artworkAnalysis?.magentaDetected)}
-                  fieldErrors={fieldErrors}
-                  onSelectDeliveryMethod={(deliveryMethod) =>
-                    updateProduction({ deliveryMethod })
-                  }
-                  onUpdate={(updates) => updateProduct(updates)}
-                  onSelectMaterial={(material) =>
-                    updateProduct({
-                      material,
-                      finish: getDecalFinishFromMaterial(material),
-                    })
-                  }
-                />
+                <div className="space-y-6">
+                  {order.items.map((item, index) => (
+                    <DesignCard
+                      key={item.id}
+                      index={index}
+                      total={order.items.length}
+                      onRemove={() => removeDesign(item.id)}
+                    >
+                      <DecalBuilder
+                        product={item}
+                        deliveryMethod={order.production.deliveryMethod}
+                        hasArtwork={Boolean(item.artwork.file)}
+                        magentaDetected={Boolean(
+                          itemAnalyses[item.id]?.magentaDetected
+                        )}
+                        fieldErrors={itemFieldErrors[item.id] || {}}
+                        // Delivery is an order-level choice, so only the first
+                        // card offers it — three "ship or pick up?" questions
+                        // for one parcel is three chances to disagree.
+                        showDelivery={index === 0}
+                        onSelectDeliveryMethod={(deliveryMethod) =>
+                          updateProduction({ deliveryMethod })
+                        }
+                        onUpdate={(updates) => updateItem(updates, item.id)}
+                        onSelectMaterial={(material) =>
+                          updateItem(
+                            {
+                              material,
+                              finish: getDecalFinishFromMaterial(material),
+                            },
+                            item.id
+                          )
+                        }
+                      />
+                    </DesignCard>
+                  ))}
+
+                  {/* Says what it costs before they press it. The fee ladder
+                      is the whole reason the cart exists, and finding out at
+                      review that a design added $12.50 is the kind of surprise
+                      that loses an order. */}
+                  <button
+                    type="button"
+                    onClick={addDesign}
+                    className={[
+                      "flex min-h-[44px] w-full cursor-pointer items-center justify-center gap-3",
+                      "border-2 border-dashed border-[var(--rule)] bg-[var(--paper)] p-4",
+                      "text-fine font-bold text-[var(--ink-black)]",
+                      "transition-colors duration-[120ms] ease-linear",
+                      "hover:border-solid hover:border-[var(--ink-black)]",
+                      "active:translate-x-[2px] active:translate-y-[2px]",
+                    ].join(" ")}
+                  >
+                    + Add another design
+                    <span className="spec text-spec font-normal text-[var(--ink-muted)]">
+                      +${STICKER_SETUP_FEE_ADDITIONAL.toFixed(2)} setup
+                    </span>
+                  </button>
+                </div>
               )}
 
               <NeedByDate
@@ -2195,16 +2520,45 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
               {currentStepId === "artwork" && (
               <>
-              <UploadBox
-                onFileSelected={handleArtworkUpload}
-                // Without these the box can never show that a file arrived,
-                // which made a working drop look like a failed one.
-                fileName={order.artwork.file?.name || null}
-                fileSizeBytes={order.artwork.file?.size ?? null}
-                directUploadEnabled={directUploadEnabled}
-                previewUrl={artworkPreview}
-                error={fieldErrors.artwork}
-              />
+              {isSignsSelected || isApparelSelected ? (
+                <UploadBox
+                  onFileSelected={handleArtworkUpload}
+                  // Without these the box can never show that a file arrived,
+                  // which made a working drop look like a failed one.
+                  fileName={order.artwork.file?.name || null}
+                  fileSizeBytes={order.artwork.file?.size ?? null}
+                  directUploadEnabled={directUploadEnabled}
+                  previewUrl={artworkPreview}
+                  error={fieldErrors.artwork}
+                />
+              ) : (
+                // One box per design, and the file is bound to its design by
+                // closure. Deliberately NOT one multi-file input: `multiple`
+                // gives an array with no reliable mapping back to a design,
+                // which is the same class of bug as keying form parts by
+                // index (CART-PLAN §Per-item artwork).
+                <div className="space-y-6">
+                  {order.items.map((item, index) => (
+                    <DesignCard
+                      key={item.id}
+                      index={index}
+                      total={order.items.length}
+                      onRemove={() => removeDesign(item.id)}
+                    >
+                      <UploadBox
+                        onFileSelected={(file) =>
+                          handleArtworkUpload(file, item.id)
+                        }
+                        fileName={item.artwork.file?.name || null}
+                        fileSizeBytes={item.artwork.file?.size ?? null}
+                        directUploadEnabled={directUploadEnabled}
+                        previewUrl={itemPreviews[item.id] || null}
+                        error={itemFieldErrors[item.id]?.artwork}
+                      />
+                    </DesignCard>
+                  ))}
+                </div>
+              )}
 
               <ArtworkGuidance directUploadEnabled={directUploadEnabled} />
               </>
@@ -2217,6 +2571,8 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 email={order.customer.email}
                 phone={order.customer.phone}
                 notes={order.customer.notes}
+                heardAbout={order.customer.heardAbout}
+                newsletterOptIn={order.customer.newsletterOptIn}
                 onChange={(updates) => updateCustomer(updates)}
                 errors={{
                   customerName: fieldErrors.customerName,
@@ -2357,6 +2713,88 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         </div>
         )}
 
+        {/* Renders only when there are real reviews to show. An empty array is
+            a valid shipping state — see lib/reviews.ts. The site says nothing
+            about what customers think until it can quote someone who actually
+            said it. */}
+        {reviews.length > 0 && (
+          <section
+            aria-labelledby="reviews-heading"
+            className="mt-12 border border-[var(--rule)] bg-white p-6 sm:p-8"
+          >
+            <p className="eyebrow">What our customers say</p>
+
+            {/* The shop's own words, from gorillasalem.com. Its confidence
+                shows through competence rather than hype, so the heading
+                claims nothing the reviews below do not already prove. */}
+            <h2
+              id="reviews-heading"
+              className="mt-2 max-w-2xl text-head font-bold tracking-display text-[var(--ink-black)]"
+            >
+              Quality work, no drama.
+            </h2>
+
+            <p className="mt-2 max-w-2xl text-fine text-[var(--ink-muted)]">
+              Printed in Salem for schools, bands, restaurants, museums and
+              neighbours down the street — and reviewed by them afterwards.
+            </p>
+
+            {/* items-start so each card is the height of its own review.
+                Stretching them to match the tallest in the row left a short
+                review sitting in a mostly empty box, which reads as a
+                rendering fault rather than as a short review. */}
+            <ul className="mt-6 grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {reviews.map((review) => (
+                <li
+                  key={`${review.author}-${review.quote.slice(0, 24)}`}
+                  className="border border-[var(--rule)] bg-[var(--shirt-blank)] p-5"
+                >
+                  {review.rating !== undefined && (
+                    <p className="mb-3 flex items-baseline gap-2">
+                      {/* Mono figure first, so the rating is carried by a
+                          value and not only by a row of glyphs. Stars in INK
+                          BLACK rather than an invented gold — there is no
+                          amber in the palette and this is not the place to
+                          add one. */}
+                      <span className="spec text-spec text-[var(--ink-muted)]">
+                        {review.rating.toFixed(1)}
+                      </span>
+                      <span
+                        aria-hidden
+                        className="text-fine tracking-[0.1em] text-[var(--ink-black)]"
+                      >
+                        {"★".repeat(Math.round(review.rating))}
+                      </span>
+                      <span className="sr-only">
+                        {review.rating} out of 5 stars
+                      </span>
+                    </p>
+                  )}
+
+                  {/* whitespace-pre-line: reviews are quoted exactly as
+                      written, and some were written across several lines.
+                      Collapsing them would be a small edit to someone else's
+                      words, which is the one thing this section must not do. */}
+                  <blockquote className="whitespace-pre-line text-fine leading-6 text-[var(--ink-black)]">
+                    &ldquo;{review.quote}&rdquo;
+                  </blockquote>
+
+                  <figcaption className="mt-4 border-t border-[var(--rule)] pt-3">
+                    <span className="block text-fine font-bold text-[var(--ink-black)]">
+                      {review.author}
+                    </span>
+                    {/* Named, because an unsourced quote is marketing and a
+                        sourced one is evidence. */}
+                    <span className="spec mt-1 block text-spec uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+                      via {review.source}
+                    </span>
+                  </figcaption>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         <footer className="mt-12 border border-[var(--rule)] bg-white p-6 text-center">
           <p className="eyebrow">
             Gorilla Salem
@@ -2364,18 +2802,8 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
           <p className="mt-2 text-lg font-bold text-[var(--ink-black)]">
             Custom printing, local service, real people reviewing your order.
           </p>
-          {/* The shop closes quotes fastest by phone, and until now the only
-              contact route on the page was email. tel: so a phone taps to
-              dial; both are real links rather than plain text. */}
           <p className="mt-2 text-sm font-bold text-[var(--ink-muted)]">
             Salem, Massachusetts •{" "}
-            <a
-              className="underline decoration-1 underline-offset-2 transition-colors duration-[120ms] ease-linear hover:text-[var(--gorilla-green)]"
-              href="tel:+19787457755"
-            >
-              (978) 745-7755
-            </a>{" "}
-            •{" "}
             <a
               className="underline decoration-1 underline-offset-2 transition-colors duration-[120ms] ease-linear hover:text-[var(--gorilla-green)]"
               href="mailto:quote@gorillasalem.com"

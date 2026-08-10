@@ -11,6 +11,12 @@ import type { DeliveryMethod, Product } from "../../types/order";
 type Props = {
   product: Product;
   deliveryMethod: DeliveryMethod;
+  /**
+   * Delivery is an ORDER-level choice, not a per-design one. In a cart only
+   * the first design shows it — asking "ship or pick up?" once per design is
+   * three chances to give conflicting answers about one parcel.
+   */
+  showDelivery?: boolean;
   hasArtwork: boolean;
   magentaDetected: boolean;
   /** Only populated after a failed submit; empty until then. */
@@ -43,6 +49,7 @@ const deliveryOptions: {
 export default function DecalBuilder({
   product,
   deliveryMethod,
+  showDelivery = true,
   hasArtwork,
   magentaDetected,
   fieldErrors,
@@ -105,11 +112,15 @@ export default function DecalBuilder({
         </div>
 
         <p className="mt-3 text-fine leading-5 text-[var(--ink-muted)]">
+          {/* Setup is per DESIGN, and a cart has more than one. Saying "the
+              $25 setup is split across the order" on every card was wrong in
+              both halves once a second design existed: the order's setup is
+              $37.50, and $25 is only the first design's share. */}
           {product.widthInches > 0 && product.heightInches > 0 ? (
             <>
               {(product.widthInches * product.heightInches).toFixed(2)} sq in
-              each. The $25 setup is split across the order, so the more you
-              order the less each one costs.
+              each. Setup for this design is split across its quantity, so the
+              more you order the less each one costs.
             </>
           ) : (
             "Enter a width and height to see your price."
@@ -188,6 +199,7 @@ export default function DecalBuilder({
         )}
       </div>
 
+      {showDelivery && (
       <div>
         <div className="mb-3">
           <p className="eyebrow">
@@ -235,6 +247,7 @@ export default function DecalBuilder({
           })}
         </div>
       </div>
+      )}
     </>
   );
 }

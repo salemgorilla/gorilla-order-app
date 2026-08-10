@@ -1,4 +1,44 @@
-import { Order } from "../types/order";
+import { Order, StickerItem } from "../types/order";
+
+/** The subset of FieldKey that belongs to one design rather than the order. */
+export type ItemFieldKey = "artwork" | "width" | "height" | "quantity";
+
+export type ItemFieldErrors = Partial<Record<ItemFieldKey, string>>;
+
+/**
+ * Per-design failures.
+ *
+ * Split out from the order-level rules so the cart can mark the card that is
+ * actually wrong. With one design this returns exactly what the old
+ * single-product checks returned, which is what makes the cart migration a
+ * no-op for a single-design order.
+ */
+export function getItemFieldErrors(item: StickerItem): ItemFieldErrors {
+  const errors: ItemFieldErrors = {};
+
+  if (!item.artwork.file) {
+    errors.artwork = "Upload your artwork before submitting.";
+  }
+
+  // A blank width or height is not harmless. getAreaSqIn falls back to parsing
+  // the legacy preset label when dimensions are 0, and that label defaults to
+  // 3" — so clearing a box silently repriced the design as a 3" square and,
+  // for stickers, auto-generated a payment link at that price. Blocking submit
+  // is the fix; the fallback stays for old quotes that still carry presets.
+  if (!(item.widthInches > 0)) {
+    errors.width = "Enter a width.";
+  }
+
+  if (!(item.heightInches > 0)) {
+    errors.height = "Enter a height.";
+  }
+
+  if (!(item.quantity > 0)) {
+    errors.quantity = "Enter how many you need.";
+  }
+
+  return errors;
+}
 
 /**
  * Every input any flow can mark as invalid.
@@ -32,25 +72,20 @@ export type FieldErrors = Partial<Record<FieldKey, string>>;
 export function getOrderFieldErrors(order: Order): FieldErrors {
   const errors: FieldErrors = {};
 
-  if (!order.artwork.file) {
-    errors.artwork = "Upload your artwork before submitting.";
-  }
+  // Walks the cart and reports the FIRST design with a problem.
+  //
+  // FieldErrors is one flat map because only one builder is mounted at a
+  // time, and that still holds — what changed is that a flow can now have
+  // several designs. Reporting the earliest failure keeps submit's "jump to
+  // the first thing wrong" behaviour honest in reading order. Per-design
+  // marks need a per-item error map; see getItemFieldErrors below, which is
+  // what the cart UI uses to mark the right card.
+  const firstBroken = order.items.find(
+    (item) => Object.keys(getItemFieldErrors(item)).length > 0
+  );
 
-  // A blank width or height is not harmless. getAreaSqIn falls back to parsing
-  // the legacy preset label when dimensions are 0, and that label defaults to
-  // 3" — so clearing a box silently repriced the order as a 3" square and, for
-  // stickers, auto-generated a payment link at that price. Blocking submit is
-  // the fix; the fallback itself stays for old quotes that still carry presets.
-  if (!(order.product.widthInches > 0)) {
-    errors.width = "Enter a width.";
-  }
-
-  if (!(order.product.heightInches > 0)) {
-    errors.height = "Enter a height.";
-  }
-
-  if (!(order.product.quantity > 0)) {
-    errors.quantity = "Enter how many you need.";
+  if (firstBroken) {
+    Object.assign(errors, getItemFieldErrors(firstBroken));
   }
 
   if (!order.production.needBy) {

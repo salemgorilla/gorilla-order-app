@@ -140,21 +140,21 @@ export default function QuoteReviewCard({
             <div className="flex justify-between gap-4">
               <span>Sticker</span>
               <span className="text-right text-[var(--ink-black)]">
-                {order.product.size} • {order.product.shape}
+                {order.items[0].size} • {order.items[0].shape}
               </span>
             </div>
 
             <div className="flex justify-between gap-4">
               <span>Quantity</span>
               <span className="text-right text-[var(--ink-black)]">
-                {order.product.quantity.toLocaleString()}
+                {order.items[0].quantity.toLocaleString()}
               </span>
             </div>
 
             <div className="flex justify-between gap-4">
               <span>Sticker Type</span>
               <span className="text-right text-[var(--ink-black)]">
-                {order.product.material}
+                {order.items[0].material}
               </span>
             </div>
 

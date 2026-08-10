@@ -68,9 +68,37 @@ export default function StepNav({
 
   return (
     <nav aria-label="Order steps" className="mb-6">
-      <p className="spec mb-2 text-spec text-[var(--ink-muted)]">
-        Step {currentIndex + 1} of {STEP_COUNT}
-      </p>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <p className="spec text-spec text-[var(--ink-muted)]">
+          Step {currentIndex + 1} of {STEP_COUNT}
+        </p>
+
+        {/* The first cell of the bar has always been clickable, but a step
+            marked "done" does not read as "press me to change your mind". A
+            customer who picked the wrong product needs somewhere obvious to
+            go, and hunting for it is the moment they close the tab.
+
+            Navigates only — nothing is cleared. A control that silently threw
+            away a filled-in form would be a nasty surprise, and the label
+            stays honest either way: you are back at the beginning, your
+            answers are simply still there. */}
+        {currentIndex > 0 && (
+          <button
+            type="button"
+            onClick={() => onSelect(ORDER_STEPS[0].id)}
+            className={[
+              "inline-flex min-h-[44px] cursor-pointer items-center",
+              "border border-[var(--rule)] bg-[var(--paper)] px-4 py-2",
+              "text-fine font-bold text-[var(--ink-black)]",
+              "transition-colors duration-[120ms] ease-linear",
+              "hover:border-[var(--ink-black)] hover:bg-[var(--ink-black)] hover:text-[var(--paper)]",
+              "active:translate-x-[2px] active:translate-y-[2px]",
+            ].join(" ")}
+          >
+            ← Back to the beginning
+          </button>
+        )}
+      </div>
 
       <ol className="grid grid-cols-5 border border-[var(--rule)] bg-[var(--paper)]">
         {ORDER_STEPS.map((step, index) => {

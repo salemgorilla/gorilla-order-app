@@ -4,6 +4,7 @@ import { MAX_ATTACHED_ARTWORK_BYTES } from "../../../lib/upload-limits";
 import { getShippingPrice, getStickerPrice } from "../../../lib/pricing";
 
 import { sendQuoteEmail, type QuoteAttachment } from "../../../lib/email";
+import { subscribeToNewsletter } from "../../../lib/newsletter";
 import {
   createPrintavoQuote,
   createStickerCheckout,
@@ -386,6 +387,48 @@ export async function POST(request: Request) {
         checkout.ready
           ? `STICKER CHECKOUT READY for ${quoteNumber}: ${checkout.payUrl}`
           : `STICKER CHECKOUT UNAVAILABLE for ${quoteNumber}: ${checkout.error}`
+      );
+    }
+
+    // Newsletter sign-up, if they left the box ticked.
+    //
+    // Fired here rather than from the browser so a customer closing the tab
+    // cannot lose it, and deliberately NOT awaited into anything that decides
+    // the response. subscribeToNewsletter never throws; the worst case is one
+    // lost subscriber and a line in the log. A marketing list must not be able
+    // to affect what someone is told about an order they just paid for.
+    const customerRecord = (order.customer || {}) as Record<string, unknown>;
+    const optedIn = customerRecord.newsletterOptIn === true;
+
+    const newsletter = optedIn
+      ? await subscribeToNewsletter({
+          email: String(customerRecord.email || ""),
+          name: String(customerRecord.customerName || ""),
+          company: String(customerRecord.company || ""),
+          phone: String(customerRecord.phone || ""),
+          heardAbout: Array.isArray(customerRecord.heardAbout)
+            ? (customerRecord.heardAbout as string[])
+            : [],
+          quoteNumber,
+          // Stamped server-side at submit. A timestamp the browser supplied
+          // would be worth nothing as a consent record.
+          consent: {
+            optedIn: true,
+            at: receivedAt,
+            source: "labs.gorillasalem.com quote builder",
+            // The box arrives ticked, so every record has to say so. This is
+            // the field that answers "did they choose this, or did we?" —
+            // which is the first question an ESP asks about a flagged list.
+            preChecked: true,
+          },
+        })
+      : { sent: false as const, skipped: true as const, reason: "Not opted in." };
+
+    if (!newsletter.sent) {
+      console.log(
+        `NEWSLETTER NOT SENT for ${quoteNumber}: ${
+          "reason" in newsletter ? newsletter.reason : newsletter.error
+        }`
       );
     }
 

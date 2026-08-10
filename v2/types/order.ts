@@ -18,6 +18,38 @@ export type Customer = {
    * depends on it.
    */
   heardAbout: string[];
+  /**
+   * Newsletter opt-in. Ships PRE-CHECKED by decision (Gabe, 2026-08-10).
+   *
+   * Worth knowing what that means: pre-ticked is lawful under US CAN-SPAM,
+   * which is opt-out rather than opt-in. It is NOT valid consent under GDPR,
+   * and it sits awkwardly with Constant Contact's own permission-based-list
+   * policy — the practical risk is to the shop's CC account and sender
+   * reputation, not a fine.
+   *
+   * Two things follow, and both are load-bearing: the box must stay obvious
+   * and trivially clearable, and every submission records what the customer
+   * was actually shown (see newsletterConsent below).
+   */
+  newsletterOptIn: boolean;
+};
+
+/**
+ * The consent record for a newsletter sign-up.
+ *
+ * Stamped at submit, not at tick time, so it describes the state the customer
+ * actually sent. Exists so the shop can answer "where did this address come
+ * from?" — the question an ESP asks when a list gets flagged, and the one a
+ * pre-checked box makes more likely to be asked.
+ */
+export type NewsletterConsent = {
+  optedIn: boolean;
+  /** ISO timestamp of the submission that carried the opt-in. */
+  at: string;
+  /** Where it was collected, and how it was presented. */
+  source: string;
+  /** True when the box was checked by default rather than by the customer. */
+  preChecked: boolean;
 };
 
 export type Product = {

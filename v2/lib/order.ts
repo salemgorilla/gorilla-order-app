@@ -39,6 +39,10 @@ export const defaultOrder: Order = {
     phone: "",
     notes: "",
     heardAbout: [],
+    // Pre-checked by decision. See the note on Customer.newsletterOptIn —
+    // the box has to stay obvious and one click from off, which is what earns
+    // the default.
+    newsletterOptIn: true,
   },
   product: initialProduct,
   artwork: {

@@ -345,6 +345,15 @@ export function buildQuoteEmail(input: {
         ? customer.heardAbout.join(", ")
         : "Not answered"
     ),
+    // Recorded on every quote, opted in or not. The shop needs to be able to
+    // say where an address came from, and "box was ticked by default and left
+    // ticked" is a materially different answer from "customer ticked it".
+    line(
+      "Newsletter",
+      customer.newsletterOptIn === true
+        ? "Opted in (box shipped pre-ticked)"
+        : "Declined"
+    ),
     ``,
     apparel ? `APPAREL DETAILS` : signs ? `SIGNS DETAILS` : `STICKER DETAILS`,
     ...productLines,
@@ -458,6 +467,12 @@ function buildHtml(input: {
       Array.isArray(input.customer.heardAbout) && input.customer.heardAbout.length
         ? input.customer.heardAbout.join(", ")
         : "Not answered"
+    ),
+    line(
+      "Newsletter",
+      input.customer.newsletterOptIn === true
+        ? "Opted in (box shipped pre-ticked)"
+        : "Declined"
     ),
   ];
 

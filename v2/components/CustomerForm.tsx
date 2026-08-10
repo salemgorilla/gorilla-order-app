@@ -7,6 +7,7 @@ type Props = {
   phone: string;
   notes: string;
   heardAbout: string[];
+  newsletterOptIn: boolean;
 
   onChange: (updates: {
     customerName?: string;
@@ -15,6 +16,7 @@ type Props = {
     phone?: string;
     notes?: string;
     heardAbout?: string[];
+    newsletterOptIn?: boolean;
   }) => void;
 
   /** Per-field messages, keyed by the field they belong under. */
@@ -57,6 +59,7 @@ export default function CustomerForm({
   phone,
   notes,
   heardAbout,
+  newsletterOptIn,
   onChange,
   errors,
 }: Props) {
@@ -181,6 +184,44 @@ export default function CustomerForm({
             })}
           </div>
         </fieldset>
+
+        {/* Ships ticked. That default is only defensible while the box is
+            plainly visible, says what it signs you up for, and comes off in
+            one click — so it is full width, in the reading order, and not
+            tucked under the submit button where consent boxes go to hide. */}
+        <label
+          className={[
+            "flex min-h-[44px] cursor-pointer items-start gap-3 sm:col-span-2",
+            "border bg-[var(--paper)] p-4",
+            "transition-colors duration-[120ms] ease-linear",
+            newsletterOptIn
+              ? "border-2 border-[var(--gorilla-green)]"
+              : "border-[var(--rule)] hover:border-[var(--ink-black)]",
+          ].join(" ")}
+        >
+          <input
+            type="checkbox"
+            checked={newsletterOptIn}
+            onChange={(event) =>
+              onChange({ newsletterOptIn: event.target.checked })
+            }
+            className="mt-0.5 size-4 shrink-0 accent-[var(--gorilla-green)]"
+          />
+
+          <span>
+            <span className="block text-sm font-bold text-[var(--ink-black)]">
+              Email me occasional Gorilla Salem news and offers
+            </span>
+            {/* Says what it actually is. "Untick to opt out" is stated
+                because the box arrives ticked, and someone skim-reading a
+                form should not discover that later from an inbox. */}
+            <span className="mt-1 block text-fine text-[var(--ink-muted)]">
+              Shop news, seasonal offers and new products. Untick to opt out —
+              you will still get everything about this quote either way, and
+              you can unsubscribe from any email.
+            </span>
+          </span>
+        </label>
 
         <div>
           <label

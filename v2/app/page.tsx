@@ -2211,6 +2211,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 phone={order.customer.phone}
                 notes={order.customer.notes}
                 heardAbout={order.customer.heardAbout}
+                newsletterOptIn={order.customer.newsletterOptIn}
                 onChange={(updates) => updateCustomer(updates)}
                 errors={{
                   customerName: fieldErrors.customerName,

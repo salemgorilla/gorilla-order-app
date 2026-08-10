@@ -64,6 +64,7 @@ import { analyzeArtworkFile, ArtworkAnalysis } from "../lib/artwork";
 import {
   isArtworkTooLargeToAttach,
   MAX_ATTACHED_ARTWORK_LABEL,
+  MAX_INLINE_ARTWORK_TOTAL_BYTES,
 } from "../lib/upload-limits";
 import { uploadArtworkToBlob } from "../lib/artwork-upload";
 import { renderStickerProof } from "../lib/sticker-proof";
@@ -1529,20 +1530,65 @@ export default function Home() {
       // in a moment" — advice that could never work, because the same file
       // failed identically every time. The quote goes through without the
       // attachment and the shop asks for the file directly.
-      // Stickers carry artwork on the design; signs and apparel keep the
-      // order-level slot. Reading order.artwork.file for every flow would
-      // upload nothing at all for stickers, since that slot is never set now.
-      const artworkFile =
-        !isSignsSelected && !isApparelSelected
-          ? order.items[0].artwork.file
-          : order.artwork.file;
+      const isStickerFlow = !isSignsSelected && !isApparelSelected;
+
+      // Every design that has a file, in cart order. Signs and apparel are
+      // single-file flows and keep the order-level slot.
+      const artworkParts = isStickerFlow
+        ? order.items
+            .filter((item) => item.artwork.file)
+            .map((item) => ({ id: item.id, file: item.artwork.file! }))
+        : order.artwork.file
+        ? [{ id: "order", file: order.artwork.file }]
+        : [];
 
       // Preferred path: straight to blob storage, bypassing the function and
       // its body limit entirely. Falls back on its own if no blob store is
       // connected, so the form keeps working either way.
-      const blobUrl = artworkFile
-        ? await uploadArtworkToBlob(artworkFile, setUploadProgress)
-        : null;
+      //
+      // Parts are keyed by design id — NEVER appended to a shared "artwork"
+      // key. form.getAll() on a shared key returns an array whose indices
+      // silently shift when one design has no file, which misaligns every
+      // later file with the wrong design (CART-PLAN §Per-item artwork).
+      let inlineBytesUsed = 0;
+      const droppedArtwork: { id: string; name: string; size: number }[] = [];
+
+      for (const part of artworkParts) {
+        const blobUrl = await uploadArtworkToBlob(part.file, setUploadProgress);
+
+        if (blobUrl) {
+          formData.append(`artworkUrl:${part.id}`, blobUrl);
+          formData.append(`artworkName:${part.id}`, part.file.name);
+          formData.append(`artworkSize:${part.id}`, String(part.file.size));
+          continue;
+        }
+
+        // No blob store. The file has to ride in the request body, which the
+        // platform kills above ~4.4 MB before the route ever runs — so the
+        // budget is enforced here, where a drop costs an attachment instead of
+        // the whole order.
+        const wouldExceed =
+          isArtworkTooLargeToAttach(part.file) ||
+          inlineBytesUsed + part.file.size > MAX_INLINE_ARTWORK_TOTAL_BYTES;
+
+        if (wouldExceed) {
+          droppedArtwork.push({
+            id: part.id,
+            name: part.file.name,
+            size: part.file.size,
+          });
+          continue;
+        }
+
+        formData.append(`artwork:${part.id}`, part.file, part.file.name);
+        inlineBytesUsed += part.file.size;
+      }
+
+      // Named, not silently missing. The shop needs to know which design's
+      // file to chase, and the customer's quote still goes through.
+      if (droppedArtwork.length) {
+        formData.append("artworkDropped", JSON.stringify(droppedArtwork));
+      }
 
       setUploadProgress(null);
 
@@ -1578,20 +1624,6 @@ export default function Home() {
 
       if (proof) {
         formData.append("proof", proof, "gorilla-proof.png");
-      }
-
-      const artworkOversized = isArtworkTooLargeToAttach(artworkFile);
-
-      if (blobUrl) {
-        formData.append("artworkUrl", blobUrl);
-        formData.append("artworkFileName", artworkFile!.name);
-        formData.append("artworkFileSize", String(artworkFile!.size));
-      } else if (artworkFile && !artworkOversized) {
-        formData.append("artwork", artworkFile, artworkFile.name);
-      } else if (artworkFile) {
-        formData.append("artworkTooLarge", "true");
-        formData.append("artworkFileName", artworkFile.name);
-        formData.append("artworkFileSize", String(artworkFile.size));
       }
 
       const response = await fetch("/api/quote", {

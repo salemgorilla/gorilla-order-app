@@ -23,14 +23,49 @@ import {
 // between 4.4 MB and 15 MB never arrives here at all — see lib/upload-limits.
 const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024; // 15 MB
 
+/**
+ * Ceiling for ALL artwork attached to one quote email.
+ *
+ * Per-file was sufficient while a quote carried one file. A cart can carry
+ * several that each clear the per-file cap and together produce an email no
+ * provider will accept — which fails the notification, which is how the shop
+ * finds out an order exists.
+ */
+const MAX_EMAIL_ATTACHMENT_TOTAL_BYTES = 20 * 1024 * 1024; // 20 MB
+
+/**
+ * One design's artwork, however it travelled.
+ *
+ * `id` is the design it belongs to ("order" for the single-file signs and
+ * apparel flows). Exactly one of file/blob/dropped is meaningful.
+ */
+type ArtworkPart = {
+  id: string;
+  file: File | null;
+  blob: { url: string; name: string; size: number } | null;
+  dropped: { name: string; size: number } | null;
+};
+
 type ParsedQuoteRequest = {
   order: Record<string, unknown>;
   artworkAnalysis: Record<string, unknown> | null;
-  artworkFile: File | null;
-  oversizedArtwork: { name: string; size: number } | null;
-  artworkBlob: { url: string; name: string; size: number } | null;
+  /** Every design's artwork, keyed by design id. */
+  artworkParts: ArtworkPart[];
   proofFile: File | null;
 };
+
+/** Read `prefix:designId` form keys into a map of designId -> value. */
+function collectKeyed(form: FormData, prefix: string) {
+  const found = new Map<string, FormDataEntryValue>();
+
+  for (const [key, value] of form.entries()) {
+    if (key.startsWith(prefix)) {
+      found.set(key.slice(prefix.length), value);
+    }
+  }
+
+  return found;
+}
 
 async function parseQuoteRequest(request: Request): Promise<ParsedQuoteRequest> {
   const contentType = request.headers.get("content-type") || "";
@@ -39,42 +74,68 @@ async function parseQuoteRequest(request: Request): Promise<ParsedQuoteRequest> 
     const form = await request.formData();
     const orderRaw = form.get("order");
     const analysisRaw = form.get("artworkAnalysis");
-    const file = form.get("artwork");
-
-    const urlRaw = form.get("artworkUrl");
-    const uploadedUrl = typeof urlRaw === "string" ? urlRaw : "";
-
     const proofRaw = form.get("proof");
 
+    // Parts arrive keyed by design id, never on a shared "artwork" key.
+    // form.getAll() on a shared key gives an array whose indices shift the
+    // moment one design has no file, quietly pairing every later file with the
+    // wrong design — the exact bug CART-PLAN calls out.
+    const inlineFiles = collectKeyed(form, "artwork:");
+    const blobUrls = collectKeyed(form, "artworkUrl:");
+    const blobNames = collectKeyed(form, "artworkName:");
+    const blobSizes = collectKeyed(form, "artworkSize:");
+
+    // Files the client deliberately withheld: sending them would have blown
+    // the platform body limit and killed the whole request at the edge,
+    // losing the ORDER rather than one attachment.
+    let dropped: { id: string; name: string; size: number }[] = [];
+    const droppedRaw = form.get("artworkDropped");
+
+    if (typeof droppedRaw === "string") {
+      try {
+        const parsed = JSON.parse(droppedRaw);
+        if (Array.isArray(parsed)) dropped = parsed;
+      } catch {
+        // A malformed list is not worth failing a quote over.
+      }
+    }
+
+    const ids = new Set<string>([
+      ...inlineFiles.keys(),
+      ...blobUrls.keys(),
+      ...dropped.map((entry) => entry.id),
+    ]);
+
+    const artworkParts: ArtworkPart[] = [...ids].map((id) => {
+      const file = inlineFiles.get(id);
+      const url = blobUrls.get(id);
+      const droppedEntry = dropped.find((entry) => entry.id === id);
+
+      return {
+        id,
+        file: file && typeof file !== "string" ? file : null,
+        blob:
+          typeof url === "string" && url
+            ? {
+                url,
+                name: String(blobNames.get(id) || "artwork"),
+                size: Number(blobSizes.get(id) || 0),
+              }
+            : null,
+        dropped: droppedEntry
+          ? { name: droppedEntry.name, size: droppedEntry.size }
+          : null,
+      };
+    });
+
     return {
-      order:
-        typeof orderRaw === "string" ? JSON.parse(orderRaw) : {},
+      order: typeof orderRaw === "string" ? JSON.parse(orderRaw) : {},
       artworkAnalysis:
         typeof analysisRaw === "string" ? JSON.parse(analysisRaw) : null,
-      artworkFile: file && typeof file !== "string" ? file : null,
-      // The client deliberately withholds artwork above the platform body
-      // limit, because sending it would get the whole request killed at the
-      // edge and the order lost. It tells us the name and size instead so the
-      // shop knows exactly which file to chase.
-      oversizedArtwork:
-        form.get("artworkTooLarge") === "true"
-          ? {
-              name: String(form.get("artworkFileName") || "artwork"),
-              size: Number(form.get("artworkFileSize") || 0),
-            }
-          : null,
-      // Artwork that went straight to blob storage. The file never passed
-      // through here, so there is nothing to cap — only a URL to record.
+      artworkParts,
       // Our rendered proof of the die-cut, so the shop sees exactly what the
       // customer approved rather than having to imagine it from raw art.
       proofFile: proofRaw && typeof proofRaw !== "string" ? proofRaw : null,
-      artworkBlob: uploadedUrl
-        ? {
-            url: uploadedUrl,
-            name: String(form.get("artworkFileName") || "artwork"),
-            size: Number(form.get("artworkFileSize") || 0),
-          }
-        : null,
     };
   }
 
@@ -83,9 +144,7 @@ async function parseQuoteRequest(request: Request): Promise<ParsedQuoteRequest> 
   return {
     order: body.order ?? body,
     artworkAnalysis: body.artworkAnalysis ?? null,
-    artworkFile: null,
-    oversizedArtwork: null,
-    artworkBlob: null,
+    artworkParts: [],
     proofFile: null,
   };
 }
@@ -235,14 +294,8 @@ function generateQuoteNumber() {
 
 export async function POST(request: Request) {
   try {
-    const {
-      order,
-      artworkAnalysis,
-      artworkFile,
-      oversizedArtwork,
-      artworkBlob,
-      proofFile,
-    } = await parseQuoteRequest(request);
+    const { order, artworkAnalysis, artworkParts, proofFile } =
+      await parseQuoteRequest(request);
 
     const quoteNumber = generateQuoteNumber();
     const receivedAt = new Date().toISOString();
@@ -270,9 +323,6 @@ export async function POST(request: Request) {
     // link — reads this, never the raw request.
     const pricedOrder = priced.order;
 
-    const { attachment, info: builtAttachmentInfo } =
-      await buildArtworkAttachment(artworkFile);
-
     // We render this ourselves at ~1000px, so it is small by construction and
     // needs no size gate the way customer artwork does.
     const proofAttachment = proofFile
@@ -282,31 +332,104 @@ export async function POST(request: Request) {
         }
       : null;
 
-    // An oversized file never leaves the customer's browser, so there is
-    // nothing to attach — but the shop still needs to know it exists and to
-    // go collect it, or the job stalls waiting on art nobody asked for.
-    let attachmentInfo = builtAttachmentInfo;
+    /**
+     * Artwork, per design.
+     *
+     * `buildArtworkAttachment` returned ONE {attachment, info}, and that single
+     * info string was the only artwork-delivery status anywhere — it reached
+     * the email, Printavo and the API response. With a cart it has to become
+     * one status per design, or a shop reading "Attached to this email" has no
+     * idea which of three files that refers to.
+     *
+     * Printavo receives no bytes, so this email is the ONLY place the
+     * file-to-design mapping can exist. Getting it wrong means the shop prints
+     * the wrong art.
+     */
+    const mb = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
 
-    if (artworkBlob) {
-      // The file uploaded straight to storage, so there is no attachment to
-      // build — the shop opens the link instead. This is the normal path once
-      // a blob store is connected, at any size up to 100 MB.
-      attachmentInfo = `Uploaded — ${artworkBlob.name} (${(
-        artworkBlob.size /
-        (1024 * 1024)
-      ).toFixed(1)} MB): ${artworkBlob.url}`;
-    } else if (oversizedArtwork) {
-      // An oversized file never leaves the customer's browser, so there is
-      // nothing to attach — but the shop still needs to know it exists and to
-      // go collect it, or the job stalls waiting on art nobody asked for.
-      attachmentInfo = `ARTWORK NOT UPLOADED — "${oversizedArtwork.name}" is ${(
-        oversizedArtwork.size /
-        (1024 * 1024)
-      ).toFixed(1)} MB, over the ${(
-        MAX_ATTACHED_ARTWORK_BYTES /
-        (1024 * 1024)
-      ).toFixed(1)} MB form limit. Email the customer to collect it.`;
+    const attachments: QuoteAttachment[] = [];
+    const artworkStatuses: string[] = [];
+    let emailBytesUsed = 0;
+
+    // Design order, so the labels below match the order in the quote.
+    const orderedItems = Array.isArray(order.items)
+      ? (order.items as Record<string, unknown>[])
+      : [];
+
+    const partOrder = orderedItems.length
+      ? orderedItems
+          .map((item) =>
+            artworkParts.find((part) => part.id === String(item.id))
+          )
+          .filter((part): part is (typeof artworkParts)[number] => Boolean(part))
+      : artworkParts;
+
+    for (const [index, part] of partOrder.entries()) {
+      const label =
+        partOrder.length > 1 || part.id !== "order"
+          ? `Design ${index + 1}`
+          : "Artwork";
+
+      if (part.blob) {
+        // Straight to storage, so there is nothing to attach — the shop opens
+        // the link. The normal path once a blob store is connected, up to 100 MB.
+        artworkStatuses.push(
+          `${label}: uploaded — ${part.blob.name} (${mb(part.blob.size)} MB): ${
+            part.blob.url
+          }`
+        );
+        continue;
+      }
+
+      if (part.dropped) {
+        // Never left the customer's browser, because sending it would have
+        // killed the whole request at the edge and lost the order. The shop
+        // still has to know it exists and go and collect it.
+        artworkStatuses.push(
+          `${label}: ARTWORK NOT UPLOADED — "${part.dropped.name}" is ${mb(
+            part.dropped.size
+          )} MB, over the ${mb(
+            MAX_ATTACHED_ARTWORK_BYTES
+          )} MB form limit. Email the customer to collect it.`
+        );
+        continue;
+      }
+
+      const { attachment, info } = await buildArtworkAttachment(part.file);
+
+      // Per-file was enough with one file; a cart also needs a running total,
+      // or three files that each pass the per-file cap can still produce an
+      // email no provider will accept.
+      if (
+        attachment &&
+        emailBytesUsed + (part.file?.size ?? 0) > MAX_EMAIL_ATTACHMENT_TOTAL_BYTES
+      ) {
+        artworkStatuses.push(
+          `${label}: not attached — "${part.file?.name}" would push this email over ${mb(
+            MAX_EMAIL_ATTACHMENT_TOTAL_BYTES
+          )} MB. Ask the customer for it.`
+        );
+        continue;
+      }
+
+      if (attachment) {
+        // Prefixed so three files called "logo.png" arrive distinguishable.
+        attachments.push({
+          ...attachment,
+          filename:
+            partOrder.length > 1
+              ? `design-${index + 1}-${attachment.filename}`
+              : attachment.filename,
+        });
+        emailBytesUsed += part.file?.size ?? 0;
+      }
+
+      artworkStatuses.push(`${label}: ${info}`);
     }
+
+    const attachmentInfo = artworkStatuses.length
+      ? artworkStatuses.join("\n")
+      : "No file uploaded";
 
     const quoteRecord = {
       quoteNumber,
@@ -324,13 +447,30 @@ export async function POST(request: Request) {
       addOnsNote: order.addOnsNote ?? "",
       artworkAnalysis,
       artwork: {
+        // First design's file, kept so anything already reading these keys
+        // still finds something sensible. `files` below is the real record.
         fileName:
-          artworkBlob?.name ?? artworkFile?.name ?? oversizedArtwork?.name ?? null,
+          partOrder[0]?.blob?.name ??
+          partOrder[0]?.file?.name ??
+          partOrder[0]?.dropped?.name ??
+          null,
         fileSize:
-          artworkBlob?.size ?? artworkFile?.size ?? oversizedArtwork?.size ?? null,
-        url: artworkBlob?.url ?? null,
+          partOrder[0]?.blob?.size ??
+          partOrder[0]?.file?.size ??
+          partOrder[0]?.dropped?.size ??
+          null,
+        url: partOrder[0]?.blob?.url ?? null,
         attachment: attachmentInfo,
-        awaitingArtwork: Boolean(oversizedArtwork),
+        awaitingArtwork: partOrder.some((part) => part.dropped),
+        /** One entry per design, in cart order. */
+        files: partOrder.map((part, index) => ({
+          design: index + 1,
+          designId: part.id,
+          name: part.blob?.name ?? part.file?.name ?? part.dropped?.name ?? null,
+          size: part.blob?.size ?? part.file?.size ?? part.dropped?.size ?? null,
+          url: part.blob?.url ?? null,
+          awaitingArtwork: Boolean(part.dropped),
+        })),
       },
       internalNotes: [
         "This quote was generated from the Gorilla Order app.",
@@ -348,11 +488,11 @@ export async function POST(request: Request) {
       receivedAt,
       order: pricedOrder,
       artworkAnalysis,
-      // The customer's own file plus our proof of the cut, so the shop can
-      // compare what was sent against what was approved.
-      attachments: [attachment, proofAttachment],
+      // Every design's file plus our proof of the cut, so the shop can compare
+      // what was sent against what was approved.
+      attachments: [...attachments, proofAttachment],
       attachmentInfo: proofAttachment
-        ? `${attachmentInfo} | Proof attached: gorilla-proof.png`
+        ? `${attachmentInfo}\nProof attached: gorilla-proof.png`
         : attachmentInfo,
     });
 

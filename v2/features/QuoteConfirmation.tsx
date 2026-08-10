@@ -192,13 +192,13 @@ export default function QuoteConfirmationScreen({
               ) : (
                 <>
                   <p className="mt-2 text-lg font-bold text-[var(--ink-black)]">
-                    {order.product.quantity.toLocaleString()} stickers
+                    {order.items[0].quantity.toLocaleString()} stickers
                   </p>
                   <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
-                    {order.product.size} • {order.product.shape}
+                    {order.items[0].size} • {order.items[0].shape}
                   </p>
                   <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
-                    {order.product.material}
+                    {order.items[0].material}
                   </p>
                 </>
               )}

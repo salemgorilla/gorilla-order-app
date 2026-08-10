@@ -34,12 +34,13 @@ import {
 import { calculateSignsPricing } from "../lib/signs-pricing";
 import { productCategories } from "../lib/products";
 import { reviews } from "../lib/reviews";
-import { defaultOrder } from "../lib/order";
+import { createStickerItem, defaultOrder } from "../lib/order";
 import { AddOnOffer, toAddOn } from "../lib/addons";
 import {
   describeStickerSize,
   getShippingPrice,
-  getStickerPrice,
+  getStickerMaterialPrice,
+  getCartSetupFee,
 } from "../lib/pricing";
 import { calculateApparelPricing } from "../lib/apparel-pricing";
 import { apparelCatalogStyles } from "../lib/apparel-catalog";
@@ -353,18 +354,36 @@ export default function Home() {
       };
     }
 
+    const designs = order.items.length;
+    const totalStickers = order.items.reduce(
+      (sum, item) => sum + Math.max(0, item.quantity),
+      0
+    );
+
+    // With one design the stub reads exactly as it always did. With several,
+    // a per-sticker price across different sizes would be an average of
+    // unlike things, so it names the cart instead of inventing a unit price.
+    if (designs > 1) {
+      return {
+        label: `${designs} designs · ${totalStickers.toLocaleString()} stickers`,
+        total: order.pricing.total,
+        priceable: true,
+        detail: `Setup $${order.pricing.setupPrice.toFixed(2)} across ${designs} designs`,
+      };
+    }
+
+    const first = order.items[0];
+
     return {
-      label: `${order.product.quantity} × ${describeStickerSize(
-        order.product.size,
-        {
-          widthInches: order.product.widthInches,
-          heightInches: order.product.heightInches,
-        }
-      )} ${order.product.shape} stickers`,
+      label: `${first.quantity} × ${describeStickerSize(first.size, {
+        widthInches: first.widthInches,
+        heightInches: first.heightInches,
+      })} ${first.shape} stickers`,
       total: order.pricing.total,
       priceable: true,
       detail: `$${(
-        order.pricing.stickerPrice / Math.max(1, order.product.quantity)
+        (order.pricing.stickerPrice + order.pricing.setupPrice) /
+        Math.max(1, first.quantity)
       ).toFixed(2)} each`,
     };
   }, [
@@ -375,7 +394,7 @@ export default function Home() {
     apparelQuote,
     apparelPricing,
     selectedGarmentLabel,
-    order.product,
+    order.items,
     order.pricing,
   ]);
 
@@ -581,19 +600,22 @@ export default function Home() {
     return "Gloss";
   }
 
-  function recalculateOrder(nextOrder: typeof order) {
-    const finish = getDecalFinishFromMaterial(nextOrder.product.material);
+  /**
+   * Normalise one design and return it plus its material cost.
+   *
+   * Sanitising happens here rather than only in the input's blur handler.
+   * Not a constraint on size — any dimension is allowed. It exists because
+   * whatever is in state goes straight to the price, the payload and the
+   * shop's cut spec, so normalising at the single point where price is
+   * computed keeps the number shown, the number charged and the size cut
+   * identical, and keeps float noise like 1.7500000000000002 out of the order.
+   */
+  function priceStickerItem(item: (typeof order.items)[number]) {
+    const finish = getDecalFinishFromMaterial(item.material);
 
-    // Sanitise here rather than only in the input's blur handler.
-    //
-    // Not a constraint on size — any dimension is allowed. This exists because
-    // buildQuotePayload returns `order` verbatim for stickers, so whatever is
-    // in state goes straight to the price, the payload and the shop's cut
-    // spec. Normalising at the single point where price is computed keeps the
-    // number shown, the number charged, and the size cut identical, and keeps
-    // float noise like 1.7500000000000002 out of the order.
-    const widthInches = sanitizeSizeInches(nextOrder.product.widthInches);
-    const heightInches = sanitizeSizeInches(nextOrder.product.heightInches);
+    const widthInches = sanitizeSizeInches(item.widthInches);
+    const heightInches = sanitizeSizeInches(item.heightInches);
+
     // Quantity is NOT clamped into state — only into the price.
     //
     // snapQuantity is Math.max(1, ...), and running it on state meant an empty
@@ -603,57 +625,73 @@ export default function Home() {
     // real value in state is what lets the field mark itself as missing and
     // block submit; the price still uses the snapped figure, so no quote's
     // number changes.
-    const quantity = nextOrder.product.quantity;
-    const quantityForPricing = snapQuantity(quantity);
+    const quantityForPricing = snapQuantity(item.quantity);
 
     // Keep the label in step with the dimensions. Everything that shows a size
     // to the customer or to the shop — the review card, the proof card, the
-    // quote email, the Printavo line — reads product.size, and nothing had
-    // updated it since the size buttons were replaced by typed dimensions.
+    // quote email, the Printavo line — reads `size`, and nothing had updated
+    // it since the size buttons were replaced by typed dimensions.
     const size =
       widthInches > 0 && heightInches > 0
         ? formatSizeLabel(widthInches, heightInches)
-        : nextOrder.product.size;
+        : item.size;
 
-    const stickerPrice = getStickerPrice(
-      quantityForPricing,
-      nextOrder.product.material,
-      finish,
-      nextOrder.product.size,
-      { widthInches, heightInches }
-    );
+    return {
+      item: { ...item, finish, widthInches, heightInches, size },
+      // Material only. Setup is charged once per CART, not per design — see
+      // getCartSetupFee — so it cannot be folded in here.
+      materialPrice: getStickerMaterialPrice(
+        quantityForPricing,
+        item.material,
+        item.size,
+        { widthInches, heightInches }
+      ),
+    };
+  }
 
+  function recalculateOrder(nextOrder: typeof order) {
+    const priced = nextOrder.items.map(priceStickerItem);
+
+    const stickerPrice =
+      Math.round(
+        priced.reduce((sum, entry) => sum + entry.materialPrice, 0) * 100
+      ) / 100;
+
+    // $25 for the first design, $12.50 for each after. One design returns
+    // exactly $25, so a single-design order is priced identically to before
+    // the cart existed.
+    const setupPrice = getCartSetupFee(nextOrder.items.length);
     const shippingPrice = getShippingPrice(nextOrder.production.deliveryMethod);
 
     return {
       ...nextOrder,
-      product: {
-        ...nextOrder.product,
-        finish,
-        widthInches,
-        heightInches,
-        quantity,
-        size,
-      },
+      items: priced.map((entry) => entry.item),
       pricing: {
         ...nextOrder.pricing,
         stickerPrice,
+        setupPrice,
         shippingPrice,
-        total: stickerPrice + shippingPrice,
+        total:
+          Math.round((stickerPrice + setupPrice + shippingPrice) * 100) / 100,
       },
     };
   }
 
-  function updateProduct(updates: Partial<typeof order.product>) {
-    const nextOrder = recalculateOrder({
-      ...order,
-      product: {
-        ...order.product,
-        ...updates,
-      },
-    });
+  /** Edit one design. Defaults to the first, which is the only one today. */
+  function updateItem(
+    updates: Partial<(typeof order.items)[number]>,
+    itemId?: string
+  ) {
+    const targetId = itemId ?? order.items[0]?.id;
 
-    setOrder(nextOrder);
+    setOrder(
+      recalculateOrder({
+        ...order,
+        items: order.items.map((item) =>
+          item.id === targetId ? { ...item, ...updates } : item
+        ),
+      })
+    );
   }
 
   function updateCustomer(updates: Partial<typeof order.customer>) {
@@ -804,9 +842,21 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function handleArtworkUpload(file: File) {
-    const previewUrl = URL.createObjectURL(file);
+  async function handleArtworkUpload(file: File, itemId?: string) {
+    const isStickers = !isSignsSelected && !isApparelSelected;
+    // Which design this file belongs to. Defaults to the first, which is the
+    // only one until the cart UI lands.
+    const targetId = itemId ?? order.items[0]?.id;
 
+    // Revoke the URL we are replacing. createObjectURL pins the blob in memory
+    // until revoked, and re-uploading repeatedly used to leak every previous
+    // file for the life of the page. (CART-PLAN bug 2 — removal and reset are
+    // handled at their own call sites.)
+    if (artworkPreview) {
+      URL.revokeObjectURL(artworkPreview);
+    }
+
+    const previewUrl = URL.createObjectURL(file);
     setArtworkPreview(previewUrl);
 
     const analysis = await analyzeArtworkFile(file);
@@ -814,27 +864,43 @@ export default function Home() {
     setArtworkAnalysis(analysis);
 
     if (isApparelSelected) {
-      const estimatedInkCount = getEstimatedInkColorCount(
-        analysis,
-        apparelQuote.garmentColor
-      );
-
-      setApparelQuote({
-        ...apparelQuote,
-        inkColors: formatInkColorOption(estimatedInkCount),
-      });
+      setApparelQuote((prev) => ({
+        ...prev,
+        inkColors: formatInkColorOption(
+          getEstimatedInkColorCount(analysis, prev.garmentColor)
+        ),
+      }));
     }
 
-    setOrder({
-      ...order,
-      // Auto-check the magenta cut line when we detect one in the file.
-      // (Only ever turns it on; never overrides a manual choice to off.)
-      product: analysis.magentaDetected
-        ? { ...order.product, magentaCutLine: true }
-        : order.product,
-      artwork: {
-        file,
-      },
+    // Functional form, not a spread of `order`.
+    //
+    // This runs after an await, so the `order` captured when the upload
+    // started is stale by the time it lands — anything the customer changed
+    // while the file was being analysed was silently reverted. (CART-PLAN
+    // bug 1.)
+    setOrder((prev) => {
+      if (!isStickers) {
+        return { ...prev, artwork: { file } };
+      }
+
+      return {
+        ...prev,
+        items: prev.items.map((item) =>
+          item.id === targetId
+            ? {
+                ...item,
+                artwork: { file },
+                // Auto-check the magenta cut line when one is detected, on
+                // the design the file actually belongs to rather than on
+                // "the product". Only ever turns it on; never overrides a
+                // manual choice to off. (CART-PLAN bug 4.)
+                magentaCutLine: analysis.magentaDetected
+                  ? true
+                  : item.magentaCutLine,
+              }
+            : item
+        ),
+      };
     });
   }
 
@@ -1134,7 +1200,49 @@ export default function Home() {
       };
     }
 
-    return order;
+    // Stickers.
+    //
+    // `product` is SYNTHESISED here and must stay. isStickerOrder() in
+    // app/api/quote/route.ts decides which submissions auto-generate a
+    // Printavo payment link, and it reads product.type plus the absence of
+    // supplier/garmentType/signType. Ship a payload without `product` and
+    // stickers silently stop checking out — no error anywhere, just no money.
+    //
+    // It describes the ORDER, not one design: the type the classifier needs,
+    // the combined quantity, and the first design's spec so single-design
+    // quotes read exactly as they always have. `items` carries the truth.
+    const firstItem = order.items[0];
+    const totalQuantity = order.items.reduce(
+      (sum, item) => sum + Math.max(0, item.quantity),
+      0
+    );
+
+    return {
+      ...order,
+      product: {
+        ...firstItem,
+        quantity: totalQuantity,
+        designCount: order.items.length,
+      },
+      items: order.items.map((item) => ({
+        id: item.id,
+        type: item.type,
+        quantity: item.quantity,
+        size: item.size,
+        widthInches: item.widthInches,
+        heightInches: item.heightInches,
+        shape: item.shape,
+        material: item.material,
+        finish: item.finish,
+        artScale: item.artScale,
+        artMargin: item.artMargin,
+        magentaCutLine: item.magentaCutLine,
+        artworkFileName: item.artwork.file?.name || null,
+      })),
+      // The order-level slot stays for the shop email's existing artwork
+      // block; per-design files are named on each item above.
+      artwork: { file: firstItem.artwork.file },
+    };
   }
 
   /**
@@ -1359,7 +1467,13 @@ export default function Home() {
       // in a moment" — advice that could never work, because the same file
       // failed identically every time. The quote goes through without the
       // attachment and the shop asks for the file directly.
-      const artworkFile = order.artwork.file;
+      // Stickers carry artwork on the design; signs and apparel keep the
+      // order-level slot. Reading order.artwork.file for every flow would
+      // upload nothing at all for stickers, since that slot is never set now.
+      const artworkFile =
+        !isSignsSelected && !isApparelSelected
+          ? order.items[0].artwork.file
+          : order.artwork.file;
 
       // Preferred path: straight to blob storage, bypassing the function and
       // its body limit entirely. Falls back on its own if no blob store is
@@ -1375,24 +1489,28 @@ export default function Home() {
       // flow with a preview to prove. Small by construction (~1000px), so it
       // rides inline without troubling the body limit.
       const isStickers = !isSignsSelected && !isApparelSelected;
+      const proofItem = order.items[0];
       // Falls back to the preset label, which is a square, when the customer
       // used a size button instead of typing dimensions.
-      const presetInches = parseSizeInches(order.product.size);
+      const presetInches = parseSizeInches(proofItem.size);
 
+      // One proof, for the first design. The per-design canvas proof is its
+      // own piece of work (CART-PLAN §"attach the rendered proof"); until the
+      // cart UI can create a second design there is exactly one to render.
       const proof =
         isStickers && artworkPreview
           ? await renderStickerProof({
               artworkUrl: artworkPreview,
-              shape: order.product.shape,
-              material: order.product.material,
-              finish: order.product.finish,
-              sizeLabel: order.product.size,
-              quantity: order.product.quantity,
-              widthInches: order.product.widthInches || presetInches,
-              heightInches: order.product.heightInches || presetInches,
-              artScale: order.product.artScale,
-              artMargin: order.product.artMargin,
-              magentaCutLine: order.product.magentaCutLine,
+              shape: proofItem.shape,
+              material: proofItem.material,
+              finish: proofItem.finish,
+              sizeLabel: proofItem.size,
+              quantity: proofItem.quantity,
+              widthInches: proofItem.widthInches || presetInches,
+              heightInches: proofItem.heightInches || presetInches,
+              artScale: proofItem.artScale,
+              artMargin: proofItem.artMargin,
+              magentaCutLine: proofItem.magentaCutLine,
             })
           : null;
 
@@ -1646,26 +1764,47 @@ ${customerSection}
 
 STICKER DETAILS
 Product: Custom Stickers
-Quantity: ${order.product.quantity.toLocaleString()}
-Size: ${order.product.size}
-Shape: ${order.product.shape}
-Sticker Type: ${order.product.material}
-Art Placement: ${order.product.artScale}% size, ${order.product.artMargin}% ${
-      order.product.shape === "Die Cut" ? "cut border" : "margin"
-    }
-Magenta Cut Line: ${order.product.magentaCutLine ? "Yes — art includes a magenta cut line" : "No"}
+Designs: ${order.items.length}
+${order.items
+      .map((item, index) =>
+        [
+          order.items.length > 1 ? `--- Design ${index + 1} ---` : null,
+          `Quantity: ${item.quantity.toLocaleString()}`,
+          `Size: ${item.size}`,
+          `Shape: ${item.shape}`,
+          `Sticker Type: ${item.material}`,
+          `Art Placement: ${item.artScale}% size, ${item.artMargin}% ${
+            item.shape === "Die Cut" ? "cut border" : "margin"
+          }`,
+          `Magenta Cut Line: ${
+            item.magentaCutLine ? "Yes — art includes a magenta cut line" : "No"
+          }`,
+          `Artwork File: ${item.artwork.file?.name || "No file uploaded"}`,
+        ]
+          .filter(Boolean)
+          .join("\n")
+      )
+      .join("\n\n")}
 
 ${timelineSection}
 
 ESTIMATE
 Stickers: $${order.pricing.stickerPrice.toFixed(2)}
+Setup: $${order.pricing.setupPrice.toFixed(2)}${
+      order.items.length > 1
+        ? ` ($25 first design + $12.50 x ${order.items.length - 1})`
+        : ""
+    }
 Shipping: ${
       order.pricing.shippingPrice > 0
         ? `$${order.pricing.shippingPrice.toFixed(2)}`
         : "Free (local pickup)"
     }
-Estimated Total: $${order.pricing.total.toFixed(2)}
-Estimated Each: $${unitPrice.toFixed(2)} per sticker
+Estimated Total: $${order.pricing.total.toFixed(2)}${
+      order.items.length === 1
+        ? `\nEstimated Each: $${unitPrice.toFixed(2)} per sticker`
+        : ""
+    }
 
 ${artworkSection}
 
@@ -1699,7 +1838,10 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       URL.revokeObjectURL(artworkPreview);
     }
 
-    setOrder(defaultOrder);
+    // A fresh item, not the one baked into defaultOrder at import time —
+    // reusing it would hand every reset order the same design id, and ids are
+    // what submit keys artwork parts on.
+    setOrder({ ...defaultOrder, items: [createStickerItem()] });
     setApparelQuote(defaultApparelQuote);
     setSignsQuote(defaultSignsQuote);
     setSelectedProductId("stickers");
@@ -1724,7 +1866,8 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
   // Guarded, because quantity is no longer clamped in state — an empty box is
   // genuinely 0 now, and dividing by it renders "$Infinity each".
   const unitPrice =
-    order.pricing.stickerPrice / Math.max(1, order.product.quantity);
+    (order.pricing.stickerPrice + order.pricing.setupPrice) /
+    Math.max(1, order.items[0].quantity);
   const currentValidationErrors = getCurrentValidationErrors();
   // Every flow now routes through getCurrentValidationErrors(), which returns
   // the sticker rules for stickers, so one check covers all three.
@@ -1821,10 +1964,10 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
   ) : (
     <DecalPreviewCard
       artworkPreview={artworkPreview}
-      product={order.product}
+      product={order.items[0]}
       production={order.production}
       unitPrice={unitPrice}
-      onUpdateProduct={(updates) => updateProduct(updates)}
+      onUpdateProduct={(updates) => updateItem(updates)}
     />
   );
 
@@ -1994,7 +2137,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   disabled={!isActive}
                   onClick={() => {
                     setSelectedProductId(product.id);
-                    updateProduct({ type: product.title });
+                    updateItem({ type: product.title });
 
                     // Apparel is a hand-quote request, not the configurator.
                     // Pinning specialOrder here routes it down the path that
@@ -2154,17 +2297,17 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 />
               ) : (
                 <DecalBuilder
-                  product={order.product}
+                  product={order.items[0]}
                   deliveryMethod={order.production.deliveryMethod}
-                  hasArtwork={Boolean(order.artwork.file)}
+                  hasArtwork={Boolean(order.items[0].artwork.file)}
                   magentaDetected={Boolean(artworkAnalysis?.magentaDetected)}
                   fieldErrors={fieldErrors}
                   onSelectDeliveryMethod={(deliveryMethod) =>
                     updateProduction({ deliveryMethod })
                   }
-                  onUpdate={(updates) => updateProduct(updates)}
+                  onUpdate={(updates) => updateItem(updates)}
                   onSelectMaterial={(material) =>
-                    updateProduct({
+                    updateItem({
                       material,
                       finish: getDecalFinishFromMaterial(material),
                     })

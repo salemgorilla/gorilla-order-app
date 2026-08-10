@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 
 import { MAX_ATTACHED_ARTWORK_BYTES } from "../../../lib/upload-limits";
-import { getShippingPrice, getStickerPrice } from "../../../lib/pricing";
+import {
+  getCartSetupFee,
+  getShippingPrice,
+  getStickerMaterialPrice,
+} from "../../../lib/pricing";
 
 import { sendQuoteEmail, type QuoteAttachment } from "../../../lib/email";
 import { subscribeToNewsletter } from "../../../lib/newsletter";
@@ -161,22 +165,42 @@ function repriceStickers(order: Record<string, unknown>) {
   const product = (order.product || {}) as Record<string, unknown>;
   const production = (order.production || {}) as Record<string, unknown>;
 
-  const stickerPrice = getStickerPrice(
-    Number(product.quantity) || 0,
-    String(product.material || ""),
-    String(product.finish || ""),
-    String(product.size || ""),
-    {
-      widthInches: Number(product.widthInches) || 0,
-      heightInches: Number(product.heightInches) || 0,
-    }
-  );
+  // Reprice from `items` when the payload carries a cart, falling back to the
+  // synthesised `product` so an older payload still reprices exactly as it
+  // used to. The browser is never the authority on price — this is the figure
+  // the payment link is generated from.
+  const items = Array.isArray(order.items)
+    ? (order.items as Record<string, unknown>[])
+    : [product];
+
+  const stickerPrice =
+    Math.round(
+      items.reduce(
+        (sum, item) =>
+          sum +
+          getStickerMaterialPrice(
+            Number(item.quantity) || 0,
+            String(item.material || ""),
+            String(item.size || ""),
+            {
+              widthInches: Number(item.widthInches) || 0,
+              heightInches: Number(item.heightInches) || 0,
+            }
+          ),
+        0
+      ) * 100
+    ) / 100;
+
+  // Counted from the items the server can see, never from a client-supplied
+  // design count — that number decides how much setup is charged.
+  const setupPrice = getCartSetupFee(items.length);
 
   const shippingPrice = getShippingPrice(
     String(production.deliveryMethod || "")
   );
 
-  const serverTotal = Math.round((stickerPrice + shippingPrice) * 100) / 100;
+  const serverTotal =
+    Math.round((stickerPrice + setupPrice + shippingPrice) * 100) / 100;
 
   return {
     order: {
@@ -184,6 +208,7 @@ function repriceStickers(order: Record<string, unknown>) {
       pricing: {
         ...clientPricing,
         stickerPrice,
+        setupPrice,
         shippingPrice,
         total: serverTotal,
       },

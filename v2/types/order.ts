@@ -79,6 +79,28 @@ export type Artwork = {
   file: File | null;
 };
 
+/**
+ * One sticker design in the cart.
+ *
+ * The cart is stickers-only by decision (CART-PLAN.md §Scope). Signs and
+ * apparel remain one configuration per order and keep using `Order.artwork` —
+ * they are deliberately NOT migrated.
+ *
+ * Artwork lives ON the item rather than beside it. Single-file state is what
+ * let the magenta auto-detect write `magentaCutLine` onto "the product" with
+ * no idea which design the file belonged to; binding the file to the item is
+ * what makes that question answerable at all.
+ */
+export type StickerItem = Product & {
+  /**
+   * Stable per-item id. Submit keys its form parts on it (`artwork:${id}`),
+   * so it must NEVER be an array index — removing a design would silently
+   * rebind every later file to the wrong design.
+   */
+  id: string;
+  artwork: Artwork;
+};
+
 export type Production = {
   needBy: string;
   deadlineType: DeadlineType;
@@ -86,7 +108,16 @@ export type Production = {
 };
 
 export type Pricing = {
+  /** Material across every design in the cart. Setup is its own line now. */
   stickerPrice: number;
+  /**
+   * $25 for the first design, $12.50 for each one after.
+   *
+   * Broken out rather than folded into `stickerPrice` because Printavo has to
+   * render it as an explicit line — three setup fees amortised into three
+   * unit prices is unreviewable, and signs already do this correctly.
+   */
+  setupPrice: number;
   shippingPrice: number;
   total: number;
 };
@@ -109,7 +140,20 @@ export type AddOn = {
 
 export type Order = {
   customer: Customer;
-  product: Product;
+  /**
+   * The sticker cart. One entry per design; never empty.
+   *
+   * Replaces the old single `product`. A `product` object is still
+   * SYNTHESISED at payload time in buildQuotePayload — dropping it makes
+   * isStickerOrder() in app/api/quote/route.ts return false, and stickers
+   * silently stop generating a Printavo payment link. That function, and the
+   * flow duck-typing in lib/email.ts and lib/printavo.ts, key off `product`.
+   */
+  items: StickerItem[];
+  /**
+   * Signs and apparel only — those flows are single-file and are not part of
+   * the cart. Sticker artwork lives on each item.
+   */
   artwork: Artwork;
   production: Production;
   pricing: Pricing;

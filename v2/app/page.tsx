@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import Header from "../components/Header";
 import StepNav from "../components/StepNav";
+import DesignCard from "../components/DesignCard";
 import StepFooter from "../components/StepFooter";
 import UploadBox from "../components/upload/UploadBox";
 import ArtworkGuidance from "../components/upload/ArtworkGuidance";
@@ -41,13 +42,17 @@ import {
   getShippingPrice,
   getStickerMaterialPrice,
   getCartSetupFee,
+  STICKER_SETUP_FEE,
+  STICKER_SETUP_FEE_ADDITIONAL,
 } from "../lib/pricing";
 import { calculateApparelPricing } from "../lib/apparel-pricing";
 import { apparelCatalogStyles } from "../lib/apparel-catalog";
 import {
+  getItemFieldErrors,
   getOrderFieldErrors,
   getOrderValidationErrors,
   type FieldErrors,
+  type ItemFieldErrors,
 } from "../lib/validation";
 import {
   getFirstStepWithError,
@@ -114,7 +119,15 @@ export default function Home() {
     "idle" | "loading" | "loaded" | "error"
   >("idle");
   const [ssCatalogError, setSsCatalogError] = useState("");
+  // Signs and apparel are single-file flows and keep the singular slots.
   const [artworkPreview, setArtworkPreview] = useState<string | null>(null);
+  // Stickers are a cart, so preview and analysis are per design, keyed by
+  // item id. Not by index — removing a middle design would re-point every
+  // later preview at the wrong artwork.
+  const [itemPreviews, setItemPreviews] = useState<Record<string, string>>({});
+  const [itemAnalyses, setItemAnalyses] = useState<
+    Record<string, ArtworkAnalysis | null>
+  >({});
   const [artworkAnalysis, setArtworkAnalysis] =
     useState<ArtworkAnalysis | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -677,6 +690,46 @@ export default function Home() {
     };
   }
 
+  /**
+   * Add a design to the cart.
+   *
+   * Priced immediately through recalculateOrder, so the estimate stub moves
+   * the moment the design appears — a customer adding a second design should
+   * see the $12.50 land, not discover it at review.
+   */
+  function addDesign() {
+    setOrder(
+      recalculateOrder({
+        ...order,
+        items: [...order.items, createStickerItem()],
+      })
+    );
+  }
+
+  function removeDesign(itemId: string) {
+    // Never remove the last one. An empty cart has no price, no proof and no
+    // way back, and the customer would be looking at a form with nothing in it.
+    if (order.items.length <= 1) return;
+
+    // Revoke this design's preview. Removing the item drops the only reference
+    // to the object URL, so without this the blob is pinned for the life of
+    // the page. (CART-PLAN bug 2.)
+    const preview = itemPreviews[itemId];
+    if (preview) {
+      URL.revokeObjectURL(preview);
+    }
+
+    setItemPreviews(({ [itemId]: _removed, ...rest }) => rest);
+    setItemAnalyses(({ [itemId]: _dropped, ...rest }) => rest);
+
+    setOrder(
+      recalculateOrder({
+        ...order,
+        items: order.items.filter((item) => item.id !== itemId),
+      })
+    );
+  }
+
   /** Edit one design. Defaults to the first, which is the only one today. */
   function updateItem(
     updates: Partial<(typeof order.items)[number]>,
@@ -844,22 +897,31 @@ export default function Home() {
 
   async function handleArtworkUpload(file: File, itemId?: string) {
     const isStickers = !isSignsSelected && !isApparelSelected;
-    // Which design this file belongs to. Defaults to the first, which is the
-    // only one until the cart UI lands.
+    /** Which design this file belongs to. */
     const targetId = itemId ?? order.items[0]?.id;
 
     // Revoke the URL we are replacing. createObjectURL pins the blob in memory
     // until revoked, and re-uploading repeatedly used to leak every previous
-    // file for the life of the page. (CART-PLAN bug 2 — removal and reset are
-    // handled at their own call sites.)
-    if (artworkPreview) {
-      URL.revokeObjectURL(artworkPreview);
+    // file for the life of the page. (CART-PLAN bug 2; removal and reset
+    // revoke at their own call sites.)
+    const replacing = isStickers ? itemPreviews[targetId] : artworkPreview;
+    if (replacing) {
+      URL.revokeObjectURL(replacing);
     }
 
     const previewUrl = URL.createObjectURL(file);
-    setArtworkPreview(previewUrl);
+
+    if (isStickers) {
+      setItemPreviews((prev) => ({ ...prev, [targetId]: previewUrl }));
+    } else {
+      setArtworkPreview(previewUrl);
+    }
 
     const analysis = await analyzeArtworkFile(file);
+
+    if (isStickers) {
+      setItemAnalyses((prev) => ({ ...prev, [targetId]: analysis }));
+    }
 
     setArtworkAnalysis(analysis);
 
@@ -1838,6 +1900,13 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       URL.revokeObjectURL(artworkPreview);
     }
 
+    // Every design's preview, not just the last one touched. Starting a new
+    // quote used to strand one object URL per design for the life of the tab.
+    // (CART-PLAN bug 2.)
+    Object.values(itemPreviews).forEach((url) => URL.revokeObjectURL(url));
+    setItemPreviews({});
+    setItemAnalyses({});
+
     // A fresh item, not the one baked into defaultOrder at import time —
     // reusing it would hand every reset order the same design id, and ids are
     // what submit keys artwork parts on.
@@ -1865,9 +1934,29 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
   // Price per sticker, excluding shipping — shipping is shown as its own line.
   // Guarded, because quantity is no longer clamped in state — an empty box is
   // genuinely 0 now, and dividing by it renders "$Infinity each".
-  const unitPrice =
-    (order.pricing.stickerPrice + order.pricing.setupPrice) /
-    Math.max(1, order.items[0].quantity);
+  /**
+   * What one sticker of a given design costs.
+   *
+   * That design's material plus its OWN share of setup — the first design
+   * carries $25 and each later one $12.50, which is exactly what that design
+   * added to the bill. Dividing the whole cart's setup across one design's
+   * quantity would make design 1 look dearer every time another was added.
+   */
+  function getItemUnitPrice(item: (typeof order.items)[number]) {
+    const index = order.items.findIndex((entry) => entry.id === item.id);
+    const share = index === 0 ? STICKER_SETUP_FEE : STICKER_SETUP_FEE_ADDITIONAL;
+
+    const material = getStickerMaterialPrice(
+      snapQuantity(item.quantity),
+      item.material,
+      item.size,
+      { widthInches: item.widthInches, heightInches: item.heightInches }
+    );
+
+    return (material + share) / Math.max(1, item.quantity);
+  }
+
+  const unitPrice = getItemUnitPrice(order.items[0]);
   const currentValidationErrors = getCurrentValidationErrors();
   // Every flow now routes through getCurrentValidationErrors(), which returns
   // the sticker rules for stickers, so one check covers all three.
@@ -1884,6 +1973,15 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
   // anything, but completion is a fact about the order and is true either
   // way — a step must stop claiming to be done the moment a box is emptied.
   const errorStepIds = getStepsWithErrors(liveFieldErrors);
+
+  // Per-design marks. The flat map above reports the FIRST broken design, which
+  // is what submit jumps to; this is what lets each card mark its own boxes so
+  // a customer with three designs can see which one is short.
+  const itemFieldErrors: Record<string, ItemFieldErrors> = showFieldErrors
+    ? Object.fromEntries(
+        order.items.map((item) => [item.id, getItemFieldErrors(item)])
+      )
+    : {};
 
   const step = getStep(currentStepId);
   const flowLabel = isApparelRequest
@@ -1962,13 +2060,30 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       quantity={apparelQuote.quantity}
     />
   ) : (
-    <DecalPreviewCard
-      artworkPreview={artworkPreview}
-      product={order.items[0]}
-      production={order.production}
-      unitPrice={unitPrice}
-      onUpdateProduct={(updates) => updateItem(updates)}
-    />
+    // One live proof per design. Showing only the first design's proof beside
+    // a two-design cart is worse than showing none: the art placement sliders
+    // on it edit that design, so a customer adjusting "the preview" would be
+    // changing a design they are not looking at.
+    <div className="space-y-6">
+      {order.items.map((item, index) => (
+        <div key={item.id}>
+          {order.items.length > 1 && (
+            <p className="spec mb-2 text-spec uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+              Design {String(index + 1).padStart(2, "0")} /{" "}
+              {String(order.items.length).padStart(2, "0")}
+            </p>
+          )}
+
+          <DecalPreviewCard
+            artworkPreview={itemPreviews[item.id] || null}
+            product={item}
+            production={order.production}
+            unitPrice={getItemUnitPrice(item)}
+            onUpdateProduct={(updates) => updateItem(updates, item.id)}
+          />
+        </div>
+      ))}
+    </div>
   );
 
   const summaryCard = isSignsSelected ? (
@@ -2296,23 +2411,65 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   onResetSizeBreakdown={resetSizeBreakdown}
                 />
               ) : (
-                <DecalBuilder
-                  product={order.items[0]}
-                  deliveryMethod={order.production.deliveryMethod}
-                  hasArtwork={Boolean(order.items[0].artwork.file)}
-                  magentaDetected={Boolean(artworkAnalysis?.magentaDetected)}
-                  fieldErrors={fieldErrors}
-                  onSelectDeliveryMethod={(deliveryMethod) =>
-                    updateProduction({ deliveryMethod })
-                  }
-                  onUpdate={(updates) => updateItem(updates)}
-                  onSelectMaterial={(material) =>
-                    updateItem({
-                      material,
-                      finish: getDecalFinishFromMaterial(material),
-                    })
-                  }
-                />
+                <div className="space-y-6">
+                  {order.items.map((item, index) => (
+                    <DesignCard
+                      key={item.id}
+                      index={index}
+                      total={order.items.length}
+                      onRemove={() => removeDesign(item.id)}
+                    >
+                      <DecalBuilder
+                        product={item}
+                        deliveryMethod={order.production.deliveryMethod}
+                        hasArtwork={Boolean(item.artwork.file)}
+                        magentaDetected={Boolean(
+                          itemAnalyses[item.id]?.magentaDetected
+                        )}
+                        fieldErrors={itemFieldErrors[item.id] || {}}
+                        // Delivery is an order-level choice, so only the first
+                        // card offers it — three "ship or pick up?" questions
+                        // for one parcel is three chances to disagree.
+                        showDelivery={index === 0}
+                        onSelectDeliveryMethod={(deliveryMethod) =>
+                          updateProduction({ deliveryMethod })
+                        }
+                        onUpdate={(updates) => updateItem(updates, item.id)}
+                        onSelectMaterial={(material) =>
+                          updateItem(
+                            {
+                              material,
+                              finish: getDecalFinishFromMaterial(material),
+                            },
+                            item.id
+                          )
+                        }
+                      />
+                    </DesignCard>
+                  ))}
+
+                  {/* Says what it costs before they press it. The fee ladder
+                      is the whole reason the cart exists, and finding out at
+                      review that a design added $12.50 is the kind of surprise
+                      that loses an order. */}
+                  <button
+                    type="button"
+                    onClick={addDesign}
+                    className={[
+                      "flex min-h-[44px] w-full cursor-pointer items-center justify-center gap-3",
+                      "border-2 border-dashed border-[var(--rule)] bg-[var(--paper)] p-4",
+                      "text-fine font-bold text-[var(--ink-black)]",
+                      "transition-colors duration-[120ms] ease-linear",
+                      "hover:border-solid hover:border-[var(--ink-black)]",
+                      "active:translate-x-[2px] active:translate-y-[2px]",
+                    ].join(" ")}
+                  >
+                    + Add another design
+                    <span className="spec text-spec font-normal text-[var(--ink-muted)]">
+                      +${STICKER_SETUP_FEE_ADDITIONAL.toFixed(2)} setup
+                    </span>
+                  </button>
+                </div>
               )}
 
               <NeedByDate
@@ -2331,16 +2488,45 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
               {currentStepId === "artwork" && (
               <>
-              <UploadBox
-                onFileSelected={handleArtworkUpload}
-                // Without these the box can never show that a file arrived,
-                // which made a working drop look like a failed one.
-                fileName={order.artwork.file?.name || null}
-                fileSizeBytes={order.artwork.file?.size ?? null}
-                directUploadEnabled={directUploadEnabled}
-                previewUrl={artworkPreview}
-                error={fieldErrors.artwork}
-              />
+              {isSignsSelected || isApparelSelected ? (
+                <UploadBox
+                  onFileSelected={handleArtworkUpload}
+                  // Without these the box can never show that a file arrived,
+                  // which made a working drop look like a failed one.
+                  fileName={order.artwork.file?.name || null}
+                  fileSizeBytes={order.artwork.file?.size ?? null}
+                  directUploadEnabled={directUploadEnabled}
+                  previewUrl={artworkPreview}
+                  error={fieldErrors.artwork}
+                />
+              ) : (
+                // One box per design, and the file is bound to its design by
+                // closure. Deliberately NOT one multi-file input: `multiple`
+                // gives an array with no reliable mapping back to a design,
+                // which is the same class of bug as keying form parts by
+                // index (CART-PLAN §Per-item artwork).
+                <div className="space-y-6">
+                  {order.items.map((item, index) => (
+                    <DesignCard
+                      key={item.id}
+                      index={index}
+                      total={order.items.length}
+                      onRemove={() => removeDesign(item.id)}
+                    >
+                      <UploadBox
+                        onFileSelected={(file) =>
+                          handleArtworkUpload(file, item.id)
+                        }
+                        fileName={item.artwork.file?.name || null}
+                        fileSizeBytes={item.artwork.file?.size ?? null}
+                        directUploadEnabled={directUploadEnabled}
+                        previewUrl={itemPreviews[item.id] || null}
+                        error={itemFieldErrors[item.id]?.artwork}
+                      />
+                    </DesignCard>
+                  ))}
+                </div>
+              )}
 
               <ArtworkGuidance directUploadEnabled={directUploadEnabled} />
               </>

@@ -232,22 +232,30 @@ function repriceStickers(order: Record<string, unknown>) {
     ? (order.items as Record<string, unknown>[])
     : [product];
 
+  /**
+   * Each design with the price the SERVER put on it.
+   *
+   * Written back onto the item so everything downstream bills the figure that
+   * was actually computed here, rather than calling the pricing engine a
+   * second time and hoping the two agree. Printavo's per-design line items
+   * read this.
+   */
+  const pricedItems = items.map((item) => ({
+    ...item,
+    linePrice: getStickerMaterialPrice(
+      Number(item.quantity) || 0,
+      String(item.material || ""),
+      String(item.size || ""),
+      {
+        widthInches: Number(item.widthInches) || 0,
+        heightInches: Number(item.heightInches) || 0,
+      }
+    ),
+  }));
+
   const stickerPrice =
     Math.round(
-      items.reduce(
-        (sum, item) =>
-          sum +
-          getStickerMaterialPrice(
-            Number(item.quantity) || 0,
-            String(item.material || ""),
-            String(item.size || ""),
-            {
-              widthInches: Number(item.widthInches) || 0,
-              heightInches: Number(item.heightInches) || 0,
-            }
-          ),
-        0
-      ) * 100
+      pricedItems.reduce((sum, item) => sum + item.linePrice, 0) * 100
     ) / 100;
 
   // Counted from the items the server can see, never from a client-supplied
@@ -264,6 +272,10 @@ function repriceStickers(order: Record<string, unknown>) {
   return {
     order: {
       ...order,
+      // Only when the payload really carried a cart — `items` falls back to
+      // [product] above, and writing that back would invent a one-design cart
+      // on a payload that never had one.
+      ...(Array.isArray(order.items) ? { items: pricedItems } : {}),
       pricing: {
         ...clientPricing,
         stickerPrice,
@@ -486,6 +498,10 @@ export async function POST(request: Request) {
       status: "received",
       customer: order.customer,
       product: order.product,
+      // The cart, each design carrying the price the server put on it. The
+      // record is the log of what the shop and Printavo work from, and it was
+      // omitting the only field that says what was actually ordered.
+      items: Array.isArray(pricedOrder.items) ? pricedOrder.items : [],
       production: order.production,
       // Server figure, not the browser's — this record is what the shop and
       // Printavo work from.

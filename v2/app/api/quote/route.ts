@@ -348,7 +348,21 @@ export async function POST(request: Request) {
     const mb = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
 
     const attachments: QuoteAttachment[] = [];
-    const artworkStatuses: string[] = [];
+    /**
+     * One delivery status per design, structured rather than pre-joined.
+     *
+     * It used to be a list of "Design 1: ..." strings joined with newlines and
+     * handed to the email as a single value. The email renders those as one
+     * table row, and HTML collapses the newlines — so three designs' statuses
+     * arrived as one run-on sentence, which is useless as a file-to-design map.
+     * The email now renders a block per design and needs the design id to do
+     * it; the joined string below is what Printavo and the API response take.
+     */
+    const artworkDelivery: {
+      designId: string;
+      label: string;
+      status: string;
+    }[] = [];
     let emailBytesUsed = 0;
 
     // Design order, so the labels below match the order in the quote.
@@ -364,20 +378,38 @@ export async function POST(request: Request) {
           .filter((part): part is (typeof artworkParts)[number] => Boolean(part))
       : artworkParts;
 
+    /**
+     * A design's number in the CART, not its position in this list.
+     *
+     * partOrder holds only the designs that actually sent a file, so counting
+     * it numbers the FILES. On an order whose middle design has no artwork,
+     * design 3's file was labelled "Design 2" and attached as
+     * design-2-<name>.png — so the shop's file-to-design map pointed design
+     * 3's art at design 2. Exactly the misalignment CART-PLAN calls out, just
+     * moved from the payload into the labels. Number by cart position, which
+     * is what the customer and the email both count from.
+     */
+    const designNumber = new Map(
+      orderedItems.map((item, index) => [String(item.id), index + 1])
+    );
+
     for (const [index, part] of partOrder.entries()) {
+      const number = designNumber.get(part.id) ?? index + 1;
       const label =
         partOrder.length > 1 || part.id !== "order"
-          ? `Design ${index + 1}`
+          ? `Design ${number}`
           : "Artwork";
 
       if (part.blob) {
         // Straight to storage, so there is nothing to attach — the shop opens
         // the link. The normal path once a blob store is connected, up to 100 MB.
-        artworkStatuses.push(
-          `${label}: uploaded — ${part.blob.name} (${mb(part.blob.size)} MB): ${
+        artworkDelivery.push({
+          designId: part.id,
+          label,
+          status: `uploaded — ${part.blob.name} (${mb(part.blob.size)} MB): ${
             part.blob.url
-          }`
-        );
+          }`,
+        });
         continue;
       }
 
@@ -385,13 +417,15 @@ export async function POST(request: Request) {
         // Never left the customer's browser, because sending it would have
         // killed the whole request at the edge and lost the order. The shop
         // still has to know it exists and go and collect it.
-        artworkStatuses.push(
-          `${label}: ARTWORK NOT UPLOADED — "${part.dropped.name}" is ${mb(
+        artworkDelivery.push({
+          designId: part.id,
+          label,
+          status: `ARTWORK NOT UPLOADED — "${part.dropped.name}" is ${mb(
             part.dropped.size
           )} MB, over the ${mb(
             MAX_ATTACHED_ARTWORK_BYTES
-          )} MB form limit. Email the customer to collect it.`
-        );
+          )} MB form limit. Email the customer to collect it.`,
+        });
         continue;
       }
 
@@ -404,31 +438,46 @@ export async function POST(request: Request) {
         attachment &&
         emailBytesUsed + (part.file?.size ?? 0) > MAX_EMAIL_ATTACHMENT_TOTAL_BYTES
       ) {
-        artworkStatuses.push(
-          `${label}: not attached — "${part.file?.name}" would push this email over ${mb(
+        artworkDelivery.push({
+          designId: part.id,
+          label,
+          status: `not attached — "${part.file?.name}" would push this email over ${mb(
             MAX_EMAIL_ATTACHMENT_TOTAL_BYTES
-          )} MB. Ask the customer for it.`
-        );
+          )} MB. Ask the customer for it.`,
+        });
         continue;
       }
 
       if (attachment) {
-        // Prefixed so three files called "logo.png" arrive distinguishable.
-        attachments.push({
-          ...attachment,
-          filename:
-            partOrder.length > 1
-              ? `design-${index + 1}-${attachment.filename}`
-              : attachment.filename,
-        });
+        // Prefixed so three files called "logo.png" arrive distinguishable,
+        // and numbered by cart position so the prefix agrees with the block
+        // the email files it under.
+        const filename =
+          partOrder.length > 1
+            ? `design-${number}-${attachment.filename}`
+            : attachment.filename;
+
+        attachments.push({ ...attachment, filename });
         emailBytesUsed += part.file?.size ?? 0;
+
+        // Name the attachment the shop will actually see in its mail client.
+        // "Attached to this email" is not a map when three files are attached;
+        // the renamed filename is the only thing tying a file to a design.
+        artworkDelivery.push({
+          designId: part.id,
+          label,
+          status: `attached to this email as ${filename}`,
+        });
+        continue;
       }
 
-      artworkStatuses.push(`${label}: ${info}`);
+      artworkDelivery.push({ designId: part.id, label, status: info });
     }
 
-    const attachmentInfo = artworkStatuses.length
-      ? artworkStatuses.join("\n")
+    const attachmentInfo = artworkDelivery.length
+      ? artworkDelivery
+          .map((entry) => `${entry.label}: ${entry.status}`)
+          .join("\n")
       : "No file uploaded";
 
     const quoteRecord = {
@@ -462,9 +511,9 @@ export async function POST(request: Request) {
         url: partOrder[0]?.blob?.url ?? null,
         attachment: attachmentInfo,
         awaitingArtwork: partOrder.some((part) => part.dropped),
-        /** One entry per design, in cart order. */
+        /** One entry per design that sent a file, numbered by cart position. */
         files: partOrder.map((part, index) => ({
-          design: index + 1,
+          design: designNumber.get(part.id) ?? index + 1,
           designId: part.id,
           name: part.blob?.name ?? part.file?.name ?? part.dropped?.name ?? null,
           size: part.blob?.size ?? part.file?.size ?? part.dropped?.size ?? null,
@@ -494,6 +543,10 @@ export async function POST(request: Request) {
       attachmentInfo: proofAttachment
         ? `${attachmentInfo}\nProof attached: gorilla-proof.png`
         : attachmentInfo,
+      // Per-design, so the email can put each status under the design it
+      // belongs to instead of in one shared row.
+      artworkDelivery,
+      proofAttached: Boolean(proofAttachment),
     });
 
     if (notification.sent) {

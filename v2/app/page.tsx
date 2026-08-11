@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Header from "../components/Header";
 import StepNav from "../components/StepNav";
 import DesignCard from "../components/DesignCard";
+import TemplateDesigner from "../components/TemplateDesigner";
 import StepFooter from "../components/StepFooter";
 import UploadBox from "../components/upload/UploadBox";
 import ArtworkGuidance from "../components/upload/ArtworkGuidance";
@@ -34,6 +35,11 @@ import {
 } from "../lib/signs";
 import { calculateSignsPricing } from "../lib/signs-pricing";
 import { productCategories } from "../lib/products";
+import {
+  getTemplate,
+  getTemplateTextErrors,
+  resolveTemplateText,
+} from "../lib/templates";
 import { reviews } from "../lib/reviews";
 import { createStickerItem, defaultOrder } from "../lib/order";
 import { AddOnOffer, toAddOn } from "../lib/addons";
@@ -1030,6 +1036,31 @@ export default function Home() {
    * single source, and the summary list below is derived from it so the
    * checklist and the marked boxes can never name different problems.
    */
+  /**
+   * Required template fields the customer has not filled.
+   *
+   * Kept beside the sign rules rather than inside FieldErrors: these keys are
+   * template-specific and would have to join the FieldKey union — and through
+   * it FIELD_STEP — for every template anyone ever adds. They all live on the
+   * details step regardless, so the step mapping is unaffected.
+   */
+  // LIVE — this decides whether the order can be submitted at all.
+  //
+  // Gating this on showFieldErrors was a real bug: validation saw no errors
+  // until after a submit attempt, so an "OPEN HOUSE" sign with no address on
+  // it reported itself ready and went through. Same distinction the cart
+  // already draws — marks wait for a submit, readiness never does.
+  const signsTemplateTextErrorsLive = getTemplateTextErrors(
+    signsQuote.templateId,
+    signsQuote.templateText
+  );
+
+  // MARKED — what the designer actually paints red, held back until the
+  // customer has tried to submit.
+  const signsTemplateTextErrors = showFieldErrors
+    ? signsTemplateTextErrorsLive
+    : {};
+
   function getSignsFieldErrors(): FieldErrors {
     const errors: FieldErrors = {};
 
@@ -1041,8 +1072,11 @@ export default function Home() {
       errors.customerEmail = "Enter your email.";
     }
 
-    if (!order.artwork.file) {
-      errors.artwork = "Upload your artwork before submitting.";
+    // A template IS the artwork. Choosing one replaces the upload rather than
+    // adding to it, so requiring a file as well would make a finished design
+    // unsubmittable.
+    if (!signsQuote.templateId && !order.artwork.file) {
+      errors.artwork = "Upload your artwork, or start from one of our templates.";
     }
 
     if (!order.production.needBy.trim()) {
@@ -1077,6 +1111,10 @@ export default function Home() {
     // their own short messages.
     if (fields.width || fields.height) {
       errors.push("Enter the width and height for your custom size.");
+    }
+
+    for (const message of Object.values(signsTemplateTextErrorsLive)) {
+      errors.push(message);
     }
 
     return errors;
@@ -1197,6 +1235,17 @@ export default function Home() {
         },
         artwork: {
           fileName: order.artwork.file?.name || null,
+          // Template work has no uploaded file — this IS the artwork brief.
+          template: signsQuote.templateId
+            ? {
+                id: signsQuote.templateId,
+                name: getTemplate(signsQuote.templateId)?.name || signsQuote.templateId,
+                text: resolveTemplateText(
+                  signsQuote.templateId,
+                  signsQuote.templateText
+                ),
+              }
+            : null,
         },
         production: order.production,
         pricing: signsPricing.priceable
@@ -1495,7 +1544,17 @@ export default function Home() {
       // to the top of the step in the same commit the effect below is trying
       // to scroll onto the offending field. Recording the visit by hand keeps
       // the step bar honest without starting that fight.
-      const firstBrokenStep = getFirstStepWithError(getCurrentFieldErrors());
+      // Template text is validated outside FieldErrors (its keys are
+      // per-template and cannot join the FieldKey union), so it has no entry
+      // in FIELD_STEP and getFirstStepWithError cannot see it. Without this
+      // fallback, an unfilled template field blocks submit and then leaves the
+      // customer on Review with nothing marked and nowhere to go — the exact
+      // dead end the field-to-step map exists to prevent.
+      const firstBrokenStep =
+        getFirstStepWithError(getCurrentFieldErrors()) ??
+        (isSignsSelected && Object.keys(signsTemplateTextErrorsLive).length
+          ? ("details" as const)
+          : null);
 
       if (firstBrokenStep) {
         setCurrentStepId(firstBrokenStep);
@@ -2370,16 +2429,45 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               {currentStepId === "details" && (
               <>
               {isSignsSelected ? (
-                <SignsBuilder
-                  signsQuote={signsQuote}
-                  deliveryMethod={order.production.deliveryMethod}
-                  fieldErrors={fieldErrors}
-                  onUpdate={(updates) => updateSignsQuote(updates)}
-                  onSelectProduct={handleSignProductSelect}
-                  onSelectDeliveryMethod={(deliveryMethod) =>
-                    updateProduction({ deliveryMethod })
-                  }
-                />
+                <>
+                  <SignsBuilder
+                    signsQuote={signsQuote}
+                    deliveryMethod={order.production.deliveryMethod}
+                    fieldErrors={fieldErrors}
+                    onUpdate={(updates) => updateSignsQuote(updates)}
+                    onSelectProduct={handleSignProductSelect}
+                    onSelectDeliveryMethod={(deliveryMethod) =>
+                      updateProduction({ deliveryMethod })
+                    }
+                  />
+
+                  {/* Sits on the details step, with the rest of what the sign
+                      IS. The artwork step then either takes an upload or shows
+                      that the template already covers it. */}
+                  <TemplateDesigner
+                    productId={signsQuote.productId}
+                    templateId={signsQuote.templateId}
+                    values={signsQuote.templateText}
+                    errors={signsTemplateTextErrors}
+                    onSelectTemplate={(templateId) =>
+                      updateSignsQuote({
+                        templateId,
+                        // Starting a different template must not carry the
+                        // previous one's words into fields that do not exist
+                        // on it.
+                        templateText: {},
+                      })
+                    }
+                    onChangeText={(fieldId, value) =>
+                      updateSignsQuote({
+                        templateText: {
+                          ...signsQuote.templateText,
+                          [fieldId]: value,
+                        },
+                      })
+                    }
+                  />
+                </>
               ) : isApparelRequest ? (
                 // The full ApparelBuilder is deliberately not rendered. See
                 // ApparelRequestBuilder — its pricing is not signed off, and
@@ -2520,7 +2608,26 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
               {currentStepId === "artwork" && (
               <>
-              {isSignsSelected || isApparelSelected ? (
+              {isSignsSelected && signsQuote.templateId ? (
+                // A template already IS the artwork, so this step has nothing
+                // to ask for. Saying so beats leaving an upload box that looks
+                // required sitting on a step the customer has already
+                // satisfied.
+                <div className="border border-[var(--rule)] border-l-4 border-l-[var(--gorilla-green)] bg-[var(--surface-ok)] p-5">
+                  <p className="eyebrow">Artwork</p>
+                  <h3 className="mt-2 text-lede font-bold text-[var(--gorilla-green-dark)]">
+                    Covered — you&rsquo;re using our{" "}
+                    {getTemplate(signsQuote.templateId)?.name.toLowerCase()}{" "}
+                    template
+                  </h3>
+                  <p className="mt-2 text-fine font-bold text-[var(--gorilla-green-dark)]">
+                    Nothing to upload. We set your wording into the artwork and
+                    send a proof before printing. Changed your mind? Go back to
+                    details and choose &ldquo;I&rsquo;ll upload my own
+                    artwork&rdquo;.
+                  </p>
+                </div>
+              ) : isSignsSelected || isApparelSelected ? (
                 <UploadBox
                   onFileSelected={handleArtworkUpload}
                   // Without these the box can never show that a file arrived,

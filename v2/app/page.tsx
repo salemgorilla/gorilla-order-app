@@ -71,6 +71,7 @@ import {
   isArtworkTooLargeToAttach,
   MAX_ATTACHED_ARTWORK_LABEL,
   MAX_INLINE_ARTWORK_TOTAL_BYTES,
+  remainingInlineBudget,
 } from "../lib/upload-limits";
 import { uploadArtworkToBlob } from "../lib/artwork-upload";
 import { renderStickerProof } from "../lib/sticker-proof";
@@ -1651,38 +1652,76 @@ export default function Home() {
 
       setUploadProgress(null);
 
-      // The proof the customer just approved, rendered to a PNG so the email
-      // carries it alongside their raw art. Stickers only — it is the only
-      // flow with a preview to prove. Small by construction (~1000px), so it
-      // rides inline without troubling the body limit.
+      /**
+       * The proof the customer just approved, rendered to a PNG so the email
+       * carries it alongside their raw art. Stickers only — it is the only
+       * flow with a preview to prove.
+       *
+       * ONE PER DESIGN, keyed like the artwork. This used to render a single
+       * proof from `artworkPreview`, which the cart stopped setting: sticker
+       * previews moved to itemPreviews[id], so `isStickers && artworkPreview`
+       * became permanently false and NO proof has been attached to a sticker
+       * quote since. Verified by capturing a real two-design submission — the
+       * body carried the order, the analysis and two files, and no proof at
+       * all.
+       *
+       * Rendered from the design's own preview, so each proof shows that
+       * design's art at that design's size, shape and border.
+       */
       const isStickers = !isSignsSelected && !isApparelSelected;
-      const proofItem = order.items[0];
-      // Falls back to the preset label, which is a square, when the customer
-      // used a size button instead of typing dimensions.
-      const presetInches = parseSizeInches(proofItem.size);
+      let proofsAttached = 0;
+      let proofBytesUsed = 0;
+      // Proofs take what artwork left behind. Going over the body limit does
+      // not lose a picture, it loses the order — see lib/upload-limits.
+      const proofBudget = remainingInlineBudget(inlineBytesUsed);
 
-      // One proof, for the first design. The per-design canvas proof is its
-      // own piece of work (CART-PLAN §"attach the rendered proof"); until the
-      // cart UI can create a second design there is exactly one to render.
-      const proof =
-        isStickers && artworkPreview
-          ? await renderStickerProof({
-              artworkUrl: artworkPreview,
-              shape: proofItem.shape,
-              material: proofItem.material,
-              finish: proofItem.finish,
-              sizeLabel: proofItem.size,
-              quantity: proofItem.quantity,
-              widthInches: proofItem.widthInches || presetInches,
-              heightInches: proofItem.heightInches || presetInches,
-              artScale: proofItem.artScale,
-              artMargin: proofItem.artMargin,
-              magentaCutLine: proofItem.magentaCutLine,
-            })
-          : null;
+      if (isStickers) {
+        for (const [index, item] of order.items.entries()) {
+          const preview = itemPreviews[item.id];
+          if (!preview) continue;
 
-      if (proof) {
-        formData.append("proof", proof, "gorilla-proof.png");
+          // Falls back to the preset label, which is a square, when the
+          // customer used a size button instead of typing dimensions.
+          const presetInches = parseSizeInches(item.size);
+
+          const proof = await renderStickerProof({
+            artworkUrl: preview,
+            shape: item.shape,
+            material: item.material,
+            finish: item.finish,
+            sizeLabel: item.size,
+            quantity: item.quantity,
+            widthInches: item.widthInches || presetInches,
+            heightInches: item.heightInches || presetInches,
+            artScale: item.artScale,
+            artMargin: item.artMargin,
+            magentaCutLine: item.magentaCutLine,
+          });
+
+          if (!proof) continue;
+
+          if (proofBytesUsed + proof.size > proofBudget) {
+            // Out of room. The shop still has the artwork and the written
+            // spec, so a missing proof costs a picture — never the order.
+            break;
+          }
+
+          formData.append(
+            `proof:${item.id}`,
+            proof,
+            order.items.length > 1
+              ? `design-${index + 1}-proof.png`
+              : "gorilla-proof.png"
+          );
+          proofBytesUsed += proof.size;
+          proofsAttached += 1;
+        }
+
+        // Named, so "Our proof" in the shop email can never imply every design
+        // got one when the body ran out of room partway through.
+        if (proofsAttached < order.items.filter((i) => itemPreviews[i.id]).length) {
+          formData.append("proofsDropped", "true");
+        }
       }
 
       const response = await fetch("/api/quote", {

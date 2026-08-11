@@ -51,7 +51,10 @@ type ParsedQuoteRequest = {
   artworkAnalysis: Record<string, unknown> | null;
   /** Every design's artwork, keyed by design id. */
   artworkParts: ArtworkPart[];
-  proofFile: File | null;
+  /** Our rendered proof for each design, keyed by design id. */
+  proofParts: { id: string; file: File }[];
+  /** True when the browser had proofs it could not fit in the request body. */
+  proofsDropped: boolean;
 };
 
 /** Read `prefix:designId` form keys into a map of designId -> value. */
@@ -128,14 +131,28 @@ async function parseQuoteRequest(request: Request): Promise<ParsedQuoteRequest> 
       };
     });
 
+    // Our rendered proof of the die-cut, so the shop sees exactly what the
+    // customer approved rather than having to imagine it from raw art. Keyed
+    // by design, like the artwork — a cart has one per design.
+    const keyedProofs = collectKeyed(form, "proof:");
+    const proofParts = [...keyedProofs.entries()]
+      .filter(([, value]) => typeof value !== "string")
+      .map(([id, value]) => ({ id, file: value as File }));
+
+    // The single unkeyed part the pre-cart client sent. Nothing ships it now,
+    // but accepting it costs three lines and means an older tab left open
+    // still delivers its proof.
+    if (!proofParts.length && proofRaw && typeof proofRaw !== "string") {
+      proofParts.push({ id: "order", file: proofRaw });
+    }
+
     return {
       order: typeof orderRaw === "string" ? JSON.parse(orderRaw) : {},
       artworkAnalysis:
         typeof analysisRaw === "string" ? JSON.parse(analysisRaw) : null,
       artworkParts,
-      // Our rendered proof of the die-cut, so the shop sees exactly what the
-      // customer approved rather than having to imagine it from raw art.
-      proofFile: proofRaw && typeof proofRaw !== "string" ? proofRaw : null,
+      proofParts,
+      proofsDropped: form.get("proofsDropped") === "true",
     };
   }
 
@@ -145,7 +162,8 @@ async function parseQuoteRequest(request: Request): Promise<ParsedQuoteRequest> 
     order: body.order ?? body,
     artworkAnalysis: body.artworkAnalysis ?? null,
     artworkParts: [],
-    proofFile: null,
+    proofParts: [],
+    proofsDropped: false,
   };
 }
 
@@ -306,7 +324,7 @@ function generateQuoteNumber() {
 
 export async function POST(request: Request) {
   try {
-    const { order, artworkAnalysis, artworkParts, proofFile } =
+    const { order, artworkAnalysis, artworkParts, proofParts, proofsDropped } =
       await parseQuoteRequest(request);
 
     const quoteNumber = generateQuoteNumber();
@@ -335,14 +353,16 @@ export async function POST(request: Request) {
     // link — reads this, never the raw request.
     const pricedOrder = priced.order;
 
-    // We render this ourselves at ~1000px, so it is small by construction and
-    // needs no size gate the way customer artwork does.
-    const proofAttachment = proofFile
-      ? {
-          filename: "gorilla-proof.png",
-          content: Buffer.from(await proofFile.arrayBuffer()).toString("base64"),
-        }
-      : null;
+    // We render these ourselves at ~1000px, and the browser already budgeted
+    // them against the request body, so they need no size gate the way
+    // customer artwork does.
+    const proofAttachments = await Promise.all(
+      proofParts.map(async (part) => ({
+        designId: part.id,
+        filename: part.file.name || "gorilla-proof.png",
+        content: Buffer.from(await part.file.arrayBuffer()).toString("base64"),
+      }))
+    );
 
     /**
      * Artwork, per design.
@@ -527,6 +547,15 @@ export async function POST(request: Request) {
         url: partOrder[0]?.blob?.url ?? null,
         attachment: attachmentInfo,
         awaitingArtwork: partOrder.some((part) => part.dropped),
+        /**
+         * Our rendered proofs, by design. Part of the record because "what did
+         * the shop actually receive" has to be answerable from the log alone.
+         */
+        proofs: proofAttachments.map((proof) => ({
+          designId: proof.designId,
+          filename: proof.filename,
+        })),
+        proofsDropped,
         /** One entry per design that sent a file, numbered by cart position. */
         files: partOrder.map((part, index) => ({
           design: designNumber.get(part.id) ?? index + 1,
@@ -553,16 +582,28 @@ export async function POST(request: Request) {
       receivedAt,
       order: pricedOrder,
       artworkAnalysis,
-      // Every design's file plus our proof of the cut, so the shop can compare
-      // what was sent against what was approved.
-      attachments: [...attachments, proofAttachment],
-      attachmentInfo: proofAttachment
-        ? `${attachmentInfo}\nProof attached: gorilla-proof.png`
+      // Every design's file plus our proof of each cut, so the shop can
+      // compare what was sent against what was approved — design by design.
+      attachments: [
+        ...attachments,
+        ...proofAttachments.map(({ filename, content }) => ({
+          filename,
+          content,
+        })),
+      ],
+      attachmentInfo: proofAttachments.length
+        ? `${attachmentInfo}\nProofs attached: ${proofAttachments
+            .map((proof) => proof.filename)
+            .join(", ")}`
         : attachmentInfo,
       // Per-design, so the email can put each status under the design it
       // belongs to instead of in one shared row.
       artworkDelivery,
-      proofAttached: Boolean(proofAttachment),
+      proofs: proofAttachments.map(({ designId, filename }) => ({
+        designId,
+        filename,
+      })),
+      proofsDropped,
     });
 
     if (notification.sent) {

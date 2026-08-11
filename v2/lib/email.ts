@@ -109,7 +109,10 @@ export function buildQuoteEmail(input: {
   attachmentInfo?: string;
   /** One entry per design. Absent on the single-file signs and apparel flows. */
   artworkDelivery?: ArtworkDeliveryEntry[];
-  proofAttached?: boolean;
+  /** Our rendered proof for each design, by design id. */
+  proofs?: { designId: string; filename: string }[];
+  /** True when the browser had proofs it could not fit in the request body. */
+  proofsDropped?: boolean;
 }) {
   const { quoteNumber, receivedAt, order, artworkAnalysis, attachmentInfo } =
     input;
@@ -355,6 +358,10 @@ export function buildQuoteEmail(input: {
   // bytes, so this email is the ONLY place that mapping exists.
   const delivery = input.artworkDelivery ?? [];
   const deliveryById = new Map(delivery.map((entry) => [entry.designId, entry]));
+  const proofs = input.proofs ?? [];
+  const proofByDesign = new Map(
+    proofs.map((proof) => [proof.designId, proof.filename])
+  );
   const artworkGroups: LineGroup[] = [];
 
   // The template brief, when the customer personalised one of ours instead of
@@ -389,6 +396,14 @@ export function buildQuoteEmail(input: {
         line("Spec", spec || "Not specified"),
         line("File", fileName || "No file uploaded"),
         line("Delivery", entry ? entry.status : "No file uploaded"),
+        // What the customer saw on screen and pressed submit on. Named per
+        // design, because "our proof is attached" is not an answer when three
+        // proofs are attached and only one of them is this sticker.
+        line(
+          "Our proof",
+          proofByDesign.get(str(item.id)) ??
+            (fileName ? "not rendered" : "no artwork to proof")
+        ),
       ];
 
       // The analysis is of the FIRST file only, so it is reported under design
@@ -429,12 +444,27 @@ export function buildQuoteEmail(input: {
     });
   }
 
-  if (input.proofAttached) {
+  // Signs and apparel have no cart to file a proof under, so theirs stands on
+  // its own. A cart names its proofs inside each design's block above.
+  if (items.length === 0 && proofs.length > 0) {
     artworkGroups.push({
       title: "Our proof",
       lines: [
-        line("Attached", "gorilla-proof.png"),
+        line("Attached", proofs.map((proof) => proof.filename).join(", ")),
         line("What it is", "What the customer saw and approved on screen."),
+      ],
+    });
+  }
+
+  // Never let a partial set of proofs read as a complete one.
+  if (input.proofsDropped) {
+    artworkGroups.push({
+      title: "Note on the proofs",
+      lines: [
+        line(
+          "Incomplete",
+          "Some proofs would not fit in the submission and were left out. The artwork and the written spec above are complete."
+        ),
       ],
     });
   }
@@ -705,7 +735,8 @@ export async function sendQuoteEmail(input: {
   attachments?: (QuoteAttachment | null)[];
   attachmentInfo?: string;
   artworkDelivery?: ArtworkDeliveryEntry[];
-  proofAttached?: boolean;
+  proofs?: { designId: string; filename: string }[];
+  proofsDropped?: boolean;
 }): Promise<QuoteEmailResult> {
   const provider = getEmailProvider();
 

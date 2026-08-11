@@ -573,6 +573,11 @@ function describeStickerSpec(spec: AnyRecord, quantity: number) {
     `Magenta cut line: ${
       spec.magentaCutLine ? "YES — art has a magenta cut path" : "no"
     }`,
+    // The filename ties this row to a file in the shop email. Without it, two
+    // designs ordered at the same size and material describe themselves
+    // identically and the shop has no way to tell which row is which — the
+    // other half of CART-PLAN bug 3.
+    `Artwork file: ${str(spec.artworkFileName, "none uploaded")}`,
   ].join("\n");
 }
 
@@ -801,7 +806,12 @@ export function buildPrintavoQuotePlan(input: {
       ]
         .join("\n")
         .trimEnd()
-    : describeStickerSpec(product, quantity);
+    : // One design. `product` carries the spec; the filename lives on the item,
+      // so it is grafted on rather than lost.
+      describeStickerSpec(
+        { ...product, artworkFileName: stickerItems[0]?.artworkFileName },
+        quantity
+      );
 
   const customerNote = [
     `GORILLA ORDER WEB QUOTE — ${quoteNumber}`,

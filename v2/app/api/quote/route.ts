@@ -9,6 +9,7 @@ import {
 
 import { sendQuoteEmail, type QuoteAttachment } from "../../../lib/email";
 import { subscribeToNewsletter } from "../../../lib/newsletter";
+import { describeKioskSource, readKioskSession } from "../../../lib/kiosk";
 import {
   createPrintavoQuote,
   createStickerCheckout,
@@ -370,6 +371,10 @@ export async function POST(request: Request) {
     // link — reads this, never the raw request.
     const pricedOrder = priced.order;
 
+    // Null for an ordinary web quote. Non-null means the order was taken on
+    // the shop's own terminal, which changes how it is paid for.
+    const kioskSession = readKioskSession(order);
+
     // We render these ourselves at ~1000px, and the browser already budgeted
     // them against the request body, so they need no size gate the way
     // customer artwork does.
@@ -544,6 +549,10 @@ export async function POST(request: Request) {
       receivedAt,
       status: "received",
       customer: order.customer,
+      // Where the order was taken. A quote written up at the counter and one
+      // submitted from the website are different things to follow up on.
+      source: describeKioskSource(kioskSession) ?? "labs.gorillasalem.com",
+      kiosk: kioskSession,
       product: order.product,
       // The cart, each design carrying the price the server put on it. The
       // record is the log of what the shop and Printavo work from, and it was
@@ -630,6 +639,7 @@ export async function POST(request: Request) {
       // Per-design, so the email can put each status under the design it
       // belongs to instead of in one shared row.
       artworkDelivery,
+      kiosk: kioskSession,
       proofs: proofAttachments.map(({ designId, filename }) => ({
         designId,
         filename,
@@ -683,7 +693,28 @@ export async function POST(request: Request) {
 
     let checkout = null;
 
-    if (isStickers && printavo.created && printavo.quoteId) {
+    /**
+     * A kiosk order is never emailed a payment link.
+     *
+     * The customer is standing at the counter, so payment is taken there on
+     * the shop's own terminal. Two reasons this is the right default, and the
+     * second is the serious one:
+     *
+     *   1. Emailing a link to somebody in the room is worse than useless.
+     *   2. The address was typed on a shared machine, often by a member of
+     *      staff hearing it out loud. One transposed character sends a live,
+     *      payable link for someone else's order to a stranger.
+     *
+     * Decided HERE, on the server, next to the call it suppresses — not in
+     * the browser that asked. The client marker is only an input to it.
+     */
+    if (kioskSession && isStickers) {
+      console.log(
+        `KIOSK ORDER ${quoteNumber} — no payment link generated; payment is taken at the counter.`
+      );
+    }
+
+    if (!kioskSession && isStickers && printavo.created && printavo.quoteId) {
       checkout = await createStickerCheckout({
         quoteId: printavo.quoteId,
         publicUrl: printavo.publicUrl || "",
@@ -725,7 +756,9 @@ export async function POST(request: Request) {
           consent: {
             optedIn: true,
             at: receivedAt,
-            source: "labs.gorillasalem.com quote builder",
+            source:
+              describeKioskSource(kioskSession) ??
+              "labs.gorillasalem.com quote builder",
             // The box arrives ticked, so every record has to say so. This is
             // the field that answers "did they choose this, or did we?" —
             // which is the first question an ESP asks about a flagged list.

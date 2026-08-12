@@ -8,6 +8,7 @@ import DesignCard from "../components/DesignCard";
 import TemplateDesigner from "../components/TemplateDesigner";
 import StepFooter from "../components/StepFooter";
 import UploadBox from "../components/upload/UploadBox";
+import { useKiosk } from "../components/kiosk/KioskProvider";
 import BackgroundRemovalControl from "../components/upload/BackgroundRemovalControl";
 import ArtworkGuidance from "../components/upload/ArtworkGuidance";
 import NeedByDate from "../components/NeedByDate";
@@ -107,6 +108,13 @@ import type {
 } from "../features/types";
 
 export default function Home() {
+  /**
+   * Kiosk mode. Defaults to "off" on the public website, so every behaviour
+   * below reads as it always has unless this page is being served on the
+   * machine in the shop. See lib/kiosk.ts for what changes and why.
+   */
+  const kiosk = useKiosk();
+
   // Which step is on screen. The form is no longer one scroll — see
   // lib/steps.ts for the step list and the field-to-step map.
   const [currentStepId, setCurrentStepId] = useState<StepId>("product");
@@ -120,7 +128,24 @@ export default function Home() {
   const [stepScrollToken, setStepScrollToken] = useState(0);
   const [selectedProductId, setSelectedProductId] = useState("stickers");
   const [submittedProductId, setSubmittedProductId] = useState("stickers");
-  const [order, setOrder] = useState(defaultOrder);
+  /**
+   * The newsletter box ships pre-ticked on the website — defensible when the
+   * person ticking it owns the address. On a kiosk it is not: in staff mode
+   * somebody is typing on a customer's behalf, and in self-service a default
+   * carried in from the shop is not a choice the customer made. Consent has to
+   * be an action here, so a kiosk session starts unticked.
+   *
+   * Done in the initial state rather than an effect, so there is never a first
+   * render in which the box is ticked.
+   */
+  const [order, setOrder] = useState(() =>
+    kiosk.enabled
+      ? {
+          ...defaultOrder,
+          customer: { ...defaultOrder.customer, newsletterOptIn: false },
+        }
+      : defaultOrder
+  );
   const [apparelQuote, setApparelQuote] = useState(defaultApparelQuote);
   const [signsQuote, setSignsQuote] = useState(defaultSignsQuote);
   const [ssProducts, setSsProducts] = useState<SsCatalogProduct[]>([]);
@@ -1360,6 +1385,15 @@ export default function Home() {
       production: order.production,
       addOns: order.addOns,
       addOnsNote: order.addOnsNote,
+      /**
+       * Present only on the shop's own terminal. The SERVER reads this to
+       * decide that no payment link is generated — see app/api/quote/route.ts.
+       * Claiming it cannot get anyone a better outcome: the only thing it
+       * buys is NOT being emailed a link to pay.
+       */
+      ...(kiosk.enabled
+        ? { kiosk: { mode: kiosk.mode, staffName: kiosk.staffName } }
+        : {}),
     };
 
     if (isSignsSelected) {
@@ -1625,6 +1659,12 @@ export default function Home() {
   const leadSentRef = useRef(false);
 
   useEffect(() => {
+    // A kiosk is hidden every time somebody walks away from it, so this would
+    // report an "abandoned quote" for every passer-by who touched the screen —
+    // burying the real ones under half-typed strangers. On a shared machine
+    // the walk-away is not a lead, it is the normal end of a session.
+    if (kiosk.enabled) return;
+
     function reportAbandonedQuote() {
       const snapshot = leadSnapshotRef.current;
 
@@ -1671,7 +1711,7 @@ export default function Home() {
       window.removeEventListener("pagehide", reportAbandonedQuote);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, []);
+  }, [kiosk.enabled]);
 
   async function submitOrder() {
     const errors = getCurrentValidationErrors();

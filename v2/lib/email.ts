@@ -113,6 +113,8 @@ export function buildQuoteEmail(input: {
   proofs?: { designId: string; filename: string }[];
   /** Background-removed artwork, by design id. The original is attached too. */
   knockouts?: { designId: string; filename: string }[];
+  /** Set when the order was taken on the shop's own terminal. */
+  kiosk?: { mode: "self" | "staff"; staffName: string } | null;
   /** True when the browser had proofs it could not fit in the request body. */
   proofsDropped?: boolean;
 }) {
@@ -176,9 +178,13 @@ export function buildQuoteEmail(input: {
   const addOnCount = addOns.length + (addOnsNote ? 1 : 0);
   const suffix = addOnCount > 0 ? ` + ${addOnCount} more` : "";
 
+  // A counter order is a different job in the inbox: nobody is waiting for a
+  // reply, somebody is waiting at the till. Say so first.
+  const kioskPrefix = input.kiosk ? "IN STORE — " : "";
+
   const subject = needsHandQuote
-    ? `NEED TO QUOTE — ${quoteNumber} — ${quantity} ${productLabel}${suffix}`
-    : `New Quote ${quoteNumber} — ${quantity} ${productLabel}${suffix}`;
+    ? `${kioskPrefix}NEED TO QUOTE — ${quoteNumber} — ${quantity} ${productLabel}${suffix}`
+    : `${kioskPrefix}New Quote ${quoteNumber} — ${quantity} ${productLabel}${suffix}`;
 
   // ---- product section ----
   const productLines: string[] = [];
@@ -547,6 +553,20 @@ export function buildQuoteEmail(input: {
     `Submitted: ${submittedAt}`,
     ``,
     `CUSTOMER`,
+    ...(input.kiosk
+      ? [
+          line(
+            "Taken",
+            input.kiosk.mode === "staff"
+              ? `At the counter by ${str(input.kiosk.staffName, "a staff member")}`
+              : "At the counter — customer used the kiosk themselves"
+          ),
+          line(
+            "Payment",
+            "NOT charged — no payment link was sent. Take payment at the counter."
+          ),
+        ]
+      : []),
     line("Name", str(customer.customerName, "Not entered")),
     line("Company", str(customer.company, "N/A")),
     line("Email", str(customer.email, "Not entered")),
@@ -562,10 +582,18 @@ export function buildQuoteEmail(input: {
     // Recorded on every quote, opted in or not. The shop needs to be able to
     // say where an address came from, and "box was ticked by default and left
     // ticked" is a materially different answer from "customer ticked it".
+    // A consent record has to describe what the customer was actually shown.
+    // On the website the box arrives ticked, so leaving it ticked and
+    // un-ticking it are different acts; on a kiosk it starts empty, so
+    // "declined" would claim a decision nobody made.
     line(
       "Newsletter",
       customer.newsletterOptIn === true
-        ? "Opted in (box shipped pre-ticked)"
+        ? input.kiosk
+          ? "Opted in (box started empty — ticked deliberately)"
+          : "Opted in (box shipped pre-ticked)"
+        : input.kiosk
+        ? "Not opted in (box started empty)"
         : "Declined"
     ),
     ``,
@@ -614,6 +642,7 @@ export function buildQuoteEmail(input: {
     notes: str(customer.notes, "No customer notes"),
     customerName: str(customer.customerName, "the customer"),
     customerEmail,
+    kiosk: input.kiosk,
   });
 
   return { subject, text, html, replyTo: customerEmail || undefined };
@@ -699,8 +728,23 @@ function buildHtml(input: {
   notes: string;
   customerName: string;
   customerEmail: string;
+  kiosk?: { mode: "self" | "staff"; staffName: string } | null;
 }) {
   const customerLines = [
+    ...(input.kiosk
+      ? [
+          line(
+            "Taken",
+            input.kiosk.mode === "staff"
+              ? `At the counter by ${str(input.kiosk.staffName, "a staff member")}`
+              : "At the counter — customer used the kiosk themselves"
+          ),
+          line(
+            "Payment",
+            "NOT charged — no payment link was sent. Take payment at the counter."
+          ),
+        ]
+      : []),
     line("Name", str(input.customer.customerName, "Not entered")),
     line("Company", str(input.customer.company, "N/A")),
     line("Email", str(input.customer.email, "Not entered")),
@@ -714,7 +758,11 @@ function buildHtml(input: {
     line(
       "Newsletter",
       input.customer.newsletterOptIn === true
-        ? "Opted in (box shipped pre-ticked)"
+        ? input.kiosk
+          ? "Opted in (box started empty — ticked deliberately)"
+          : "Opted in (box shipped pre-ticked)"
+        : input.kiosk
+        ? "Not opted in (box started empty)"
         : "Declined"
     ),
   ];
@@ -771,6 +819,7 @@ export async function sendQuoteEmail(input: {
   artworkDelivery?: ArtworkDeliveryEntry[];
   proofs?: { designId: string; filename: string }[];
   knockouts?: { designId: string; filename: string }[];
+  kiosk?: { mode: "self" | "staff"; staffName: string } | null;
   proofsDropped?: boolean;
 }): Promise<QuoteEmailResult> {
   const provider = getEmailProvider();

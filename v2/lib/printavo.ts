@@ -652,6 +652,12 @@ export function buildPrintavoQuotePlan(input: {
   artworkAnalysis: AnyRecord | null;
   attachmentInfo?: string;
 }): PrintavoQuotePlan {
+  /**
+   * Set when the order was taken on the shop's own terminal. Read straight
+   * off the order so this stays a pure mapping — the route decides what a
+   * kiosk order MEANS (no payment link); this only reports it.
+   */
+  const kiosk = (input.order.kiosk as AnyRecord | null) || null;
   const { quoteNumber, order, artworkAnalysis, attachmentInfo } = input;
 
   const customer = (order.customer as AnyRecord) || {};
@@ -763,15 +769,19 @@ export function buildPrintavoQuotePlan(input: {
     productNeedsHandPricing || addOns.some((a) => Boolean(a.quoteRequired));
   const isSpecialOrder = Boolean(product.specialOrder);
 
+  // The nickname is what the shop scans in the Printavo list, so a counter
+  // order has to be identifiable there and not just inside the note.
+  const nicknamePrefix = kiosk ? "IN STORE" : "WEB QUOTE";
+
   const nickname = apparel
-    ? `WEB QUOTE ${quoteNumber} - ${quantity} ${garmentLabel}${
+    ? `${nicknamePrefix} ${quoteNumber} - ${quantity} ${garmentLabel}${
         isSpecialOrder ? " (SPECIAL ORDER - NEEDS QUOTE)" : ""
       }`
     : signs
-    ? `WEB QUOTE ${quoteNumber} - ${quantity} ${signLabel}${
+    ? `${nicknamePrefix} ${quoteNumber} - ${quantity} ${signLabel}${
         productNeedsHandPricing ? " (NEEDS PRICING)" : ""
       }`
-    : `WEB QUOTE ${quoteNumber} - ${quantity} Stickers${
+    : `${nicknamePrefix} ${quoteNumber} - ${quantity} Stickers${
         stickerItems.length > 1 ? ` / ${stickerItems.length} designs` : ""
       }`;
 
@@ -832,9 +842,21 @@ export function buildPrintavoQuotePlan(input: {
       );
 
   const customerNote = [
-    `GORILLA ORDER WEB QUOTE — ${quoteNumber}`,
+    kiosk
+      ? `GORILLA ORDER — TAKEN IN STORE — ${quoteNumber}`
+      : `GORILLA ORDER WEB QUOTE — ${quoteNumber}`,
     "",
-    "Submitted from the Gorilla Order website. NOT yet reviewed or confirmed.",
+    kiosk
+      ? str(kiosk.mode) === "staff"
+        ? `Written up at the counter by ${str(kiosk.staffName, "a staff member")}. NOT yet reviewed or confirmed.`
+        : "Customer used the in-store kiosk themselves. NOT yet reviewed or confirmed."
+      : "Submitted from the Gorilla Order website. NOT yet reviewed or confirmed.",
+    ...(kiosk
+      ? [
+          "",
+          "*** NO PAYMENT LINK WAS SENT - TAKE PAYMENT AT THE COUNTER ***",
+        ]
+      : []),
     "",
     "CUSTOMER",
     `Name: ${str(customer.customerName, "Not entered")}`,
@@ -898,7 +920,8 @@ export function buildPrintavoQuotePlan(input: {
     // Tags are sent raw, not through asciiSafe() — keep them ASCII.
     tags: [
       "#GorillaOrder",
-      "#WebQuote",
+      // Two different jobs to work, so two different tags to filter on.
+      ...(kiosk ? ["#InStore", "#PayAtCounter"] : ["#WebQuote"]),
       "#Unconfirmed",
       ...(needsHandPricing ? ["#NeedsPricing"] : []),
       ...(addOnLines.length ? ["#Upsell"] : []),

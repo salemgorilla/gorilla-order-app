@@ -951,22 +951,45 @@ export default function Home() {
       event.preventDefault();
     };
 
-    const onDrop = (event: DragEvent) => {
+    /**
+     * Swallow drops that land OUTSIDE an upload box, and nothing more.
+     *
+     * Without this the browser navigates away to the dropped file and the
+     * order in progress is gone. That is the whole job — this listener must
+     * never upload anything, because it cannot know which design was aimed at.
+     *
+     * It used to call handleArtworkUpload(file) with no design id, on the
+     * WINDOW in the capture phase, so it ran before the box that was actually
+     * dropped on. Two things went wrong at once, and both were invisible:
+     *
+     *   No design id means design 1. Dropping artwork on design 2 assigned it
+     *   to design 2 via the box AND to design 1 via this listener — silently
+     *   replacing whatever design 1 already had. Verified in a browser: one
+     *   drop on the second box, both boxes reporting the same file.
+     *
+     *   The handler was captured once, at mount, with an empty dependency
+     *   list and a lint suppression claiming it was stable. It is not: it
+     *   closes over `order` and the flow flags, so after "Start a new quote"
+     *   it targeted a design id that no longer existed, and after switching
+     *   to signs it still believed it was uploading a sticker.
+     *
+     * Each UploadBox owns its own onDrop and knows its own design. That is
+     * the only place a dropped file can be routed correctly.
+     */
+    const swallowStrayDrop = (event: DragEvent) => {
       if (!event.dataTransfer?.types?.includes("Files")) return;
+      // Not inside a drop zone — the boxes call preventDefault themselves and
+      // stop this from ever seeing their drops.
       event.preventDefault();
-      const file = event.dataTransfer.files?.[0];
-      if (file) handleArtworkUpload(file);
     };
 
-    window.addEventListener("dragover", allowDrop, true);
-    window.addEventListener("drop", onDrop, true);
+    window.addEventListener("dragover", allowDrop);
+    window.addEventListener("drop", swallowStrayDrop);
 
     return () => {
-      window.removeEventListener("dragover", allowDrop, true);
-      window.removeEventListener("drop", onDrop, true);
+      window.removeEventListener("dragover", allowDrop);
+      window.removeEventListener("drop", swallowStrayDrop);
     };
-    // handleArtworkUpload is stable for the life of the page.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleArtworkUpload(file: File, itemId?: string) {

@@ -1351,6 +1351,10 @@ export default function Home() {
         artMargin: item.artMargin,
         magentaCutLine: item.magentaCutLine,
         artworkFileName: item.artwork.file?.name || null,
+        // Prepress has to know before it opens anything: a die cut off a solid
+        // background is a rectangle until someone knocks the background out.
+        hasTransparentEdges:
+          itemAnalyses[item.id]?.hasTransparentEdges ?? null,
       })),
       // The order-level slot stays for the shop email's existing artwork
       // block; per-design files are named on each item above.
@@ -1696,6 +1700,8 @@ export default function Home() {
             artScale: item.artScale,
             artMargin: item.artMargin,
             magentaCutLine: item.magentaCutLine,
+            hasTransparentEdges:
+              itemAnalyses[item.id]?.hasTransparentEdges ?? null,
           });
 
           if (!proof) continue;
@@ -2585,6 +2591,9 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                         magentaDetected={Boolean(
                           itemAnalyses[item.id]?.magentaDetected
                         )}
+                        hasTransparentEdges={
+                          itemAnalyses[item.id]?.hasTransparentEdges ?? null
+                        }
                         fieldErrors={itemFieldErrors[item.id] || {}}
                         // Delivery is an order-level choice, so only the first
                         // card offers it — three "ship or pick up?" questions
@@ -2701,6 +2710,26 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                         previewUrl={itemPreviews[item.id] || null}
                         error={itemFieldErrors[item.id]?.artwork}
                       />
+
+                      {/* Under the box the file was just dropped into.
+                          A die cut follows the edge of the ARTWORK, and that
+                          edge comes from the file's transparency — so a JPEG,
+                          or a PNG flattened onto white, cuts as a rectangle.
+                          The customer finds out here, while they can still
+                          send a better file, instead of from a proof that
+                          looks nothing like the sticker they pictured. */}
+                      {item.artwork.file &&
+                        item.shape === "Die Cut" &&
+                        itemAnalyses[item.id]?.hasTransparentEdges === false && (
+                          <p className="mt-3 bg-[var(--surface-warn)] p-3 text-sm font-bold leading-5 text-[var(--ink-warn)]">
+                            This file has a solid background, so a die cut would
+                            follow the edge of the image — a rectangle, not the
+                            shape of your design. Send a PNG with a transparent
+                            background for a contour cut, or leave it with us:
+                            Gorilla Salem will knock the background out and send
+                            you a proof before printing.
+                          </p>
+                        )}
                     </DesignCard>
                   ))}
                 </div>

@@ -206,8 +206,14 @@ export default function UploadBox({
             <>Maximum file size: {ceilingLabel}</>
           ) : (
             <>
-              Files up to {ceilingLabel} upload here. Larger artwork is fine —
-              submit the quote and we&rsquo;ll collect it by email.
+              {/* Explicit space. The text that follows spans two source
+                  lines, and JSX trims the leading whitespace of a multi-line
+                  text node — which rendered "3.5 MBupload here." on the
+                  upload box. ArtworkGuidance says the same thing on one line
+                  and is unaffected, which is why only this copy broke. */}
+              Files up to {ceilingLabel}{" "}
+              upload here. Larger artwork is fine — submit the quote and
+              we&rsquo;ll collect it by email.
             </>
           )}
         </p>

@@ -578,6 +578,14 @@ function describeStickerSpec(spec: AnyRecord, quantity: number) {
     // identically and the shop has no way to tell which row is which — the
     // other half of CART-PLAN bug 3.
     `Artwork file: ${str(spec.artworkFileName, "none uploaded")}`,
+    // Only when we actually looked and found a solid background. Unknown
+    // (vector files we cannot raster-inspect) says nothing rather than
+    // guessing, and a clean transparent file needs no line at all.
+    ...(spec.hasTransparentEdges === false && str(spec.shape) === "Die Cut"
+      ? [
+          "*** SOLID BACKGROUND - knock out before cutting, or the cut is a rectangle ***",
+        ]
+      : []),
   ].join("\n");
 }
 

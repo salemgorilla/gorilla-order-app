@@ -395,6 +395,17 @@ export function buildQuoteEmail(input: {
       const lines = [
         line("Spec", spec || "Not specified"),
         line("File", fileName || "No file uploaded"),
+        // Said in words, in the block for the design it applies to. A shop
+        // reading "Die Cut" and seeing a rectangular proof should not have to
+        // work out why.
+        ...(item.hasTransparentEdges === false && str(item.shape) === "Die Cut"
+          ? [
+              line(
+                "*** Background",
+                "SOLID — knock it out before cutting, or the cut follows the image edge"
+              ),
+            ]
+          : []),
         line("Delivery", entry ? entry.status : "No file uploaded"),
         // What the customer saw on screen and pressed submit on. Named per
         // design, because "our proof is attached" is not an answer when three

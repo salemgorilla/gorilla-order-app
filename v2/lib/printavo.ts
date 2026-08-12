@@ -586,6 +586,16 @@ function describeStickerSpec(spec: AnyRecord, quantity: number) {
           "*** SOLID BACKGROUND - knock out before cutting, or the cut is a rectangle ***",
         ]
       : []),
+    // Ours, automated, and unchecked by anyone. Prepress has to be told, or a
+    // knocked-out file arrives looking like something the customer supplied.
+    ...(spec.backgroundRemoved
+      ? [
+          `Background removed in-app at customer request (${str(
+            spec.backgroundRemovedColor,
+            "flat colour"
+          )}) - CHECK the knockout; original file also attached to the quote email`,
+        ]
+      : []),
   ].join("\n");
 }
 

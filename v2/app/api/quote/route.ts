@@ -51,6 +51,8 @@ type ParsedQuoteRequest = {
   artworkAnalysis: Record<string, unknown> | null;
   /** Every design's artwork, keyed by design id. */
   artworkParts: ArtworkPart[];
+  /** Background-removed copies, keyed by design id. Original always sent too. */
+  knockoutParts: { id: string; file: File }[];
   /** Our rendered proof for each design, keyed by design id. */
   proofParts: { id: string; file: File }[];
   /** True when the browser had proofs it could not fit in the request body. */
@@ -84,6 +86,10 @@ async function parseQuoteRequest(request: Request): Promise<ParsedQuoteRequest> 
     // moment one design has no file, quietly pairing every later file with the
     // wrong design — the exact bug CART-PLAN calls out.
     const inlineFiles = collectKeyed(form, "artwork:");
+    // Artwork with its background knocked out in the browser, when the
+    // customer ticked the box. Rides alongside the original, never instead
+    // of it — see lib/background-removal.ts.
+    const knockouts = collectKeyed(form, "knockout:");
     const blobUrls = collectKeyed(form, "artworkUrl:");
     const blobNames = collectKeyed(form, "artworkName:");
     const blobSizes = collectKeyed(form, "artworkSize:");
@@ -151,6 +157,9 @@ async function parseQuoteRequest(request: Request): Promise<ParsedQuoteRequest> 
       artworkAnalysis:
         typeof analysisRaw === "string" ? JSON.parse(analysisRaw) : null,
       artworkParts,
+      knockoutParts: [...knockouts.entries()]
+        .filter(([, value]) => typeof value !== "string")
+        .map(([id, value]) => ({ id, file: value as File })),
       proofParts,
       proofsDropped: form.get("proofsDropped") === "true",
     };
@@ -162,6 +171,7 @@ async function parseQuoteRequest(request: Request): Promise<ParsedQuoteRequest> 
     order: body.order ?? body,
     artworkAnalysis: body.artworkAnalysis ?? null,
     artworkParts: [],
+    knockoutParts: [],
     proofParts: [],
     proofsDropped: false,
   };
@@ -324,7 +334,14 @@ function generateQuoteNumber() {
 
 export async function POST(request: Request) {
   try {
-    const { order, artworkAnalysis, artworkParts, proofParts, proofsDropped } =
+    const {
+      order,
+      artworkAnalysis,
+      artworkParts,
+      knockoutParts,
+      proofParts,
+      proofsDropped,
+    } =
       await parseQuoteRequest(request);
 
     const quoteNumber = generateQuoteNumber();
@@ -360,6 +377,16 @@ export async function POST(request: Request) {
       proofParts.map(async (part) => ({
         designId: part.id,
         filename: part.file.name || "gorilla-proof.png",
+        content: Buffer.from(await part.file.arrayBuffer()).toString("base64"),
+      }))
+    );
+
+    // Background-removed copies. The browser already checked these against the
+    // same inline budget as the artwork, so they need no second gate here.
+    const knockoutAttachments = await Promise.all(
+      knockoutParts.map(async (part) => ({
+        designId: part.id,
+        filename: part.file.name || "artwork-no-background.png",
         content: Buffer.from(await part.file.arrayBuffer()).toString("base64"),
       }))
     );
@@ -586,6 +613,10 @@ export async function POST(request: Request) {
       // compare what was sent against what was approved — design by design.
       attachments: [
         ...attachments,
+        ...knockoutAttachments.map(({ filename, content }) => ({
+          filename,
+          content,
+        })),
         ...proofAttachments.map(({ filename, content }) => ({
           filename,
           content,
@@ -600,6 +631,10 @@ export async function POST(request: Request) {
       // belongs to instead of in one shared row.
       artworkDelivery,
       proofs: proofAttachments.map(({ designId, filename }) => ({
+        designId,
+        filename,
+      })),
+      knockouts: knockoutAttachments.map(({ designId, filename }) => ({
         designId,
         filename,
       })),

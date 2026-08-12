@@ -8,6 +8,7 @@ import DesignCard from "../components/DesignCard";
 import TemplateDesigner from "../components/TemplateDesigner";
 import StepFooter from "../components/StepFooter";
 import UploadBox from "../components/upload/UploadBox";
+import BackgroundRemovalControl from "../components/upload/BackgroundRemovalControl";
 import ArtworkGuidance from "../components/upload/ArtworkGuidance";
 import NeedByDate from "../components/NeedByDate";
 import CustomerForm from "../components/CustomerForm";
@@ -76,6 +77,11 @@ import {
 import { uploadArtworkToBlob } from "../lib/artwork-upload";
 import { renderStickerProof } from "../lib/sticker-proof";
 import {
+  isRemovalFailure,
+  removeBackground,
+  type BackgroundRemovalResult,
+} from "../lib/background-removal";
+import {
   formatSizeLabel,
   sanitizeSizeInches,
   snapQuantity,
@@ -136,6 +142,32 @@ export default function Home() {
   const [itemAnalyses, setItemAnalyses] = useState<
     Record<string, ArtworkAnalysis | null>
   >({});
+  /**
+   * Background knocked out of a design's artwork, when the customer asked for
+   * it. Keyed by design, and kept ALONGSIDE the original rather than replacing
+   * it: unticking the box has to give them their file back untouched, and the
+   * shop is sent both either way.
+   */
+  const [itemKnockouts, setItemKnockouts] = useState<
+    Record<string, BackgroundRemovalResult>
+  >({});
+  /** Why a knockout could not be done, per design. */
+  const [itemKnockoutErrors, setItemKnockoutErrors] = useState<
+    Record<string, string>
+  >({});
+  /**
+   * The customer's INTENT, tracked separately from the result.
+   *
+   * The checkbox is controlled, and the removal takes a moment. Binding the
+   * box to the finished knockout meant ticking it appeared to do nothing until
+   * the work landed — a control that ignores you is a broken control. This
+   * flips immediately; the knockout catches up, and on failure this goes back
+   * to false so the box never claims something we did not do.
+   */
+  const [knockoutWanted, setKnockoutWanted] = useState<Record<string, boolean>>(
+    {}
+  );
+  const [knockoutBusyId, setKnockoutBusyId] = useState<string | null>(null);
   const [artworkAnalysis, setArtworkAnalysis] =
     useState<ArtworkAnalysis | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -727,8 +759,17 @@ export default function Home() {
       URL.revokeObjectURL(preview);
     }
 
+    // Same for the knockout, which pins a second blob for this design.
+    const knockout = itemKnockouts[itemId];
+    if (knockout) {
+      URL.revokeObjectURL(knockout.previewUrl);
+    }
+
     setItemPreviews(({ [itemId]: _removed, ...rest }) => rest);
     setItemAnalyses(({ [itemId]: _dropped, ...rest }) => rest);
+    setItemKnockouts(({ [itemId]: _knockout, ...rest }) => rest);
+    setItemKnockoutErrors(({ [itemId]: _error, ...rest }) => rest);
+    setKnockoutWanted(({ [itemId]: _wanted, ...rest }) => rest);
 
     setOrder(
       recalculateOrder({
@@ -921,6 +962,17 @@ export default function Home() {
 
     if (isStickers) {
       setItemPreviews((prev) => ({ ...prev, [targetId]: previewUrl }));
+
+      // A knockout belongs to the file it was cut from. Replacing the file
+      // and keeping it would preview, proof and ship the OLD design's
+      // silhouette against the new artwork's name.
+      const staleKnockout = itemKnockouts[targetId];
+      if (staleKnockout) {
+        URL.revokeObjectURL(staleKnockout.previewUrl);
+        setItemKnockouts(({ [targetId]: _stale, ...rest }) => rest);
+      }
+      setItemKnockoutErrors(({ [targetId]: _cleared, ...rest }) => rest);
+      setKnockoutWanted(({ [targetId]: _wanted, ...rest }) => rest);
     } else {
       setArtworkPreview(previewUrl);
     }
@@ -972,6 +1024,75 @@ export default function Home() {
         ),
       };
     });
+  }
+
+  /**
+   * Knock the background out of one design's artwork, or put it back.
+   *
+   * The customer's ORIGINAL file is never replaced — the knockout is stored
+   * beside it, so unticking the box returns them to exactly what they
+   * uploaded, and the shop receives both regardless. See lib/background-
+   * removal.ts for why this refuses more often than it tries.
+   */
+  /**
+   * The artwork as the sticker will be made from it.
+   *
+   * Everything that depicts the finished product — the live preview, the
+   * emailed proof — must read this rather than the raw upload, or the customer
+   * approves one picture and the shop is briefed from another. The raw upload
+   * is still what `itemPreviews` holds, and the before/after control shows it.
+   */
+  function getEffectivePreview(itemId: string) {
+    return itemKnockouts[itemId]?.previewUrl ?? itemPreviews[itemId] ?? null;
+  }
+
+  async function toggleBackgroundRemoval(itemId: string, wanted: boolean) {
+    const existing = itemKnockouts[itemId];
+
+    setKnockoutWanted((prev) => ({ ...prev, [itemId]: wanted }));
+
+    if (!wanted) {
+      if (existing) URL.revokeObjectURL(existing.previewUrl);
+      setItemKnockouts(({ [itemId]: _removed, ...rest }) => rest);
+      setItemKnockoutErrors(({ [itemId]: _cleared, ...rest }) => rest);
+      return;
+    }
+
+    const file = order.items.find((item) => item.id === itemId)?.artwork.file;
+    if (!file) {
+      setKnockoutWanted((prev) => ({ ...prev, [itemId]: false }));
+      return;
+    }
+
+    setKnockoutBusyId(itemId);
+    setItemKnockoutErrors(({ [itemId]: _cleared, ...rest }) => rest);
+
+    const result = await removeBackground(file);
+
+    setKnockoutBusyId(null);
+
+    if (isRemovalFailure(result)) {
+      // Back to unticked. Leaving it ticked beside an error would say we
+      // removed a background we did not touch.
+      setKnockoutWanted((prev) => ({ ...prev, [itemId]: false }));
+      // Say which of the things went wrong. "Couldn't do it" gives the
+      // customer nothing to act on; "the background isn't one flat colour"
+      // tells them why their photo was never going to work.
+      const message =
+        result.reason === "background-not-flat"
+          ? "The background isn't one flat colour, so we can't remove it cleanly here. Send us the file and we'll cut it out by hand before printing."
+          : result.reason === "nothing-to-remove"
+          ? "We couldn't find a background to remove around the edge of this file."
+          : result.reason === "not-an-image"
+          ? "We can only do this on an image file (PNG or JPG). Send it over and we'll handle this one by hand."
+          : "Something went wrong removing the background. Send the file as it is and we'll take care of it.";
+
+      setItemKnockoutErrors((prev) => ({ ...prev, [itemId]: message }));
+      return;
+    }
+
+    if (existing) URL.revokeObjectURL(existing.previewUrl);
+    setItemKnockouts((prev) => ({ ...prev, [itemId]: result }));
   }
 
   function updateSignsQuote(updates: Partial<typeof signsQuote>) {
@@ -1353,8 +1474,14 @@ export default function Home() {
         artworkFileName: item.artwork.file?.name || null,
         // Prepress has to know before it opens anything: a die cut off a solid
         // background is a rectangle until someone knocks the background out.
-        hasTransparentEdges:
-          itemAnalyses[item.id]?.hasTransparentEdges ?? null,
+        // A knockout answers that question, so it reports as resolved.
+        hasTransparentEdges: itemKnockouts[item.id]
+          ? true
+          : itemAnalyses[item.id]?.hasTransparentEdges ?? null,
+        /** The customer asked us to knock the background out, and we did. */
+        backgroundRemoved: Boolean(itemKnockouts[item.id]),
+        backgroundRemovedColor:
+          itemKnockouts[item.id]?.backgroundColor ?? null,
       })),
       // The order-level slot stays for the shop email's existing artwork
       // block; per-design files are named on each item above.
@@ -1648,6 +1775,34 @@ export default function Home() {
         inlineBytesUsed += part.file.size;
       }
 
+      /**
+       * The knocked-out artwork, alongside the original it was made from.
+       *
+       * Sent so prepress has the file the customer actually approved rather
+       * than having to redo the matting and hope it lands in the same place.
+       * It is a HEAD START, never the deliverable — the original is always
+       * there to work from, which is why this yields the budget to it and is
+       * dropped first if the body is tight.
+       */
+      for (const item of order.items) {
+        const knockout = itemKnockouts[item.id];
+        if (!knockout) continue;
+
+        if (
+          inlineBytesUsed + knockout.file.size >
+          MAX_INLINE_ARTWORK_TOTAL_BYTES
+        ) {
+          continue;
+        }
+
+        formData.append(
+          `knockout:${item.id}`,
+          knockout.file,
+          knockout.file.name
+        );
+        inlineBytesUsed += knockout.file.size;
+      }
+
       // Named, not silently missing. The shop needs to know which design's
       // file to chase, and the customer's quote still goes through.
       if (droppedArtwork.length) {
@@ -1681,7 +1836,7 @@ export default function Home() {
 
       if (isStickers) {
         for (const [index, item] of order.items.entries()) {
-          const preview = itemPreviews[item.id];
+          const preview = getEffectivePreview(item.id);
           if (!preview) continue;
 
           // Falls back to the preset label, which is a square, when the
@@ -1700,8 +1855,13 @@ export default function Home() {
             artScale: item.artScale,
             artMargin: item.artMargin,
             magentaCutLine: item.magentaCutLine,
-            hasTransparentEdges:
-              itemAnalyses[item.id]?.hasTransparentEdges ?? null,
+            // A knockout IS the transparency, so the proof must stop warning
+            // about a background that is no longer there — it is rendering the
+            // knocked-out art, and saying otherwise would contradict the
+            // picture directly above the caption.
+            hasTransparentEdges: itemKnockouts[item.id]
+              ? true
+              : itemAnalyses[item.id]?.hasTransparentEdges ?? null,
           });
 
           if (!proof) continue;
@@ -1725,7 +1885,7 @@ export default function Home() {
 
         // Named, so "Our proof" in the shop email can never imply every design
         // got one when the body ran out of room partway through.
-        if (proofsAttached < order.items.filter((i) => itemPreviews[i.id]).length) {
+        if (proofsAttached < order.items.filter((i) => getEffectivePreview(i.id)).length) {
           formData.append("proofsDropped", "true");
         }
       }
@@ -2040,8 +2200,15 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     // quote used to strand one object URL per design for the life of the tab.
     // (CART-PLAN bug 2.)
     Object.values(itemPreviews).forEach((url) => URL.revokeObjectURL(url));
+    // Knockouts hold an object URL each, on exactly the same terms.
+    Object.values(itemKnockouts).forEach((knockout) =>
+      URL.revokeObjectURL(knockout.previewUrl)
+    );
     setItemPreviews({});
     setItemAnalyses({});
+    setItemKnockouts({});
+    setItemKnockoutErrors({});
+    setKnockoutWanted({});
 
     // A fresh item, not the one baked into defaultOrder at import time —
     // reusing it would hand every reset order the same design id, and ids are
@@ -2211,7 +2378,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
           )}
 
           <DecalPreviewCard
-            artworkPreview={itemPreviews[item.id] || null}
+            artworkPreview={getEffectivePreview(item.id)}
             product={item}
             production={order.production}
             unitPrice={getItemUnitPrice(item)}
@@ -2715,20 +2882,25 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                           A die cut follows the edge of the ARTWORK, and that
                           edge comes from the file's transparency — so a JPEG,
                           or a PNG flattened onto white, cuts as a rectangle.
-                          The customer finds out here, while they can still
-                          send a better file, instead of from a proof that
+                          The customer finds out here, while they can still do
+                          something about it, instead of from a proof that
                           looks nothing like the sticker they pictured. */}
                       {item.artwork.file &&
                         item.shape === "Die Cut" &&
                         itemAnalyses[item.id]?.hasTransparentEdges === false && (
-                          <p className="mt-3 bg-[var(--surface-warn)] p-3 text-sm font-bold leading-5 text-[var(--ink-warn)]">
-                            This file has a solid background, so a die cut would
-                            follow the edge of the image — a rectangle, not the
-                            shape of your design. Send a PNG with a transparent
-                            background for a contour cut, or leave it with us:
-                            Gorilla Salem will knock the background out and send
-                            you a proof before printing.
-                          </p>
+                          <BackgroundRemovalControl
+                            active={Boolean(knockoutWanted[item.id])}
+                            ready={Boolean(itemKnockouts[item.id])}
+                            busy={knockoutBusyId === item.id}
+                            error={itemKnockoutErrors[item.id]}
+                            originalUrl={itemPreviews[item.id] || null}
+                            knockoutUrl={
+                              itemKnockouts[item.id]?.previewUrl ?? null
+                            }
+                            onToggle={(wanted) =>
+                              toggleBackgroundRemoval(item.id, wanted)
+                            }
+                          />
                         )}
                     </DesignCard>
                   ))}

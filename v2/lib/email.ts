@@ -111,6 +111,8 @@ export function buildQuoteEmail(input: {
   artworkDelivery?: ArtworkDeliveryEntry[];
   /** Our rendered proof for each design, by design id. */
   proofs?: { designId: string; filename: string }[];
+  /** Background-removed artwork, by design id. The original is attached too. */
+  knockouts?: { designId: string; filename: string }[];
   /** True when the browser had proofs it could not fit in the request body. */
   proofsDropped?: boolean;
 }) {
@@ -362,6 +364,9 @@ export function buildQuoteEmail(input: {
   const proofByDesign = new Map(
     proofs.map((proof) => [proof.designId, proof.filename])
   );
+  const knockoutByDesign = new Map(
+    (input.knockouts ?? []).map((entry) => [entry.designId, entry.filename])
+  );
   const artworkGroups: LineGroup[] = [];
 
   // The template brief, when the customer personalised one of ours instead of
@@ -403,6 +408,24 @@ export function buildQuoteEmail(input: {
               line(
                 "*** Background",
                 "SOLID — knock it out before cutting, or the cut follows the image edge"
+              ),
+            ]
+          : []),
+        // The customer asked us to remove it and we did, in their browser.
+        // Prepress needs to know the attached knockout is OURS and unchecked,
+        // not something they supplied — and that the original is there to
+        // redo it from if our matting is not good enough to print.
+        ...(item.backgroundRemoved
+          ? [
+              line(
+                "Background removed",
+                `Yes — ${str(
+                  item.backgroundRemovedColor,
+                  "flat colour"
+                )} knocked out in the browser at the customer's request. ${
+                  knockoutByDesign.get(str(item.id)) ??
+                  "(file too large to attach)"
+                } — CHECK IT; the original is attached too.`
               ),
             ]
           : []),
@@ -747,6 +770,7 @@ export async function sendQuoteEmail(input: {
   attachmentInfo?: string;
   artworkDelivery?: ArtworkDeliveryEntry[];
   proofs?: { designId: string; filename: string }[];
+  knockouts?: { designId: string; filename: string }[];
   proofsDropped?: boolean;
 }): Promise<QuoteEmailResult> {
   const provider = getEmailProvider();

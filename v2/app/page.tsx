@@ -1341,11 +1341,32 @@ export default function Home() {
   }
 
   function buildQuotePayload() {
+    /**
+     * Order-level fields, on every quote whatever the flow.
+     *
+     * These used to be typed out again in each branch. The sticker branch
+     * spreads the whole order and so picked up add-ons for free; signs and
+     * apparel enumerate their fields and simply never listed addOns or
+     * addOnsNote — so the "Add to this quote" strip, which renders once for
+     * ALL THREE flows, threw the customer's answer away on two of them. They
+     * ticked a banner onto a signs order and the shop was never told.
+     *
+     * Naming the envelope once is the fix. The next order-level field is
+     * added here and reaches every flow, instead of reaching whichever branch
+     * the author happened to be looking at.
+     */
+    const orderEnvelope = {
+      customer: order.customer,
+      production: order.production,
+      addOns: order.addOns,
+      addOnsNote: order.addOnsNote,
+    };
+
     if (isSignsSelected) {
       const product = getSignProduct(signsQuote.productId);
 
       return {
-        customer: order.customer,
+        ...orderEnvelope,
         product: {
           type: "Banners & Signs",
           signType: product.label,
@@ -1369,7 +1390,6 @@ export default function Home() {
               }
             : null,
         },
-        production: order.production,
         pricing: signsPricing.priceable
           ? {
               total: signsPricing.total,
@@ -1390,7 +1410,7 @@ export default function Home() {
 
     if (isApparelSelected) {
       return {
-        customer: order.customer,
+        ...orderEnvelope,
         product: {
           type: "T-Shirts & Apparel",
           garmentType: apparelQuote.garmentType,
@@ -1417,7 +1437,6 @@ export default function Home() {
         artwork: {
           fileName: order.artwork.file?.name || null,
         },
-        production: order.production,
         // A special order gets no online estimate — the menu pricing doesn't
         // describe what they're actually asking for.
         pricing: apparelQuote.specialOrder
@@ -1453,6 +1472,10 @@ export default function Home() {
 
     return {
       ...order,
+      // Redundant here — `...order` already carries these — but stated so all
+      // three branches visibly guarantee the same envelope, and so this one
+      // does not quietly become the only flow that works again.
+      ...orderEnvelope,
       product: {
         ...firstItem,
         quantity: totalQuantity,

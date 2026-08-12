@@ -1165,3 +1165,101 @@ export async function createPrintavoQuote(input: {
     };
   }
 }
+
+export type OrderLookupResult =
+  | { found: true; status: string; visualId: string; quoteNumber: string }
+  /**
+   * One shape for "no such order" AND "that is not the email on it".
+   *
+   * Deliberately indistinguishable. Quote numbers are short and dated, so a
+   * lookup that answered "right number, wrong email" would confirm an order
+   * exists and let someone probe addresses against it. The customer loses
+   * nothing: either way the honest instruction is check the number and the
+   * address on their confirmation.
+   */
+  | { found: false; reason: "no-match" }
+  /** Printavo is unreachable or unconfigured — NOT the same as no such order. */
+  | { found: false; reason: "unavailable"; error?: string };
+
+/**
+ * Look up one order's production status, for the customer-facing tracker.
+ *
+ * Matched on the quote number the app generated, which lives in the Printavo
+ * NICKNAME ("WEB QUOTE GS-20260812-AB12C - ..."), not in visualId — Printavo
+ * assigns that itself and the customer has never seen it.
+ *
+ * ── UNVERIFIED AGAINST THE LIVE ACCOUNT ───────────────────────────────────
+ * The `orders(query:)` connection and the `status { name }` shape below are
+ * written from the published schema, which has already been wrong once for
+ * this integration (lineItems is documented as a nested list and is a flat
+ * one live — see the note in createPrintavoQuote). There are no Printavo
+ * credentials in the environment this was built in, so it could not be run.
+ *
+ * Everything here fails to `unavailable`, never to `no-match`, so a wrong
+ * query shape shows "we couldn't reach our system" rather than telling a
+ * customer with a real order that it does not exist.
+ * ──────────────────────────────────────────────────────────────────────────
+ */
+export async function lookupOrderStatus(input: {
+  quoteNumber: string;
+  email: string;
+}): Promise<OrderLookupResult> {
+  if (!isConfigured()) {
+    return { found: false, reason: "unavailable", error: "Printavo is not configured." };
+  }
+
+  const quoteNumber = input.quoteNumber.trim().toUpperCase();
+  const email = input.email.trim().toLowerCase();
+
+  if (!quoteNumber || !email) return { found: false, reason: "no-match" };
+
+  try {
+    const data = await printavoRequest<{ orders: { nodes: AnyRecord[] } }>(
+      `query GorillaOrderStatus($q: String!) {
+         orders(query: $q, first: 10) {
+           nodes {
+             ... on Quote    { id visualId nickname status { name } contact { email } }
+             ... on Invoice  { id visualId nickname status { name } contact { email } }
+           }
+         }
+       }`,
+      { q: quoteNumber }
+    );
+
+    const nodes = data.orders?.nodes || [];
+
+    // Printavo's search is fuzzy, so confirm the quote number really is in the
+    // nickname rather than trusting whatever the search decided was close.
+    const match = nodes.find((node) =>
+      str(node.nickname).toUpperCase().includes(quoteNumber)
+    );
+
+    if (!match) return { found: false, reason: "no-match" };
+
+    const contact = (match.contact as AnyRecord) || {};
+    // Printavo keeps several addresses in one comma-separated string.
+    const addresses = str(contact.email)
+      .toLowerCase()
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+
+    if (!addresses.includes(email)) return { found: false, reason: "no-match" };
+
+    return {
+      found: true,
+      status: str((match.status as AnyRecord)?.name),
+      visualId: str(match.visualId),
+      quoteNumber,
+    };
+  } catch (error) {
+    // A thrown request is a broken pipe, not a missing order. Saying "no such
+    // order" here would tell a customer holding a real receipt that we have
+    // never heard of them.
+    return {
+      found: false,
+      reason: "unavailable",
+      error: error instanceof Error ? error.message : "Unknown Printavo error.",
+    };
+  }
+}

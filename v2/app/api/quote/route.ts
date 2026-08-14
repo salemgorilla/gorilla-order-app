@@ -205,7 +205,7 @@ async function buildArtworkAttachment(
 }
 
 /** True for the sticker flow, which is the only one that self-checks-out. */
-function isStickerOrder(order: Record<string, unknown>) {
+export function isStickerOrder(order: Record<string, unknown>) {
   const product = (order.product || {}) as Record<string, unknown>;
   const type = String(product.type || "").toLowerCase();
 
@@ -242,7 +242,7 @@ function isStickerOrder(order: Record<string, unknown>) {
  * through: they are hand-quoted or priced by a different engine, and nothing
  * auto-bills them.
  */
-function repriceStickers(order: Record<string, unknown>) {
+export function repriceStickers(order: Record<string, unknown>) {
   const clientPricing = (order.pricing || {}) as Record<string, unknown>;
   const clientTotal = Number(clientPricing.total) || 0;
 

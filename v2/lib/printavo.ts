@@ -834,10 +834,14 @@ export function buildPrintavoQuotePlan(input: {
       ]
         .join("\n")
         .trimEnd()
-    : // One design. `product` carries the spec; the filename lives on the item,
-      // so it is grafted on rather than lost.
+    : // One design. `product` is design 1's spec re-synthesised, but the item
+      // is where anything ADDED to a design lands — the filename, whether the
+      // background is solid, whether we knocked one out. Grafting named fields
+      // one at a time is how the solid-background warning reached Printavo on
+      // a cart and silently never on a single design, which is the common
+      // case. Spread the whole item so a new field is carried by default.
       describeStickerSpec(
-        { ...product, artworkFileName: stickerItems[0]?.artworkFileName },
+        { ...product, ...(stickerItems[0] ?? {}) },
         quantity
       );
 

@@ -31,11 +31,48 @@ export async function GET(request: Request) {
 
   // Header or query string. The query string is there because this gets read
   // on a phone, from a message, by someone who is not going to craft a curl.
-  const provided =
-    request.headers.get("x-admin-secret") || url.searchParams.get("secret");
+  const header = request.headers.get("x-admin-secret");
+  const query = url.searchParams.get("secret");
+  const provided = header || query;
 
   if (provided !== secret) {
-    return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
+    /**
+     * WHY THIS SAYS MORE THAN "Unauthorized".
+     *
+     * The shop spent a run of failed attempts against a bare "Unauthorized."
+     * that could not distinguish "you sent nothing" from "you sent the wrong
+     * thing" — and the usual cause is neither. It is that the secret never
+     * survived the URL: a "#" in the value makes the browser treat the rest as
+     * a fragment and never send it, "&" splits the parameter, and "+" arrives
+     * as a space. All three look identical to a wrong password.
+     *
+     * Saying WHICH leaks nothing about the value. An attacker guessing already
+     * knows whether they sent a parameter. The shop, standing in front of a
+     * dark integration, does not know whether theirs arrived.
+     */
+    const hint = !provided
+      ? "No secret was sent. Append ?secret=... to the URL, or send an x-admin-secret header."
+      : query && !header && / /.test(query)
+      ? // A literal "+" in the value arrives as a space. This is the one
+        // mangling that is visible from here.
+        "The secret arrived containing a space, which usually means a '+' in the value. Send it as an x-admin-secret header instead, or URL-encode it."
+      : // The rest are invisible server-side, which is what `characters` is
+        // for: a "#" truncates the value in the browser and a "&" splits it,
+        // and both arrive looking exactly like a wrong password — just
+        // shorter. Compare the count below against what you pasted.
+        "That secret doesn't match ADMIN_SECRET for this environment. Compare the character count below against the value you pasted: if it is short, a '#' or '&' in the secret cut it off in the URL, and it needs to go in an x-admin-secret header. If the count matches, check you are reading the Production value and not Preview.";
+
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Unauthorized.",
+        hint,
+        // Length only, never content: enough to spot a truncated paste or a
+        // trailing newline, useless for reconstructing the value.
+        received: provided ? { characters: provided.length } : null,
+      },
+      { status: 401 }
+    );
   }
 
   const health = getConfigHealth();

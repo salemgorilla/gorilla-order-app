@@ -69,6 +69,21 @@ function line(label: string, value: string) {
 }
 
 /**
+ * Is this something a mail provider will accept as a recipient?
+ *
+ * Deliberately strict about the one thing that actually breaks: exactly one
+ * "@", a domain with a dot, and no whitespace. A real address that fails this
+ * is vanishingly rare; a typo that passes a looser check is not — the shop had
+ * LEAD_TO_EMAIL set to an address with TWO "@" signs, which every provider
+ * rejects and which nothing in this app noticed, because a non-empty string
+ * was treated as a working address.
+ */
+export function looksLikeEmailAddress(value: unknown) {
+  const address = String(value ?? "").trim();
+  return /^[^@\s]+@[^@\s.]+(\.[^@\s.]+)+$/.test(address);
+}
+
+/**
  * A titled run of "Label: Value" lines.
  *
  * The artwork section is the only one that needs several of these — a cart
@@ -895,8 +910,31 @@ export async function sendShopEmail(input: {
   }
 
   const { to: requestedTo, ...message } = input;
-  const to =
-    requestedTo?.trim() || process.env.QUOTE_TO_EMAIL || "quote@gorillasalem.com";
+
+  const fallback = looksLikeEmailAddress(process.env.QUOTE_TO_EMAIL)
+    ? (process.env.QUOTE_TO_EMAIL as string).trim()
+    : "quote@gorillasalem.com";
+
+  /**
+   * A malformed override is DEMOTED to the main inbox, not sent as-is.
+   *
+   * The previous version passed any non-empty string straight to the provider,
+   * which rejects it — and the abandoned-quote route swallows send failures on
+   * purpose, so a typo in LEAD_TO_EMAIL meant those notices went nowhere and
+   * said nothing. Delivering to the quote inbox is worse than delivering to a
+   * dedicated one, and enormously better than delivering to neither.
+   */
+  let to = fallback;
+
+  if (requestedTo?.trim()) {
+    if (looksLikeEmailAddress(requestedTo)) {
+      to = requestedTo.trim();
+    } else {
+      console.error(
+        `EMAIL RECIPIENT INVALID: "${requestedTo.trim()}" is not a usable address. Sending to ${fallback} instead. Fix the environment variable that set it.`
+      );
+    }
+  }
 
   try {
     const args: SendArgs = { to, ...message, attachments: [] };

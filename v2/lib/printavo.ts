@@ -44,6 +44,22 @@ function num(value: unknown, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+/**
+ * A cash amount, to the cent.
+ *
+ * Fee and shipping lines are totals sent at count 1, and they are built by
+ * multiplying a per-piece rate by a quantity — which in binary floating point
+ * produces values like 25.950000000000003. Printavo stores 4dp and rounds, so
+ * this never moved money; it just meant a quarter of all apparel orders posted
+ * a nonsense number to the API and showed it to anyone reading the raw quote.
+ *
+ * NOT applied to per-piece prices on the goods line: those are deliberately
+ * 4dp, because a decal at $0.1725 each is a real price and $0.17 is not.
+ */
+function money(value: unknown, fallback = 0) {
+  return Math.round(num(value, fallback) * 100) / 100;
+}
+
 function isApparel(product: AnyRecord) {
   return (
     str(product.type).toLowerCase().includes("apparel") ||
@@ -715,15 +731,20 @@ export function buildPrintavoQuotePlan(input: {
   // The decal unit price excludes shipping — shipping becomes its own line
   // item so the Printavo total matches the website total.
   const itemsSubtotal = apparel
-    ? total
+    ? // Garments only. Printing and screens are their own lines below, so
+      // folding them in here would bill them twice.
+      num(pricing.garmentTotal, total)
     : signsProductLine
     ? // creditTotal is negative, so this subtracts.
       Math.max(0, num(signsProductLine.amount) + creditTotal)
     : num(pricing.stickerPrice, total);
 
   const unitPrice =
-    apparel && pricing.unitPrice !== undefined
-      ? num(pricing.unitPrice)
+    // The supplier's marked-up garment price, exact to the cent — NOT
+    // total/quantity, which does not divide evenly and drifts against the
+    // quote once Printavo stores it at 4dp.
+    apparel && pricing.garmentUnitPrice !== undefined
+      ? num(pricing.garmentUnitPrice)
       : quantity > 0
       ? Number((itemsSubtotal / quantity).toFixed(4))
       : itemsSubtotal;
@@ -988,10 +1009,54 @@ export function buildPrintavoQuotePlan(input: {
         ? {
             description: "Shipping",
             itemNumber: "GORILLA-SHIPPING",
-            price: shippingPrice,
+            price: money(shippingPrice),
           }
         : null,
     feeLineItems: [
+      /**
+       * Apparel: printing and screens, broken out of the garment price.
+       *
+       * Apparel used to go to Printavo as ONE line at a blended unit price
+       * covering garments, printing and setup together — the same
+       * "average of things that do not average" the sticker cart was fixed
+       * for. Two consequences, and the second is the one that costs money:
+       *
+       *   The shop could not adjust screens without unpicking a blend, even
+       *   though the quote email had always broken the three out.
+       *
+       *   total/quantity is an infinite-repeating decimal on most orders, and
+       *   Printavo stores a 4dp unit price and multiplies. Swept across 56,000
+       *   quantity/garment/colour/location combinations, the invoice came out
+       *   up to $0.02 ABOVE the quote, growing with quantity. Splitting the
+       *   three removes every division: the garment line carries an exact 2dp
+       *   supplier price, and printing and screens are flat amounts.
+       *
+       * Skipped for a special order, which has no breakdown to split.
+       */
+      ...(apparel && !isSpecialOrder && num(pricing.printTotal) > 0
+        ? [
+            {
+              description: `Printing (${
+                Array.isArray(product.printLocations)
+                  ? (product.printLocations as string[]).length
+                  : 1
+              } location(s), ${str(product.inkColors, "ink TBD")}) - ${quantity} x $${num(
+                pricing.printUnitPrice
+              ).toFixed(2)}`,
+              itemNumber: "GORILLA-APPAREL-PRINT",
+              price: money(pricing.printTotal),
+            },
+          ]
+        : []),
+      ...(apparel && !isSpecialOrder && num(pricing.setupTotal) > 0
+        ? [
+            {
+              description: "Screens / setup",
+              itemNumber: "GORILLA-APPAREL-SETUP",
+              price: money(pricing.setupTotal),
+            },
+          ]
+        : []),
       /**
        * Sticker setup, as its own line.
        *
@@ -1012,7 +1077,7 @@ export function buildPrintavoQuotePlan(input: {
                   ? `Setup and artwork prep (${stickerItems.length} designs)`
                   : "Setup and artwork prep",
               itemNumber: "GORILLA-DECAL-SETUP",
-              price: num(pricing.setupPrice),
+              price: money(pricing.setupPrice),
             },
           ]
         : []),
@@ -1023,7 +1088,7 @@ export function buildPrintavoQuotePlan(input: {
           .replace(/[^A-Z0-9]+/g, "-")
           .slice(0, 24)
           .replace(/-$/, "")}`,
-        price: num(l.amount),
+        price: money(l.amount),
       })),
     ],
     // Taxability follows the GOODS, not whether the flow checks out online.

@@ -5,6 +5,8 @@ import { repriceStickers, isStickerOrder } from "../app/api/quote/route";
 import { buildPrintavoQuotePlan } from "../lib/printavo";
 import { readKioskSession } from "../lib/kiosk";
 import { calculateSignsPricing } from "../lib/signs-pricing";
+import { calculateApparelPricing } from "../lib/apparel-pricing";
+import { apparelCatalog } from "../lib/apparel";
 
 /**
  * The path that takes money, with nobody watching.
@@ -44,14 +46,30 @@ function stickerOrder(
   };
 }
 
-/** What Printavo will actually invoice, from the plan we hand it. */
+/**
+ * What Printavo will actually invoice, from the plan we hand it.
+ *
+ * Every price goes through toFixed(4) FIRST, because that is what Printavo
+ * stores — it keeps a unit price at four decimal places and multiplies by the
+ * count. Summing the raw JavaScript floats instead would reproduce our own
+ * arithmetic and agree with itself no matter what we sent.
+ *
+ * That is not hypothetical. Before this line existed the apparel cases below
+ * passed against the blended single-line code they were written to catch: the
+ * blend only drifts once it is truncated to 4dp.
+ */
 function printavoTotal(plan: ReturnType<typeof buildPrintavoQuotePlan>) {
+  const stored = (price: number) => Number(price.toFixed(4));
+
   const goods = plan.lineItems.reduce(
-    (sum, line) => sum + line.price * line.quantity,
+    (sum, line) => sum + stored(line.price) * line.quantity,
     0
   );
-  const fees = plan.feeLineItems.reduce((sum, fee) => sum + fee.price, 0);
-  const shipping = plan.shippingLineItem?.price ?? 0;
+  const fees = plan.feeLineItems.reduce(
+    (sum, fee) => sum + stored(fee.price),
+    0
+  );
+  const shipping = stored(plan.shippingLineItem?.price ?? 0);
 
   return Math.round((goods + fees + shipping) * 100) / 100;
 }
@@ -411,6 +429,193 @@ describe("signs: Printavo invoices exactly what the site quoted", () => {
 
     if (withQuoted.hasQuotedExtras) {
       assert.equal(withQuoted.total, withoutQuoted.total);
+    }
+  });
+});
+
+describe("apparel: Printavo invoices exactly what the site quoted", () => {
+  /**
+   * Apparel used to go to Printavo as ONE line at a blended unit price
+   * covering garments, printing and screens together — total/quantity, which
+   * is an infinite-repeating decimal on most orders. Printavo stores a 4dp
+   * unit price and multiplies, so the invoice came out ABOVE the quote, and
+   * the gap grew with quantity. Swept across 108,000 combinations the worst
+   * case was $0.02, at q=308.
+   *
+   * Two cents is not the point. It is the same "average of things that do not
+   * average" the sticker cart was already fixed for, arriving on the one flow
+   * that had no tests, and it can only ever come back the same way: by
+   * somebody re-blending the three charges into one line.
+   */
+  const scenarios: Array<[string, Parameters<typeof calculateApparelPricing>[0]]> = [
+    [
+      "a small one-colour front print",
+      { quantity: 24, garmentUnitPrice: 5.49, printLocations: ["Front"], inkColors: "1 color", hasUnderbase: false },
+    ],
+    [
+      // Non-white garment, so the underbase surcharge is in play.
+      "front and back, four colours, on a dark garment",
+      { quantity: 48, garmentUnitPrice: 8.13, printLocations: ["Front", "Back"], inkColors: "4 colors", hasUnderbase: true },
+    ],
+    [
+      // The exact combination the sweep found the old blended line failing on.
+      "the worst case the sweep found",
+      { quantity: 308, garmentUnitPrice: 12.35, printLocations: ["Front", "Back"], inkColors: "4 colors", hasUnderbase: false },
+    ],
+    [
+      // Crosses into the 250+ price break.
+      "a large run at the top break",
+      { quantity: 500, garmentUnitPrice: 6.99, printLocations: ["Front"], inkColors: "5+ colors / Full color / Not sure", hasUnderbase: true },
+    ],
+    [
+      // Quantity 3 is where printUnitPrice * quantity first lands on binary
+      // float noise (8.65 x 3 = 25.950000000000003).
+      "a quantity that produces float noise",
+      { quantity: 3, garmentUnitPrice: 5.49, printLocations: ["Front"], inkColors: "2 colors", hasUnderbase: false },
+    ],
+    [
+      "a single shirt",
+      { quantity: 1, garmentUnitPrice: 23.41, printLocations: ["Front"], inkColors: "3 colors", hasUnderbase: false },
+    ],
+  ];
+
+  const apparelPlan = (input: Parameters<typeof calculateApparelPricing>[0]) =>
+    buildPrintavoQuotePlan({
+      quoteNumber: "GS-TEST",
+      order: {
+        customer: {},
+        production: { deliveryMethod: "Pickup" },
+        product: {
+          type: "T-Shirts & Apparel",
+          garmentType: "T-Shirts",
+          quantity: input.quantity,
+          printLocations: input.printLocations,
+          inkColors: input.inkColors,
+          supplier: { productName: "Gildan 5000", markedUpGarmentPrice: input.garmentUnitPrice },
+        },
+        pricing: {
+          ...calculateApparelPricing(input),
+          quoteRequired: false,
+        },
+      },
+      artworkAnalysis: null,
+    });
+
+  for (const [name, input] of scenarios) {
+    test(`${name}: totals agree to the cent`, () => {
+      const priced = calculateApparelPricing(input);
+      const plan = apparelPlan(input);
+
+      assert.equal(
+        printavoTotal(plan),
+        Math.round(priced.total * 100) / 100,
+        `Printavo would bill ${printavoTotal(plan)} for a ${priced.total} quote`
+      );
+    });
+
+    test(`${name}: every amount sent is a real money value`, () => {
+      // 25.950000000000003 never moved money — Printavo rounds it — but it is
+      // what a quarter of all apparel orders were posting to the API, and it
+      // is what the shop saw reading the raw quote.
+      const plan = apparelPlan(input);
+
+      for (const price of [
+        ...plan.lineItems.map((l) => l.price),
+        ...plan.feeLineItems.map((f) => f.price),
+      ]) {
+        assert.match(
+          JSON.stringify(price),
+          /^-?\d+(\.\d{1,4})?$/,
+          `posted ${JSON.stringify(price)} as a price`
+        );
+      }
+    });
+  }
+
+  test("garments, printing and screens are three separate lines", () => {
+    // This is the assertion that actually stops the regression: the drift only
+    // exists if the three are re-blended into one line.
+    const plan = apparelPlan({
+      quantity: 48, garmentUnitPrice: 8.13,
+      printLocations: ["Front", "Back"], inkColors: "4 colors", hasUnderbase: true,
+    });
+
+    assert.equal(plan.lineItems.length, 1, "the goods line is garments only");
+    assert.ok(
+      plan.feeLineItems.some((f) => f.itemNumber === "GORILLA-APPAREL-PRINT"),
+      "printing must be its own line"
+    );
+    assert.ok(
+      plan.feeLineItems.some((f) => f.itemNumber === "GORILLA-APPAREL-SETUP"),
+      "screens must be their own line"
+    );
+  });
+
+  test("the garment line carries the supplier price, not a blend", () => {
+    const plan = apparelPlan({
+      quantity: 48, garmentUnitPrice: 8.13,
+      printLocations: ["Front"], inkColors: "1 color", hasUnderbase: false,
+    });
+
+    // 8.13 is what S&S charges plus markup, rounded to the cent upstream. A
+    // blended price would be well north of $16 here.
+    assert.equal(plan.lineItems[0].price, 8.13);
+  });
+
+  test("a special order sends no breakdown it does not have", () => {
+    // Special orders are priced by hand and carry no pricing at all. Sending a
+    // $0 printing line, or worse a stale one, would be a charge nobody quoted.
+    const plan = buildPrintavoQuotePlan({
+      quoteNumber: "GS-TEST",
+      order: {
+        customer: {},
+        production: { deliveryMethod: "Pickup" },
+        product: {
+          type: "T-Shirts & Apparel",
+          garmentType: "T-Shirts",
+          quantity: 24,
+          specialOrder: true,
+          supplier: { productName: "Something bespoke" },
+        },
+        pricing: { total: 0, quoteRequired: true },
+      },
+      artworkAnalysis: null,
+    });
+
+    assert.equal(
+      plan.feeLineItems.filter((f) => f.itemNumber.startsWith("GORILLA-APPAREL-")).length,
+      0
+    );
+  });
+
+  test("every ink option the catalogue offers is one the pricer understands", () => {
+    /**
+     * getInkColorCount() reads the leading digit of the option string. That is
+     * exact for the five options apparel ships with — and silently wrong the
+     * day somebody adds "10 colors", which would price as ONE colour: about
+     * $6 per piece and $225 of screens too little on a 48-shirt order.
+     *
+     * So this asserts the catalogue and the pricer agree, rather than
+     * asserting the parser handles a string it will never see.
+     */
+    for (const option of apparelCatalog.inkColors) {
+      const expected = Number(option.charAt(0));
+      const oneColor = calculateApparelPricing({
+        quantity: 10, garmentUnitPrice: 10, printLocations: ["Front"],
+        inkColors: "1 color", hasUnderbase: false,
+      });
+      const priced = calculateApparelPricing({
+        quantity: 10, garmentUnitPrice: 10, printLocations: ["Front"],
+        inkColors: option, hasUnderbase: false,
+      });
+
+      assert.equal(
+        priced.inkColorCount,
+        expected,
+        `"${option}" prices as ${priced.inkColorCount} colour(s)`
+      );
+      // And it has to cost more than one colour, or the count is decorative.
+      if (expected > 1) assert.ok(priced.total > oneColor.total);
     }
   });
 });

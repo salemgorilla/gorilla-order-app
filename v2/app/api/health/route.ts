@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { adminSecretMatches, isAdminSecretConfigured } from "../../../lib/admin-auth";
 import { getConfigHealth } from "../../../lib/config-health";
 
 /**
@@ -14,9 +15,8 @@ import { getConfigHealth } from "../../../lib/config-health";
  * ever say, however convenient that would be for debugging.
  */
 export async function GET(request: Request) {
-  const secret = process.env.ADMIN_SECRET;
-
-  if (!secret) {
+  // A whitespace-only value counts as unset — see lib/admin-auth.
+  if (!isAdminSecretConfigured()) {
     return NextResponse.json(
       {
         ok: false,
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
   const query = url.searchParams.get("secret");
   const provided = header || query;
 
-  if (provided !== secret) {
+  if (!adminSecretMatches(provided)) {
     /**
      * WHY THIS SAYS MORE THAN "Unauthorized".
      *
@@ -50,11 +50,16 @@ export async function GET(request: Request) {
      * knows whether they sent a parameter. The shop, standing in front of a
      * dark integration, does not know whether theirs arrived.
      */
+    const trimmed = (provided ?? "").trim();
+
     const hint = !provided
       ? "No secret was sent. Append ?secret=... to the URL, or send an x-admin-secret header."
-      : query && !header && / /.test(query)
-      ? // A literal "+" in the value arrives as a space. This is the one
-        // mangling that is visible from here.
+      : query && !header && / /.test(trimmed)
+      ? // A literal "+" in the value arrives as a space. Tested on the TRIMMED
+        // value: surrounding whitespace is stripped before comparison now, so
+        // a trailing space is no longer a cause of failure and pointing at it
+        // would send the shop after the wrong thing. An INTERIOR space still
+        // breaks the match and still means a "+".
         "The secret arrived containing a space, which usually means a '+' in the value. Send it as an x-admin-secret header instead, or URL-encode it."
       : // The rest are invisible server-side, which is what `characters` is
         // for: a "#" truncates the value in the browser and a "&" splits it,
@@ -67,9 +72,20 @@ export async function GET(request: Request) {
         ok: false,
         error: "Unauthorized.",
         hint,
-        // Length only, never content: enough to spot a truncated paste or a
-        // trailing newline, useless for reconstructing the value.
-        received: provided ? { characters: provided.length } : null,
+        // Length only, never content: enough to spot a truncated paste,
+        // useless for reconstructing the value. This is the length AFTER
+        // trimming, because that is the string that was actually compared —
+        // reporting the raw length would tell the shop to compare a number
+        // against a value that is not what the check used.
+        received: provided
+          ? {
+              characters: trimmed.length,
+              // Stated rather than silently absorbed. Trimming means this no
+              // longer causes a failure, but the shop should still know its
+              // stored value or its paste is carrying whitespace.
+              whitespaceTrimmed: trimmed.length !== provided.length,
+            }
+          : null,
       },
       { status: 401 }
     );

@@ -45,6 +45,31 @@ export const MAX_ATTACHED_ARTWORK_BYTES = 3.5 * 1024 * 1024;
  */
 export const MAX_INLINE_ARTWORK_TOTAL_BYTES = 3.5 * 1024 * 1024;
 
+/**
+ * Room kept clear for everything in the body that is not a file: the order
+ * JSON, the artwork analysis, the dropped-file list and the multipart
+ * scaffolding. Nothing gets to spend this.
+ */
+export const BODY_RESERVED_FOR_FIELDS_BYTES = 0.3 * 1024 * 1024;
+
+/**
+ * What is left of the request body once `bytesUsed` has been claimed.
+ *
+ * The proofs we render ride in the same body as the customer's artwork, and
+ * the ceiling being shared is the platform's, not each part's. One proof fit
+ * beside a full artwork budget by luck; three would not, and going over does
+ * not lose a picture — it kills the request at the edge and loses the ORDER.
+ *
+ * Artwork claims its budget first and proofs take what remains, because the
+ * customer's own file is the one thing that cannot be regenerated.
+ */
+export function remainingInlineBudget(bytesUsed: number) {
+  return Math.max(
+    0,
+    PLATFORM_BODY_LIMIT_BYTES - BODY_RESERVED_FOR_FIELDS_BYTES - bytesUsed
+  );
+}
+
 export function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;

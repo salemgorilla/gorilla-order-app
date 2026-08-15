@@ -19,6 +19,12 @@ type Props = {
   showDelivery?: boolean;
   hasArtwork: boolean;
   magentaDetected: boolean;
+  /**
+   * Whether the uploaded file has a see-through background. null when we could
+   * not inspect it (PDF, AI, EPS) — which must read as "unknown", never as a
+   * warning we cannot stand behind.
+   */
+  hasTransparentEdges: boolean | null;
   /** Only populated after a failed submit; empty until then. */
   fieldErrors?: FieldErrors;
   onUpdate: (updates: Partial<Product>) => void;
@@ -52,6 +58,7 @@ export default function DecalBuilder({
   showDelivery = true,
   hasArtwork,
   magentaDetected,
+  hasTransparentEdges,
   fieldErrors,
   onUpdate,
   onSelectMaterial,
@@ -170,6 +177,25 @@ export default function DecalBuilder({
             </span>
           </span>
         </label>
+
+        {/* A die cut follows the edge of the ARTWORK, and that edge comes from
+            the file's transparency. A JPEG, or a PNG flattened onto white, has
+            no edge to follow — it cuts as a rectangle. Saying so here, next to
+            the shape choice, is the only point at which the customer can still
+            do something about it. Without it the first sign of trouble is a
+            proof that looks nothing like the sticker they pictured, which is
+            exactly what happened. */}
+        {hasArtwork &&
+          product.shape === "Die Cut" &&
+          hasTransparentEdges === false && (
+            <p className="mt-3 bg-[var(--surface-warn)] p-3 text-xs font-bold leading-5 text-[var(--ink-warn)]">
+              Your file has a solid background, so a die cut would follow the
+              edge of the image — a rectangle, not the shape of your design.
+              Send a PNG with a transparent background for a contour cut, or
+              leave it with us and Gorilla Salem will knock the background out
+              before printing and send you a proof.
+            </p>
+          )}
 
         {hasArtwork && magentaDetected && (
           <p className="mt-3 bg-[var(--surface-ok)] p-3 text-xs font-bold leading-5 text-[var(--gorilla-green)]">

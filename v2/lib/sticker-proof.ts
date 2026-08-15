@@ -13,6 +13,14 @@ export type ProofSpec = {
   artScale: number;
   artMargin: number;
   magentaCutLine: boolean;
+  /**
+   * Whether the artwork has a see-through background. null when unknown.
+   *
+   * A die cut is derived from the alpha channel, so opaque art produces a
+   * rectangular cut. The proof draws that faithfully — and has to SAY so, or
+   * it looks like the renderer failed rather than like the file needs work.
+   */
+  hasTransparentEdges?: boolean | null;
   quoteNumber?: string;
 };
 
@@ -270,6 +278,20 @@ export async function renderStickerProof(
     ctx.font = "15px 'JetBrains Mono', monospace";
     ctx.textAlign = "left";
     ctx.fillText(legend, 70, CANVAS_H - 46);
+
+    // A die cut off opaque art is a rectangle, and the proof shows a rectangle.
+    // Unlabelled, that reads as a broken render rather than as a file that
+    // needs its background knocked out — so name it, in the shop's red, on the
+    // artifact prepress actually opens.
+    if (isDieCut && spec.hasTransparentEdges === false) {
+      ctx.fillStyle = "#b23a2e";
+      ctx.font = "bold 15px 'JetBrains Mono', monospace";
+      ctx.fillText(
+        "SOLID BACKGROUND - CUT FOLLOWS THE IMAGE EDGE. KNOCK OUT BEFORE CUTTING.",
+        70,
+        CANVAS_H - 20
+      );
+    }
 
     return await new Promise<Blob | null>((resolve) =>
       canvas.toBlob((blob) => resolve(blob), "image/png")

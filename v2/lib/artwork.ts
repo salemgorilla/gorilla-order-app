@@ -10,6 +10,20 @@ export type ArtworkAnalysis = {
   palette: string[];
   // True when a near-pure magenta (cut-line) color is found in the artwork.
   magentaDetected: boolean;
+  /**
+   * Whether the artwork has a see-through background, judged at its OUTER EDGE.
+   *
+   * This is the question a die cut actually asks. The cutter follows the outer
+   * contour of the art, and that contour is derived from the alpha channel —
+   * so a file whose border pixels are opaque has no silhouette to follow and
+   * gets cut as a rectangle, whatever shape the design looks like. A white
+   * background is not a background to a cutting head; it is white ink.
+   *
+   * null when the file could not be inspected (PDF, AI, EPS — no raster to
+   * read). Absent knowledge is not the same as "it's opaque", and must not
+   * produce a warning we cannot stand behind.
+   */
+  hasTransparentEdges: boolean | null;
   notes: string[];
 };
 
@@ -63,6 +77,7 @@ function getEstimatedColorsFromImage(file: File) {
     | "colorCountConfidence"
     | "palette"
     | "magentaDetected"
+    | "hasTransparentEdges"
     | "notes"
   >>((resolve) => {
     const objectUrl = URL.createObjectURL(file);
@@ -93,6 +108,7 @@ function getEstimatedColorsFromImage(file: File) {
           colorCountConfidence: "low",
           palette: [],
           magentaDetected: false,
+          hasTransparentEdges: null,
           notes: ["Could not analyze image colors."],
         });
 
@@ -105,6 +121,31 @@ function getEstimatedColorsFromImage(file: File) {
       const colorCounts = new Map<string, number>();
       let sampledPixels = 0;
       let magentaPixels = 0;
+
+      /**
+       * Transparency at the BORDER, not anywhere in the image.
+       *
+       * A logo with a transparent hole in the middle but a solid rectangular
+       * background still cuts as a rectangle, so counting transparent pixels
+       * anywhere would clear exactly the file that needs the warning. Only the
+       * outermost ring decides what the cutter can follow.
+       */
+      let edgePixels = 0;
+      let transparentEdgePixels = 0;
+
+      const readEdge = (x: number, y: number) => {
+        edgePixels += 1;
+        if (imageData[(y * width + x) * 4 + 3] < 40) transparentEdgePixels += 1;
+      };
+
+      for (let x = 0; x < width; x += 1) {
+        readEdge(x, 0);
+        readEdge(x, height - 1);
+      }
+      for (let y = 1; y < height - 1; y += 1) {
+        readEdge(0, y);
+        readEdge(width - 1, y);
+      }
 
       for (let index = 0; index < imageData.length; index += 4) {
         const alpha = imageData[index + 3];
@@ -163,6 +204,18 @@ function getEstimatedColorsFromImage(file: File) {
         notes.push("Magenta cut line detected — used as the die-cut path.");
       }
 
+      // Most of the border has to be see-through before a contour cut has
+      // anything to follow. A little opacity at the edge is normal — art that
+      // deliberately bleeds off one side is still cuttable.
+      const hasTransparentEdges =
+        edgePixels > 0 && transparentEdgePixels / edgePixels > 0.6;
+
+      if (!hasTransparentEdges) {
+        notes.push(
+          "No transparent background — a die cut would follow the edge of the image."
+        );
+      }
+
       URL.revokeObjectURL(objectUrl);
 
       resolve({
@@ -173,6 +226,7 @@ function getEstimatedColorsFromImage(file: File) {
         colorCountConfidence: sortedColors.length > 5 ? "medium" : "high",
         palette,
         magentaDetected,
+        hasTransparentEdges,
         notes,
       });
     };
@@ -188,6 +242,7 @@ function getEstimatedColorsFromImage(file: File) {
         colorCountConfidence: "low",
         palette: [],
         magentaDetected: false,
+        hasTransparentEdges: null,
         notes: ["This file type could not be previewed for color analysis."],
       });
     };
@@ -213,6 +268,7 @@ export async function analyzeArtworkFile(file: File): Promise<ArtworkAnalysis> {
       colorCountConfidence: "low",
       palette: [],
       magentaDetected: false,
+      hasTransparentEdges: null,
       notes: ["Upload an image file to estimate color count."],
     };
   }

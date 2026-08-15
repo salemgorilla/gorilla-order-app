@@ -61,7 +61,11 @@ export default function QuoteConfirmationScreen({
   const canPayNow = Boolean(payUrl);
 
   return (
-    <main className="min-h-screen bg-[var(--shirt-blank)]">
+    // Marks "the order is sent" in the DOM. The kiosk watches for this to
+    // switch to its shorter clear-down timer; the flow itself stays unaware a
+    // kiosk exists, which is what keeps the website and the kiosk on one
+    // shared code path rather than two that drift.
+    <main data-quote-confirmed="true" className="min-h-screen bg-[var(--shirt-blank)]">
       <Header />
 
       <div className="mx-auto grid min-h-[80vh] max-w-5xl place-items-center px-4 py-10 sm:px-8 sm:py-16">

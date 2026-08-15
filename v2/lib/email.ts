@@ -68,12 +68,55 @@ function line(label: string, value: string) {
   return `${label}: ${value}`;
 }
 
+/**
+ * A titled run of "Label: Value" lines.
+ *
+ * The artwork section is the only one that needs several of these — a cart
+ * has one artwork story per design, and flattening them into one list is how
+ * the shop ends up printing design 2's file at design 1's size.
+ */
+type LineGroup = { title: string; lines: string[] };
+
+/** One design's artwork delivery status, as computed by the quote route. */
+export type ArtworkDeliveryEntry = {
+  designId: string;
+  label: string;
+  status: string;
+};
+
+/** "100 x 3\" x 3\" Die Cut, Matte" — enough to identify the design at a glance. */
+function describeItem(item: AnyRecord) {
+  const size =
+    Number(item.widthInches) > 0 && Number(item.heightInches) > 0
+      ? `${item.widthInches}" x ${item.heightInches}"`
+      : str(item.size);
+
+  return [
+    Number(item.quantity) > 0 ? `${item.quantity} qty` : "",
+    size,
+    str(item.shape),
+    str(item.material),
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
 export function buildQuoteEmail(input: {
   quoteNumber: string;
   receivedAt: string;
   order: AnyRecord;
   artworkAnalysis: AnyRecord | null;
   attachmentInfo?: string;
+  /** One entry per design. Absent on the single-file signs and apparel flows. */
+  artworkDelivery?: ArtworkDeliveryEntry[];
+  /** Our rendered proof for each design, by design id. */
+  proofs?: { designId: string; filename: string }[];
+  /** Background-removed artwork, by design id. The original is attached too. */
+  knockouts?: { designId: string; filename: string }[];
+  /** Set when the order was taken on the shop's own terminal. */
+  kiosk?: { mode: "self" | "staff"; staffName: string } | null;
+  /** True when the browser had proofs it could not fit in the request body. */
+  proofsDropped?: boolean;
 }) {
   const { quoteNumber, receivedAt, order, artworkAnalysis, attachmentInfo } =
     input;
@@ -85,6 +128,14 @@ export function buildQuoteEmail(input: {
   const addOnsNote = str(order.addOnsNote);
   const apparel = isApparel(product);
   const signs = isSigns(product);
+  /**
+   * The sticker cart. `product` above is a SYNTHESIS — design 1's spec carrying
+   * the combined quantity — kept so the payload still classifies as stickers
+   * and so single-design quotes read as they always have. `items` is the truth,
+   * and anything that would otherwise state design 1's size as fact about the
+   * whole order has to read this instead.
+   */
+  const items = (Array.isArray(order.items) ? order.items : []) as AnyRecord[];
 
   const submittedAt = (() => {
     const d = new Date(receivedAt);
@@ -127,9 +178,13 @@ export function buildQuoteEmail(input: {
   const addOnCount = addOns.length + (addOnsNote ? 1 : 0);
   const suffix = addOnCount > 0 ? ` + ${addOnCount} more` : "";
 
+  // A counter order is a different job in the inbox: nobody is waiting for a
+  // reply, somebody is waiting at the till. Say so first.
+  const kioskPrefix = input.kiosk ? "IN STORE — " : "";
+
   const subject = needsHandQuote
-    ? `NEED TO QUOTE — ${quoteNumber} — ${quantity} ${productLabel}${suffix}`
-    : `New Quote ${quoteNumber} — ${quantity} ${productLabel}${suffix}`;
+    ? `${kioskPrefix}NEED TO QUOTE — ${quoteNumber} — ${quantity} ${productLabel}${suffix}`
+    : `${kioskPrefix}New Quote ${quoteNumber} — ${quantity} ${productLabel}${suffix}`;
 
   // ---- product section ----
   const productLines: string[] = [];
@@ -169,7 +224,34 @@ export function buildQuoteEmail(input: {
       line("Finishing", str(product.finishing)),
       line("Sides", str(product.sides, "Single-sided"))
     );
+  } else if (items.length > 1) {
+    // A cart has no single size, shape or material. Printing design 1's spec
+    // under a combined quantity says "450 stickers, 3 inch die cut, matte" for
+    // an order that is three different stickers — a statement the shop could
+    // act on and cut the whole run wrong. List them instead.
+    productLines.push(
+      line("Type", "Custom Stickers"),
+      line("Designs", String(items.length)),
+      line("Total Quantity", String(quantity))
+    );
+
+    for (const [index, item] of items.entries()) {
+      productLines.push(
+        line(
+          `Design ${index + 1}`,
+          [
+            describeItem(item),
+            str(item.finish),
+            item.magentaCutLine ? "magenta cut line supplied" : "",
+          ]
+            .filter(Boolean)
+            .join(", ")
+        )
+      );
+    }
   } else {
+    // One design — `product` and items[0] say the same thing, so this is the
+    // original block, unchanged.
     productLines.push(
       line("Type", "Custom Stickers"),
       line("Quantity", String(quantity)),
@@ -276,18 +358,156 @@ export function buildQuoteEmail(input: {
   }
 
   // ---- artwork section ----
-  const artworkFileName =
-    str(artworkAnalysis?.fileName) ||
-    str((order.artwork as AnyRecord)?.fileName) ||
-    "No file uploaded";
-  const artworkLines: string[] = [
-    line("File", artworkFileName),
-    line("Type", str(artworkAnalysis?.fileType, "N/A")),
-    line("Size", str(artworkAnalysis?.fileSize, "N/A")),
-    line("Dimensions", str(artworkAnalysis?.dimensions, "N/A")),
-    line("Estimated Colors", str(artworkAnalysis?.estimatedColorCount, "N/A")),
-    line("Attachment", str(attachmentInfo, "Not attached")),
-  ];
+  //
+  // One group per design. This used to be a single block with the whole
+  // multi-line delivery status crammed into one "Attachment" value, which HTML
+  // rendered as a single run-on table cell — so on a three-design order the
+  // shop could not tell which file belonged to which sticker. Printavo gets no
+  // bytes, so this email is the ONLY place that mapping exists.
+  const delivery = input.artworkDelivery ?? [];
+  const deliveryById = new Map(delivery.map((entry) => [entry.designId, entry]));
+  const proofs = input.proofs ?? [];
+  const proofByDesign = new Map(
+    proofs.map((proof) => [proof.designId, proof.filename])
+  );
+  const knockoutByDesign = new Map(
+    (input.knockouts ?? []).map((entry) => [entry.designId, entry.filename])
+  );
+  const artworkGroups: LineGroup[] = [];
+
+  // The template brief, when the customer personalised one of ours instead of
+  // uploading a file. Without this the email says "No file uploaded" and the
+  // customer's actual words — the entire job — appear nowhere.
+  const template = (order.artwork as AnyRecord)?.template as AnyRecord | null;
+
+  if (template) {
+    const words = (Array.isArray(template.text) ? template.text : []) as AnyRecord[];
+
+    artworkGroups.push({
+      title: `Template: ${str(template.name, str(template.id, "Unnamed"))}`,
+      lines: [
+        line(
+          "What to do",
+          "No file to chase — set these words into our master artwork and send a proof."
+        ),
+        ...words.map((word) => line(str(word.label, "Line"), str(word.value))),
+      ],
+    });
+  }
+
+  if (items.length > 0) {
+    // Sticker cart. Each design carries its own spec, file and status, because
+    // those three together are what the shop needs to cut the right art.
+    for (const [index, item] of items.entries()) {
+      const entry = deliveryById.get(str(item.id));
+      const spec = describeItem(item);
+      const fileName = str(item.artworkFileName);
+
+      const lines = [
+        line("Spec", spec || "Not specified"),
+        line("File", fileName || "No file uploaded"),
+        // Said in words, in the block for the design it applies to. A shop
+        // reading "Die Cut" and seeing a rectangular proof should not have to
+        // work out why.
+        ...(item.hasTransparentEdges === false && str(item.shape) === "Die Cut"
+          ? [
+              line(
+                "*** Background",
+                "SOLID — knock it out before cutting, or the cut follows the image edge"
+              ),
+            ]
+          : []),
+        // The customer asked us to remove it and we did, in their browser.
+        // Prepress needs to know the attached knockout is OURS and unchecked,
+        // not something they supplied — and that the original is there to
+        // redo it from if our matting is not good enough to print.
+        ...(item.backgroundRemoved
+          ? [
+              line(
+                "Background removed",
+                `Yes — ${str(
+                  item.backgroundRemovedColor,
+                  "flat colour"
+                )} knocked out in the browser at the customer's request. ${
+                  knockoutByDesign.get(str(item.id)) ??
+                  "(file too large to attach)"
+                } — CHECK IT; the original is attached too.`
+              ),
+            ]
+          : []),
+        line("Delivery", entry ? entry.status : "No file uploaded"),
+        // What the customer saw on screen and pressed submit on. Named per
+        // design, because "our proof is attached" is not an answer when three
+        // proofs are attached and only one of them is this sticker.
+        line(
+          "Our proof",
+          proofByDesign.get(str(item.id)) ??
+            (fileName ? "not rendered" : "no artwork to proof")
+        ),
+      ];
+
+      // The analysis is of the FIRST file only, so it is reported under design
+      // 1 and nowhere else. Repeating it under every design would state design
+      // 1's dimensions and colour count as fact about designs it never saw.
+      if (index === 0 && artworkAnalysis) {
+        lines.push(
+          line("Type (design 1)", str(artworkAnalysis.fileType, "N/A")),
+          line("Size (design 1)", str(artworkAnalysis.fileSize, "N/A")),
+          line("Dimensions (design 1)", str(artworkAnalysis.dimensions, "N/A")),
+          line(
+            "Estimated colors (design 1)",
+            str(artworkAnalysis.estimatedColorCount, "N/A")
+          )
+        );
+      }
+
+      artworkGroups.push({ title: `Design ${index + 1}`, lines });
+    }
+  } else if (!template) {
+    // Signs and apparel: one file, or none. Unchanged from the single-design
+    // form, because that is still exactly what these flows send.
+    const artworkFileName =
+      str(artworkAnalysis?.fileName) ||
+      str((order.artwork as AnyRecord)?.fileName) ||
+      "No file uploaded";
+
+    artworkGroups.push({
+      title: "Artwork",
+      lines: [
+        line("File", artworkFileName),
+        line("Type", str(artworkAnalysis?.fileType, "N/A")),
+        line("Size", str(artworkAnalysis?.fileSize, "N/A")),
+        line("Dimensions", str(artworkAnalysis?.dimensions, "N/A")),
+        line("Estimated Colors", str(artworkAnalysis?.estimatedColorCount, "N/A")),
+        line("Attachment", str(attachmentInfo, "Not attached")),
+      ],
+    });
+  }
+
+  // Signs and apparel have no cart to file a proof under, so theirs stands on
+  // its own. A cart names its proofs inside each design's block above.
+  if (items.length === 0 && proofs.length > 0) {
+    artworkGroups.push({
+      title: "Our proof",
+      lines: [
+        line("Attached", proofs.map((proof) => proof.filename).join(", ")),
+        line("What it is", "What the customer saw and approved on screen."),
+      ],
+    });
+  }
+
+  // Never let a partial set of proofs read as a complete one.
+  if (input.proofsDropped) {
+    artworkGroups.push({
+      title: "Note on the proofs",
+      lines: [
+        line(
+          "Incomplete",
+          "Some proofs would not fit in the submission and were left out. The artwork and the written spec above are complete."
+        ),
+      ],
+    });
+  }
 
   const customerEmail = str(customer.email);
 
@@ -333,6 +553,20 @@ export function buildQuoteEmail(input: {
     `Submitted: ${submittedAt}`,
     ``,
     `CUSTOMER`,
+    ...(input.kiosk
+      ? [
+          line(
+            "Taken",
+            input.kiosk.mode === "staff"
+              ? `At the counter by ${str(input.kiosk.staffName, "a staff member")}`
+              : "At the counter — customer used the kiosk themselves"
+          ),
+          line(
+            "Payment",
+            "NOT charged — no payment link was sent. Take payment at the counter."
+          ),
+        ]
+      : []),
     line("Name", str(customer.customerName, "Not entered")),
     line("Company", str(customer.company, "N/A")),
     line("Email", str(customer.email, "Not entered")),
@@ -348,10 +582,18 @@ export function buildQuoteEmail(input: {
     // Recorded on every quote, opted in or not. The shop needs to be able to
     // say where an address came from, and "box was ticked by default and left
     // ticked" is a materially different answer from "customer ticked it".
+    // A consent record has to describe what the customer was actually shown.
+    // On the website the box arrives ticked, so leaving it ticked and
+    // un-ticking it are different acts; on a kiosk it starts empty, so
+    // "declined" would claim a decision nobody made.
     line(
       "Newsletter",
       customer.newsletterOptIn === true
-        ? "Opted in (box shipped pre-ticked)"
+        ? input.kiosk
+          ? "Opted in (box started empty — ticked deliberately)"
+          : "Opted in (box shipped pre-ticked)"
+        : input.kiosk
+        ? "Not opted in (box started empty)"
         : "Declined"
     ),
     ``,
@@ -374,8 +616,7 @@ export function buildQuoteEmail(input: {
     ),
     ``,
     `ARTWORK`,
-    ...artworkLines,
-    ``,
+    ...artworkGroups.flatMap((group) => [`-- ${group.title} --`, ...group.lines, ``]),
     `NOTES`,
     str(customer.notes, "No customer notes"),
     ``,
@@ -397,10 +638,11 @@ export function buildQuoteEmail(input: {
     productLines,
     estimateLines,
     addOnLines,
-    artworkLines,
+    artworkGroups,
     notes: str(customer.notes, "No customer notes"),
     customerName: str(customer.customerName, "the customer"),
     customerEmail,
+    kiosk: input.kiosk,
   });
 
   return { subject, text, html, replyTo: customerEmail || undefined };
@@ -425,7 +667,7 @@ const RULE = "#d8d2c4";
 // Webfonts are unreliable in email; this is the closest safe stack.
 const SPEC_FONT = "ui-monospace,SFMono-Regular,Menlo,Consolas,monospace";
 
-function htmlSection(title: string, lines: string[]) {
+function htmlRows(lines: string[]) {
   const rows = lines
     .map((l) => {
       const idx = l.indexOf(": ");
@@ -433,14 +675,44 @@ function htmlSection(title: string, lines: string[]) {
       const value = idx >= 0 ? l.slice(idx + 2) : "";
       return `<tr><td style="padding:3px 12px 3px 0;color:${INK_MUTED};white-space:nowrap;vertical-align:top;">${escapeHtml(
         label
-      )}</td><td style="padding:3px 0;color:${INK_BLACK};font-weight:600;">${escapeHtml(
+      )}</td><td style="padding:3px 0;color:${INK_BLACK};font-weight:600;word-break:break-word;">${escapeHtml(
         value
       )}</td></tr>`;
     })
     .join("");
+  return `<table style="border-collapse:collapse;font-size:14px;width:100%;">${rows}</table>`;
+}
+
+function htmlSection(title: string, lines: string[]) {
   return `<h3 style="margin:22px 0 6px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:${RUSH_RED};">${escapeHtml(
     title
-  )}</h3><table style="border-collapse:collapse;font-size:14px;">${rows}</table>`;
+  )}</h3>${htmlRows(lines)}`;
+}
+
+/**
+ * The artwork section: one sub-block per design, under a single heading.
+ *
+ * A flat table would put "Design 1" and "Design 2" rows side by side with no
+ * boundary between them, which is the failure this whole change is about. The
+ * hairline above each sub-heading is the boundary — a rule, not a shadow.
+ */
+function htmlArtwork(groups: LineGroup[]) {
+  const blocks = groups
+    .map(
+      (group, index) =>
+        `<p style="margin:${
+          index === 0 ? "10px" : "18px"
+        } 0 4px;padding-top:${
+          index === 0 ? "0" : "12px"
+        };${
+          index === 0 ? "" : `border-top:1px solid ${RULE};`
+        }font-size:13px;font-weight:800;color:${INK_BLACK};">${escapeHtml(
+          group.title
+        )}</p>${htmlRows(group.lines)}`
+    )
+    .join("");
+
+  return `<h3 style="margin:22px 0 6px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:${RUSH_RED};">Artwork</h3>${blocks}`;
 }
 
 function buildHtml(input: {
@@ -452,12 +724,27 @@ function buildHtml(input: {
   productLines: string[];
   estimateLines: string[];
   addOnLines: string[];
-  artworkLines: string[];
+  artworkGroups: LineGroup[];
   notes: string;
   customerName: string;
   customerEmail: string;
+  kiosk?: { mode: "self" | "staff"; staffName: string } | null;
 }) {
   const customerLines = [
+    ...(input.kiosk
+      ? [
+          line(
+            "Taken",
+            input.kiosk.mode === "staff"
+              ? `At the counter by ${str(input.kiosk.staffName, "a staff member")}`
+              : "At the counter — customer used the kiosk themselves"
+          ),
+          line(
+            "Payment",
+            "NOT charged — no payment link was sent. Take payment at the counter."
+          ),
+        ]
+      : []),
     line("Name", str(input.customer.customerName, "Not entered")),
     line("Company", str(input.customer.company, "N/A")),
     line("Email", str(input.customer.email, "Not entered")),
@@ -471,7 +758,11 @@ function buildHtml(input: {
     line(
       "Newsletter",
       input.customer.newsletterOptIn === true
-        ? "Opted in (box shipped pre-ticked)"
+        ? input.kiosk
+          ? "Opted in (box started empty — ticked deliberately)"
+          : "Opted in (box shipped pre-ticked)"
+        : input.kiosk
+        ? "Not opted in (box started empty)"
         : "Declined"
     ),
   ];
@@ -494,7 +785,7 @@ function buildHtml(input: {
         ? htmlSection("Add-ons the customer asked for", input.addOnLines)
         : ""
     }
-    ${htmlSection("Artwork", input.artworkLines)}
+    ${htmlArtwork(input.artworkGroups)}
     ${htmlSection("Notes", [`_: ${input.notes}`]).replace("_", "")}
     <p style="margin:22px 0 0;padding-top:14px;border-top:1px solid ${RULE};font-size:13px;color:${INK_MUTED};">${
       input.customerEmail
@@ -525,6 +816,11 @@ export async function sendQuoteEmail(input: {
    */
   attachments?: (QuoteAttachment | null)[];
   attachmentInfo?: string;
+  artworkDelivery?: ArtworkDeliveryEntry[];
+  proofs?: { designId: string; filename: string }[];
+  knockouts?: { designId: string; filename: string }[];
+  kiosk?: { mode: "self" | "staff"; staffName: string } | null;
+  proofsDropped?: boolean;
 }): Promise<QuoteEmailResult> {
   const provider = getEmailProvider();
 

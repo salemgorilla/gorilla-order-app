@@ -9,6 +9,7 @@ import {
 
 import { sendQuoteEmail, type QuoteAttachment } from "../../../lib/email";
 import { subscribeToNewsletter } from "../../../lib/newsletter";
+import { describeKioskSource, readKioskSession } from "../../../lib/kiosk";
 import {
   createPrintavoQuote,
   createStickerCheckout,
@@ -51,7 +52,12 @@ type ParsedQuoteRequest = {
   artworkAnalysis: Record<string, unknown> | null;
   /** Every design's artwork, keyed by design id. */
   artworkParts: ArtworkPart[];
-  proofFile: File | null;
+  /** Background-removed copies, keyed by design id. Original always sent too. */
+  knockoutParts: { id: string; file: File }[];
+  /** Our rendered proof for each design, keyed by design id. */
+  proofParts: { id: string; file: File }[];
+  /** True when the browser had proofs it could not fit in the request body. */
+  proofsDropped: boolean;
 };
 
 /** Read `prefix:designId` form keys into a map of designId -> value. */
@@ -81,6 +87,10 @@ async function parseQuoteRequest(request: Request): Promise<ParsedQuoteRequest> 
     // moment one design has no file, quietly pairing every later file with the
     // wrong design — the exact bug CART-PLAN calls out.
     const inlineFiles = collectKeyed(form, "artwork:");
+    // Artwork with its background knocked out in the browser, when the
+    // customer ticked the box. Rides alongside the original, never instead
+    // of it — see lib/background-removal.ts.
+    const knockouts = collectKeyed(form, "knockout:");
     const blobUrls = collectKeyed(form, "artworkUrl:");
     const blobNames = collectKeyed(form, "artworkName:");
     const blobSizes = collectKeyed(form, "artworkSize:");
@@ -128,14 +138,31 @@ async function parseQuoteRequest(request: Request): Promise<ParsedQuoteRequest> 
       };
     });
 
+    // Our rendered proof of the die-cut, so the shop sees exactly what the
+    // customer approved rather than having to imagine it from raw art. Keyed
+    // by design, like the artwork — a cart has one per design.
+    const keyedProofs = collectKeyed(form, "proof:");
+    const proofParts = [...keyedProofs.entries()]
+      .filter(([, value]) => typeof value !== "string")
+      .map(([id, value]) => ({ id, file: value as File }));
+
+    // The single unkeyed part the pre-cart client sent. Nothing ships it now,
+    // but accepting it costs three lines and means an older tab left open
+    // still delivers its proof.
+    if (!proofParts.length && proofRaw && typeof proofRaw !== "string") {
+      proofParts.push({ id: "order", file: proofRaw });
+    }
+
     return {
       order: typeof orderRaw === "string" ? JSON.parse(orderRaw) : {},
       artworkAnalysis:
         typeof analysisRaw === "string" ? JSON.parse(analysisRaw) : null,
       artworkParts,
-      // Our rendered proof of the die-cut, so the shop sees exactly what the
-      // customer approved rather than having to imagine it from raw art.
-      proofFile: proofRaw && typeof proofRaw !== "string" ? proofRaw : null,
+      knockoutParts: [...knockouts.entries()]
+        .filter(([, value]) => typeof value !== "string")
+        .map(([id, value]) => ({ id, file: value as File })),
+      proofParts,
+      proofsDropped: form.get("proofsDropped") === "true",
     };
   }
 
@@ -145,7 +172,9 @@ async function parseQuoteRequest(request: Request): Promise<ParsedQuoteRequest> 
     order: body.order ?? body,
     artworkAnalysis: body.artworkAnalysis ?? null,
     artworkParts: [],
-    proofFile: null,
+    knockoutParts: [],
+    proofParts: [],
+    proofsDropped: false,
   };
 }
 
@@ -176,7 +205,7 @@ async function buildArtworkAttachment(
 }
 
 /** True for the sticker flow, which is the only one that self-checks-out. */
-function isStickerOrder(order: Record<string, unknown>) {
+export function isStickerOrder(order: Record<string, unknown>) {
   const product = (order.product || {}) as Record<string, unknown>;
   const type = String(product.type || "").toLowerCase();
 
@@ -213,7 +242,7 @@ function isStickerOrder(order: Record<string, unknown>) {
  * through: they are hand-quoted or priced by a different engine, and nothing
  * auto-bills them.
  */
-function repriceStickers(order: Record<string, unknown>) {
+export function repriceStickers(order: Record<string, unknown>) {
   const clientPricing = (order.pricing || {}) as Record<string, unknown>;
   const clientTotal = Number(clientPricing.total) || 0;
 
@@ -232,22 +261,30 @@ function repriceStickers(order: Record<string, unknown>) {
     ? (order.items as Record<string, unknown>[])
     : [product];
 
+  /**
+   * Each design with the price the SERVER put on it.
+   *
+   * Written back onto the item so everything downstream bills the figure that
+   * was actually computed here, rather than calling the pricing engine a
+   * second time and hoping the two agree. Printavo's per-design line items
+   * read this.
+   */
+  const pricedItems = items.map((item) => ({
+    ...item,
+    linePrice: getStickerMaterialPrice(
+      Number(item.quantity) || 0,
+      String(item.material || ""),
+      String(item.size || ""),
+      {
+        widthInches: Number(item.widthInches) || 0,
+        heightInches: Number(item.heightInches) || 0,
+      }
+    ),
+  }));
+
   const stickerPrice =
     Math.round(
-      items.reduce(
-        (sum, item) =>
-          sum +
-          getStickerMaterialPrice(
-            Number(item.quantity) || 0,
-            String(item.material || ""),
-            String(item.size || ""),
-            {
-              widthInches: Number(item.widthInches) || 0,
-              heightInches: Number(item.heightInches) || 0,
-            }
-          ),
-        0
-      ) * 100
+      pricedItems.reduce((sum, item) => sum + item.linePrice, 0) * 100
     ) / 100;
 
   // Counted from the items the server can see, never from a client-supplied
@@ -264,6 +301,10 @@ function repriceStickers(order: Record<string, unknown>) {
   return {
     order: {
       ...order,
+      // Only when the payload really carried a cart — `items` falls back to
+      // [product] above, and writing that back would invent a one-design cart
+      // on a payload that never had one.
+      ...(Array.isArray(order.items) ? { items: pricedItems } : {}),
       pricing: {
         ...clientPricing,
         stickerPrice,
@@ -294,7 +335,14 @@ function generateQuoteNumber() {
 
 export async function POST(request: Request) {
   try {
-    const { order, artworkAnalysis, artworkParts, proofFile } =
+    const {
+      order,
+      artworkAnalysis,
+      artworkParts,
+      knockoutParts,
+      proofParts,
+      proofsDropped,
+    } =
       await parseQuoteRequest(request);
 
     const quoteNumber = generateQuoteNumber();
@@ -323,14 +371,30 @@ export async function POST(request: Request) {
     // link — reads this, never the raw request.
     const pricedOrder = priced.order;
 
-    // We render this ourselves at ~1000px, so it is small by construction and
-    // needs no size gate the way customer artwork does.
-    const proofAttachment = proofFile
-      ? {
-          filename: "gorilla-proof.png",
-          content: Buffer.from(await proofFile.arrayBuffer()).toString("base64"),
-        }
-      : null;
+    // Null for an ordinary web quote. Non-null means the order was taken on
+    // the shop's own terminal, which changes how it is paid for.
+    const kioskSession = readKioskSession(order);
+
+    // We render these ourselves at ~1000px, and the browser already budgeted
+    // them against the request body, so they need no size gate the way
+    // customer artwork does.
+    const proofAttachments = await Promise.all(
+      proofParts.map(async (part) => ({
+        designId: part.id,
+        filename: part.file.name || "gorilla-proof.png",
+        content: Buffer.from(await part.file.arrayBuffer()).toString("base64"),
+      }))
+    );
+
+    // Background-removed copies. The browser already checked these against the
+    // same inline budget as the artwork, so they need no second gate here.
+    const knockoutAttachments = await Promise.all(
+      knockoutParts.map(async (part) => ({
+        designId: part.id,
+        filename: part.file.name || "artwork-no-background.png",
+        content: Buffer.from(await part.file.arrayBuffer()).toString("base64"),
+      }))
+    );
 
     /**
      * Artwork, per design.
@@ -348,7 +412,21 @@ export async function POST(request: Request) {
     const mb = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
 
     const attachments: QuoteAttachment[] = [];
-    const artworkStatuses: string[] = [];
+    /**
+     * One delivery status per design, structured rather than pre-joined.
+     *
+     * It used to be a list of "Design 1: ..." strings joined with newlines and
+     * handed to the email as a single value. The email renders those as one
+     * table row, and HTML collapses the newlines — so three designs' statuses
+     * arrived as one run-on sentence, which is useless as a file-to-design map.
+     * The email now renders a block per design and needs the design id to do
+     * it; the joined string below is what Printavo and the API response take.
+     */
+    const artworkDelivery: {
+      designId: string;
+      label: string;
+      status: string;
+    }[] = [];
     let emailBytesUsed = 0;
 
     // Design order, so the labels below match the order in the quote.
@@ -364,20 +442,38 @@ export async function POST(request: Request) {
           .filter((part): part is (typeof artworkParts)[number] => Boolean(part))
       : artworkParts;
 
+    /**
+     * A design's number in the CART, not its position in this list.
+     *
+     * partOrder holds only the designs that actually sent a file, so counting
+     * it numbers the FILES. On an order whose middle design has no artwork,
+     * design 3's file was labelled "Design 2" and attached as
+     * design-2-<name>.png — so the shop's file-to-design map pointed design
+     * 3's art at design 2. Exactly the misalignment CART-PLAN calls out, just
+     * moved from the payload into the labels. Number by cart position, which
+     * is what the customer and the email both count from.
+     */
+    const designNumber = new Map(
+      orderedItems.map((item, index) => [String(item.id), index + 1])
+    );
+
     for (const [index, part] of partOrder.entries()) {
+      const number = designNumber.get(part.id) ?? index + 1;
       const label =
         partOrder.length > 1 || part.id !== "order"
-          ? `Design ${index + 1}`
+          ? `Design ${number}`
           : "Artwork";
 
       if (part.blob) {
         // Straight to storage, so there is nothing to attach — the shop opens
         // the link. The normal path once a blob store is connected, up to 100 MB.
-        artworkStatuses.push(
-          `${label}: uploaded — ${part.blob.name} (${mb(part.blob.size)} MB): ${
+        artworkDelivery.push({
+          designId: part.id,
+          label,
+          status: `uploaded — ${part.blob.name} (${mb(part.blob.size)} MB): ${
             part.blob.url
-          }`
-        );
+          }`,
+        });
         continue;
       }
 
@@ -385,13 +481,15 @@ export async function POST(request: Request) {
         // Never left the customer's browser, because sending it would have
         // killed the whole request at the edge and lost the order. The shop
         // still has to know it exists and go and collect it.
-        artworkStatuses.push(
-          `${label}: ARTWORK NOT UPLOADED — "${part.dropped.name}" is ${mb(
+        artworkDelivery.push({
+          designId: part.id,
+          label,
+          status: `ARTWORK NOT UPLOADED — "${part.dropped.name}" is ${mb(
             part.dropped.size
           )} MB, over the ${mb(
             MAX_ATTACHED_ARTWORK_BYTES
-          )} MB form limit. Email the customer to collect it.`
-        );
+          )} MB form limit. Email the customer to collect it.`,
+        });
         continue;
       }
 
@@ -404,31 +502,46 @@ export async function POST(request: Request) {
         attachment &&
         emailBytesUsed + (part.file?.size ?? 0) > MAX_EMAIL_ATTACHMENT_TOTAL_BYTES
       ) {
-        artworkStatuses.push(
-          `${label}: not attached — "${part.file?.name}" would push this email over ${mb(
+        artworkDelivery.push({
+          designId: part.id,
+          label,
+          status: `not attached — "${part.file?.name}" would push this email over ${mb(
             MAX_EMAIL_ATTACHMENT_TOTAL_BYTES
-          )} MB. Ask the customer for it.`
-        );
+          )} MB. Ask the customer for it.`,
+        });
         continue;
       }
 
       if (attachment) {
-        // Prefixed so three files called "logo.png" arrive distinguishable.
-        attachments.push({
-          ...attachment,
-          filename:
-            partOrder.length > 1
-              ? `design-${index + 1}-${attachment.filename}`
-              : attachment.filename,
-        });
+        // Prefixed so three files called "logo.png" arrive distinguishable,
+        // and numbered by cart position so the prefix agrees with the block
+        // the email files it under.
+        const filename =
+          partOrder.length > 1
+            ? `design-${number}-${attachment.filename}`
+            : attachment.filename;
+
+        attachments.push({ ...attachment, filename });
         emailBytesUsed += part.file?.size ?? 0;
+
+        // Name the attachment the shop will actually see in its mail client.
+        // "Attached to this email" is not a map when three files are attached;
+        // the renamed filename is the only thing tying a file to a design.
+        artworkDelivery.push({
+          designId: part.id,
+          label,
+          status: `attached to this email as ${filename}`,
+        });
+        continue;
       }
 
-      artworkStatuses.push(`${label}: ${info}`);
+      artworkDelivery.push({ designId: part.id, label, status: info });
     }
 
-    const attachmentInfo = artworkStatuses.length
-      ? artworkStatuses.join("\n")
+    const attachmentInfo = artworkDelivery.length
+      ? artworkDelivery
+          .map((entry) => `${entry.label}: ${entry.status}`)
+          .join("\n")
       : "No file uploaded";
 
     const quoteRecord = {
@@ -436,7 +549,15 @@ export async function POST(request: Request) {
       receivedAt,
       status: "received",
       customer: order.customer,
+      // Where the order was taken. A quote written up at the counter and one
+      // submitted from the website are different things to follow up on.
+      source: describeKioskSource(kioskSession) ?? "labs.gorillasalem.com",
+      kiosk: kioskSession,
       product: order.product,
+      // The cart, each design carrying the price the server put on it. The
+      // record is the log of what the shop and Printavo work from, and it was
+      // omitting the only field that says what was actually ordered.
+      items: Array.isArray(pricedOrder.items) ? pricedOrder.items : [],
       production: order.production,
       // Server figure, not the browser's — this record is what the shop and
       // Printavo work from.
@@ -462,9 +583,18 @@ export async function POST(request: Request) {
         url: partOrder[0]?.blob?.url ?? null,
         attachment: attachmentInfo,
         awaitingArtwork: partOrder.some((part) => part.dropped),
-        /** One entry per design, in cart order. */
+        /**
+         * Our rendered proofs, by design. Part of the record because "what did
+         * the shop actually receive" has to be answerable from the log alone.
+         */
+        proofs: proofAttachments.map((proof) => ({
+          designId: proof.designId,
+          filename: proof.filename,
+        })),
+        proofsDropped,
+        /** One entry per design that sent a file, numbered by cart position. */
         files: partOrder.map((part, index) => ({
-          design: index + 1,
+          design: designNumber.get(part.id) ?? index + 1,
           designId: part.id,
           name: part.blob?.name ?? part.file?.name ?? part.dropped?.name ?? null,
           size: part.blob?.size ?? part.file?.size ?? part.dropped?.size ?? null,
@@ -488,12 +618,37 @@ export async function POST(request: Request) {
       receivedAt,
       order: pricedOrder,
       artworkAnalysis,
-      // Every design's file plus our proof of the cut, so the shop can compare
-      // what was sent against what was approved.
-      attachments: [...attachments, proofAttachment],
-      attachmentInfo: proofAttachment
-        ? `${attachmentInfo}\nProof attached: gorilla-proof.png`
+      // Every design's file plus our proof of each cut, so the shop can
+      // compare what was sent against what was approved — design by design.
+      attachments: [
+        ...attachments,
+        ...knockoutAttachments.map(({ filename, content }) => ({
+          filename,
+          content,
+        })),
+        ...proofAttachments.map(({ filename, content }) => ({
+          filename,
+          content,
+        })),
+      ],
+      attachmentInfo: proofAttachments.length
+        ? `${attachmentInfo}\nProofs attached: ${proofAttachments
+            .map((proof) => proof.filename)
+            .join(", ")}`
         : attachmentInfo,
+      // Per-design, so the email can put each status under the design it
+      // belongs to instead of in one shared row.
+      artworkDelivery,
+      kiosk: kioskSession,
+      proofs: proofAttachments.map(({ designId, filename }) => ({
+        designId,
+        filename,
+      })),
+      knockouts: knockoutAttachments.map(({ designId, filename }) => ({
+        designId,
+        filename,
+      })),
+      proofsDropped,
     });
 
     if (notification.sent) {
@@ -538,7 +693,28 @@ export async function POST(request: Request) {
 
     let checkout = null;
 
-    if (isStickers && printavo.created && printavo.quoteId) {
+    /**
+     * A kiosk order is never emailed a payment link.
+     *
+     * The customer is standing at the counter, so payment is taken there on
+     * the shop's own terminal. Two reasons this is the right default, and the
+     * second is the serious one:
+     *
+     *   1. Emailing a link to somebody in the room is worse than useless.
+     *   2. The address was typed on a shared machine, often by a member of
+     *      staff hearing it out loud. One transposed character sends a live,
+     *      payable link for someone else's order to a stranger.
+     *
+     * Decided HERE, on the server, next to the call it suppresses — not in
+     * the browser that asked. The client marker is only an input to it.
+     */
+    if (kioskSession && isStickers) {
+      console.log(
+        `KIOSK ORDER ${quoteNumber} — no payment link generated; payment is taken at the counter.`
+      );
+    }
+
+    if (!kioskSession && isStickers && printavo.created && printavo.quoteId) {
       checkout = await createStickerCheckout({
         quoteId: printavo.quoteId,
         publicUrl: printavo.publicUrl || "",
@@ -580,7 +756,9 @@ export async function POST(request: Request) {
           consent: {
             optedIn: true,
             at: receivedAt,
-            source: "labs.gorillasalem.com quote builder",
+            source:
+              describeKioskSource(kioskSession) ??
+              "labs.gorillasalem.com quote builder",
             // The box arrives ticked, so every record has to say so. This is
             // the field that answers "did they choose this, or did we?" —
             // which is the first question an ESP asks about a flagged list.

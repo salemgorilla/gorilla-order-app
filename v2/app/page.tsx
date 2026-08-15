@@ -5,8 +5,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Header from "../components/Header";
 import StepNav from "../components/StepNav";
 import DesignCard from "../components/DesignCard";
+import TemplateDesigner from "../components/TemplateDesigner";
 import StepFooter from "../components/StepFooter";
 import UploadBox from "../components/upload/UploadBox";
+import { useKiosk } from "../components/kiosk/KioskProvider";
+import BackgroundRemovalControl from "../components/upload/BackgroundRemovalControl";
 import ArtworkGuidance from "../components/upload/ArtworkGuidance";
 import NeedByDate from "../components/NeedByDate";
 import CustomerForm from "../components/CustomerForm";
@@ -34,6 +37,11 @@ import {
 } from "../lib/signs";
 import { calculateSignsPricing } from "../lib/signs-pricing";
 import { productCategories } from "../lib/products";
+import {
+  getTemplate,
+  getTemplateTextErrors,
+  resolveTemplateText,
+} from "../lib/templates";
 import { reviews } from "../lib/reviews";
 import { createStickerItem, defaultOrder } from "../lib/order";
 import { AddOnOffer, toAddOn } from "../lib/addons";
@@ -65,9 +73,15 @@ import {
   isArtworkTooLargeToAttach,
   MAX_ATTACHED_ARTWORK_LABEL,
   MAX_INLINE_ARTWORK_TOTAL_BYTES,
+  remainingInlineBudget,
 } from "../lib/upload-limits";
 import { uploadArtworkToBlob } from "../lib/artwork-upload";
 import { renderStickerProof } from "../lib/sticker-proof";
+import {
+  isRemovalFailure,
+  removeBackground,
+  type BackgroundRemovalResult,
+} from "../lib/background-removal";
 import {
   formatSizeLabel,
   sanitizeSizeInches,
@@ -94,6 +108,13 @@ import type {
 } from "../features/types";
 
 export default function Home() {
+  /**
+   * Kiosk mode. Defaults to "off" on the public website, so every behaviour
+   * below reads as it always has unless this page is being served on the
+   * machine in the shop. See lib/kiosk.ts for what changes and why.
+   */
+  const kiosk = useKiosk();
+
   // Which step is on screen. The form is no longer one scroll — see
   // lib/steps.ts for the step list and the field-to-step map.
   const [currentStepId, setCurrentStepId] = useState<StepId>("product");
@@ -107,7 +128,24 @@ export default function Home() {
   const [stepScrollToken, setStepScrollToken] = useState(0);
   const [selectedProductId, setSelectedProductId] = useState("stickers");
   const [submittedProductId, setSubmittedProductId] = useState("stickers");
-  const [order, setOrder] = useState(defaultOrder);
+  /**
+   * The newsletter box ships pre-ticked on the website — defensible when the
+   * person ticking it owns the address. On a kiosk it is not: in staff mode
+   * somebody is typing on a customer's behalf, and in self-service a default
+   * carried in from the shop is not a choice the customer made. Consent has to
+   * be an action here, so a kiosk session starts unticked.
+   *
+   * Done in the initial state rather than an effect, so there is never a first
+   * render in which the box is ticked.
+   */
+  const [order, setOrder] = useState(() =>
+    kiosk.enabled
+      ? {
+          ...defaultOrder,
+          customer: { ...defaultOrder.customer, newsletterOptIn: false },
+        }
+      : defaultOrder
+  );
   const [apparelQuote, setApparelQuote] = useState(defaultApparelQuote);
   const [signsQuote, setSignsQuote] = useState(defaultSignsQuote);
   const [ssProducts, setSsProducts] = useState<SsCatalogProduct[]>([]);
@@ -129,6 +167,32 @@ export default function Home() {
   const [itemAnalyses, setItemAnalyses] = useState<
     Record<string, ArtworkAnalysis | null>
   >({});
+  /**
+   * Background knocked out of a design's artwork, when the customer asked for
+   * it. Keyed by design, and kept ALONGSIDE the original rather than replacing
+   * it: unticking the box has to give them their file back untouched, and the
+   * shop is sent both either way.
+   */
+  const [itemKnockouts, setItemKnockouts] = useState<
+    Record<string, BackgroundRemovalResult>
+  >({});
+  /** Why a knockout could not be done, per design. */
+  const [itemKnockoutErrors, setItemKnockoutErrors] = useState<
+    Record<string, string>
+  >({});
+  /**
+   * The customer's INTENT, tracked separately from the result.
+   *
+   * The checkbox is controlled, and the removal takes a moment. Binding the
+   * box to the finished knockout meant ticking it appeared to do nothing until
+   * the work landed — a control that ignores you is a broken control. This
+   * flips immediately; the knockout catches up, and on failure this goes back
+   * to false so the box never claims something we did not do.
+   */
+  const [knockoutWanted, setKnockoutWanted] = useState<Record<string, boolean>>(
+    {}
+  );
+  const [knockoutBusyId, setKnockoutBusyId] = useState<string | null>(null);
   const [artworkAnalysis, setArtworkAnalysis] =
     useState<ArtworkAnalysis | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -720,8 +784,17 @@ export default function Home() {
       URL.revokeObjectURL(preview);
     }
 
+    // Same for the knockout, which pins a second blob for this design.
+    const knockout = itemKnockouts[itemId];
+    if (knockout) {
+      URL.revokeObjectURL(knockout.previewUrl);
+    }
+
     setItemPreviews(({ [itemId]: _removed, ...rest }) => rest);
     setItemAnalyses(({ [itemId]: _dropped, ...rest }) => rest);
+    setItemKnockouts(({ [itemId]: _knockout, ...rest }) => rest);
+    setItemKnockoutErrors(({ [itemId]: _error, ...rest }) => rest);
+    setKnockoutWanted(({ [itemId]: _wanted, ...rest }) => rest);
 
     setOrder(
       recalculateOrder({
@@ -878,22 +951,45 @@ export default function Home() {
       event.preventDefault();
     };
 
-    const onDrop = (event: DragEvent) => {
+    /**
+     * Swallow drops that land OUTSIDE an upload box, and nothing more.
+     *
+     * Without this the browser navigates away to the dropped file and the
+     * order in progress is gone. That is the whole job — this listener must
+     * never upload anything, because it cannot know which design was aimed at.
+     *
+     * It used to call handleArtworkUpload(file) with no design id, on the
+     * WINDOW in the capture phase, so it ran before the box that was actually
+     * dropped on. Two things went wrong at once, and both were invisible:
+     *
+     *   No design id means design 1. Dropping artwork on design 2 assigned it
+     *   to design 2 via the box AND to design 1 via this listener — silently
+     *   replacing whatever design 1 already had. Verified in a browser: one
+     *   drop on the second box, both boxes reporting the same file.
+     *
+     *   The handler was captured once, at mount, with an empty dependency
+     *   list and a lint suppression claiming it was stable. It is not: it
+     *   closes over `order` and the flow flags, so after "Start a new quote"
+     *   it targeted a design id that no longer existed, and after switching
+     *   to signs it still believed it was uploading a sticker.
+     *
+     * Each UploadBox owns its own onDrop and knows its own design. That is
+     * the only place a dropped file can be routed correctly.
+     */
+    const swallowStrayDrop = (event: DragEvent) => {
       if (!event.dataTransfer?.types?.includes("Files")) return;
+      // Not inside a drop zone — the boxes call preventDefault themselves and
+      // stop this from ever seeing their drops.
       event.preventDefault();
-      const file = event.dataTransfer.files?.[0];
-      if (file) handleArtworkUpload(file);
     };
 
-    window.addEventListener("dragover", allowDrop, true);
-    window.addEventListener("drop", onDrop, true);
+    window.addEventListener("dragover", allowDrop);
+    window.addEventListener("drop", swallowStrayDrop);
 
     return () => {
-      window.removeEventListener("dragover", allowDrop, true);
-      window.removeEventListener("drop", onDrop, true);
+      window.removeEventListener("dragover", allowDrop);
+      window.removeEventListener("drop", swallowStrayDrop);
     };
-    // handleArtworkUpload is stable for the life of the page.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleArtworkUpload(file: File, itemId?: string) {
@@ -914,6 +1010,17 @@ export default function Home() {
 
     if (isStickers) {
       setItemPreviews((prev) => ({ ...prev, [targetId]: previewUrl }));
+
+      // A knockout belongs to the file it was cut from. Replacing the file
+      // and keeping it would preview, proof and ship the OLD design's
+      // silhouette against the new artwork's name.
+      const staleKnockout = itemKnockouts[targetId];
+      if (staleKnockout) {
+        URL.revokeObjectURL(staleKnockout.previewUrl);
+        setItemKnockouts(({ [targetId]: _stale, ...rest }) => rest);
+      }
+      setItemKnockoutErrors(({ [targetId]: _cleared, ...rest }) => rest);
+      setKnockoutWanted(({ [targetId]: _wanted, ...rest }) => rest);
     } else {
       setArtworkPreview(previewUrl);
     }
@@ -965,6 +1072,75 @@ export default function Home() {
         ),
       };
     });
+  }
+
+  /**
+   * Knock the background out of one design's artwork, or put it back.
+   *
+   * The customer's ORIGINAL file is never replaced — the knockout is stored
+   * beside it, so unticking the box returns them to exactly what they
+   * uploaded, and the shop receives both regardless. See lib/background-
+   * removal.ts for why this refuses more often than it tries.
+   */
+  /**
+   * The artwork as the sticker will be made from it.
+   *
+   * Everything that depicts the finished product — the live preview, the
+   * emailed proof — must read this rather than the raw upload, or the customer
+   * approves one picture and the shop is briefed from another. The raw upload
+   * is still what `itemPreviews` holds, and the before/after control shows it.
+   */
+  function getEffectivePreview(itemId: string) {
+    return itemKnockouts[itemId]?.previewUrl ?? itemPreviews[itemId] ?? null;
+  }
+
+  async function toggleBackgroundRemoval(itemId: string, wanted: boolean) {
+    const existing = itemKnockouts[itemId];
+
+    setKnockoutWanted((prev) => ({ ...prev, [itemId]: wanted }));
+
+    if (!wanted) {
+      if (existing) URL.revokeObjectURL(existing.previewUrl);
+      setItemKnockouts(({ [itemId]: _removed, ...rest }) => rest);
+      setItemKnockoutErrors(({ [itemId]: _cleared, ...rest }) => rest);
+      return;
+    }
+
+    const file = order.items.find((item) => item.id === itemId)?.artwork.file;
+    if (!file) {
+      setKnockoutWanted((prev) => ({ ...prev, [itemId]: false }));
+      return;
+    }
+
+    setKnockoutBusyId(itemId);
+    setItemKnockoutErrors(({ [itemId]: _cleared, ...rest }) => rest);
+
+    const result = await removeBackground(file);
+
+    setKnockoutBusyId(null);
+
+    if (isRemovalFailure(result)) {
+      // Back to unticked. Leaving it ticked beside an error would say we
+      // removed a background we did not touch.
+      setKnockoutWanted((prev) => ({ ...prev, [itemId]: false }));
+      // Say which of the things went wrong. "Couldn't do it" gives the
+      // customer nothing to act on; "the background isn't one flat colour"
+      // tells them why their photo was never going to work.
+      const message =
+        result.reason === "background-not-flat"
+          ? "The background isn't one flat colour, so we can't remove it cleanly here. Send us the file and we'll cut it out by hand before printing."
+          : result.reason === "nothing-to-remove"
+          ? "We couldn't find a background to remove around the edge of this file."
+          : result.reason === "not-an-image"
+          ? "We can only do this on an image file (PNG or JPG). Send it over and we'll handle this one by hand."
+          : "Something went wrong removing the background. Send the file as it is and we'll take care of it.";
+
+      setItemKnockoutErrors((prev) => ({ ...prev, [itemId]: message }));
+      return;
+    }
+
+    if (existing) URL.revokeObjectURL(existing.previewUrl);
+    setItemKnockouts((prev) => ({ ...prev, [itemId]: result }));
   }
 
   function updateSignsQuote(updates: Partial<typeof signsQuote>) {
@@ -1030,6 +1206,31 @@ export default function Home() {
    * single source, and the summary list below is derived from it so the
    * checklist and the marked boxes can never name different problems.
    */
+  /**
+   * Required template fields the customer has not filled.
+   *
+   * Kept beside the sign rules rather than inside FieldErrors: these keys are
+   * template-specific and would have to join the FieldKey union — and through
+   * it FIELD_STEP — for every template anyone ever adds. They all live on the
+   * details step regardless, so the step mapping is unaffected.
+   */
+  // LIVE — this decides whether the order can be submitted at all.
+  //
+  // Gating this on showFieldErrors was a real bug: validation saw no errors
+  // until after a submit attempt, so an "OPEN HOUSE" sign with no address on
+  // it reported itself ready and went through. Same distinction the cart
+  // already draws — marks wait for a submit, readiness never does.
+  const signsTemplateTextErrorsLive = getTemplateTextErrors(
+    signsQuote.templateId,
+    signsQuote.templateText
+  );
+
+  // MARKED — what the designer actually paints red, held back until the
+  // customer has tried to submit.
+  const signsTemplateTextErrors = showFieldErrors
+    ? signsTemplateTextErrorsLive
+    : {};
+
   function getSignsFieldErrors(): FieldErrors {
     const errors: FieldErrors = {};
 
@@ -1041,8 +1242,11 @@ export default function Home() {
       errors.customerEmail = "Enter your email.";
     }
 
-    if (!order.artwork.file) {
-      errors.artwork = "Upload your artwork before submitting.";
+    // A template IS the artwork. Choosing one replaces the upload rather than
+    // adding to it, so requiring a file as well would make a finished design
+    // unsubmittable.
+    if (!signsQuote.templateId && !order.artwork.file) {
+      errors.artwork = "Upload your artwork, or start from one of our templates.";
     }
 
     if (!order.production.needBy.trim()) {
@@ -1077,6 +1281,10 @@ export default function Home() {
     // their own short messages.
     if (fields.width || fields.height) {
       errors.push("Enter the width and height for your custom size.");
+    }
+
+    for (const message of Object.values(signsTemplateTextErrorsLive)) {
+      errors.push(message);
     }
 
     return errors;
@@ -1181,11 +1389,41 @@ export default function Home() {
   }
 
   function buildQuotePayload() {
+    /**
+     * Order-level fields, on every quote whatever the flow.
+     *
+     * These used to be typed out again in each branch. The sticker branch
+     * spreads the whole order and so picked up add-ons for free; signs and
+     * apparel enumerate their fields and simply never listed addOns or
+     * addOnsNote — so the "Add to this quote" strip, which renders once for
+     * ALL THREE flows, threw the customer's answer away on two of them. They
+     * ticked a banner onto a signs order and the shop was never told.
+     *
+     * Naming the envelope once is the fix. The next order-level field is
+     * added here and reaches every flow, instead of reaching whichever branch
+     * the author happened to be looking at.
+     */
+    const orderEnvelope = {
+      customer: order.customer,
+      production: order.production,
+      addOns: order.addOns,
+      addOnsNote: order.addOnsNote,
+      /**
+       * Present only on the shop's own terminal. The SERVER reads this to
+       * decide that no payment link is generated — see app/api/quote/route.ts.
+       * Claiming it cannot get anyone a better outcome: the only thing it
+       * buys is NOT being emailed a link to pay.
+       */
+      ...(kiosk.enabled
+        ? { kiosk: { mode: kiosk.mode, staffName: kiosk.staffName } }
+        : {}),
+    };
+
     if (isSignsSelected) {
       const product = getSignProduct(signsQuote.productId);
 
       return {
-        customer: order.customer,
+        ...orderEnvelope,
         product: {
           type: "Banners & Signs",
           signType: product.label,
@@ -1197,8 +1435,18 @@ export default function Home() {
         },
         artwork: {
           fileName: order.artwork.file?.name || null,
+          // Template work has no uploaded file — this IS the artwork brief.
+          template: signsQuote.templateId
+            ? {
+                id: signsQuote.templateId,
+                name: getTemplate(signsQuote.templateId)?.name || signsQuote.templateId,
+                text: resolveTemplateText(
+                  signsQuote.templateId,
+                  signsQuote.templateText
+                ),
+              }
+            : null,
         },
-        production: order.production,
         pricing: signsPricing.priceable
           ? {
               total: signsPricing.total,
@@ -1219,7 +1467,7 @@ export default function Home() {
 
     if (isApparelSelected) {
       return {
-        customer: order.customer,
+        ...orderEnvelope,
         product: {
           type: "T-Shirts & Apparel",
           garmentType: apparelQuote.garmentType,
@@ -1246,7 +1494,6 @@ export default function Home() {
         artwork: {
           fileName: order.artwork.file?.name || null,
         },
-        production: order.production,
         // A special order gets no online estimate — the menu pricing doesn't
         // describe what they're actually asking for.
         pricing: apparelQuote.specialOrder
@@ -1282,6 +1529,10 @@ export default function Home() {
 
     return {
       ...order,
+      // Redundant here — `...order` already carries these — but stated so all
+      // three branches visibly guarantee the same envelope, and so this one
+      // does not quietly become the only flow that works again.
+      ...orderEnvelope,
       product: {
         ...firstItem,
         quantity: totalQuantity,
@@ -1301,6 +1552,16 @@ export default function Home() {
         artMargin: item.artMargin,
         magentaCutLine: item.magentaCutLine,
         artworkFileName: item.artwork.file?.name || null,
+        // Prepress has to know before it opens anything: a die cut off a solid
+        // background is a rectangle until someone knocks the background out.
+        // A knockout answers that question, so it reports as resolved.
+        hasTransparentEdges: itemKnockouts[item.id]
+          ? true
+          : itemAnalyses[item.id]?.hasTransparentEdges ?? null,
+        /** The customer asked us to knock the background out, and we did. */
+        backgroundRemoved: Boolean(itemKnockouts[item.id]),
+        backgroundRemovedColor:
+          itemKnockouts[item.id]?.backgroundColor ?? null,
       })),
       // The order-level slot stays for the shop email's existing artwork
       // block; per-design files are named on each item above.
@@ -1421,6 +1682,12 @@ export default function Home() {
   const leadSentRef = useRef(false);
 
   useEffect(() => {
+    // A kiosk is hidden every time somebody walks away from it, so this would
+    // report an "abandoned quote" for every passer-by who touched the screen —
+    // burying the real ones under half-typed strangers. On a shared machine
+    // the walk-away is not a lead, it is the normal end of a session.
+    if (kiosk.enabled) return;
+
     function reportAbandonedQuote() {
       const snapshot = leadSnapshotRef.current;
 
@@ -1467,7 +1734,7 @@ export default function Home() {
       window.removeEventListener("pagehide", reportAbandonedQuote);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, []);
+  }, [kiosk.enabled]);
 
   async function submitOrder() {
     const errors = getCurrentValidationErrors();
@@ -1495,7 +1762,17 @@ export default function Home() {
       // to the top of the step in the same commit the effect below is trying
       // to scroll onto the offending field. Recording the visit by hand keeps
       // the step bar honest without starting that fight.
-      const firstBrokenStep = getFirstStepWithError(getCurrentFieldErrors());
+      // Template text is validated outside FieldErrors (its keys are
+      // per-template and cannot join the FieldKey union), so it has no entry
+      // in FIELD_STEP and getFirstStepWithError cannot see it. Without this
+      // fallback, an unfilled template field blocks submit and then leaves the
+      // customer on Review with nothing marked and nowhere to go — the exact
+      // dead end the field-to-step map exists to prevent.
+      const firstBrokenStep =
+        getFirstStepWithError(getCurrentFieldErrors()) ??
+        (isSignsSelected && Object.keys(signsTemplateTextErrorsLive).length
+          ? ("details" as const)
+          : null);
 
       if (firstBrokenStep) {
         setCurrentStepId(firstBrokenStep);
@@ -1584,6 +1861,34 @@ export default function Home() {
         inlineBytesUsed += part.file.size;
       }
 
+      /**
+       * The knocked-out artwork, alongside the original it was made from.
+       *
+       * Sent so prepress has the file the customer actually approved rather
+       * than having to redo the matting and hope it lands in the same place.
+       * It is a HEAD START, never the deliverable — the original is always
+       * there to work from, which is why this yields the budget to it and is
+       * dropped first if the body is tight.
+       */
+      for (const item of order.items) {
+        const knockout = itemKnockouts[item.id];
+        if (!knockout) continue;
+
+        if (
+          inlineBytesUsed + knockout.file.size >
+          MAX_INLINE_ARTWORK_TOTAL_BYTES
+        ) {
+          continue;
+        }
+
+        formData.append(
+          `knockout:${item.id}`,
+          knockout.file,
+          knockout.file.name
+        );
+        inlineBytesUsed += knockout.file.size;
+      }
+
       // Named, not silently missing. The shop needs to know which design's
       // file to chase, and the customer's quote still goes through.
       if (droppedArtwork.length) {
@@ -1592,38 +1897,83 @@ export default function Home() {
 
       setUploadProgress(null);
 
-      // The proof the customer just approved, rendered to a PNG so the email
-      // carries it alongside their raw art. Stickers only — it is the only
-      // flow with a preview to prove. Small by construction (~1000px), so it
-      // rides inline without troubling the body limit.
+      /**
+       * The proof the customer just approved, rendered to a PNG so the email
+       * carries it alongside their raw art. Stickers only — it is the only
+       * flow with a preview to prove.
+       *
+       * ONE PER DESIGN, keyed like the artwork. This used to render a single
+       * proof from `artworkPreview`, which the cart stopped setting: sticker
+       * previews moved to itemPreviews[id], so `isStickers && artworkPreview`
+       * became permanently false and NO proof has been attached to a sticker
+       * quote since. Verified by capturing a real two-design submission — the
+       * body carried the order, the analysis and two files, and no proof at
+       * all.
+       *
+       * Rendered from the design's own preview, so each proof shows that
+       * design's art at that design's size, shape and border.
+       */
       const isStickers = !isSignsSelected && !isApparelSelected;
-      const proofItem = order.items[0];
-      // Falls back to the preset label, which is a square, when the customer
-      // used a size button instead of typing dimensions.
-      const presetInches = parseSizeInches(proofItem.size);
+      let proofsAttached = 0;
+      let proofBytesUsed = 0;
+      // Proofs take what artwork left behind. Going over the body limit does
+      // not lose a picture, it loses the order — see lib/upload-limits.
+      const proofBudget = remainingInlineBudget(inlineBytesUsed);
 
-      // One proof, for the first design. The per-design canvas proof is its
-      // own piece of work (CART-PLAN §"attach the rendered proof"); until the
-      // cart UI can create a second design there is exactly one to render.
-      const proof =
-        isStickers && artworkPreview
-          ? await renderStickerProof({
-              artworkUrl: artworkPreview,
-              shape: proofItem.shape,
-              material: proofItem.material,
-              finish: proofItem.finish,
-              sizeLabel: proofItem.size,
-              quantity: proofItem.quantity,
-              widthInches: proofItem.widthInches || presetInches,
-              heightInches: proofItem.heightInches || presetInches,
-              artScale: proofItem.artScale,
-              artMargin: proofItem.artMargin,
-              magentaCutLine: proofItem.magentaCutLine,
-            })
-          : null;
+      if (isStickers) {
+        for (const [index, item] of order.items.entries()) {
+          const preview = getEffectivePreview(item.id);
+          if (!preview) continue;
 
-      if (proof) {
-        formData.append("proof", proof, "gorilla-proof.png");
+          // Falls back to the preset label, which is a square, when the
+          // customer used a size button instead of typing dimensions.
+          const presetInches = parseSizeInches(item.size);
+
+          const proof = await renderStickerProof({
+            artworkUrl: preview,
+            shape: item.shape,
+            material: item.material,
+            finish: item.finish,
+            sizeLabel: item.size,
+            quantity: item.quantity,
+            widthInches: item.widthInches || presetInches,
+            heightInches: item.heightInches || presetInches,
+            artScale: item.artScale,
+            artMargin: item.artMargin,
+            magentaCutLine: item.magentaCutLine,
+            // A knockout IS the transparency, so the proof must stop warning
+            // about a background that is no longer there — it is rendering the
+            // knocked-out art, and saying otherwise would contradict the
+            // picture directly above the caption.
+            hasTransparentEdges: itemKnockouts[item.id]
+              ? true
+              : itemAnalyses[item.id]?.hasTransparentEdges ?? null,
+          });
+
+          if (!proof) continue;
+
+          if (proofBytesUsed + proof.size > proofBudget) {
+            // Out of room. The shop still has the artwork and the written
+            // spec, so a missing proof costs a picture — never the order.
+            break;
+          }
+
+          formData.append(
+            `proof:${item.id}`,
+            proof,
+            order.items.length > 1
+              ? `design-${index + 1}-proof.png`
+              : "gorilla-proof.png"
+          );
+          proofBytesUsed += proof.size;
+          proofsAttached += 1;
+        }
+
+        // Named, so "Our proof" in the shop email can never imply every design
+        // got one when the body ran out of room partway through.
+        if (proofsAttached < order.items.filter((i) => getEffectivePreview(i.id)).length) {
+          formData.append("proofsDropped", "true");
+        }
       }
 
       const response = await fetch("/api/quote", {
@@ -1936,8 +2286,15 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     // quote used to strand one object URL per design for the life of the tab.
     // (CART-PLAN bug 2.)
     Object.values(itemPreviews).forEach((url) => URL.revokeObjectURL(url));
+    // Knockouts hold an object URL each, on exactly the same terms.
+    Object.values(itemKnockouts).forEach((knockout) =>
+      URL.revokeObjectURL(knockout.previewUrl)
+    );
     setItemPreviews({});
     setItemAnalyses({});
+    setItemKnockouts({});
+    setItemKnockoutErrors({});
+    setKnockoutWanted({});
 
     // A fresh item, not the one baked into defaultOrder at import time —
     // reusing it would hand every reset order the same design id, and ids are
@@ -2107,7 +2464,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
           )}
 
           <DecalPreviewCard
-            artworkPreview={itemPreviews[item.id] || null}
+            artworkPreview={getEffectivePreview(item.id)}
             product={item}
             production={order.production}
             unitPrice={getItemUnitPrice(item)}
@@ -2370,16 +2727,45 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               {currentStepId === "details" && (
               <>
               {isSignsSelected ? (
-                <SignsBuilder
-                  signsQuote={signsQuote}
-                  deliveryMethod={order.production.deliveryMethod}
-                  fieldErrors={fieldErrors}
-                  onUpdate={(updates) => updateSignsQuote(updates)}
-                  onSelectProduct={handleSignProductSelect}
-                  onSelectDeliveryMethod={(deliveryMethod) =>
-                    updateProduction({ deliveryMethod })
-                  }
-                />
+                <>
+                  <SignsBuilder
+                    signsQuote={signsQuote}
+                    deliveryMethod={order.production.deliveryMethod}
+                    fieldErrors={fieldErrors}
+                    onUpdate={(updates) => updateSignsQuote(updates)}
+                    onSelectProduct={handleSignProductSelect}
+                    onSelectDeliveryMethod={(deliveryMethod) =>
+                      updateProduction({ deliveryMethod })
+                    }
+                  />
+
+                  {/* Sits on the details step, with the rest of what the sign
+                      IS. The artwork step then either takes an upload or shows
+                      that the template already covers it. */}
+                  <TemplateDesigner
+                    productId={signsQuote.productId}
+                    templateId={signsQuote.templateId}
+                    values={signsQuote.templateText}
+                    errors={signsTemplateTextErrors}
+                    onSelectTemplate={(templateId) =>
+                      updateSignsQuote({
+                        templateId,
+                        // Starting a different template must not carry the
+                        // previous one's words into fields that do not exist
+                        // on it.
+                        templateText: {},
+                      })
+                    }
+                    onChangeText={(fieldId, value) =>
+                      updateSignsQuote({
+                        templateText: {
+                          ...signsQuote.templateText,
+                          [fieldId]: value,
+                        },
+                      })
+                    }
+                  />
+                </>
               ) : isApparelRequest ? (
                 // The full ApparelBuilder is deliberately not rendered. See
                 // ApparelRequestBuilder — its pricing is not signed off, and
@@ -2458,6 +2844,9 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                         magentaDetected={Boolean(
                           itemAnalyses[item.id]?.magentaDetected
                         )}
+                        hasTransparentEdges={
+                          itemAnalyses[item.id]?.hasTransparentEdges ?? null
+                        }
                         fieldErrors={itemFieldErrors[item.id] || {}}
                         // Delivery is an order-level choice, so only the first
                         // card offers it — three "ship or pick up?" questions
@@ -2520,7 +2909,26 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
               {currentStepId === "artwork" && (
               <>
-              {isSignsSelected || isApparelSelected ? (
+              {isSignsSelected && signsQuote.templateId ? (
+                // A template already IS the artwork, so this step has nothing
+                // to ask for. Saying so beats leaving an upload box that looks
+                // required sitting on a step the customer has already
+                // satisfied.
+                <div className="border border-[var(--rule)] border-l-4 border-l-[var(--gorilla-green)] bg-[var(--surface-ok)] p-5">
+                  <p className="eyebrow">Artwork</p>
+                  <h3 className="mt-2 text-lede font-bold text-[var(--gorilla-green-dark)]">
+                    Covered — you&rsquo;re using our{" "}
+                    {getTemplate(signsQuote.templateId)?.name.toLowerCase()}{" "}
+                    template
+                  </h3>
+                  <p className="mt-2 text-fine font-bold text-[var(--gorilla-green-dark)]">
+                    Nothing to upload. We set your wording into the artwork and
+                    send a proof before printing. Changed your mind? Go back to
+                    details and choose &ldquo;I&rsquo;ll upload my own
+                    artwork&rdquo;.
+                  </p>
+                </div>
+              ) : isSignsSelected || isApparelSelected ? (
                 <UploadBox
                   onFileSelected={handleArtworkUpload}
                   // Without these the box can never show that a file arrived,
@@ -2555,6 +2963,31 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                         previewUrl={itemPreviews[item.id] || null}
                         error={itemFieldErrors[item.id]?.artwork}
                       />
+
+                      {/* Under the box the file was just dropped into.
+                          A die cut follows the edge of the ARTWORK, and that
+                          edge comes from the file's transparency — so a JPEG,
+                          or a PNG flattened onto white, cuts as a rectangle.
+                          The customer finds out here, while they can still do
+                          something about it, instead of from a proof that
+                          looks nothing like the sticker they pictured. */}
+                      {item.artwork.file &&
+                        item.shape === "Die Cut" &&
+                        itemAnalyses[item.id]?.hasTransparentEdges === false && (
+                          <BackgroundRemovalControl
+                            active={Boolean(knockoutWanted[item.id])}
+                            ready={Boolean(itemKnockouts[item.id])}
+                            busy={knockoutBusyId === item.id}
+                            error={itemKnockoutErrors[item.id]}
+                            originalUrl={itemPreviews[item.id] || null}
+                            knockoutUrl={
+                              itemKnockouts[item.id]?.previewUrl ?? null
+                            }
+                            onToggle={(wanted) =>
+                              toggleBackgroundRemoval(item.id, wanted)
+                            }
+                          />
+                        )}
                     </DesignCard>
                   ))}
                 </div>

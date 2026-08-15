@@ -548,6 +548,57 @@ export async function createStickerCheckout(input: {
   }
 }
 
+/**
+ * One sticker spec, as production reads it.
+ *
+ * Takes any spec-shaped record so it serves both the synthesised `product`
+ * (single design) and each item in a cart, rather than being written twice
+ * and drifting.
+ */
+function describeStickerSpec(spec: AnyRecord, quantity: number) {
+  return [
+    `${quantity}x Custom Stickers`,
+    // Real dimensions when entered — the shop cannot cut a "Custom size".
+    `Size: ${
+      num(spec.widthInches) > 0 && num(spec.heightInches) > 0
+        ? `${num(spec.widthInches)}in x ${num(spec.heightInches)}in`
+        : str(spec.size, "TBD")
+    }`,
+    `Shape: ${str(spec.shape, "TBD")}`,
+    `Type: ${str(spec.material, "TBD")}`,
+    `Art placement: ${str(spec.artScale, "80")}% size, ${str(
+      spec.artMargin,
+      "40"
+    )}% ${str(spec.shape) === "Die Cut" ? "cut border" : "margin"}`,
+    `Magenta cut line: ${
+      spec.magentaCutLine ? "YES — art has a magenta cut path" : "no"
+    }`,
+    // The filename ties this row to a file in the shop email. Without it, two
+    // designs ordered at the same size and material describe themselves
+    // identically and the shop has no way to tell which row is which — the
+    // other half of CART-PLAN bug 3.
+    `Artwork file: ${str(spec.artworkFileName, "none uploaded")}`,
+    // Only when we actually looked and found a solid background. Unknown
+    // (vector files we cannot raster-inspect) says nothing rather than
+    // guessing, and a clean transparent file needs no line at all.
+    ...(spec.hasTransparentEdges === false && str(spec.shape) === "Die Cut"
+      ? [
+          "*** SOLID BACKGROUND - knock out before cutting, or the cut is a rectangle ***",
+        ]
+      : []),
+    // Ours, automated, and unchecked by anyone. Prepress has to be told, or a
+    // knocked-out file arrives looking like something the customer supplied.
+    ...(spec.backgroundRemoved
+      ? [
+          `Background removed in-app at customer request (${str(
+            spec.backgroundRemovedColor,
+            "flat colour"
+          )}) - CHECK the knockout; original file also attached to the quote email`,
+        ]
+      : []),
+  ].join("\n");
+}
+
 export type PrintavoQuotePlan = {
   nickname: string;
   customerDueAt: string;
@@ -555,13 +606,19 @@ export type PrintavoQuotePlan = {
   customerNote: string;
   productionNote: string;
   tags: string[];
-  lineItem: {
+  /**
+   * The goods. One entry for signs and apparel; one PER DESIGN for a sticker
+   * cart, because a cart has no single size, shape or material and a blended
+   * unit price across three different stickers is not something a shop can
+   * work from — or adjust one of.
+   */
+  lineItems: {
     description: string;
     itemNumber: string;
     price: number;
     quantity: number;
     sizes: PrintavoSizeCount[];
-  };
+  }[];
   // Only present when the customer chose shipping over local pickup.
   shippingLineItem: {
     description: string;
@@ -595,6 +652,12 @@ export function buildPrintavoQuotePlan(input: {
   artworkAnalysis: AnyRecord | null;
   attachmentInfo?: string;
 }): PrintavoQuotePlan {
+  /**
+   * Set when the order was taken on the shop's own terminal. Read straight
+   * off the order so this stays a pure mapping — the route decides what a
+   * kiosk order MEANS (no payment link); this only reports it.
+   */
+  const kiosk = (input.order.kiosk as AnyRecord | null) || null;
   const { quoteNumber, order, artworkAnalysis, attachmentInfo } = input;
 
   const customer = (order.customer as AnyRecord) || {};
@@ -681,6 +744,18 @@ export function buildPrintavoQuotePlan(input: {
   const signs = isSigns(product);
   const signLabel = str(product.signType, "Signs");
 
+  /**
+   * The sticker cart, when the payload carries one.
+   *
+   * `product` is a synthesis — design 1's spec under the combined quantity —
+   * so anything priced or described off it alone states design 1's size as
+   * fact about the whole run.
+   */
+  const stickerItems =
+    !apparel && !signs && Array.isArray(order.items)
+      ? (order.items as AnyRecord[])
+      : [];
+
   // Flag anything the app couldn't price: unpriced signs, and apparel special
   // orders (a garment or placement outside the simple online menu).
   //
@@ -694,15 +769,21 @@ export function buildPrintavoQuotePlan(input: {
     productNeedsHandPricing || addOns.some((a) => Boolean(a.quoteRequired));
   const isSpecialOrder = Boolean(product.specialOrder);
 
+  // The nickname is what the shop scans in the Printavo list, so a counter
+  // order has to be identifiable there and not just inside the note.
+  const nicknamePrefix = kiosk ? "IN STORE" : "WEB QUOTE";
+
   const nickname = apparel
-    ? `WEB QUOTE ${quoteNumber} - ${quantity} ${garmentLabel}${
+    ? `${nicknamePrefix} ${quoteNumber} - ${quantity} ${garmentLabel}${
         isSpecialOrder ? " (SPECIAL ORDER - NEEDS QUOTE)" : ""
       }`
     : signs
-    ? `WEB QUOTE ${quoteNumber} - ${quantity} ${signLabel}${
+    ? `${nicknamePrefix} ${quoteNumber} - ${quantity} ${signLabel}${
         productNeedsHandPricing ? " (NEEDS PRICING)" : ""
       }`
-    : `WEB QUOTE ${quoteNumber} - ${quantity} Stickers`;
+    : `${nicknamePrefix} ${quoteNumber} - ${quantity} Stickers${
+        stickerItems.length > 1 ? ` / ${stickerItems.length} designs` : ""
+      }`;
 
   const description = signs
     ? [
@@ -739,29 +820,47 @@ export function buildPrintavoQuotePlan(input: {
             ]
           : []),
       ].join("\n")
-    : [
-        `${quantity}x Custom Stickers`,
-        // Real dimensions when entered — the shop cannot cut a "Custom size".
-        `Size: ${
-          num(product.widthInches) > 0 && num(product.heightInches) > 0
-            ? `${num(product.widthInches)}in x ${num(product.heightInches)}in`
-            : str(product.size, "TBD")
-        }`,
-        `Shape: ${str(product.shape, "TBD")}`,
-        `Type: ${str(product.material, "TBD")}`,
-        `Art placement: ${str(product.artScale, "80")}% size, ${str(
-          product.artMargin,
-          "40"
-        )}% ${str(product.shape) === "Die Cut" ? "cut border" : "margin"}`,
-        `Magenta cut line: ${
-          product.magentaCutLine ? "YES — art has a magenta cut path" : "no"
-        }`,
-      ].join("\n");
+    : stickerItems.length > 1
+    ? // A cart. The note has to say what the run actually is, not repeat
+      // design 1's spec under the combined quantity.
+      [
+        `${quantity}x Custom Stickers across ${stickerItems.length} designs`,
+        "",
+        ...stickerItems.flatMap((item, index) => [
+          `DESIGN ${index + 1}`,
+          describeStickerSpec(item, num(item.quantity, 0)),
+          "",
+        ]),
+      ]
+        .join("\n")
+        .trimEnd()
+    : // One design. `product` is design 1's spec re-synthesised, but the item
+      // is where anything ADDED to a design lands — the filename, whether the
+      // background is solid, whether we knocked one out. Grafting named fields
+      // one at a time is how the solid-background warning reached Printavo on
+      // a cart and silently never on a single design, which is the common
+      // case. Spread the whole item so a new field is carried by default.
+      describeStickerSpec(
+        { ...product, ...(stickerItems[0] ?? {}) },
+        quantity
+      );
 
   const customerNote = [
-    `GORILLA ORDER WEB QUOTE — ${quoteNumber}`,
+    kiosk
+      ? `GORILLA ORDER — TAKEN IN STORE — ${quoteNumber}`
+      : `GORILLA ORDER WEB QUOTE — ${quoteNumber}`,
     "",
-    "Submitted from the Gorilla Order website. NOT yet reviewed or confirmed.",
+    kiosk
+      ? str(kiosk.mode) === "staff"
+        ? `Written up at the counter by ${str(kiosk.staffName, "a staff member")}. NOT yet reviewed or confirmed.`
+        : "Customer used the in-store kiosk themselves. NOT yet reviewed or confirmed."
+      : "Submitted from the Gorilla Order website. NOT yet reviewed or confirmed.",
+    ...(kiosk
+      ? [
+          "",
+          "*** NO PAYMENT LINK WAS SENT - TAKE PAYMENT AT THE COUNTER ***",
+        ]
+      : []),
     "",
     "CUSTOMER",
     `Name: ${str(customer.customerName, "Not entered")}`,
@@ -781,7 +880,13 @@ export function buildPrintavoQuotePlan(input: {
     "",
     "WEBSITE ESTIMATE",
     `Total: $${total.toFixed(2)}`,
-    `Each: $${unitPrice.toFixed(2)}`,
+    // One "each" across three different stickers is a blended average of
+    // things that do not average — it read as a real per-sticker price the
+    // shop could quote from. Each design's own unit price is on its own line
+    // item, which is where it belongs.
+    ...(stickerItems.length > 1
+      ? [`Setup: $${num(pricing.setupPrice).toFixed(2)} (see the line items for per-design pricing)`]
+      : [`Each: $${unitPrice.toFixed(2)}`]),
     ...(shippingPrice > 0
       ? [`Shipping: $${shippingPrice.toFixed(2)}`]
       : ["Shipping: Free (local pickup)"]),
@@ -819,35 +924,65 @@ export function buildPrintavoQuotePlan(input: {
     // Tags are sent raw, not through asciiSafe() — keep them ASCII.
     tags: [
       "#GorillaOrder",
-      "#WebQuote",
+      // Two different jobs to work, so two different tags to filter on.
+      ...(kiosk ? ["#InStore", "#PayAtCounter"] : ["#WebQuote"]),
       "#Unconfirmed",
       ...(needsHandPricing ? ["#NeedsPricing"] : []),
       ...(addOnLines.length ? ["#Upsell"] : []),
     ],
-    lineItem: {
-      description,
-      itemNumber: signs
-        ? `GORILLA-SIGN-${str(product.signType, "NA").toUpperCase().replace(/[^A-Z0-9]+/g, "-")}`
-        : apparel
-        ? `GORILLA-APPAREL-${str(supplier.catalogStyle, "NA")}`
-        : "GORILLA-DECAL",
-      price: unitPrice,
-      quantity,
-      // Apparel: map the real size breakdown onto Printavo's size enums so the
-      // shop sees S/M/L/XL counts. Stickers (and unparseable breakdowns) fall
-      // back to a single size_other row carrying the full count.
-      sizes: (() => {
-        if (!apparel) return [{ size: "size_other", count: quantity }];
+    lineItems:
+      stickerItems.length > 1
+        ? // One row per design. Each carries its own spec, its own count and
+          // the price the SERVER put on it (item.linePrice, written by
+          // repriceStickers) — never a blended average, and never a figure
+          // recomputed here that could drift from what was charged.
+          stickerItems.map((item, index) => {
+            const itemQuantity = Math.max(1, num(item.quantity, 1));
+            const linePrice = num(item.linePrice);
 
-        const parsed = parseSizeBreakdown(str(product.sizeBreakdown));
-        const parsedTotal = parsed.reduce((sum, s) => sum + s.count, 0);
+            return {
+              description: `Design ${index + 1}\n${describeStickerSpec(
+                item,
+                itemQuantity
+              )}`,
+              // Numbered, not the bare "GORILLA-DECAL" every row used to
+              // carry: two identical designs produced byte-identical rows the
+              // shop could not tell apart (CART-PLAN bug 3). The number is the
+              // design's cart position — the same number the shop email's
+              // block and the design-N-*.png attachment use.
+              itemNumber: `GORILLA-DECAL-${index + 1}`,
+              price: Number((linePrice / itemQuantity).toFixed(4)),
+              quantity: itemQuantity,
+              sizes: [{ size: "size_other", count: itemQuantity }],
+            };
+          })
+        : [
+            {
+              description,
+              itemNumber: signs
+                ? `GORILLA-SIGN-${str(product.signType, "NA").toUpperCase().replace(/[^A-Z0-9]+/g, "-")}`
+                : apparel
+                ? `GORILLA-APPAREL-${str(supplier.catalogStyle, "NA")}`
+                : "GORILLA-DECAL",
+              price: unitPrice,
+              quantity,
+              // Apparel: map the real size breakdown onto Printavo's size enums
+              // so the shop sees S/M/L/XL counts. Stickers (and unparseable
+              // breakdowns) fall back to a single size_other row carrying the
+              // full count.
+              sizes: (() => {
+                if (!apparel) return [{ size: "size_other", count: quantity }];
 
-        // Only trust the breakdown if it actually accounts for the order.
-        return parsed.length > 0 && parsedTotal === quantity
-          ? parsed
-          : [{ size: "size_other", count: quantity }];
-      })(),
-    },
+                const parsed = parseSizeBreakdown(str(product.sizeBreakdown));
+                const parsedTotal = parsed.reduce((sum, s) => sum + s.count, 0);
+
+                // Only trust the breakdown if it actually accounts for the order.
+                return parsed.length > 0 && parsedTotal === quantity
+                  ? parsed
+                  : [{ size: "size_other", count: quantity }];
+              })(),
+            },
+          ],
     shippingLineItem:
       shippingPrice > 0
         ? {
@@ -856,15 +991,41 @@ export function buildPrintavoQuotePlan(input: {
             price: shippingPrice,
           }
         : null,
-    feeLineItems: signsFeeLines.map((l) => ({
-      description: str(l.label, "Fee"),
-      itemNumber: `GORILLA-FEE-${str(l.label, "FEE")
-        .toUpperCase()
-        .replace(/[^A-Z0-9]+/g, "-")
-        .slice(0, 24)
-        .replace(/-$/, "")}`,
-      price: num(l.amount),
-    })),
+    feeLineItems: [
+      /**
+       * Sticker setup, as its own line.
+       *
+       * THIS WAS BEING LOST. getStickerPrice() used to bake setup into the
+       * price the browser sent as `stickerPrice`, so the single decal line
+       * carried it. Splitting material from setup for the cart left
+       * `stickerPrice` material-only and nothing ever sent `setupPrice` — so
+       * the Printavo quote came to $25 less than the website total on a single
+       * design, and $50 less on three. Stickers self-check-out against the
+       * quote's amountOutstanding with no human in the loop, so that shortfall
+       * was money the shop simply did not collect.
+       */
+      ...(!apparel && !signs && num(pricing.setupPrice) > 0
+        ? [
+            {
+              description:
+                stickerItems.length > 1
+                  ? `Setup and artwork prep (${stickerItems.length} designs)`
+                  : "Setup and artwork prep",
+              itemNumber: "GORILLA-DECAL-SETUP",
+              price: num(pricing.setupPrice),
+            },
+          ]
+        : []),
+      ...signsFeeLines.map((l) => ({
+        description: str(l.label, "Fee"),
+        itemNumber: `GORILLA-FEE-${str(l.label, "FEE")
+          .toUpperCase()
+          .replace(/[^A-Z0-9]+/g, "-")
+          .slice(0, 24)
+          .replace(/-$/, "")}`,
+        price: num(l.amount),
+      })),
+    ],
     // Taxability follows the GOODS, not whether the flow checks out online.
     // Stickers and signs are ordinary tangible goods; Massachusetts exempts
     // clothing, so apparel carries no tax. See lib/tax.ts.
@@ -953,23 +1114,25 @@ export async function createPrintavoQuote(input: {
           // docs render it as [[...]], but live schema introspection against
           // the account confirms a flat list; the live schema wins.)
           lineItems: [
-            {
-              description: asciiSafe(plan.lineItem.description),
-              itemNumber: plan.lineItem.itemNumber,
-              position: 1,
-              price: plan.lineItem.price,
-              sizes: plan.lineItem.sizes,
+            // The goods — one row for signs and apparel, one per design for a
+            // sticker cart.
+            ...plan.lineItems.map((item, index) => ({
+              description: asciiSafe(item.description),
+              itemNumber: item.itemNumber,
+              position: index + 1,
+              price: item.price,
+              sizes: item.sizes,
               // Follows the plan so apparel does not read as "taxable" in
               // Printavo's UI. Harmless while the rate is null, but it would
               // be misleading to anyone looking at the quote.
               taxed: plan.salesTaxRate !== null,
-            },
+            })),
             // Setup fee, custom size fee, banner add-ons — each its own line so
             // the shop can adjust one charge without unpicking a lumped total.
             ...plan.feeLineItems.map((fee, index) => ({
               description: asciiSafe(fee.description),
               itemNumber: fee.itemNumber,
-              position: index + 2,
+              position: plan.lineItems.length + index + 1,
               price: fee.price,
               sizes: [{ size: "size_other", count: 1 }],
               taxed: plan.salesTaxRate !== null,
@@ -979,7 +1142,8 @@ export async function createPrintavoQuote(input: {
                   {
                     description: asciiSafe(plan.shippingLineItem.description),
                     itemNumber: plan.shippingLineItem.itemNumber,
-                    position: plan.feeLineItems.length + 2,
+                    position:
+                      plan.lineItems.length + plan.feeLineItems.length + 1,
                     price: plan.shippingLineItem.price,
                     sizes: [{ size: "size_other", count: 1 }],
                     taxed: false,
@@ -1001,6 +1165,104 @@ export async function createPrintavoQuote(input: {
   } catch (error) {
     return {
       created: false,
+      error: error instanceof Error ? error.message : "Unknown Printavo error.",
+    };
+  }
+}
+
+export type OrderLookupResult =
+  | { found: true; status: string; visualId: string; quoteNumber: string }
+  /**
+   * One shape for "no such order" AND "that is not the email on it".
+   *
+   * Deliberately indistinguishable. Quote numbers are short and dated, so a
+   * lookup that answered "right number, wrong email" would confirm an order
+   * exists and let someone probe addresses against it. The customer loses
+   * nothing: either way the honest instruction is check the number and the
+   * address on their confirmation.
+   */
+  | { found: false; reason: "no-match" }
+  /** Printavo is unreachable or unconfigured — NOT the same as no such order. */
+  | { found: false; reason: "unavailable"; error?: string };
+
+/**
+ * Look up one order's production status, for the customer-facing tracker.
+ *
+ * Matched on the quote number the app generated, which lives in the Printavo
+ * NICKNAME ("WEB QUOTE GS-20260812-AB12C - ..."), not in visualId — Printavo
+ * assigns that itself and the customer has never seen it.
+ *
+ * ── UNVERIFIED AGAINST THE LIVE ACCOUNT ───────────────────────────────────
+ * The `orders(query:)` connection and the `status { name }` shape below are
+ * written from the published schema, which has already been wrong once for
+ * this integration (lineItems is documented as a nested list and is a flat
+ * one live — see the note in createPrintavoQuote). There are no Printavo
+ * credentials in the environment this was built in, so it could not be run.
+ *
+ * Everything here fails to `unavailable`, never to `no-match`, so a wrong
+ * query shape shows "we couldn't reach our system" rather than telling a
+ * customer with a real order that it does not exist.
+ * ──────────────────────────────────────────────────────────────────────────
+ */
+export async function lookupOrderStatus(input: {
+  quoteNumber: string;
+  email: string;
+}): Promise<OrderLookupResult> {
+  if (!isConfigured()) {
+    return { found: false, reason: "unavailable", error: "Printavo is not configured." };
+  }
+
+  const quoteNumber = input.quoteNumber.trim().toUpperCase();
+  const email = input.email.trim().toLowerCase();
+
+  if (!quoteNumber || !email) return { found: false, reason: "no-match" };
+
+  try {
+    const data = await printavoRequest<{ orders: { nodes: AnyRecord[] } }>(
+      `query GorillaOrderStatus($q: String!) {
+         orders(query: $q, first: 10) {
+           nodes {
+             ... on Quote    { id visualId nickname status { name } contact { email } }
+             ... on Invoice  { id visualId nickname status { name } contact { email } }
+           }
+         }
+       }`,
+      { q: quoteNumber }
+    );
+
+    const nodes = data.orders?.nodes || [];
+
+    // Printavo's search is fuzzy, so confirm the quote number really is in the
+    // nickname rather than trusting whatever the search decided was close.
+    const match = nodes.find((node) =>
+      str(node.nickname).toUpperCase().includes(quoteNumber)
+    );
+
+    if (!match) return { found: false, reason: "no-match" };
+
+    const contact = (match.contact as AnyRecord) || {};
+    // Printavo keeps several addresses in one comma-separated string.
+    const addresses = str(contact.email)
+      .toLowerCase()
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+
+    if (!addresses.includes(email)) return { found: false, reason: "no-match" };
+
+    return {
+      found: true,
+      status: str((match.status as AnyRecord)?.name),
+      visualId: str(match.visualId),
+      quoteNumber,
+    };
+  } catch (error) {
+    // A thrown request is a broken pipe, not a missing order. Saying "no such
+    // order" here would tell a customer holding a real receipt that we have
+    // never heard of them.
+    return {
+      found: false,
+      reason: "unavailable",
       error: error instanceof Error ? error.message : "Unknown Printavo error.",
     };
   }

@@ -225,6 +225,14 @@ export const defaultSignsQuote = {
   finishing: "Hemmed + Grommets",
   doubleSided: false,
   bannerAddOns: [] as string[],
+  /**
+   * A shop-authored template the customer personalised, or null when they are
+   * uploading their own artwork. The two are alternatives — see
+   * lib/templates.ts.
+   */
+  templateId: null as string | null,
+  /** Field id -> what the customer typed. */
+  templateText: {} as Record<string, string>,
 };
 
 export type SignsQuote = typeof defaultSignsQuote;

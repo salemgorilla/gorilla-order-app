@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { adminSecretMatches, isAdminSecretConfigured } from "../../../lib/admin-auth";
 import { createPaymentRequest } from "../../../lib/printavo";
 
 /**
@@ -13,11 +14,10 @@ import { createPaymentRequest } from "../../../lib/printavo";
  * Header: x-admin-secret: <ADMIN_SECRET>
  */
 export async function POST(request: Request) {
-  const secret = process.env.ADMIN_SECRET;
-
   // Fail closed: with no secret configured the endpoint is unusable rather
-  // than open to the world.
-  if (!secret) {
+  // than open to the world. A whitespace-only value counts as unset — see
+  // lib/admin-auth.
+  if (!isAdminSecretConfigured()) {
     return NextResponse.json(
       {
         sent: false,
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     );
   }
 
-  if (request.headers.get("x-admin-secret") !== secret) {
+  if (!adminSecretMatches(request.headers.get("x-admin-secret"))) {
     return NextResponse.json(
       { sent: false, error: "Unauthorized." },
       { status: 401 }

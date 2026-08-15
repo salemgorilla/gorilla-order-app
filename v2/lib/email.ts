@@ -69,6 +69,90 @@ function line(label: string, value: string) {
 }
 
 /**
+ * Who this quote is from, and what they agreed to.
+ *
+ * ── WHY THIS IS A FUNCTION AND NOT TWO COPIES ─────────────────────────────
+ * Every quote email is rendered twice — once as plain text and once as HTML —
+ * and this block was written out in full in both places. They agreed, but
+ * nothing made them agree, and the field most likely to be edited is the one
+ * least able to survive drifting: the newsletter consent record.
+ *
+ * That record is the shop's evidence of what a customer was actually shown.
+ * "The box was ticked by default and left ticked" is a materially different
+ * answer from "the customer ticked it", and on the website the box arrives
+ * pre-ticked while on the kiosk it starts empty — so on the kiosk "Declined"
+ * would claim a decision nobody made. Two copies of that reasoning is two
+ * chances for the HTML the shop reads to disagree with the text an archive
+ * keeps.
+ *
+ * The Zapier hook has been unset in production, so these lines are currently
+ * the ONLY record that any opt-in happened at all, and the thing a backfill
+ * would be reconstructed from. That is what makes the duplication worth
+ * removing rather than merely tidy.
+ * ──────────────────────────────────────────────────────────────────────────
+ */
+export function buildCustomerLines(input: {
+  customer: AnyRecord;
+  kiosk?: { mode?: string; staffName?: string } | null;
+}) {
+  const customer = input.customer;
+
+  return [
+    ...(input.kiosk
+      ? [
+          line(
+            "Taken",
+            input.kiosk.mode === "staff"
+              ? `At the counter by ${str(input.kiosk.staffName, "a staff member")}`
+              : "At the counter — customer used the kiosk themselves"
+          ),
+          line(
+            "Payment",
+            "NOT charged — no payment link was sent. Take payment at the counter."
+          ),
+        ]
+      : []),
+    line("Name", str(customer.customerName, "Not entered")),
+    line("Company", str(customer.company, "N/A")),
+    line("Email", str(customer.email, "Not entered")),
+    line("Phone", str(customer.phone, "N/A")),
+    // Optional, so "Not answered" rather than an omitted line — a missing row
+    // reads as a rendering bug, and knowing nobody answered is itself data.
+    line(
+      "Heard about us via",
+      Array.isArray(customer.heardAbout) && customer.heardAbout.length
+        ? (customer.heardAbout as string[]).join(", ")
+        : "Not answered"
+    ),
+    line(
+      "Newsletter",
+      customer.newsletterOptIn === true
+        ? input.kiosk
+          ? "Opted in (box started empty — ticked deliberately)"
+          : "Opted in (box shipped pre-ticked)"
+        : input.kiosk
+        ? "Not opted in (box started empty)"
+        : "Declined"
+    ),
+  ];
+}
+
+/**
+ * Is this something a mail provider will accept as a recipient?
+ *
+ * Deliberately strict about the one thing that actually breaks: exactly one
+ * "@", a domain with a dot, and no whitespace. A real address that fails this
+ * is vanishingly rare; a typo that passes a looser check is not — the shop had
+ * LEAD_TO_EMAIL set to an address with TWO "@" signs, which every provider
+ * rejects and which nothing in this app noticed, because a non-empty string
+ * was treated as a working address.
+ */
+export function looksLikeEmailAddress(value: unknown) {
+  const address = String(value ?? "").trim();
+  return /^[^@\s]+@[^@\s.]+(\.[^@\s.]+)+$/.test(address);
+}
+
+/**
  * A titled run of "Label: Value" lines.
  *
  * The artwork section is the only one that needs several of these — a cart
@@ -553,49 +637,9 @@ export function buildQuoteEmail(input: {
     `Submitted: ${submittedAt}`,
     ``,
     `CUSTOMER`,
-    ...(input.kiosk
-      ? [
-          line(
-            "Taken",
-            input.kiosk.mode === "staff"
-              ? `At the counter by ${str(input.kiosk.staffName, "a staff member")}`
-              : "At the counter — customer used the kiosk themselves"
-          ),
-          line(
-            "Payment",
-            "NOT charged — no payment link was sent. Take payment at the counter."
-          ),
-        ]
-      : []),
-    line("Name", str(customer.customerName, "Not entered")),
-    line("Company", str(customer.company, "N/A")),
-    line("Email", str(customer.email, "Not entered")),
-    line("Phone", str(customer.phone, "N/A")),
-    // Optional, so "Not answered" rather than an omitted line — a missing row
-    // reads as a rendering bug, and knowing nobody answered is itself data.
-    line(
-      "Heard about us via",
-      Array.isArray(customer.heardAbout) && customer.heardAbout.length
-        ? customer.heardAbout.join(", ")
-        : "Not answered"
-    ),
-    // Recorded on every quote, opted in or not. The shop needs to be able to
-    // say where an address came from, and "box was ticked by default and left
-    // ticked" is a materially different answer from "customer ticked it".
-    // A consent record has to describe what the customer was actually shown.
-    // On the website the box arrives ticked, so leaving it ticked and
-    // un-ticking it are different acts; on a kiosk it starts empty, so
-    // "declined" would claim a decision nobody made.
-    line(
-      "Newsletter",
-      customer.newsletterOptIn === true
-        ? input.kiosk
-          ? "Opted in (box started empty — ticked deliberately)"
-          : "Opted in (box shipped pre-ticked)"
-        : input.kiosk
-        ? "Not opted in (box started empty)"
-        : "Declined"
-    ),
+    // `customer` here is order.customer; the HTML builder receives it already
+    // unwrapped. Passing it explicitly keeps both callers on the one function.
+    ...buildCustomerLines({ customer, kiosk: input.kiosk }),
     ``,
     apparel ? `APPAREL DETAILS` : signs ? `SIGNS DETAILS` : `STICKER DETAILS`,
     ...productLines,
@@ -730,42 +774,10 @@ function buildHtml(input: {
   customerEmail: string;
   kiosk?: { mode: "self" | "staff"; staffName: string } | null;
 }) {
-  const customerLines = [
-    ...(input.kiosk
-      ? [
-          line(
-            "Taken",
-            input.kiosk.mode === "staff"
-              ? `At the counter by ${str(input.kiosk.staffName, "a staff member")}`
-              : "At the counter — customer used the kiosk themselves"
-          ),
-          line(
-            "Payment",
-            "NOT charged — no payment link was sent. Take payment at the counter."
-          ),
-        ]
-      : []),
-    line("Name", str(input.customer.customerName, "Not entered")),
-    line("Company", str(input.customer.company, "N/A")),
-    line("Email", str(input.customer.email, "Not entered")),
-    line("Phone", str(input.customer.phone, "N/A")),
-    line(
-      "Heard about us via",
-      Array.isArray(input.customer.heardAbout) && input.customer.heardAbout.length
-        ? input.customer.heardAbout.join(", ")
-        : "Not answered"
-    ),
-    line(
-      "Newsletter",
-      input.customer.newsletterOptIn === true
-        ? input.kiosk
-          ? "Opted in (box started empty — ticked deliberately)"
-          : "Opted in (box shipped pre-ticked)"
-        : input.kiosk
-        ? "Not opted in (box started empty)"
-        : "Declined"
-    ),
-  ];
+  // Shared with the plain-text rendering, so the consent record the shop reads
+  // and the one an archive keeps can never describe the same customer
+  // differently. See buildCustomerLines.
+  const customerLines = buildCustomerLines(input);
 
   return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;padding:24px;background:${SHIRT_BLANK};color:${INK_BLACK};">
   <div style="background:#ffffff;border:1px solid ${RULE};padding:24px;">
@@ -895,8 +907,31 @@ export async function sendShopEmail(input: {
   }
 
   const { to: requestedTo, ...message } = input;
-  const to =
-    requestedTo?.trim() || process.env.QUOTE_TO_EMAIL || "quote@gorillasalem.com";
+
+  const fallback = looksLikeEmailAddress(process.env.QUOTE_TO_EMAIL)
+    ? (process.env.QUOTE_TO_EMAIL as string).trim()
+    : "quote@gorillasalem.com";
+
+  /**
+   * A malformed override is DEMOTED to the main inbox, not sent as-is.
+   *
+   * The previous version passed any non-empty string straight to the provider,
+   * which rejects it — and the abandoned-quote route swallows send failures on
+   * purpose, so a typo in LEAD_TO_EMAIL meant those notices went nowhere and
+   * said nothing. Delivering to the quote inbox is worse than delivering to a
+   * dedicated one, and enormously better than delivering to neither.
+   */
+  let to = fallback;
+
+  if (requestedTo?.trim()) {
+    if (looksLikeEmailAddress(requestedTo)) {
+      to = requestedTo.trim();
+    } else {
+      console.error(
+        `EMAIL RECIPIENT INVALID: "${requestedTo.trim()}" is not a usable address. Sending to ${fallback} instead. Fix the environment variable that set it.`
+      );
+    }
+  }
 
   try {
     const args: SendArgs = { to, ...message, attachments: [] };

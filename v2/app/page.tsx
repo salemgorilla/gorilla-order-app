@@ -10,6 +10,7 @@ import StepFooter from "../components/StepFooter";
 import UploadBox from "../components/upload/UploadBox";
 import { useKiosk } from "../components/kiosk/KioskProvider";
 import BackgroundRemovalControl from "../components/upload/BackgroundRemovalControl";
+import ArtworkHandoff from "../components/kiosk/ArtworkHandoff";
 import ArtworkGuidance from "../components/upload/ArtworkGuidance";
 import NeedByDate from "../components/NeedByDate";
 import CustomerForm from "../components/CustomerForm";
@@ -2963,6 +2964,18 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                         previewUrl={itemPreviews[item.id] || null}
                         error={itemFieldErrors[item.id]?.artwork}
                       />
+
+                      {/* Kiosk only. On the website the customer is already on
+                          the device holding their files; at the counter the
+                          artwork is on a phone the kiosk cannot reach, which
+                          is the whole reason this exists. */}
+                      {kiosk.enabled && !item.artwork.file && (
+                        <ArtworkHandoff
+                          onFileReceived={(file) =>
+                            handleArtworkUpload(file, item.id)
+                          }
+                        />
+                      )}
 
                       {/* Under the box the file was just dropped into.
                           A die cut follows the edge of the ARTWORK, and that

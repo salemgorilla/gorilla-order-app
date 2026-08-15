@@ -18,6 +18,8 @@
  * ──────────────────────────────────────────────────────────────────────────
  */
 
+import { looksLikeEmailAddress } from "./email";
+
 export type CapabilityState = "live" | "degraded" | "off";
 
 export type Capability = {
@@ -35,6 +37,24 @@ function has(name: string) {
   return Boolean(process.env[name]?.trim());
 }
 
+function value(name: string) {
+  return process.env[name]?.trim() ?? "";
+}
+
+/**
+ * A set variable is not a working one.
+ *
+ * The first version of this check reported LEAD_TO_EMAIL as "live" because it
+ * was non-empty. It was set to an address containing TWO "@" signs, which
+ * every mail provider rejects — so the notices had been going nowhere while
+ * this file cheerfully said they were being delivered. A health check that
+ * reports presence as correctness is worse than none, because it is trusted.
+ */
+function badAddress(name: string) {
+  const set = value(name);
+  return set && !looksLikeEmailAddress(set) ? set : null;
+}
+
 export function getConfigHealth(): {
   capabilities: Capability[];
   /** True when anything customer-visible is not working as intended. */
@@ -46,22 +66,27 @@ export function getConfigHealth(): {
   const resend = has("RESEND_API_KEY");
   const gmail = has("GMAIL_USER") && has("GMAIL_APP_PASSWORD");
 
+  const badQuoteTo = badAddress("QUOTE_TO_EMAIL");
+
   capabilities.push({
     key: "quote-email",
     name: "Quote emails to the shop",
-    state: resend || gmail ? "live" : "off",
+    state: !(resend || gmail) ? "off" : badQuoteTo ? "degraded" : "live",
     summary:
-      resend || gmail
+      badQuoteTo && (resend || gmail)
+        ? `QUOTE_TO_EMAIL is "${badQuoteTo}", which is not a usable address — quotes are falling back to quote@gorillasalem.com. Fix the variable.`
+        : resend || gmail
         ? `Sending via ${resend ? "Resend" : "Gmail"} to ${
-            process.env.QUOTE_TO_EMAIL?.trim() || "quote@gorillasalem.com"
+            value("QUOTE_TO_EMAIL") || "quote@gorillasalem.com"
           }.`
         : // This is the one that matters most. Orders still submit and the
           // customer is still told it worked — the shop simply never hears.
           "NO EMAIL PROVIDER. Orders submit and customers get a confirmation, but the shop is never told an order came in.",
-    fix:
-      resend || gmail
-        ? []
-        : ["RESEND_API_KEY", "or GMAIL_USER + GMAIL_APP_PASSWORD"],
+    fix: !(resend || gmail)
+      ? ["RESEND_API_KEY", "or GMAIL_USER + GMAIL_APP_PASSWORD"]
+      : badQuoteTo
+      ? ["QUOTE_TO_EMAIL (currently unusable)"]
+      : [],
   });
 
   // ---- abandoned quotes ----------------------------------------------------
@@ -74,16 +99,24 @@ export function getConfigHealth(): {
   capabilities.push({
     key: "lead-notices",
     name: "Abandoned-quote notices",
-    state: resend || gmail ? "live" : "off",
+    state: !(resend || gmail)
+      ? "off"
+      : badAddress("LEAD_TO_EMAIL")
+      ? "degraded"
+      : "live",
     summary: !(resend || gmail)
       ? "Not sent — there is no email provider configured (see above)."
+      : badAddress("LEAD_TO_EMAIL")
+      ? `LEAD_TO_EMAIL is "${badAddress("LEAD_TO_EMAIL")}", which is not a usable address — note the character count of "@". These notices are falling back to the main quote inbox rather than being lost, but fix the variable.`
       : has("LEAD_TO_EMAIL")
-      ? `Going to their own inbox (${process.env.LEAD_TO_EMAIL?.trim()}).`
+      ? `Going to their own inbox (${value("LEAD_TO_EMAIL")}).`
       : // Not a fault. Worth saying because these arrive far more often than
         // real orders and will bury them in a shared inbox.
         "Going to the main quote inbox. They arrive far more often than real orders, so consider splitting them out.",
     fix: !(resend || gmail)
       ? ["RESEND_API_KEY", "or GMAIL_USER + GMAIL_APP_PASSWORD"]
+      : badAddress("LEAD_TO_EMAIL")
+      ? ["LEAD_TO_EMAIL (currently unusable)"]
       : has("LEAD_TO_EMAIL")
       ? []
       : ["LEAD_TO_EMAIL (optional)"],

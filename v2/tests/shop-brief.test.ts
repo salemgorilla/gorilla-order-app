@@ -255,3 +255,115 @@ describe("add-ons reach the shop on every flow", () => {
     assert.match(withAddOns.text, /not included in the estimate above/);
   });
 });
+
+describe("the consent record says the same thing in both renderings", () => {
+  /**
+   * Every quote email is built twice — plain text and HTML — and the customer
+   * block used to be written out in full in both places. They agreed, but
+   * nothing made them agree.
+   *
+   * The newsletter line is the one that matters. It is the shop's evidence of
+   * what a customer was actually shown, and the Zapier hook has been unset in
+   * production, so right now these lines are the ONLY record that any opt-in
+   * happened and the thing a backfill would be reconstructed from. An HTML
+   * body saying "Opted in" beside a text body saying "Declined" is not a
+   * cosmetic bug.
+   *
+   * The distinction being preserved: on the website the box arrives ticked, so
+   * leaving it ticked is a weaker act than ticking it; on the kiosk it starts
+   * empty, so "Declined" would claim a decision nobody made.
+   */
+  const CONSENT_CASES: Array<[string, Record<string, unknown>, Record<string, unknown>, string]> = [
+    [
+      "website, ticked",
+      { customerName: "A", email: "a@b.com", newsletterOptIn: true },
+      {},
+      "Opted in (box shipped pre-ticked)",
+    ],
+    [
+      "website, un-ticked",
+      { customerName: "A", email: "a@b.com", newsletterOptIn: false },
+      {},
+      "Declined",
+    ],
+    [
+      "kiosk, ticked",
+      { customerName: "A", email: "a@b.com", newsletterOptIn: true },
+      { kiosk: { mode: "staff", staffName: "Sam" } },
+      "Opted in (box started empty — ticked deliberately)",
+    ],
+    [
+      "kiosk, left empty",
+      { customerName: "A", email: "a@b.com", newsletterOptIn: false },
+      { kiosk: { mode: "self", staffName: "" } },
+      "Not opted in (box started empty)",
+    ],
+  ];
+
+  for (const [name, customer, extra, expected] of CONSENT_CASES) {
+    test(`${name}: text and HTML agree`, () => {
+      const built = email(
+        {
+          customer,
+          product: { type: "Custom Stickers", quantity: 100 },
+          production: {},
+          pricing: { total: 50 },
+          items: [{ id: "d1", quantity: 100, widthInches: 3, heightInches: 3 }],
+        },
+        extra
+      );
+
+      assert.ok(
+        built.text.includes(`Newsletter: ${expected}`),
+        `plain text said something else:\n${built.text
+          .split("\n")
+          .find((l) => l.startsWith("Newsletter:"))}`
+      );
+      assert.ok(
+        built.html.includes(expected),
+        "the HTML body does not carry the same consent wording as the text body"
+      );
+    });
+  }
+
+  test("a kiosk quote says in both places that nobody was charged", () => {
+    // The kiosk deliberately generates no payment link. If only one rendering
+    // says so, whoever reads the other one goes looking for a payment that
+    // was never taken.
+    const built = email(
+      {
+        customer: { customerName: "A", email: "a@b.com" },
+        product: { type: "Custom Stickers", quantity: 100 },
+        production: {},
+        pricing: { total: 50 },
+        items: [{ id: "d1", quantity: 100, widthInches: 3, heightInches: 3 }],
+      },
+      { kiosk: { mode: "staff", staffName: "Sam" } }
+    );
+
+    for (const [label, body] of [
+      ["text", built.text],
+      ["html", built.html],
+    ] as const) {
+      assert.ok(
+        body.includes("NOT charged"),
+        `the ${label} body does not say the customer was not charged`
+      );
+      assert.ok(body.includes("Sam"), `the ${label} body does not name who took it`);
+    }
+  });
+
+  test("an unanswered question is stated, not omitted", () => {
+    // A missing row reads as a rendering fault. "Not answered" is data.
+    const built = email({
+      customer: { customerName: "A", email: "a@b.com" },
+      product: { type: "Custom Stickers", quantity: 100 },
+      production: {},
+      pricing: { total: 50 },
+      items: [{ id: "d1", quantity: 100, widthInches: 3, heightInches: 3 }],
+    });
+
+    assert.ok(built.text.includes("Heard about us via: Not answered"));
+    assert.ok(built.html.includes("Not answered"));
+  });
+});

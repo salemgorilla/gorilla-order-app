@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { repriceStickers, isStickerOrder } from "../app/api/quote/route";
 import { buildPrintavoQuotePlan } from "../lib/printavo";
 import { readKioskSession } from "../lib/kiosk";
+import { calculateSignsPricing } from "../lib/signs-pricing";
 
 /**
  * The path that takes money, with nobody watching.
@@ -302,4 +303,114 @@ describe("only stickers self-check-out", () => {
       assert.equal(isStickerOrder({ product }), false);
     });
   }
+});
+
+describe("signs: Printavo invoices exactly what the site quoted", () => {
+  /**
+   * The signs engine splits its own breakdown into a product line plus fee
+   * lines, and printavo.ts reassembles them — netting negative credits into
+   * the product line, because a negative Printavo line item would make the
+   * invoice HIGHER than the quote. Nothing asserted that reassembly until now.
+   *
+   * Config keys are the real ones from signs-pricing-config. Guessed keys fall
+   * into the "priced by hand" branch and the test passes without testing
+   * anything, so each case also asserts it actually priced.
+   */
+  const scenarios: Array<[string, Parameters<typeof calculateSignsPricing>[0]]> = [
+    [
+      "yard signs, double-sided, with step stakes",
+      { method: "yard", quantity: 25, sizeKey: '18" x 24"', doubleSided: true, stepStakes: true, isCustomSize: false },
+    ],
+    [
+      "13 oz banner, single-sided",
+      { method: "banner", quantity: 1, widthInches: 24, heightInches: 96, material: "13 oz Scrim Vinyl", doubleSided: false, isCustomSize: true },
+    ],
+    [
+      // Two panels sewn back to back, plus a per-linear-foot construction
+      // charge — the most moving parts of any signs configuration.
+      "13 oz banner, sewn double-sided",
+      { method: "banner", quantity: 2, widthInches: 36, heightInches: 120, material: "13 oz Scrim Vinyl", doubleSided: true, isCustomSize: true },
+    ],
+    [
+      // The only line in the whole engine that is NEGATIVE.
+      "18 oz banner with the no-hem credit",
+      { method: "banner", quantity: 1, widthInches: 24, heightInches: 96, material: "18 oz Heavy Duty Vinyl", doubleSided: false, isCustomSize: true, finishing: "No Hem or Grommets" },
+    ],
+    [
+      // Hard stock, so this one earns the custom size fee; banners do not.
+      "rigid sign at a custom size",
+      { method: "rigid", quantity: 4, widthInches: 18, heightInches: 24, material: 'Dibond 1/8"', doubleSided: false, isCustomSize: true },
+    ],
+    [
+      "banner with a per-linear-foot add-on",
+      { method: "banner", quantity: 3, widthInches: 24, heightInches: 96, material: "13 oz Scrim Vinyl", doubleSided: false, isCustomSize: true, bannerAddOns: ["webbing"] },
+    ],
+  ];
+
+  for (const [name, input] of scenarios) {
+    test(`${name}: totals agree`, () => {
+      const priced = calculateSignsPricing(input);
+
+      assert.equal(
+        priced.priceable,
+        true,
+        `${name} fell into the hand-quote branch — the config key is probably wrong, which would make this test vacuous`
+      );
+
+      const plan = buildPrintavoQuotePlan({
+        quoteNumber: "GS-TEST",
+        order: {
+          customer: {},
+          production: { deliveryMethod: "Pickup" },
+          product: { type: "Banners & Signs", signType: "Sign", quantity: input.quantity },
+          pricing: {
+            total: priced.total,
+            unitPrice: priced.unitPrice,
+            lines: priced.lines,
+            quoteRequired: false,
+          },
+        },
+        artworkAnalysis: null,
+      });
+
+      assert.equal(printavoTotal(plan), priced.total);
+    });
+  }
+
+  test("the no-hem credit can never make a banner cost less than nothing", () => {
+    // A pathological custom size could otherwise credit past the product cost.
+    const priced = calculateSignsPricing({
+      method: "banner",
+      quantity: 1,
+      widthInches: 1,
+      heightInches: 1,
+      material: "18 oz Heavy Duty Vinyl",
+      doubleSided: false,
+      isCustomSize: true,
+      finishing: "No Hem or Grommets",
+    });
+
+    assert.ok(priced.subtotal >= 0, "product subtotal went negative");
+    assert.ok(priced.total >= 0, "total went negative");
+  });
+
+  test("an add-on quoted by hand adds nothing to the total", () => {
+    // Those lines carry amount 0 and are filtered out of the Printavo push;
+    // the shop email is the only place they surface, so they must not silently
+    // become a charge.
+    const withQuoted = calculateSignsPricing({
+      method: "banner", quantity: 1, widthInches: 24, heightInches: 96,
+      material: "13 oz Scrim Vinyl", doubleSided: false, isCustomSize: true,
+      bannerAddOns: ["webbing", "pockets"],
+    });
+    const withoutQuoted = calculateSignsPricing({
+      method: "banner", quantity: 1, widthInches: 24, heightInches: 96,
+      material: "13 oz Scrim Vinyl", doubleSided: false, isCustomSize: true,
+      bannerAddOns: ["webbing"],
+    });
+
+    if (withQuoted.hasQuotedExtras) {
+      assert.equal(withQuoted.total, withoutQuoted.total);
+    }
+  });
 });

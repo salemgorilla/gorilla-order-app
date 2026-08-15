@@ -148,3 +148,81 @@ export function getOrderValidationErrors(order: Order) {
 export function isOrderReady(order: Order) {
   return getOrderValidationErrors(order).length === 0;
 }
+
+/**
+ * Sign and banner failures.
+ *
+ * Lived inside app/page.tsx as a closure over component state, which meant the
+ * one flow that quotes large-format work had rules nothing could test. That is
+ * how the quantity check came to be missing in the first place: stickers and
+ * apparel both had one, signs did not, and there was no suite to notice the
+ * gap. Pure function, same shape as the sticker rules above, so it can be.
+ *
+ * Takes only what it reads. `order` supplies the customer, the artwork file
+ * and the date; `signsQuote` supplies everything about the sign itself.
+ */
+export function getSignsFieldErrors(
+  signsQuote: {
+    /** null when the customer is uploading their own art rather than using a template. */
+    templateId: string | null;
+    quantity: number;
+    size: string;
+    customWidthInches: number;
+    customHeightInches: number;
+  },
+  order: {
+    customer: { customerName: string; email: string };
+    artwork: { file: unknown };
+    production: { needBy: string };
+  },
+  /** The sentinel meaning "the customer typed their own size". */
+  customSizeValue: string
+): FieldErrors {
+  const errors: FieldErrors = {};
+
+  if (!order.customer.customerName.trim()) {
+    errors.customerName = "Enter your name.";
+  }
+
+  if (!order.customer.email.trim()) {
+    errors.customerEmail = "Enter your email.";
+  }
+
+  // A template IS the artwork. Choosing one replaces the upload rather than
+  // adding to it, so requiring a file as well would make a finished design
+  // unsubmittable.
+  if (!signsQuote.templateId && !order.artwork.file) {
+    errors.artwork = "Upload your artwork, or start from one of our templates.";
+  }
+
+  if (!order.production.needBy.trim()) {
+    errors.needBy = "Enter the date you need this in hand.";
+  }
+
+  // Stickers and apparel both check this; signs did not, and a sign quote is
+  // the one of the three with no per-design cart to catch it elsewhere.
+  //
+  // NumberField snaps to a minimum of 1 on blur, so a customer typing in the
+  // box cannot get a zero past this today — clearing the field and moving on
+  // springs it back. This guards the paths that do not go through that box.
+  // A sign priced at zero is not a cheap sign, it is a quote the shop has to
+  // notice is wrong before making it, and nothing downstream was going to say
+  // so.
+  if (!(signsQuote.quantity > 0)) {
+    errors.quantity = "Enter how many you need.";
+  }
+
+  // Only a custom size is typed — every other size resolves from the product's
+  // own table, so a blank width there is not a missing answer.
+  if (signsQuote.size === customSizeValue) {
+    if (!(signsQuote.customWidthInches > 0)) {
+      errors.width = "Enter a width.";
+    }
+
+    if (!(signsQuote.customHeightInches > 0)) {
+      errors.height = "Enter a height.";
+    }
+  }
+
+  return errors;
+}

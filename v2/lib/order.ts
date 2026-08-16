@@ -19,6 +19,8 @@ const initialProduct = {
   artScale: 80,
   artMargin: 40,
   magentaCutLine: false,
+  // Off by default — see Product.artBleed.
+  artBleed: false,
 };
 
 /**

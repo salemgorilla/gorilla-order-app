@@ -165,6 +165,11 @@ export default function SignsBuilder({
             step={1}
             className="col-span-2 sm:col-span-1"
             snap={snapQuantity}
+            // Without this the quantity rule blocks submit and paints nothing:
+            // the customer is moved to Details and left looking for whatever
+            // is wrong. data-invalid lives on NumberField's wrapper, so it is
+            // also what the scroll-to-first-error effect can find.
+            error={fieldErrors?.quantity}
             onChange={(quantity) => onUpdate({ quantity })}
           />
         </div>

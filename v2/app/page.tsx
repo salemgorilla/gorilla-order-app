@@ -59,6 +59,7 @@ import { apparelCatalogStyles } from "../lib/apparel-catalog";
 import {
   getItemFieldErrors,
   getOrderFieldErrors,
+  getSignsFieldErrors as getSignsFieldErrorsFor,
   getOrderValidationErrors,
   type FieldErrors,
   type ItemFieldErrors,
@@ -1232,41 +1233,10 @@ export default function Home() {
     ? signsTemplateTextErrorsLive
     : {};
 
+  // The rules themselves live in lib/validation.ts so they can be tested;
+  // this binds them to the component's state. See getSignsFieldErrors there.
   function getSignsFieldErrors(): FieldErrors {
-    const errors: FieldErrors = {};
-
-    if (!order.customer.customerName.trim()) {
-      errors.customerName = "Enter your name.";
-    }
-
-    if (!order.customer.email.trim()) {
-      errors.customerEmail = "Enter your email.";
-    }
-
-    // A template IS the artwork. Choosing one replaces the upload rather than
-    // adding to it, so requiring a file as well would make a finished design
-    // unsubmittable.
-    if (!signsQuote.templateId && !order.artwork.file) {
-      errors.artwork = "Upload your artwork, or start from one of our templates.";
-    }
-
-    if (!order.production.needBy.trim()) {
-      errors.needBy = "Enter the date you need this in hand.";
-    }
-
-    // Only a custom size is typed — every other size resolves from the
-    // product's own table, so a blank width there is not a missing answer.
-    if (signsQuote.size === CUSTOM_SIZE) {
-      if (!(signsQuote.customWidthInches > 0)) {
-        errors.width = "Enter a width.";
-      }
-
-      if (!(signsQuote.customHeightInches > 0)) {
-        errors.height = "Enter a height.";
-      }
-    }
-
-    return errors;
+    return getSignsFieldErrorsFor(signsQuote, order, CUSTOM_SIZE);
   }
 
   function getSignsValidationErrors() {
@@ -1276,6 +1246,7 @@ export default function Home() {
     if (fields.customerName) errors.push(fields.customerName);
     if (fields.customerEmail) errors.push(fields.customerEmail);
     if (fields.artwork) errors.push("Upload your artwork.");
+    if (fields.quantity) errors.push(fields.quantity);
     if (fields.needBy) errors.push(fields.needBy);
 
     // One sentence for two boxes: the summary reads as prose, the fields get

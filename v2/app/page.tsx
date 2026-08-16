@@ -59,6 +59,7 @@ import { apparelCatalogStyles } from "../lib/apparel-catalog";
 import {
   getItemFieldErrors,
   getOrderFieldErrors,
+  getApparelFieldErrors as getApparelFieldErrorsFor,
   getSignsFieldErrors as getSignsFieldErrorsFor,
   getOrderValidationErrors,
   type FieldErrors,
@@ -1262,67 +1263,26 @@ export default function Home() {
     return errors;
   }
 
+  // The rules themselves live in lib/validation.ts so they can be tested;
+  // this binds them to the component's state. See getApparelFieldErrors there.
   function getApparelFieldErrors(): FieldErrors {
-    const errors: FieldErrors = {};
-
-    if (!order.customer.customerName.trim()) {
-      errors.customerName = "Enter your name.";
-    }
-
-    if (!order.customer.email.trim()) {
-      errors.customerEmail = "Enter your email.";
-    }
-
-    if (!order.production.needBy.trim()) {
-      errors.needBy = "Enter the date you need this in hand.";
-    }
-
-    // A special order is priced by hand, so the strict menu rules (print
-    // locations, matching size breakdown) don't apply — we just need to know
-    // what they want.
-    if (apparelQuote.specialOrder) {
-      if (!apparelQuote.specialOrderNotes.trim()) {
-        errors.specialOrderNotes = "Tell us what you need.";
-      }
-
-      if (!(apparelQuote.quantity > 0)) {
-        errors.quantity = "Enter roughly how many you need.";
-      }
-
-      // Artwork is deliberately NOT required here. This is the apparel
-      // request flow, and a customer asking what 40 hoodies cost usually has
-      // no print-ready file yet — demanding one turns the shop's highest-value
-      // enquiry into an upload problem and loses the lead outright. The shop
-      // collects artwork in the reply; the quote email already renders "No
-      // file uploaded" without complaint.
-      return errors;
-    }
-
-    if (!order.artwork.file) {
-      errors.artwork = "Upload your artwork before submitting.";
-    }
-
-    if (apparelQuote.printLocations.length === 0) {
-      errors.printLocations = "Choose at least one print location.";
-    }
-
-    // The reconciliation error is gone: quantity IS the grid total, so the two
-    // cannot disagree. All that remains is asking for at least one shirt.
-    if (sizeQuantityTotal < 1) {
-      errors.sizeBreakdown = "Add at least one size.";
-    }
-
-    return errors;
+    return getApparelFieldErrorsFor(apparelQuote, order, sizeQuantityTotal);
   }
 
   function getApparelValidationErrors() {
     const fields = getApparelFieldErrors();
     const errors: string[] = [];
 
-    if (fields.customerName) errors.push("Customer name is required.");
-    if (fields.customerEmail) errors.push("Customer email is required.");
-    if (fields.artwork) errors.push("Artwork upload is required.");
-    if (fields.needBy) errors.push("Needed-in-hand date is required.");
+    // Pushed straight from the field map, as stickers and signs already do.
+    // These four used to be re-worded here into passive spec voice ("Customer
+    // name is required.") while the other two flows said "Enter your name." —
+    // one checklist panel speaking differently depending on which product the
+    // customer happened to pick. The summary is prose, and this is the voice
+    // the rest of it uses.
+    if (fields.customerName) errors.push(fields.customerName);
+    if (fields.customerEmail) errors.push(fields.customerEmail);
+    if (fields.artwork) errors.push("Upload your artwork.");
+    if (fields.needBy) errors.push(fields.needBy);
 
     if (fields.specialOrderNotes) {
       errors.push("Tell us what you need for your special order.");

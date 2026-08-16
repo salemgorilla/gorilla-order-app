@@ -73,6 +73,10 @@ import {
 } from "../lib/steps";
 import { analyzeArtworkFile, ArtworkAnalysis } from "../lib/artwork";
 import {
+  collectKnockoutCandidates,
+  planKnockouts,
+} from "../lib/attachment-plan";
+import {
   isArtworkTooLargeToAttach,
   MAX_ATTACHED_ARTWORK_LABEL,
   MAX_INLINE_ARTWORK_TOTAL_BYTES,
@@ -1825,24 +1829,36 @@ export default function Home() {
        * there to work from, which is why this yields the budget to it and is
        * dropped first if the body is tight.
        */
-      for (const item of order.items) {
-        const knockout = itemKnockouts[item.id];
+      // Gated on the sticker flow, like the artwork loop above and the proof
+      // loop below. It was not, and order.items keeps a sticker item in EVERY
+      // flow — so a customer who knocked out a sticker and then switched to
+      // signs sent that abandoned file along with their banner. See
+      // collectKnockoutCandidates.
+      const knockoutCandidates = collectKnockoutCandidates(
+        isStickerFlow,
+        order.items.map((item) => item.id),
+        Object.fromEntries(
+          Object.entries(itemKnockouts).map(([id, knockout]) => [
+            id,
+            { name: knockout.file.name, size: knockout.file.size },
+          ])
+        )
+      );
+
+      const knockoutPlan = planKnockouts(knockoutCandidates, inlineBytesUsed);
+
+      for (const candidate of knockoutPlan.attached) {
+        const knockout = itemKnockouts[candidate.id];
         if (!knockout) continue;
 
-        if (
-          inlineBytesUsed + knockout.file.size >
-          MAX_INLINE_ARTWORK_TOTAL_BYTES
-        ) {
-          continue;
-        }
-
         formData.append(
-          `knockout:${item.id}`,
+          `knockout:${candidate.id}`,
           knockout.file,
           knockout.file.name
         );
-        inlineBytesUsed += knockout.file.size;
       }
+
+      inlineBytesUsed = knockoutPlan.bytesUsed;
 
       // Named, not silently missing. The shop needs to know which design's
       // file to chase, and the customer's quote still goes through.

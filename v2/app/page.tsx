@@ -59,6 +59,7 @@ import { apparelCatalogStyles } from "../lib/apparel-catalog";
 import {
   getItemFieldErrors,
   getOrderFieldErrors,
+  getApparelFieldErrors as getApparelFieldErrorsFor,
   getSignsFieldErrors as getSignsFieldErrorsFor,
   getOrderValidationErrors,
   type FieldErrors,
@@ -148,7 +149,7 @@ export default function Home() {
         }
       : defaultOrder
   );
-  const [apparelQuote, setApparelQuote] = useState(defaultApparelQuote);
+  const [apparelQuoteState, setApparelQuoteState] = useState(defaultApparelQuote);
   const [signsQuote, setSignsQuote] = useState(defaultSignsQuote);
   const [ssProducts, setSsProducts] = useState<SsCatalogProduct[]>([]);
   const [selectedSsProductId, setSelectedSsProductId] = useState("");
@@ -267,7 +268,7 @@ export default function Home() {
   const selectedGarmentLabel =
     selectedSsProduct?.customerLabel ||
     selectedSsProduct?.displayName ||
-    apparelQuote.garmentType;
+    apparelQuoteState.garmentType;
 
   const sizeOptionsForBreakdown = useMemo(() => {
     const sizes =
@@ -289,35 +290,54 @@ export default function Home() {
     );
   }, [sizeQuantities]);
 
+  /**
+   * The apparel quote as everything downstream should see it.
+   *
+   * Quantity is DERIVED from the size grid, never entered separately. Typing
+   * M=4 L=6 2XL=2 is the order; there is no second number to disagree with it.
+   * That is what removed this flow's only failure state — "Size breakdown must
+   * total 24, current total is 22" — a reconciliation error the customer had
+   * to solve because the form asked the same question twice.
+   *
+   * ── WHY THIS IS DERIVED AND NOT SYNCED ────────────────────────────────────
+   * This used to be a useEffect that wrote sizeQuantityTotal back onto the
+   * quote. That works, but it makes the total true only AFTER a render has
+   * already been painted with the old one — and the two readerships had
+   * drifted apart in exactly that gap: validation read sizeQuantityTotal
+   * directly, while pricing, the Printavo push and the shop email all read
+   * the synced copy. They agreed only because the effect kept them agreeing.
+   *
+   * Computing it during render removes the gap rather than narrowing it.
+   * There is no frame in which a reader can see a stale quantity, because
+   * there is no longer a second copy to be stale.
+   *
+   * Readers are deliberately untouched: they still say `apparelQuote`, and
+   * still get the same number they got before in steady state. Writers go to
+   * `setApparelQuoteState`, which holds everything the customer actually
+   * typed.
+   * ──────────────────────────────────────────────────────────────────────────
+   */
+  const apparelQuote = useMemo(() => {
+    // The apparel REQUEST flow has no size grid — the customer types a rough
+    // count — so the grid total must not touch it. Letting it through drove
+    // that number straight back to the empty grid's 0, and the form then
+    // complained "enter roughly how many you need" about a box the customer
+    // had just filled in, with no way to clear it.
+    if (isApparelRequest) return apparelQuoteState;
+
+    return apparelQuoteState.quantity === sizeQuantityTotal
+      ? // Same object when nothing changed, so memo consumers downstream do
+        // not see a new reference every render.
+        apparelQuoteState
+      : { ...apparelQuoteState, quantity: sizeQuantityTotal };
+  }, [apparelQuoteState, isApparelRequest, sizeQuantityTotal]);
+
   const sizeBreakdownFromButtons = useMemo(() => {
     return Object.entries(sizeQuantities)
       .filter(([, quantity]) => quantity > 0)
       .map(([size, quantity]) => `${size}-${quantity}`)
       .join(", ");
   }, [sizeQuantities]);
-
-  // Quantity is DERIVED from the size grid, never entered separately. Typing
-  // M=4 L=6 2XL=2 is the order; there is no second number to disagree with it.
-  // This is what removed the flow's only failure state — "Size breakdown must
-  // total 24, current total is 22" — a reconciliation error the customer had
-  // to solve because the form asked the same question twice.
-  //
-  // Synced onto apparelQuote rather than replacing it, so pricing, the shop
-  // email and the Printavo push all keep reading `quantity` unchanged.
-  useEffect(() => {
-    // Only where the size grid exists. The apparel REQUEST flow has no grid —
-    // the customer types a rough count — so letting this run there drove that
-    // number straight back to the empty grid's total of 0 on every render.
-    // The result was a form that complained "enter roughly how many you need"
-    // about a box the customer had just filled in, and no way to clear it.
-    if (isApparelRequest) return;
-
-    setApparelQuote((prev) =>
-      prev.quantity === sizeQuantityTotal
-        ? prev
-        : { ...prev, quantity: sizeQuantityTotal }
-    );
-  }, [sizeQuantityTotal, isApparelRequest]);
 
   // Kept true: the two can no longer diverge. Retained so the summary card and
   // builder props do not need rewiring in the same change.
@@ -536,7 +556,7 @@ export default function Home() {
         }
 
         if (firstProduct || firstColor) {
-          setApparelQuote((current) => ({
+          setApparelQuoteState((current) => ({
             ...current,
             garmentType:
               firstProduct?.customerLabel ||
@@ -567,7 +587,7 @@ export default function Home() {
     setSelectedSsColorName(firstColor?.colorName || "");
     setSelectedSsSizeName(firstSize?.sizeName || "");
 
-    setApparelQuote((current) => ({
+    setApparelQuoteState((current) => ({
       ...current,
       garmentType: product.customerLabel || product.displayName,
       garmentColor: firstColor?.colorName || current.garmentColor,
@@ -604,7 +624,7 @@ export default function Home() {
         .map(([size, quantity]) => `${size}-${quantity}`)
         .join(", ");
 
-      setApparelQuote((quote) => ({
+      setApparelQuoteState((quote) => ({
         ...quote,
         sizeBreakdown: nextBreakdown,
       }));
@@ -632,7 +652,7 @@ export default function Home() {
         .map(([size, quantity]) => `${size}-${quantity}`)
         .join(", ");
 
-      setApparelQuote((quote) => ({
+      setApparelQuoteState((quote) => ({
         ...quote,
         sizeBreakdown: nextBreakdown,
       }));
@@ -643,7 +663,7 @@ export default function Home() {
 
   function resetSizeBreakdown() {
     setSizeQuantities({});
-    setApparelQuote((current) => ({
+    setApparelQuoteState((current) => ({
       ...current,
       sizeBreakdown: "",
     }));
@@ -661,7 +681,7 @@ export default function Home() {
     setSelectedSsColorName(color.colorName);
     setSelectedSsSizeName(firstSize?.sizeName || "");
 
-    setApparelQuote((current) => ({
+    setApparelQuoteState((current) => ({
       ...current,
       garmentColor: color.colorName,
       inkColors: formatInkColorOption(estimatedInkCount),
@@ -862,10 +882,14 @@ export default function Home() {
   }
 
   function updateApparelQuote(updates: Partial<typeof apparelQuote>) {
-    setApparelQuote({
-      ...apparelQuote,
+    // Functional form, and onto the RAW state. Spreading the rendered
+    // `apparelQuote` would write the derived quantity back into state, giving
+    // the value two homes again; and spreading a closed-over value loses the
+    // first of two updates that batch in one tick.
+    setApparelQuoteState((current) => ({
+      ...current,
       ...updates,
-    });
+    }));
   }
 
   function getEstimatedInkColorCount(
@@ -1036,7 +1060,7 @@ export default function Home() {
     setArtworkAnalysis(analysis);
 
     if (isApparelSelected) {
-      setApparelQuote((prev) => ({
+      setApparelQuoteState((prev) => ({
         ...prev,
         inkColors: formatInkColorOption(
           getEstimatedInkColorCount(analysis, prev.garmentColor)
@@ -1262,67 +1286,26 @@ export default function Home() {
     return errors;
   }
 
+  // The rules themselves live in lib/validation.ts so they can be tested;
+  // this binds them to the component's state. See getApparelFieldErrors there.
   function getApparelFieldErrors(): FieldErrors {
-    const errors: FieldErrors = {};
-
-    if (!order.customer.customerName.trim()) {
-      errors.customerName = "Enter your name.";
-    }
-
-    if (!order.customer.email.trim()) {
-      errors.customerEmail = "Enter your email.";
-    }
-
-    if (!order.production.needBy.trim()) {
-      errors.needBy = "Enter the date you need this in hand.";
-    }
-
-    // A special order is priced by hand, so the strict menu rules (print
-    // locations, matching size breakdown) don't apply — we just need to know
-    // what they want.
-    if (apparelQuote.specialOrder) {
-      if (!apparelQuote.specialOrderNotes.trim()) {
-        errors.specialOrderNotes = "Tell us what you need.";
-      }
-
-      if (!(apparelQuote.quantity > 0)) {
-        errors.quantity = "Enter roughly how many you need.";
-      }
-
-      // Artwork is deliberately NOT required here. This is the apparel
-      // request flow, and a customer asking what 40 hoodies cost usually has
-      // no print-ready file yet — demanding one turns the shop's highest-value
-      // enquiry into an upload problem and loses the lead outright. The shop
-      // collects artwork in the reply; the quote email already renders "No
-      // file uploaded" without complaint.
-      return errors;
-    }
-
-    if (!order.artwork.file) {
-      errors.artwork = "Upload your artwork before submitting.";
-    }
-
-    if (apparelQuote.printLocations.length === 0) {
-      errors.printLocations = "Choose at least one print location.";
-    }
-
-    // The reconciliation error is gone: quantity IS the grid total, so the two
-    // cannot disagree. All that remains is asking for at least one shirt.
-    if (sizeQuantityTotal < 1) {
-      errors.sizeBreakdown = "Add at least one size.";
-    }
-
-    return errors;
+    return getApparelFieldErrorsFor(apparelQuote, order, sizeQuantityTotal);
   }
 
   function getApparelValidationErrors() {
     const fields = getApparelFieldErrors();
     const errors: string[] = [];
 
-    if (fields.customerName) errors.push("Customer name is required.");
-    if (fields.customerEmail) errors.push("Customer email is required.");
-    if (fields.artwork) errors.push("Artwork upload is required.");
-    if (fields.needBy) errors.push("Needed-in-hand date is required.");
+    // Pushed straight from the field map, as stickers and signs already do.
+    // These four used to be re-worded here into passive spec voice ("Customer
+    // name is required.") while the other two flows said "Enter your name." —
+    // one checklist panel speaking differently depending on which product the
+    // customer happened to pick. The summary is prose, and this is the voice
+    // the rest of it uses.
+    if (fields.customerName) errors.push(fields.customerName);
+    if (fields.customerEmail) errors.push(fields.customerEmail);
+    if (fields.artwork) errors.push("Upload your artwork.");
+    if (fields.needBy) errors.push(fields.needBy);
 
     if (fields.specialOrderNotes) {
       errors.push("Tell us what you need for your special order.");
@@ -2272,7 +2255,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     // reusing it would hand every reset order the same design id, and ids are
     // what submit keys artwork parts on.
     setOrder({ ...defaultOrder, items: [createStickerItem()] });
-    setApparelQuote(defaultApparelQuote);
+    setApparelQuoteState(defaultApparelQuote);
     setSignsQuote(defaultSignsQuote);
     setSelectedProductId("stickers");
     setSubmittedProductId("stickers");
@@ -2622,7 +2605,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     // carries garmentType and supplier — never classified as a
                     // sticker order, which is the only flow that self-bills.
                     if (product.status === "request") {
-                      setApparelQuote((current) => ({
+                      setApparelQuoteState((current) => ({
                         ...current,
                         specialOrder: true,
                       }));

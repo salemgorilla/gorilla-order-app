@@ -226,3 +226,83 @@ export function getSignsFieldErrors(
 
   return errors;
 }
+
+/**
+ * Apparel failures.
+ *
+ * Extracted from app/page.tsx for the same reason as the sign rules above: as
+ * a closure over component state, nothing could test them. Apparel is the
+ * flow with the most conditional structure of the three — a special order
+ * skips half the rules — which makes it the one least safe to leave untested.
+ *
+ * `sizeQuantityTotal` is passed in rather than derived here. It is the sum of
+ * the size grid, and the component already computes it and syncs `quantity` to
+ * it; recomputing it from the breakdown string in a second place is exactly
+ * the kind of duplicate arithmetic that drifts.
+ */
+export function getApparelFieldErrors(
+  apparelQuote: {
+    specialOrder: boolean;
+    specialOrderNotes: string;
+    quantity: number;
+    printLocations: string[];
+  },
+  order: {
+    customer: { customerName: string; email: string };
+    artwork: { file: unknown };
+    production: { needBy: string };
+  },
+  /** Total across the size grid. Quantity IS this sum, so the two cannot disagree. */
+  sizeQuantityTotal: number
+): FieldErrors {
+  const errors: FieldErrors = {};
+
+  if (!order.customer.customerName.trim()) {
+    errors.customerName = "Enter your name.";
+  }
+
+  if (!order.customer.email.trim()) {
+    errors.customerEmail = "Enter your email.";
+  }
+
+  if (!order.production.needBy.trim()) {
+    errors.needBy = "Enter the date you need this in hand.";
+  }
+
+  // A special order is priced by hand, so the strict menu rules (print
+  // locations, matching size breakdown) don't apply — we just need to know
+  // what they want.
+  if (apparelQuote.specialOrder) {
+    if (!apparelQuote.specialOrderNotes.trim()) {
+      errors.specialOrderNotes = "Tell us what you need.";
+    }
+
+    if (!(apparelQuote.quantity > 0)) {
+      errors.quantity = "Enter roughly how many you need.";
+    }
+
+    // Artwork is deliberately NOT required here. This is the apparel request
+    // flow, and a customer asking what 40 hoodies cost usually has no
+    // print-ready file yet — demanding one turns the shop's highest-value
+    // enquiry into an upload problem and loses the lead outright. The shop
+    // collects artwork in the reply; the quote email already renders "No file
+    // uploaded" without complaint.
+    return errors;
+  }
+
+  if (!order.artwork.file) {
+    errors.artwork = "Upload your artwork before submitting.";
+  }
+
+  if (apparelQuote.printLocations.length === 0) {
+    errors.printLocations = "Choose at least one print location.";
+  }
+
+  // The reconciliation error is gone: quantity IS the grid total, so the two
+  // cannot disagree. All that remains is asking for at least one shirt.
+  if (sizeQuantityTotal < 1) {
+    errors.sizeBreakdown = "Add at least one size.";
+  }
+
+  return errors;
+}

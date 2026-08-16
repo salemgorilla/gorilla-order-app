@@ -84,7 +84,13 @@ export function formatBytes(bytes: number) {
  * shop asks for the file directly. Losing the attachment is a nuisance; losing
  * the order is not acceptable.
  */
-export function isArtworkTooLargeToAttach(file: File | null | undefined) {
+export function isArtworkTooLargeToAttach(
+  // Anything carrying a byte count, not strictly a File. The planner in
+  // lib/attachment-plan works in sizes so it can be tested without a browser,
+  // and it must ask this question rather than re-deriving the rule — a second
+  // copy of "is it too big" is how the two come to disagree.
+  file: { size: number } | null | undefined
+) {
   if (!file) return false;
   return file.size > MAX_ATTACHED_ARTWORK_BYTES;
 }

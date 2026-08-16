@@ -3,6 +3,21 @@
 import DieCutCanvas from "./DieCutCanvas";
 
 import { getStickerBodyColor, MAGENTA } from "../../lib/die-cut";
+// Re-exported so existing importers keep working; lib/sticker-geometry is the
+// single source, shared with the canvas proof the shop cuts from.
+import {
+  ART_SCALE_CEILING,
+  clampArtScaleToShape,
+  getBleedThreshold,
+  getSafeAreaFactor,
+} from "../../lib/sticker-geometry";
+
+export {
+  ART_SCALE_CEILING,
+  clampArtScaleToShape,
+  getBleedThreshold,
+  getSafeAreaFactor,
+};
 
 type Props = {
   shape: string;
@@ -15,6 +30,16 @@ type Props = {
   heightInches?: number;
   artMargin?: number; // 0â€“100: die-cut border width / shape margin
   magentaCutLine?: boolean; // show the customer's magenta cut edge
+  /**
+   * The customer has opted into letting art run past the cut edge.
+   *
+   * Changes what the preview is ALLOWED TO HIDE. Off, the card clips and the
+   * slider cannot reach the edge anyway. On, overflow stays visible, the cut
+   * line is drawn over the art, and everything outside it is dimmed — so the
+   * bleed is a thing the customer chose and can see, not a thing the card
+   * quietly cropped out of the proof.
+   */
+  artBleed?: boolean;
 };
 
 function getShapeRounding(shape: string) {
@@ -89,14 +114,7 @@ export function getStickerGeometry(input: {
     };
   }
 
-  const safeAreaFactor =
-    // Oval shares the circle's factor: a rectangle inscribed in an ellipse is
-    // the same proportion of its bounding box as one inscribed in a circle.
-    input.shape === "Circle" || input.shape === "Oval"
-      ? 0.707
-      : input.shape === "Rounded Corners"
-      ? 0.88
-      : 0.96;
+  const safeAreaFactor = getSafeAreaFactor(input.shape);
   const marginPx = (margin / 100) * 34;
   const artSizePx = Math.max(
     24,
@@ -133,6 +151,7 @@ export default function StickerShape({
   artScale = 80,
   artMargin = 40,
   magentaCutLine = false,
+  artBleed = false,
   widthInches = 0,
   heightInches = 0,
 }: Props) {
@@ -223,12 +242,7 @@ export default function StickerShape({
   // side of a rectangle â€” the same reason the safe-area factor exists.
   const fitPx = Math.min(cardW, cardH);
 
-  const safeAreaFactor =
-    shape === "Circle" || shape === "Oval"
-      ? 0.707
-      : shape === "Rounded Corners"
-      ? 0.88
-      : 0.96;
+  const safeAreaFactor = getSafeAreaFactor(shape);
   const marginPx = (margin / 100) * 34;
   const artSizePx = Math.max(
     24,
@@ -248,7 +262,21 @@ export default function StickerShape({
         // square. h-64/w-64 is gone â€” cardW/cardH default to 256 when no
         // dimensions are set, so preset sizes render exactly as before.
         style={{ width: cardW, height: cardH }}
-        className={`relative grid place-items-center overflow-hidden ${rounded} ${materialClasses} shadow-2xl ring-8 ring-white`}
+        // overflow-hidden is what made this preview untrustworthy: art past
+        // the cut was cropped by the card, so the proof showed a sticker that
+        // fit over artwork the plotter would slice through. With bleed on,
+        // overflow reads AS overflow. With it off nothing changes — the slider
+        // cannot reach the edge in the first place.
+        //
+        // NOT the `overflow: clip` in globals.css. Different element, and
+        // changing that one kills the sticky estimate bar.
+        //
+        // shadow-2xl / ring-8 ring-white dropped: DESIGN-FIXES flags them as
+        // off-system stage chrome, and the ring in particular drew a white
+        // band exactly where bleeding art now has to be visible.
+        className={`relative grid place-items-center ${
+          artBleed ? "overflow-visible" : "overflow-hidden"
+        } ${rounded} ${materialClasses}`}
       >
         {isClear && (
           <div
@@ -265,7 +293,50 @@ export default function StickerShape({
 
         {/* An absolute layer the exact size of the card, so the art is centered
             on the shape itself â€” not on whatever padding happened to be left. */}
-        <div className="absolute inset-0 z-10 flex items-center justify-center">
+        {/* THE ART, drawn once or twice depending on whether bleed is on.
+
+            Off: one layer, and the card clips it. Exactly as before.
+
+            On: the same art twice. The lower copy is unclipped and dimmed, so
+            the parts heading past the blade are visible and visibly doomed.
+            The upper copy is clipped to the card and full strength, so what
+            actually survives reads at full strength.
+
+            Two copies of the SAME element rather than a scrim over one: a
+            scrim has to re-describe the cut outline, and a second description
+            of the shape is a second thing that can disagree with it. Here the
+            clip IS the shape — they cannot drift. */}
+        {artBleed && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 z-[9] flex items-center justify-center opacity-25"
+          >
+            <div
+              className="flex items-center justify-center"
+              style={{ width: artSizePx, height: artSizePx }}
+            >
+              {artworkPreview ? (
+                <img
+                  src={artworkPreview}
+                  alt=""
+                  className="max-h-full max-w-full object-contain"
+                />
+              ) : (
+                <div className="aspect-square w-full">
+                  <Placeholder rounded={rounded} />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div
+          className={`absolute inset-0 z-10 flex items-center justify-center ${
+            // Only in bleed mode does this layer need its own clip — the card
+            // has stopped clipping so that the layer above can overflow.
+            artBleed ? `overflow-hidden ${rounded}` : ""
+          }`}
+        >
           <div
             className="flex items-center justify-center"
             style={{ width: artSizePx, height: artSizePx }}
@@ -287,6 +358,21 @@ export default function StickerShape({
         {isGloss && (
           <div
             className={`pointer-events-none absolute -left-16 -top-24 h-64 w-40 rotate-45 bg-white/55 blur-sm ${rounded}`}
+          />
+        )}
+
+        {/* The cut edge, drawn ON TOP of the art so the customer can see
+            exactly where the blade goes. z-30 puts it above the art layer
+            (z-10) and above the customer's own magenta line (z-20) — when
+            both are showing, the one that decides what survives wins.
+
+            Same --cut-line magenta ArtworkGuidance teaches customers to use.
+            This is a NEW USE of that token, never a redefinition: the hex has
+            to stay #FF00FF or isMagentaPixel stops detecting it. */}
+        {artBleed && (
+          <div
+            className={`pointer-events-none absolute inset-0 z-30 border-2 border-dashed ${rounded}`}
+            style={{ borderColor: MAGENTA }}
           />
         )}
 

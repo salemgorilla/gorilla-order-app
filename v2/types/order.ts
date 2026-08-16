@@ -73,6 +73,13 @@ export type Product = {
   artMargin: number;
   // Customer confirms their artwork includes a magenta line marking the cut edge.
   magentaCutLine: boolean;
+  /**
+   * The customer opted to let art run past the cut edge.
+   *
+   * Off by default, deliberately. The common case is someone who wants their
+   * art to fit, and they should not have to understand bleed to get that.
+   */
+  artBleed: boolean;
 };
 
 export type Artwork = {

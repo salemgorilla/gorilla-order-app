@@ -1,5 +1,6 @@
 "use client";
 
+import { clampArtScaleToShape } from "../../components/preview/StickerShape";
 import OptionSelector from "../../components/OptionSelector";
 import NumberField from "../../components/ui/NumberField";
 import { sanitizeSizeInches, snapQuantity } from "../../lib/units";
@@ -139,7 +140,20 @@ export default function DecalBuilder({
         title="Shape"
         options={stickerCatalog.shapes}
         selected={product.shape}
-        onSelect={(shape) => onUpdate({ shape })}
+        onSelect={(shape) =>
+          // Re-clamp on the way in. Someone sets a circle to 141%, switches to
+          // Square Corners, and is 37 points past THAT shape's cut edge with a
+          // slider that cannot even represent the value it is holding — art
+          // silently past the blade, and no way to see it.
+          onUpdate({
+            shape,
+            artScale: clampArtScaleToShape(
+              shape,
+              product.artScale,
+              product.artBleed
+            ),
+          })
+        }
       />
 
       <OptionSelector

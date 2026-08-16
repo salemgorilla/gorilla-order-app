@@ -1910,6 +1910,7 @@ export default function Home() {
             widthInches: item.widthInches || presetInches,
             heightInches: item.heightInches || presetInches,
             artScale: item.artScale,
+            artBleed: item.artBleed,
             artMargin: item.artMargin,
             magentaCutLine: item.magentaCutLine,
             // A knockout IS the transparency, so the proof must stop warning

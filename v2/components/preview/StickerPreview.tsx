@@ -9,6 +9,7 @@ type Props = {
   artScale: number;
   artMargin: number;
   magentaCutLine: boolean;
+  artBleed?: boolean;
   /** Real dimensions, so a non-square sticker previews at its true shape. */
   widthInches?: number;
   heightInches?: number;
@@ -23,6 +24,7 @@ export default function StickerPreview({
   artScale,
   artMargin,
   magentaCutLine,
+  artBleed = false,
   widthInches = 0,
   heightInches = 0,
 }: Props) {
@@ -60,6 +62,7 @@ export default function StickerPreview({
             artScale={artScale}
             artMargin={artMargin}
             magentaCutLine={magentaCutLine}
+            artBleed={artBleed}
             widthInches={widthInches}
             heightInches={heightInches}
           />

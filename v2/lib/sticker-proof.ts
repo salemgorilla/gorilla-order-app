@@ -1,5 +1,6 @@
 import { getStickerBodyColor, MAGENTA, STICKER_EDGE } from "./die-cut";
 import { composeDieCut } from "./die-cut-canvas";
+import { getSafeAreaFactor } from "./sticker-geometry";
 
 export type ProofSpec = {
   artworkUrl: string;
@@ -11,6 +12,8 @@ export type ProofSpec = {
   widthInches: number;
   heightInches: number;
   artScale: number;
+  /** Customer opted to let art run past the cut edge. */
+  artBleed?: boolean;
   artMargin: number;
   magentaCutLine: boolean;
   /**
@@ -213,12 +216,7 @@ export async function renderStickerProof(
 
       // A square inscribed in a circle is only ~70.7% of its diameter, so
       // round shapes need the art held further in or it rides the cut edge.
-      const safe =
-        spec.shape === "Circle" || spec.shape === "Oval"
-          ? 0.707
-          : spec.shape === "Rounded Corners"
-          ? 0.88
-          : 0.96;
+      const safe = getSafeAreaFactor(spec.shape);
 
       const boxW = cardW * safe * scale;
       const boxH = cardH * safe * scale;
@@ -240,6 +238,16 @@ export async function renderStickerProof(
     const rows: [string, string][] = [
       ["SIZE", `${spec.widthInches}" x ${spec.heightInches}"`],
       ["SHAPE", spec.shape],
+      // The proof still CLIPS at the cut, because that is what the finished
+      // sticker looks like. But a shop reading a clipped picture cannot tell
+      // that art was meant to run past the blade — so the spec says it in
+      // words rather than leaving the picture to imply it did not.
+      ...(spec.artBleed
+        ? ([["BLEED", "Art runs past the cut edge (customer's choice)"]] as [
+            string,
+            string
+          ][])
+        : []),
       ["MATERIAL", `${spec.material} / ${spec.finish}`],
       ["QUANTITY", String(spec.quantity)],
     ];

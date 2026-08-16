@@ -2,6 +2,9 @@
 
 import StickerPreview from "../../components/preview/StickerPreview";
 import {
+  ART_SCALE_CEILING,
+  clampArtScaleToShape,
+  getBleedThreshold,
   getStickerGeometry,
   inchLabel,
   parseSizeInches,
@@ -41,6 +44,32 @@ export default function DecalPreviewCard({
     artMargin: product.artMargin,
     sizeInches: longestInches || parseSizeInches(product.size),
   });
+
+  /**
+   * Where the blade actually is for THIS shape, and how far the slider goes.
+   *
+   * Die Cut has no fixed outline to cross — the contour is generated from the
+   * art — so getBleedThreshold hands back the full ceiling and the bleed
+   * checkbox is not offered at all.
+   */
+  const bleedThreshold = getBleedThreshold(product.shape);
+  const artScaleMax = product.artBleed ? ART_SCALE_CEILING : bleedThreshold;
+
+  /**
+   * One sentence, three states, all of them naming the shape's real number.
+   *
+   * Inches stay the headline figure above — "80%" means nothing on a 3"
+   * sticker and 2.4" means something. This line is about the EDGE, which is
+   * the one thing a percentage genuinely describes.
+   */
+  const artScaleHelp = isDieCut
+    ? "The cut follows your artwork's outline, so there is no edge to run past."
+    : product.artScale > bleedThreshold
+    ? "Art past the dashed line will be cut off."
+    : product.artScale === bleedThreshold
+    ? "Art meets the cut edge."
+    : `Fills the sticker at ${bleedThreshold}%.`;
+
   return (
     <div className=" border border-[var(--rule)] bg-white p-5 sm:p-8">
       <div className="flex items-center justify-between">
@@ -68,6 +97,7 @@ export default function DecalPreviewCard({
         artScale={product.artScale}
         artMargin={product.artMargin}
         magentaCutLine={product.magentaCutLine}
+        artBleed={product.artBleed}
         widthInches={product.widthInches}
         heightInches={product.heightInches}
       />
@@ -87,17 +117,24 @@ export default function DecalPreviewCard({
                 : `${product.artScale}%`}
             </span>
           </span>
-          {/* Ceiling is 150, not 100. The shaped preview sizes art against an
-              inscribed-square safe area — 70.7% of the diameter on a circle —
-              so a 100% cap physically could not reach the cut edge. ~141%
-              fills a circle exactly; the rest is bleed, which the shape clips
-              via overflow-hidden. The safe area itself is deliberately left
-              alone: it is what stops square art clipping at the corners. */}
+          {/* The ceiling is the shape's own bleed threshold, not a flat 150.
+              Art is sized against an inscribed-square safe area, so the scale
+              at which it reaches the blade differs per shape — 141% on a
+              circle, 113% on rounded corners, 104% on square. A flat 150 let
+              a customer on square corners drag 46 points past the cut while
+              the card clipped the evidence. Derived from the safe-area factor
+              so the cap and the geometry cannot disagree. */}
           <input
             type="range"
             min={40}
-            max={150}
-            step={5}
+            // step 1, not 5. The old ceiling of 150 happened to sit on the
+            // 40+5n grid, so nobody noticed the constraint. The real
+            // thresholds do not: 141, 113 and 104 are all unreachable from 40
+            // in steps of 5, so the slider would stop 1–4 points short of the
+            // cut on every shape and "Art meets the cut edge" could never be
+            // shown. Caught by dragging it, not by reading it.
+            step={1}
+            max={artScaleMax}
             value={product.artScale}
             onChange={(event) =>
               onUpdateProduct({ artScale: Number(event.target.value) })
@@ -105,10 +142,45 @@ export default function DecalPreviewCard({
             className="mt-1 w-full accent-[var(--gorilla-green)]"
           />
           <span className="mt-1 block text-fine leading-5 text-[var(--ink-muted)]">
-            Past 100% the art runs to the cut edge and bleeds — normal for
-            round art that should fill the sticker.
+            {/* The old copy said "past 100% the art bleeds", which was true on
+                no shape at all — a circle bleeds at 141%, square corners at
+                104%. A customer either worried at 105% on a circle for no
+                reason, or trusted it and sailed past the real edge. */}
+            {artScaleHelp}
           </span>
         </label>
+
+        {!isDieCut && (
+          <label className="mt-3 flex min-h-[44px] cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={product.artBleed}
+              onChange={(event) => {
+                const artBleed = event.target.checked;
+
+                // Turning it OFF has to pull an out-of-range scale back with
+                // it, or the slider would sit past its own maximum showing a
+                // value it cannot represent.
+                onUpdateProduct({
+                  artBleed,
+                  artScale: clampArtScaleToShape(
+                    product.shape,
+                    product.artScale,
+                    artBleed
+                  ),
+                });
+              }}
+              className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--gorilla-green)]"
+            />
+            <span className="text-fine leading-5 text-[var(--ink-black)]">
+              <span className="font-bold">Let the art run past the cut edge</span>
+              <span className="mt-0.5 block text-[var(--ink-muted)]">
+                For art that should bleed off the sticker. The preview will show
+                you exactly what gets cut off.
+              </span>
+            </span>
+          </label>
+        )}
 
         <label className="mt-3 block">
           <span className="flex items-center justify-between text-sm font-bold text-[var(--ink-black)]">

@@ -164,7 +164,6 @@ export default function Home() {
   const [ssCatalogStatus, setSsCatalogStatus] = useState<
     "idle" | "loading" | "loaded" | "error"
   >("idle");
-  const [ssCatalogError, setSsCatalogError] = useState("");
   // Signs and apparel are single-file flows and keep the singular slots.
   const [artworkPreview, setArtworkPreview] = useState<string | null>(null);
   // Stickers are a cart, so preview and analysis are per design, keyed by
@@ -505,7 +504,6 @@ export default function Home() {
   useEffect(() => {
     async function loadSsCatalog() {
       setSsCatalogStatus("loading");
-      setSsCatalogError("");
 
       try {
         const styleQuery = encodeURIComponent(apparelCatalogStyles.join(","));
@@ -571,10 +569,10 @@ export default function Home() {
         }
       } catch (error) {
         console.error(error);
+        // Status only. The raw upstream message is logged above and reported
+        // by /api/health; it must never reach the customer-facing panel, which
+        // used to render it verbatim.
         setSsCatalogStatus("error");
-        setSsCatalogError(
-          error instanceof Error ? error.message : "Unable to load S&S catalog."
-        );
       }
     }
 
@@ -2754,7 +2752,6 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   apparelQuote={apparelQuote}
                   artworkAnalysis={artworkAnalysis}
                   ssCatalogStatus={ssCatalogStatus}
-                  ssCatalogError={ssCatalogError}
                   hasSsProducts={ssProducts.length > 0}
                   filteredSsProducts={filteredSsProducts}
                   apparelCategories={apparelCategories}

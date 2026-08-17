@@ -1,26 +1,72 @@
 # Handoff — where things stand
 
-Written 2026-08-06 at the end of a long working session. Read this first, then
-`CART-PLAN.md` and `DESIGN-SYSTEM.md`.
+**Every entry below is dated. Add a dated line when you touch this file** —
+this doc drifted five merges out of date because nothing forced a timestamp,
+and a doc stating stale facts confidently is worse than no doc, because the
+next session will act on it.
 
-## Live right now
+Read this first, then `AGENTS.md` and `DESIGN-SYSTEM.md`.
 
-`main` is deployed to https://labs.gorillasalem.com (Vercel, production
-branch is `main`). The custom domain is wired correctly — do NOT touch the
-`@` or `www` DNS records for gorillasalem.com, those are Squarespace and
-repointing them took the main site down once already.
+## Live right now — 2026-08-17, `main` @ `e2d5770`
 
-Working and verified in production:
+`main` is deployed to https://labs.gorillasalem.com (Vercel, production branch
+is `main`, root directory `v2`). The custom domain is wired correctly — do NOT
+touch the `@` or `www` DNS records for gorillasalem.com, those are Squarespace
+and repointing them took the main site down once already.
 
-- **Stickers self-checkout.** Customer configures, pays, done — no shop step.
-  The Printavo pay link was confirmed working by Gabe. Sticker orders can
-  arrive already paid.
-- Sticker pricing is `(width x height x $0.032) + ($25 / quantity)`. Chrome
-  and holographic are +60% on the material portion only.
-- Signs: 13oz / 18oz / mesh, sewn double-sided on 13oz, no-hem credit on
-  18oz, MA 6.25% tax. Apparel is tax exempt (clothing).
+179 tests passing, `tsc` clean, 0 lint errors.
+
+Working and verified:
+
+- **Stickers self-checkout, and the invoice matches the site.** Verified live
+  on 15 Aug against a real three-design order: `$136.40` goods, `$50.00` setup,
+  `$144.93` due — Printavo to the cent. Sticker orders can arrive already paid.
+- Sticker pricing is `(width x height x $0.032) + setup`, where setup is `$25`
+  for the first design and `$12.50` for each one after, charged once per cart
+  rather than per design. Chrome and holographic are +60% on the material
+  portion only.
+- **Apparel invoices as three separate lines** — garments,
+  `GORILLA-APPAREL-PRINT`, `GORILLA-APPAREL-SETUP` — rather than one blended
+  unit price that the shop could not review.
+- Signs: 13oz / 18oz / mesh, sewn double-sided on 13oz, no-hem credit on 18oz,
+  MA 6.25% tax. Apparel is tax exempt (clothing).
+- **The art slider caps per shape** at the scale where art actually reaches the
+  cut — 141 circle / 113 rounded / 104 square — with an opt-in bleed mode that
+  restores the old 150 ceiling and shows the overflow honestly instead of
+  clipping it. Derived from the safe-area factors in `lib/sticker-geometry.ts`,
+  which the canvas proof now reads too.
+- Signs and apparel validation live in `lib/validation.ts` and have test
+  coverage. They used to be closures inside `app/page.tsx` that nothing could
+  test, which is how signs came to be missing a quantity check.
 - Order Desk design system throughout, sticky estimate bar, aspect-correct
   sticker proof.
+
+### Known broken — do not re-diagnose these
+
+- **S&S catalogue returns 401.** `Style 39 failed with 401: "Authorization has
+  been denied for this request."` Eliminated as causes: env scoping (both vars
+  are present — a missing one throws before any HTTP call), stale build (three
+  genuine rebuilds), and surrounding whitespace (`getRequiredEnv` now trims,
+  and the 401 survived it). What remains is the credential pair itself for
+  account `00424`, or API access not being enabled on that account. **Waiting
+  on S&S, not on code.** `/api/health?secret=` reports both credentials'
+  character counts so a wrong value can be spotted without printing it.
+- **`ZAPIER_NEWSLETTER_HOOK_URL` unset.** Opt-ins write a consent record and
+  reach no list. Backfillable from past quote emails once a hook exists — the
+  consent wording is in `buildCustomerLines` and is shared by both the text and
+  HTML renderings, so the record cannot disagree with itself.
+- **`PRINTAVO_CUSTOMER_ID` unset.** Optional fallback for a quote whose
+  customer email cannot be resolved. Silent when it fires.
+- Apparel is `status: "request"` deliberately, because of the S&S 401. The full
+  `ApparelBuilder` is not rendered — choosing apparel pins `specialOrder` and
+  routes to `ApparelRequestBuilder`, because the menu flow's pricing is not
+  signed off.
+
+### Branch state
+
+`main` and `develop` share history and ordinary PRs work. **The
+unrelated-histories problem is over — don't re-derive it.** `develop` is fully
+contained in `main`; branch off `main`.
 
 ## Session addendum — 2026-08-09/10
 
@@ -35,16 +81,20 @@ Printavo with no human in the loop.** It used to classify by *absence*, so any
 new flow that forgot a field became a sticker order and charged someone a
 price nobody set. It now also requires the product type to say "sticker".
 
-### In flight: PR #2, `develop` -> `main`, GREEN AND UNMERGED
+### In flight: nothing — 2026-08-17
 
-Eight commits. **The phone number is still live on production** — the previous
-merge took `develop` at `06139fa` and the removal landed in `7bb983f` just
-after. Merging #2 is the single highest-value action available.
+**Both claims that used to sit here are false and have been removed.** PR #2
+merged long ago, and the phone number is not live on production. They are noted
+only so nobody finds them in the history and acts on them: a stale "highest-value
+action available" is exactly the kind of line a fresh session will trust.
 
-Contents: phone removal · step-based form (5 steps) · apparel as a hand-quote
-request · abandoned-quote lead capture · four real Google reviews ·
-"how did you hear about us" · pre-checked newsletter opt-in · cart pricing
-split · "back to the beginning" control.
+PRs #1 through #6 are all merged. Nothing is waiting on a branch.
+
+Shipped since this section was last true: the sticker cart, the step-based form,
+apparel as a hand-quote request, abandoned-quote lead capture, the kiosk mode
+and its PIN rate limiting, the order tracker, per-shape slider caps with bleed
+mode, and test coverage for signs, apparel, the attachment budget and the admin
+guard.
 
 ### Env vars added, NOT yet set in Vercel
 

@@ -62,6 +62,36 @@ Working and verified:
   routes to `ApparelRequestBuilder`, because the menu flow's pricing is not
   signed off.
 
+### Pending decision — do signs and apparel customers get an email at all?
+
+**2026-08-17. Written up, not chosen — this is Gabe's call, not a code task.**
+
+Signs and apparel are hand-quoted, so no payment request fires, so those
+customers receive NOTHING from the app: no confirmation, no order number, no
+tracking link. Only sticker customers who self-checkout get an email, and that
+email is Printavo's payment request — which now carries the /track link.
+
+Second gap on the same axis: nothing is sent AFTER payment either. A sticker
+customer pays and hears nothing until a proof arrives by hand.
+
+Three options, ascending:
+
+1. **Leave it.** Stickers are the automated flow; signs and apparel already
+   involve a human who can paste the link. Cheapest, and honest.
+2. **A real confirmation email for every flow**, on submit, carrying the quote
+   number and the tracking link. This is what makes tracking universal. It is a
+   new template plus a delivery path, not a string edit.
+3. **Also a post-payment email**, closing the "paid and heard nothing" gap.
+
+RECOMMENDATION: **1 now, 2 when apparel goes live.** Tracking only pays off
+where a customer has a number to track, and today only stickers issue one
+automatically. Option 2's real cost is not the template — it is that a
+customer-facing send must NOT inherit sendShopEmail's fallback chain, which
+drops through QUOTE_TO_EMAIL to a hardcoded address when the target is missing
+or malformed. Silently delivering a customer's confirmation to the shop inbox
+is worse than not sending it, so option 2 needs its own delivery path with its
+own failure behaviour. Worth doing deliberately rather than as an add-on.
+
 ### Branch state
 
 `main` and `develop` share history and ordinary PRs work. **The

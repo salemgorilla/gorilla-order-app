@@ -1,4 +1,4 @@
-import { test, describe, beforeEach } from "node:test";
+import { test, describe, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { looksLikeEmailAddress } from "../lib/email";
@@ -85,5 +85,96 @@ describe("a malformed address is reported, not passed off as working", () => {
 
     assert.equal(lead?.state, "off");
     assert.match(lead!.summary, /no email provider/i);
+  });
+});
+
+describe("the apparel catalogue reports why it is dark", () => {
+  /**
+   * S&S credentials are concatenated into a Basic auth token, so a trailing
+   * newline on either one is sent as part of the credential and comes back as
+   * a 401 byte-identical to a wrong key. Invisible in the Vercel UI, invisible
+   * in the error — so "re-paste the key" reproduces it exactly.
+   *
+   * This section had a header and no capability under it, so the one
+   * integration that was actually failing in production was the one the
+   * health check could not report at all.
+   */
+  const KEYS = ["SS_ACCOUNT_NUMBER", "SS_API_KEY"] as const;
+  const saved: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    for (const k of KEYS) {
+      saved[k] = process.env[k];
+      delete process.env[k];
+    }
+  });
+
+  afterEach(() => {
+    for (const k of KEYS) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
+  });
+
+  function apparel() {
+    return getConfigHealth().capabilities.find((c) => c.key === "apparel-catalog")!;
+  }
+
+  test("the capability exists at all", () => {
+    // It did not, which is why a 401ing catalogue went unreported.
+    assert.ok(apparel(), "no apparel-catalog capability in the health report");
+  });
+
+  test("neither credential set reads as off, and names both", () => {
+    const c = apparel();
+
+    assert.equal(c.state, "off");
+    assert.deepEqual(c.fix, ["SS_ACCOUNT_NUMBER", "SS_API_KEY"]);
+  });
+
+  test("half a pair is still off — the trap that produces this exact failure", () => {
+    process.env.SS_ACCOUNT_NUMBER = "12345";
+
+    assert.equal(apparel().state, "off");
+  });
+
+  test("both set stops blaming a missing variable", () => {
+    process.env.SS_ACCOUNT_NUMBER = "12345";
+    process.env.SS_API_KEY = "abcdef";
+
+    const c = apparel();
+    assert.equal(c.state, "degraded");
+    assert.match(c.summary, /S&S rejecting them rather than a missing variable/);
+    assert.deepEqual(c.fix, []);
+  });
+
+  test("surrounding whitespace is called out by name", () => {
+    // The whole point: this is the difference between "your key is wrong" and
+    // "your key has a newline on it", which look identical from S&S.
+    process.env.SS_ACCOUNT_NUMBER = "12345";
+    process.env.SS_API_KEY = "abcdef\n";
+
+    assert.match(apparel().summary, /CARRIED SURROUNDING WHITESPACE/);
+  });
+
+  test("clean values say so, so the shop stops looking there", () => {
+    process.env.SS_ACCOUNT_NUMBER = "12345";
+    process.env.SS_API_KEY = "abcdef";
+
+    assert.match(apparel().summary, /Neither carries stray whitespace/);
+  });
+
+  test("counts are reported, contents never are", () => {
+    process.env.SS_ACCOUNT_NUMBER = "12345";
+    process.env.SS_API_KEY = "supersecretkey";
+
+    const summary = apparel().summary;
+
+    assert.match(summary, /5 characters/);
+    assert.match(summary, /14 characters/);
+    assert.ok(
+      !summary.includes("supersecretkey") && !summary.includes("12345"),
+      "the health report leaked a credential value"
+    );
   });
 });

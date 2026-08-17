@@ -186,6 +186,48 @@ export function getConfigHealth(): {
   });
 
   // ---- apparel -------------------------------------------------------------
+  /**
+   * The garment catalogue, and — when it is dark — enough to tell WHY.
+   *
+   * This section header existed with no capability under it, so the apparel
+   * catalogue being down was the one integration the health check could not
+   * report. It has been 401ing in production and nothing here said so.
+   *
+   * S&S credentials are concatenated into a Basic auth token, so a trailing
+   * newline on either value produces a 401 byte-identical to a wrong key.
+   * That is invisible in the Vercel UI and invisible in the error, which
+   * makes "re-paste the key" reproduce it exactly. The character counts below
+   * are what distinguishes the two — a count one higher than the value you
+   * pasted is whitespace, not a bad credential.
+   *
+   * Counts and a whitespace flag only, never content. Same rule as every
+   * other secret here: whether it is SET is operational fact the shop needs;
+   * what it is set TO is not something this endpoint will ever say.
+   */
+  const ssRawAccount = process.env.SS_ACCOUNT_NUMBER ?? "";
+  const ssRawKey = process.env.SS_API_KEY ?? "";
+  const ssPairComplete = has("SS_ACCOUNT_NUMBER") && has("SS_API_KEY");
+  const ssHadWhitespace =
+    ssRawAccount !== ssRawAccount.trim() || ssRawKey !== ssRawKey.trim();
+
+  capabilities.push({
+    key: "apparel-catalog",
+    name: "S&S garment catalogue",
+    state: ssPairComplete ? "degraded" : "off",
+    summary: ssPairComplete
+      ? [
+          "Both credentials are set, so any failure is S&S rejecting them rather than a missing variable.",
+          `Account number ${value("SS_ACCOUNT_NUMBER").length} characters, API key ${
+            value("SS_API_KEY").length
+          } characters.`,
+          ssHadWhitespace
+            ? "AT LEAST ONE CARRIED SURROUNDING WHITESPACE, which is now stripped before use — if the catalogue was 401ing, this was very likely why."
+            : "Neither carries stray whitespace, so a 401 means the value itself is wrong or the account is not API-enabled.",
+        ].join(" ")
+      : "Apparel cannot load garment prices. The two values are a pair — setting one without the other fails exactly like setting neither.",
+    fix: ssPairComplete ? [] : ["SS_ACCOUNT_NUMBER", "SS_API_KEY"],
+  });
+
   capabilities.push({
     key: "admin-tools",
     name: "Admin endpoints",

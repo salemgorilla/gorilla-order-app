@@ -5,7 +5,7 @@ import type { Order } from "../types/order";
 import type { ApparelQuote } from "../lib/apparel";
 import type { ApparelPricingResult } from "../lib/apparel-pricing";
 import type { QuoteConfirmation, SsCatalogColor } from "./types";
-import { SALES_TAX } from "../lib/tax";
+import { SALES_TAX, getStickerTotals } from "../lib/tax";
 import {
   getSignProduct,
   getSignSizeLabel,
@@ -50,6 +50,11 @@ export default function QuoteConfirmationScreen({
   onStartNew,
   onBackToBuilder,
 }: Props) {
+  // One derivation, shared with the review card, the Order Summary and the
+  // sticky estimate bar. See getQuoteTotals in lib/tax — four surfaces showed
+  // this figure and only one of them had tax.
+  const stickerTotals = getStickerTotals(order.pricing);
+
   // Absent for signs and apparel, and absent for stickers whenever Printavo
   // was unreachable — in every one of those cases the screen falls back to
   // "we'll be in touch", which is still a real, submitted order.
@@ -247,12 +252,23 @@ export default function QuoteConfirmationScreen({
                 </>
               ) : (
                 <>
+                  {/* THE figure that mattered most, and the one the tax line
+                      on the review screen originally missed. This is the
+                      screen a sticker customer lands on AFTER submitting —
+                      the moment a payable link is issued — so showing the
+                      pre-tax total here meant they agreed to one number and
+                      were billed another, which is the whole defect. */}
                   <p className="mt-2 text-head font-bold text-[var(--ink-black)]">
-                    ${order.pricing.total.toFixed(2)}
+                    ${stickerTotals.estimatedTotal.toFixed(2)}
                   </p>
                   <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
                     ${unitPrice.toFixed(2)} each
                   </p>
+                  {stickerTotals.estimatedTax > 0 && (
+                    <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+                      Includes estimated {SALES_TAX.label}
+                    </p>
+                  )}
                 </>
               )}
 

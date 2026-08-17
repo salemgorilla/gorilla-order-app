@@ -1,4 +1,4 @@
-import { SALES_TAX, estimateSalesTax, isTaxableFlow } from "../../lib/tax";
+import { SALES_TAX, getStickerTotals } from "../../lib/tax";
 import type { Order } from "../../types/order";
 
 interface Props {
@@ -24,38 +24,12 @@ export default function OrderSummary({ order }: Props) {
   const uploadedCount = order.items.filter((item) => item.artwork.file).length;
 
   /**
-   * Estimated sales tax, on the GOODS only.
-   *
-   * The customer used to agree to a number here and meet 6.25% for the first
-   * time on the Printavo payment page — on the reference two-design order,
-   * $72.70 quietly becoming $77.24.
-   *
-   * Shipping is excluded because separately stated shipping is not taxable in
-   * Massachusetts, and buildPrintavoQuotePlan sends the shipping line with
-   * `taxed: false` while goods AND fee lines both carry
-   * `taxed: salesTaxRate !== null`. So the taxable base is stickers + setup,
-   * which is what makes this row agree with the invoice rather than merely
-   * look plausible.
-   *
-   * isTaxableFlow rather than a hardcoded true: this component is the sticker
-   * summary, and clothing is exempt in Massachusetts, so anyone reusing it for
-   * apparel needs the exemption to travel with it.
-   *
-   * ESTIMATE, and labelled as one. estimateSalesTax is documented display-only
-   * — Printavo computes the figure that is actually charged. Half-cent totals
-   * are not bugs: $241.04 x 6.25% is $15.065, and Printavo may show $15.06
-   * while totalling as if $15.07. Do not add compensating logic.
+   * Estimated tax and the tax-inclusive total, from the one derivation in
+   * lib/tax. Four surfaces show this figure — the sticky bar, the review card,
+   * this summary and the confirmation screen — and they must not be able to
+   * disagree, which is why none of them does the arithmetic itself.
    */
-  const taxableSubtotal =
-    order.pricing.stickerPrice + order.pricing.setupPrice;
-  const estimatedTax = isTaxableFlow("stickers")
-    ? estimateSalesTax(taxableSubtotal)
-    : 0;
-  // Rounded to cents like estimateSalesTax does, because 72.7 + 4.54 is
-  // 77.24000000000001 in binary floating point. toFixed(2) would hide that on
-  // screen, but a money value should not carry dust it might later pass on.
-  const estimatedTotal =
-    Math.round((order.pricing.total + estimatedTax) * 100) / 100;
+  const { estimatedTax, estimatedTotal } = getStickerTotals(order.pricing);
 
   return (
     <div className=" border border-[var(--rule)] bg-white p-8">

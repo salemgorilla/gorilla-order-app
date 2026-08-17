@@ -1,6 +1,7 @@
 "use client";
 
 import { getSignProduct, getSignSizeLabel, type SignsQuote } from "../../lib/signs";
+import { SALES_TAX, getSignsTotals } from "../../lib/tax";
 import type { SignsPricingResult } from "../../lib/signs-pricing";
 import type { Production } from "../../types/order";
 
@@ -15,6 +16,9 @@ export default function SignsSummaryCard({
   production,
   pricing,
 }: Props) {
+  // One derivation, shared with the sticky estimate bar. See lib/tax.
+  const signsTotals = getSignsTotals(pricing);
+
   const product = getSignProduct(signsQuote.productId);
 
   const rows: [string, string][] = [
@@ -72,6 +76,20 @@ export default function SignsSummaryCard({
                 ))}
 
               <div className="border-t border-[var(--rule)] pt-3">
+                {/* Signs are taxable, like stickers — clothing is the only
+                    exempt flow. This card showed a pre-tax total, so a signs
+                    customer met 6.25% for the first time on the invoice, the
+                    same gap the sticker review screen had. Signs carry no
+                    shipping component, so the whole total is the base. */}
+                {signsTotals.estimatedTax > 0 && (
+                  <div className="mb-1 flex justify-between gap-4">
+                    <span>Estimated {SALES_TAX.label}</span>
+                    <span className="text-right text-[var(--ink-black)]">
+                      ${signsTotals.estimatedTax.toFixed(2)}
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex justify-between gap-4">
                   <span className="text-[var(--ink-black)]">
                     {pricing.hasQuotedExtras
@@ -80,7 +98,7 @@ export default function SignsSummaryCard({
                   </span>
                   <span className="text-right text-lede font-bold text-[var(--gorilla-green)]">
                     {pricing.hasQuotedExtras ? "from " : ""}$
-                    {pricing.total.toFixed(2)}
+                    {signsTotals.estimatedTotal.toFixed(2)}
                   </span>
                 </div>
 

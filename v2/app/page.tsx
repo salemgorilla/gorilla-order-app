@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SALES_TAX, getSignsTotals, getStickerTotals } from "../lib/tax";
 
 import Header from "../components/Header";
 import StepNav from "../components/StepNav";
@@ -432,7 +433,11 @@ export default function Home() {
       const product = getSignProduct(signsQuote.productId);
       return {
         label: `${signsQuote.quantity} × ${product.label}`,
-        total: signsPricing.priceable ? signsPricing.total : 0,
+        // Tax-inclusive. Signs carry no shipping component, so the whole
+        // total is taxable — see getSignsTotals.
+        total: signsPricing.priceable
+          ? getSignsTotals(signsPricing).estimatedTotal
+          : 0,
         priceable: signsPricing.priceable,
         detail: signsPricing.priceable
           ? `${getSignSizeLabel(signsQuote)} · $${signsPricing.unitPrice.toFixed(
@@ -469,7 +474,7 @@ export default function Home() {
     if (designs > 1) {
       return {
         label: `${designs} designs · ${totalStickers.toLocaleString()} stickers`,
-        total: order.pricing.total,
+        total: getStickerTotals(order.pricing).estimatedTotal,
         priceable: true,
         detail: `Setup $${order.pricing.setupPrice.toFixed(2)} across ${designs} designs`,
       };
@@ -482,7 +487,7 @@ export default function Home() {
         widthInches: first.widthInches,
         heightInches: first.heightInches,
       })} ${first.shape} stickers`,
-      total: order.pricing.total,
+      total: getStickerTotals(order.pricing).estimatedTotal,
       priceable: true,
       detail: `$${(
         (order.pricing.stickerPrice + order.pricing.setupPrice) /
@@ -2104,7 +2109,8 @@ ${
         .filter((l) => l.amount !== 0)
         .map((l) => `${l.label}: $${l.amount.toFixed(2)}`)
         .join("\n")}
-Estimated Total: $${signsPricing.total.toFixed(2)}${
+Estimated ${SALES_TAX.label}: $${getSignsTotals(signsPricing).estimatedTax.toFixed(2)}
+Estimated Total: $${getSignsTotals(signsPricing).estimatedTotal.toFixed(2)}${
         signsQuote.quantity > 1
           ? `\nEstimated Each: $${signsPricing.unitPrice.toFixed(2)}`
           : ""
@@ -2214,7 +2220,8 @@ Shipping: ${
         ? `$${order.pricing.shippingPrice.toFixed(2)}`
         : "Free (local pickup)"
     }
-Estimated Total: $${order.pricing.total.toFixed(2)}${
+Estimated ${SALES_TAX.label}: $${getStickerTotals(order.pricing).estimatedTax.toFixed(2)}
+Estimated Total: $${getStickerTotals(order.pricing).estimatedTotal.toFixed(2)}${
       order.items.length === 1
         ? `\nEstimated Each: $${unitPrice.toFixed(2)} per sticker`
         : ""

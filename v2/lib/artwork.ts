@@ -27,10 +27,33 @@ export type ArtworkAnalysis = {
   notes: string[];
 };
 
-// Near-pure magenta (~255,0,255): high red + blue, low green, red≈blue.
-// Used to auto-spot a customer's die-cut line without false-firing on
-// ordinary red/blue/pink art.
-function isMagentaPixel(red: number, green: number, blue: number) {
+/**
+ * The colour we tell customers to draw their cut line in.
+ *
+ * `ArtworkGuidance` shows this exact hex, `DecalBuilder` calls it "100%
+ * magenta (RGB 255, 0, 255)", and `--cut-line` in globals.css is the same
+ * value. All three are the same promise, and isMagentaPixel is the half of it
+ * that has to come true.
+ */
+export const CUT_LINE_RGB = { red: 255, green: 0, blue: 255 } as const;
+
+/**
+ * Near-pure magenta (~255,0,255): high red + blue, low green, red≈blue.
+ *
+ * Auto-spots a customer's die-cut line without false-firing on ordinary red,
+ * blue or pink art. Exported so the thresholds can be tested — they decide how
+ * a sticker gets CUT, and both kinds of error cost a remake:
+ *
+ *   false negative — a deliberate cut line is missed, and a die-cut order is
+ *                    cut as a rectangle
+ *   false positive — the blade follows a red or pink element of the design
+ *
+ * The bounds are deliberately loose rather than exact. A customer's file has
+ * been through export, colour profiles and often JPEG, so demanding exactly
+ * 255,0,255 would miss most real cut lines; the gap to ordinary art is wide
+ * enough that loose still separates them.
+ */
+export function isMagentaPixel(red: number, green: number, blue: number) {
   return (
     red > 190 &&
     blue > 190 &&

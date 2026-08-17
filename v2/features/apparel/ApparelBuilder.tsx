@@ -16,7 +16,6 @@ type Props = {
   artworkAnalysis: ArtworkAnalysis | null;
 
   ssCatalogStatus: "idle" | "loading" | "loaded" | "error";
-  ssCatalogError: string;
   hasSsProducts: boolean;
   filteredSsProducts: SsCatalogProduct[];
   apparelCategories: string[];
@@ -56,7 +55,6 @@ export default function ApparelBuilder({
   apparelQuote,
   artworkAnalysis,
   ssCatalogStatus,
-  ssCatalogError,
   hasSsProducts,
   filteredSsProducts,
   apparelCategories,
@@ -114,9 +112,33 @@ export default function ApparelBuilder({
           )}
         </div>
 
+        {/* The customer gets told what it means for THEIR order, never the
+            integration's own words.
+
+            This rendered `ssCatalogError` raw, which is whatever the upstream
+            threw — so while the S&S credentials were being rejected, every
+            customer who opened apparel was shown:
+
+              Style 39 failed with 401: { "message": "Authorization has been
+              denied for this request." }
+
+            in red, in the panel's most prominent slot. Alarming, meaningless
+            to them, and it names an internal integration and its failure mode
+            to the public.
+
+            The fallback below is genuinely fine — the local garment list still
+            lets them pick and submit, and apparel is hand-quoted anyway — so
+            this is not even bad news for their order. It just has to say so.
+
+            The raw text is not lost: it goes to console.error in loadSsCatalog
+            and to /api/health, which is admin-guarded and where a diagnostic
+            belongs. */}
         {ssCatalogStatus === "error" && (
-          <div className="mb-4 bg-white p-4 text-sm font-bold leading-6 text-[var(--rush-red)]">
-            {ssCatalogError}
+          <div className="mb-4 bg-white p-4 text-fine font-bold leading-6 text-[var(--ink-black)]">
+            Our live garment list is unavailable right now, so prices are not
+            shown here. Pick the style and colour you want and send it through
+            — Gorilla Salem quotes apparel by hand and will confirm pricing,
+            usually the same day.
           </div>
         )}
 

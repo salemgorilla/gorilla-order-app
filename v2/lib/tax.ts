@@ -67,3 +67,93 @@ export function isTaxableFlow(flow: "stickers" | "signs" | "apparel") {
 export function estimateSalesTax(taxableSubtotal: number) {
   return Math.round(taxableSubtotal * (SALES_TAX.ratePercent / 100) * 100) / 100;
 }
+
+/**
+ * What a customer should be told they will pay.
+ *
+ * ── WHY THIS EXISTS ───────────────────────────────────────────────────────
+ * The pre-tax figure was rendered from `pricing.total` in four separate
+ * places: the sticky estimate bar, the review card, the Order Summary, and
+ * the CONFIRMATION screen. Adding an estimated tax line to only one of them
+ * did not fix the problem, it moved it — the customer met one number on
+ * review and a different one after submitting, which for stickers is the
+ * moment a payable link is issued.
+ *
+ * One derivation, several readers. The four surfaces are now incapable of
+ * disagreeing, rather than merely agreeing today.
+ * ──────────────────────────────────────────────────────────────────────────
+ */
+export type QuoteTotals = {
+  /** What tax is charged on. Never includes shipping. */
+  taxableSubtotal: number;
+  /** Display-only estimate. Zero on an exempt flow. */
+  estimatedTax: number;
+  /** Pre-tax total plus the estimate, rounded to cents. */
+  estimatedTotal: number;
+  /** False on apparel, so callers can hide the row rather than print $0.00. */
+  taxed: boolean;
+};
+
+/**
+ * Callers pass their own taxable base because the flows genuinely differ —
+ * stickers separate shipping out of `pricing`, signs have no shipping at all.
+ * What must NOT differ is the exemption, the rate and the rounding, which is
+ * what lives here.
+ *
+ * `preTaxTotal` is whatever the surface was already showing, so this can only
+ * ever add tax to it — it can never restate the price itself.
+ */
+export function getQuoteTotals(input: {
+  flow: "stickers" | "signs" | "apparel";
+  /** Goods and fees. Separately stated shipping is not taxable in MA. */
+  taxableSubtotal: number;
+  /** The figure shown today, shipping included. */
+  preTaxTotal: number;
+}): QuoteTotals {
+  const taxed = isTaxableFlow(input.flow);
+  const estimatedTax = taxed ? estimateSalesTax(input.taxableSubtotal) : 0;
+
+  return {
+    taxableSubtotal: input.taxableSubtotal,
+    estimatedTax,
+    // Rounded because 72.7 + 4.54 is 77.24000000000001 in binary floating
+    // point, and a money value should not carry dust it might pass on.
+    estimatedTotal: Math.round((input.preTaxTotal + estimatedTax) * 100) / 100,
+    taxed,
+  };
+}
+
+/**
+ * The sticker flow's totals, derived once.
+ *
+ * Shipping is excluded from the base deliberately: buildPrintavoQuotePlan
+ * sends the shipping line with `taxed: false` while goods AND fee lines carry
+ * `taxed: salesTaxRate !== null`. Setup is a fee line, so it IS taxed —
+ * leaving it out would under-report by $2.34 on the reference order.
+ */
+export function getStickerTotals(pricing: {
+  stickerPrice: number;
+  setupPrice: number;
+  total: number;
+}): QuoteTotals {
+  return getQuoteTotals({
+    flow: "stickers",
+    taxableSubtotal: pricing.stickerPrice + pricing.setupPrice,
+    preTaxTotal: pricing.total,
+  });
+}
+
+/**
+ * The signs flow's totals.
+ *
+ * Signs carry no shipping component at all — `calculateSignsPricing` returns a
+ * total that is entirely goods and fees — so the whole total is taxable and
+ * the base and the pre-tax total are the same number.
+ */
+export function getSignsTotals(pricing: { total: number }): QuoteTotals {
+  return getQuoteTotals({
+    flow: "signs",
+    taxableSubtotal: pricing.total,
+    preTaxTotal: pricing.total,
+  });
+}

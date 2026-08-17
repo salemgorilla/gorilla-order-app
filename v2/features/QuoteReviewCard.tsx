@@ -1,6 +1,7 @@
 "use client";
 
 import type { Order } from "../types/order";
+import { getStickerTotals } from "../lib/tax";
 import type { ApparelQuote } from "../lib/apparel";
 import type { ApparelPricingResult } from "../lib/apparel-pricing";
 import type { SsCatalogColor } from "./types";
@@ -35,6 +36,9 @@ export default function QuoteReviewCard({
   selectedSsColor,
   isReady,
 }: Props) {
+  // Shared with the summary, the confirmation screen and the sticky bar.
+  const stickerTotals = getStickerTotals(order.pricing);
+
   return (
     <div className=" border border-[var(--rule)] bg-white p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -158,10 +162,14 @@ export default function QuoteReviewCard({
               </span>
             </div>
 
+            {/* Tax-inclusive, from the one derivation in lib/tax. This card
+                and the confirmation screen both showed the pre-tax figure
+                while the Order Summary below showed the taxed one — three
+                surfaces, two numbers, on the screen before a payable link. */}
             <div className="flex justify-between gap-4">
-              <span>Estimate</span>
+              <span>{stickerTotals.estimatedTax > 0 ? "Estimated total" : "Estimate"}</span>
               <span className="text-right text-[var(--gorilla-green)]">
-                ${order.pricing.total.toFixed(2)}
+                ${stickerTotals.estimatedTotal.toFixed(2)}
               </span>
             </div>
           </>

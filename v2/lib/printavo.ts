@@ -79,7 +79,12 @@ function isSigns(product: AnyRecord) {
  * Printavo mangles non-ASCII in line-item text ("10 × $2" arrives as "10 � $2"),
  * so swap the typographic characters we use for plain ASCII before sending.
  */
-function asciiSafe(value: string) {
+/**
+ * Exported because the NICKNAME goes through it, and the nickname is what
+ * order tracking matches on. A test has to be able to check the string
+ * Printavo actually stores, not the one we assembled before this ran.
+ */
+export function asciiSafe(value: string) {
   return value
     .replace(/[×✕✖]/g, "x")
     .replace(/[–—]/g, "-")
@@ -821,8 +826,26 @@ export function buildPrintavoQuotePlan(input: {
     productNeedsHandPricing || addOns.some((a) => Boolean(a.quoteRequired));
   const isSpecialOrder = Boolean(product.specialOrder);
 
-  // The nickname is what the shop scans in the Printavo list, so a counter
-  // order has to be identifiable there and not just inside the note.
+  /**
+   * The nickname is what the shop scans in the Printavo list, so a counter
+   * order has to be identifiable there and not just inside the note.
+   *
+   * ── IT IS ALSO WHERE ORDER TRACKING LOOKS ────────────────────────────────
+   * `lookupOrderStatus()` finds a customer's order by checking that their
+   * quote number appears in this string — Printavo's own visualId is assigned
+   * by Printavo and the customer has never seen it, so the nickname is the
+   * only field carrying a number they can type.
+   *
+   * Every branch below must therefore contain `quoteNumber` verbatim. Drop it
+   * from one flow and tracking returns "we couldn't find that order" to a
+   * customer holding a real receipt — no error, no log, and now the payment
+   * email invites them to try.
+   *
+   * `nicknameMatchesQuoteNumber()` is the matcher, shared with the lookup so
+   * the two cannot drift, and tests/tracking-nickname.test.ts runs it against
+   * a real plan for every flow.
+   * ─────────────────────────────────────────────────────────────────────────
+   */
   const nicknamePrefix = kiosk ? "IN STORE" : "WEB QUOTE";
 
   const nickname = apparel
@@ -1288,18 +1311,60 @@ export type OrderLookupResult =
  * NICKNAME ("WEB QUOTE GS-20260812-AB12C - ..."), not in visualId — Printavo
  * assigns that itself and the customer has never seen it.
  *
- * ── UNVERIFIED AGAINST THE LIVE ACCOUNT ───────────────────────────────────
- * The `orders(query:)` connection and the `status { name }` shape below are
- * written from the published schema, which has already been wrong once for
- * this integration (lineItems is documented as a nested list and is a flat
- * one live — see the note in createPrintavoQuote). There are no Printavo
- * credentials in the environment this was built in, so it could not be run.
+ * ── VERIFIED LIVE, WITH ONE THING STILL UNKNOWN ──────────────────────────
+ * This shipped marked UNVERIFIED because it was written from the published
+ * schema with no credentials to run it against. It has since been run: a real
+ * order was looked up against the live account and returned a real status, so
+ * the `orders(query:)` connection and the `status { name }` shape are correct.
+ * Corrected here because the old warning would send a future session to
+ * "fix" working code — and the published schema has been wrong for this
+ * integration before (lineItems is documented nested and is flat live).
  *
- * Everything here fails to `unavailable`, never to `no-match`, so a wrong
- * query shape shows "we couldn't reach our system" rather than telling a
- * customer with a real order that it does not exist.
+ * What is still unknown is how FUZZY `query:` is. One lookup on a quiet day
+ * does not establish how the search ranks when many nicknames share the same
+ * `GS-` date prefix. If it is loose, the real order could fall outside the
+ * first page and a customer holding a receipt would be told no such order
+ * exists. `first: 10` is deliberately left alone rather than raised on a
+ * guess — an unsupported page size would error the whole query and take
+ * tracking down for everyone, which is far worse than the risk it hedges.
+ * Instead the full-page case is logged below, so if it ever happens the shop
+ * finds out from a log rather than from a customer.
+ *
+ * Everything here fails to `unavailable`, never to `no-match`, so a broken
+ * query shows "we couldn't reach our system" rather than telling a customer
+ * with a real order that it does not exist.
  * ──────────────────────────────────────────────────────────────────────────
  */
+/**
+ * Does this Printavo nickname belong to this quote number?
+ *
+ * The one place that question is answered. `buildPrintavoQuotePlan` writes the
+ * nickname and `lookupOrderStatus` reads it back, which is two pieces of code
+ * that must agree about a string format with a customer's order status resting
+ * on it. Sharing the predicate means a test can assert the writer's output
+ * against the reader's rule rather than against a copy of it.
+ *
+ * Substring, not equality: the nickname carries a prefix, a quantity and a
+ * product label around the number, and the shop edits these by hand.
+ */
+export function nicknameMatchesQuoteNumber(
+  nickname: string,
+  quoteNumber: string
+) {
+  const wanted = quoteNumber.trim().toUpperCase();
+  if (!wanted) return false;
+
+  return String(nickname || "")
+    .toUpperCase()
+    .includes(wanted);
+}
+
+/**
+ * How many search hits we inspect. Not raised without being able to run it —
+ * see the note on lookupOrderStatus.
+ */
+const ORDER_SEARCH_PAGE_SIZE = 10;
+
 export async function lookupOrderStatus(input: {
   quoteNumber: string;
   email: string;
@@ -1315,15 +1380,15 @@ export async function lookupOrderStatus(input: {
 
   try {
     const data = await printavoRequest<{ orders: { nodes: AnyRecord[] } }>(
-      `query GorillaOrderStatus($q: String!) {
-         orders(query: $q, first: 10) {
+      `query GorillaOrderStatus($q: String!, $first: Int!) {
+         orders(query: $q, first: $first) {
            nodes {
              ... on Quote    { id visualId nickname status { name } contact { email } }
              ... on Invoice  { id visualId nickname status { name } contact { email } }
            }
          }
        }`,
-      { q: quoteNumber }
+      { q: quoteNumber, first: ORDER_SEARCH_PAGE_SIZE }
     );
 
     const nodes = data.orders?.nodes || [];
@@ -1331,10 +1396,24 @@ export async function lookupOrderStatus(input: {
     // Printavo's search is fuzzy, so confirm the quote number really is in the
     // nickname rather than trusting whatever the search decided was close.
     const match = nodes.find((node) =>
-      str(node.nickname).toUpperCase().includes(quoteNumber)
+      nicknameMatchesQuoteNumber(str(node.nickname), quoteNumber)
     );
 
-    if (!match) return { found: false, reason: "no-match" };
+    if (!match) {
+      // A full page with no match is the one case where "no such order" might
+      // be a lie — the match could be on page two. Nothing changes for the
+      // customer, who is told the same thing either way; this is so the shop
+      // can see it happening instead of guessing.
+      if (nodes.length >= ORDER_SEARCH_PAGE_SIZE) {
+        console.warn(
+          `ORDER STATUS SEARCH FILLED A PAGE without matching ${quoteNumber}. ` +
+            `Printavo returned ${nodes.length} orders and none carried that ` +
+            `number in its nickname — the search may be too fuzzy for a single page.`
+        );
+      }
+
+      return { found: false, reason: "no-match" };
+    }
 
     const contact = (match.contact as AnyRecord) || {};
     // Printavo keeps several addresses in one comma-separated string.

@@ -56,8 +56,32 @@ export type GorillaCatalogResponse = {
   warnings?: string[];
 };
 
+/**
+ * A credential, with the whitespace nobody typed on purpose removed.
+ *
+ * ── WHY TRIM ──────────────────────────────────────────────────────────────
+ * These two values are concatenated into a Basic auth token —
+ * base64(account:key) — so a single trailing newline on either one is sent to
+ * S&S as part of the credential and comes back as:
+ *
+ *   Style 39 failed with 401: "Authorization has been denied for this request."
+ *
+ * which is byte-identical to the response for a genuinely wrong key. Trailing
+ * whitespace is invisible in the Vercel UI and invisible in the error, so
+ * nothing about the failure points at the cause, and the obvious next move —
+ * re-paste the key — reproduces it exactly.
+ *
+ * Same fault as ADMIN_SECRET (see lib/admin-auth) and as LEAD_TO_EMAIL holding
+ * an address with two "@" signs: a value that is obviously wrong once seen,
+ * that nothing in the app was looking at. Trimming cannot make a wrong
+ * credential right — it only stops whitespace being load-bearing.
+ *
+ * A whitespace-only value counts as MISSING rather than present-but-blank, so
+ * a variable someone cleared by pasting over it fails with the honest
+ * "Missing environment variable" instead of a mystifying 401.
+ */
 function getRequiredEnv(name: string) {
-  const value = process.env[name];
+  const value = process.env[name]?.trim();
 
   if (!value) {
     throw new Error(`Missing environment variable: ${name}`);

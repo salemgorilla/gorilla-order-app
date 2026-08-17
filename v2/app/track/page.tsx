@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 import Header from "../../components/Header";
 import { STEP_LABELS } from "../../lib/order-status";
@@ -23,8 +24,34 @@ type Status = {
  * price, a reprint button, an artwork thumbnail — would be a second feature
  * standing in front of the answer somebody opened the page for.
  */
-export default function TrackPage() {
-  const [quoteNumber, setQuoteNumber] = useState("");
+/**
+ * The page proper, wrapped below.
+ *
+ * useSearchParams needs a Suspense boundary in the App Router — without one
+ * the whole route opts out of static rendering and Next fails the build. The
+ * boundary is the export; this is the component that reads the URL.
+ */
+function TrackForm() {
+  const params = useSearchParams();
+
+  /**
+   * `?order=GS-…` prefills the order number, so a customer tapping the link in
+   * their payment email does not have to retype seventeen characters on a
+   * phone. Uppercased and trimmed to match what the API does.
+   *
+   * THE EMAIL IS DELIBERATELY NOT PREFILLED, and stays required. It is the
+   * only thing standing between a guessed order number and someone else's
+   * order status — lookupOrderStatus gives the same answer for a wrong number
+   * and a wrong email precisely so the page cannot be used to enumerate
+   * orders. Seeding the email from a URL would hand that away, and a shared or
+   * forwarded link would carry it.
+   *
+   * A junk value needs no error state: it lands in the field, the customer
+   * corrects it, and the lookup fails the same way a typo would.
+   */
+  const prefilledOrder = (params.get("order") || "").trim().toUpperCase();
+
+  const [quoteNumber, setQuoteNumber] = useState(prefilledOrder);
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState("");
@@ -207,5 +234,16 @@ function StatusCard({ status }: { status: Status }) {
         </p>
       )}
     </section>
+  );
+}
+
+export default function TrackPage() {
+  // Suspense boundary for useSearchParams. The fallback is the page's own
+  // empty state rather than a spinner — the form is usable the moment it
+  // paints, and a customer arriving without ?order= should see no difference.
+  return (
+    <Suspense fallback={null}>
+      <TrackForm />
+    </Suspense>
   );
 }

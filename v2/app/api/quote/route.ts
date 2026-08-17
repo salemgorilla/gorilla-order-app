@@ -718,6 +718,9 @@ export async function POST(request: Request) {
       checkout = await createStickerCheckout({
         quoteId: printavo.quoteId,
         publicUrl: printavo.publicUrl || "",
+        // Carries the tracking link in the payment email. This is the same
+        // string lookupOrderStatus matches against the Printavo nickname.
+        quoteNumber,
         customerEmail:
           String(
             (order.customer as Record<string, unknown> | undefined)?.email || ""

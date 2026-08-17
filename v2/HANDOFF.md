@@ -7,14 +7,14 @@ next session will act on it.
 
 Read this first, then `AGENTS.md` and `DESIGN-SYSTEM.md`.
 
-## Live right now — 2026-08-17, `main` @ `e2d5770`
+## Live right now — 2026-08-17, `main` @ `b289d4a`
 
 `main` is deployed to https://labs.gorillasalem.com (Vercel, production branch
 is `main`, root directory `v2`). The custom domain is wired correctly — do NOT
 touch the `@` or `www` DNS records for gorillasalem.com, those are Squarespace
 and repointing them took the main site down once already.
 
-179 tests passing, `tsc` clean, 0 lint errors.
+234 tests passing, `tsc` clean, 0 lint errors.
 
 Working and verified:
 
@@ -40,6 +40,12 @@ Working and verified:
   test, which is how signs came to be missing a quantity check.
 - Order Desk design system throughout, sticky estimate bar, aspect-correct
   sticker proof.
+- **`/track` finally has a door.** Printavo's payment request — the only
+  message a sticker customer receives from this system — now carries
+  `labs.gorillasalem.com/track?order=GS-…`, and `/track` seeds the order
+  number from that param. The email field is deliberately NOT prefillable
+  from the URL: it is the only thing between a guessed order number and
+  someone else's order status.
 
 ### Known broken — do not re-diagnose these
 
@@ -148,7 +154,7 @@ were written and reverted rather than leave the tree unbuildable.
 "Custom Stickers". Drop it and `isStickerOrder()` returns false and stickers
 silently stop generating payment links — no error, just no money.
 
-### Order tracker — statuses decided, nothing built
+### Order tracker — built, live, and now linked (was: nothing built)
 
 Gabe added eight custom Printavo statuses on 2026-08-10.
 `ORDER-TRACKING-SPEC.md` says show them verbatim, with an override map in
@@ -173,9 +179,12 @@ fault*, with no idea what to do. The "Lab Order " prefix is shop taxonomy for
 separating app orders from walk-ins — keep it in Printavo, strip it on the
 customer's screen. "Pre-Press" is trade jargon.
 
-The spec defers the build until after the design contrast fixes and the
-apparel launch, and says not to share a branch with them. Start it off `main`
-**after** #2 merges.
+**That deferral is spent — the tracker shipped.** The map above is live in
+`lib/order-status.ts`, `/track` is verified against real Printavo orders, and
+as of `b289d4a` it is reachable from the payment email. The only piece left is
+Gabe's Squarespace footer button. The paragraph that used to sit here told you
+to start the build after PR #2; it is kept only so nobody finds it in the
+history and re-does finished work.
 
 ### Still Gabe's call, not code
 

@@ -66,8 +66,55 @@ export type BackgroundRemovalResult = {
 };
 
 export type BackgroundRemovalFailure = {
-  reason: "not-an-image" | "background-not-flat" | "nothing-to-remove" | "failed";
+  reason:
+    | "not-an-image"
+    | "background-not-flat"
+    | "nothing-to-remove"
+    | "removed-everything"
+    | "failed";
 };
+
+/**
+ * Past this share removed, nothing recognisable is left and we refuse.
+ *
+ * ── THE FAILURE THIS EXISTS FOR ───────────────────────────────────────────
+ * The fill spreads through anything within HARD_TOLERANCE of the border
+ * colour. When the DESIGN is also within that tolerance, it spreads straight
+ * through the design and out the other side, and the file comes back
+ * completely transparent. Verified in Chromium on three constructed files:
+ *
+ *   #f0f0f0 logo on #ffffff ... 100% removed, nothing left
+ *   cream logo on ivory ....... 100% removed, nothing left
+ *   a solid white image ....... 100% removed, nothing left
+ *
+ * "Cream off ivory" is the exact case the header of this file offers as
+ * proof the matting is scale-free. The matting is; the FILL that runs first
+ * is not, and it eats the design before the matting sees it.
+ *
+ * There was a guard for removing NOTHING and none for removing EVERYTHING,
+ * so the customer ticked the box, saw a blank preview, and that blank PNG
+ * became the artwork the shop received. `removedShare` was computed,
+ * returned and typed for exactly this, and read by nobody.
+ *
+ * 99.5% rather than something tighter because a legitimate design can be
+ * very sparse — a hairline signature or a thin outline ring is a few percent
+ * of its canvas. Under half a percent of a 2400px image is not artwork
+ * anybody could print.
+ * ──────────────────────────────────────────────────────────────────────────
+ */
+export const MAX_REMOVED_SHARE = 0.995;
+
+/**
+ * Did the fill erase the artwork rather than its background?
+ *
+ * A predicate rather than an inline comparison so the threshold can be
+ * tested without a DOM — removeBackground itself needs a canvas, which is
+ * how this went unnoticed.
+ */
+export function isTotalErasure(removedPixels: number, totalPixels: number) {
+  if (!(totalPixels > 0)) return false;
+  return removedPixels / totalPixels > MAX_REMOVED_SHARE;
+}
 
 function distance(
   r1: number, g1: number, b1: number,
@@ -239,6 +286,12 @@ export async function removeBackground(
     }
 
     if (removedPixels === 0) return { reason: "nothing-to-remove" };
+
+    // ...and the other end. Removing everything is not a knockout, it is an
+    // erasure, and returning it as a success hands the shop a blank file.
+    if (isTotalErasure(removedPixels, width * height)) {
+      return { reason: "removed-everything" };
+    }
 
     /**
      * Soften the boundary.

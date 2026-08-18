@@ -202,9 +202,16 @@ export function getSignsFieldErrors(
   // Stickers and apparel both check this; signs did not, and a sign quote is
   // the one of the three with no per-design cart to catch it elsewhere.
   //
-  // NumberField snaps to a minimum of 1 on blur, so a customer typing in the
-  // box cannot get a zero past this today — clearing the field and moving on
-  // springs it back. This guards the paths that do not go through that box.
+  // This rule used to be unreachable, and the comment here said so and
+  // treated it as fine: "NumberField snaps to a minimum of 1 on blur, so a
+  // customer typing in the box cannot get a zero past this today — clearing
+  // the field and moving on springs it back." That spring-back WAS the bug.
+  // Clearing "How many" silently sold the customer one sign, with no error,
+  // because the field corrected 0 up to 1 before this rule ever saw it.
+  // NumberField now leaves a cleared box cleared (see resolveBlurValue in
+  // lib/units.ts), so this fires for the ordinary typing customer — which is
+  // who it was always for.
+  //
   // A sign priced at zero is not a cheap sign, it is a quote the shop has to
   // notice is wrong before making it, and nothing downstream was going to say
   // so.

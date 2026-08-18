@@ -1,6 +1,10 @@
 import { getStickerBodyColor, MAGENTA, STICKER_EDGE } from "./die-cut";
 import { composeDieCut } from "./die-cut-canvas";
-import { getSafeAreaFactor } from "./sticker-geometry";
+import {
+  getArtDrawSize,
+  getSafeAreaFactor,
+  getStickerCard,
+} from "./sticker-geometry";
 
 export type ProofSpec = {
   artworkUrl: string;
@@ -127,21 +131,25 @@ export async function renderStickerProof(
     ctx.stroke();
 
     // ---- sticker at its true aspect ratio ----------------------------
-    const w = spec.widthInches > 0 ? spec.widthInches : 1;
-    const h = spec.heightInches > 0 ? spec.heightInches : 1;
-    const aspect = w / h;
-
-    let cardW = STAGE;
-    let cardH = STAGE;
-    if (aspect >= 1) cardH = STAGE / aspect;
-    else cardW = STAGE * aspect;
+    // Same rule as the on-screen card, at a bigger magnification. Shared so
+    // the proof cannot render a different rectangle from the one approved.
+    const { cardW, cardH } = getStickerCard(
+      spec.widthInches > 0 ? spec.widthInches : 1,
+      spec.heightInches > 0 ? spec.heightInches : 1,
+      STAGE
+    );
 
     const cardX = (CANVAS_W - cardW) / 2;
     const cardY = STAGE_TOP + (STAGE - cardH) / 2;
 
     const isDieCut = spec.shape === "Die Cut";
+    /**
+     * Scaled against the LONGEST side, which is what getStickerGeometry is
+     * fed (`longestInches`) when it renders the inch figure beside the
+     * slider. The border drawn here and the border quoted there have to be
+     * the same measurement.
+     */
     const borderPx = borderPxForStage(spec.artMargin, Math.max(cardW, cardH));
-    const scale = Math.min(Math.max(spec.artScale, 20), 150) / 100;
 
     if (isDieCut) {
       // Art on a transparent layer, padded so the contour has room to grow.
@@ -152,11 +160,13 @@ export async function renderStickerProof(
       const lctx = layer.getContext("2d");
       if (!lctx) return null;
 
-      const boxW = cardW * scale;
-      const boxH = cardH * scale;
-      const fit = Math.min(boxW / art.width, boxH / art.height);
-      const drawW = art.width * fit;
-      const drawH = art.height * fit;
+      const { drawW, drawH } = getArtDrawSize({
+        cardW,
+        cardH,
+        artWidth: art.width,
+        artHeight: art.height,
+        scalePercent: spec.artScale,
+      });
 
       lctx.drawImage(
         art,
@@ -216,13 +226,14 @@ export async function renderStickerProof(
 
       // A square inscribed in a circle is only ~70.7% of its diameter, so
       // round shapes need the art held further in or it rides the cut edge.
-      const safe = getSafeAreaFactor(spec.shape);
-
-      const boxW = cardW * safe * scale;
-      const boxH = cardH * safe * scale;
-      const fit = Math.min(boxW / art.width, boxH / art.height);
-      const drawW = art.width * fit;
-      const drawH = art.height * fit;
+      const { drawW, drawH } = getArtDrawSize({
+        cardW,
+        cardH,
+        artWidth: art.width,
+        artHeight: art.height,
+        scalePercent: spec.artScale,
+        safeAreaFactor: getSafeAreaFactor(spec.shape),
+      });
 
       ctx.drawImage(
         art,

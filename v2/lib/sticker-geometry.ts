@@ -75,3 +75,78 @@ export function clampArtScaleToShape(
   const ceiling = allowBleed ? ART_SCALE_CEILING : getBleedThreshold(shape);
   return Math.min(artScale, ceiling);
 }
+
+/**
+ * The sticker's drawing area at its real proportions.
+ *
+ * ── THE FOURTH COPY OF THIS FACT DRIFTED ──────────────────────────────────
+ * These lines existed in the shaped render branch of StickerShape and again
+ * in lib/sticker-proof.ts, and the die-cut preview had NO copy — it drew a
+ * flat square. A 4" x 1" die cut previewed with its art four times taller
+ * than the emailed proof drew it, which is the picture the shop cuts from.
+ * The customer approved one thing and the shop received another, and the two
+ * renderers agreeing was the entire point of sharing the compositor.
+ *
+ * So the geometry lives here now, with the safe-area factors, for the same
+ * reason: it is a fact about the product, both renderers need it, and it can
+ * be tested in node.
+ * ──────────────────────────────────────────────────────────────────────────
+ *
+ * `longestPx` is the box the LONG side fills — 256 on the preview card, 720
+ * on the proof stage. The short side follows from the aspect ratio, so both
+ * come out as the same rectangle at different magnifications.
+ *
+ * Falls back to a square when no dimensions are set, which is what a preset
+ * size or an unfinished form has, and is what those used to render as.
+ */
+export function getStickerCard(
+  widthInches: number,
+  heightInches: number,
+  longestPx: number
+) {
+  const w = Number(widthInches) || 0;
+  const h = Number(heightInches) || 0;
+  const longest = Math.max(w, h);
+
+  if (!(longest > 0)) return { cardW: longestPx, cardH: longestPx };
+
+  return {
+    cardW: longestPx * (w / longest),
+    cardH: longestPx * (h / longest),
+  };
+}
+
+/**
+ * How large the art is drawn inside that card, fitted to the TIGHT axis.
+ *
+ * Both axes are offered and the smaller wins, so a square logo on a 4" x 1"
+ * sticker is limited by the 1". Sizing against one axis, or against a square,
+ * is what let the die-cut preview overstate the art.
+ *
+ * `safeAreaFactor` is 1 for a die cut — its contour is generated FROM the
+ * art, so there is no fixed outline to hold the art away from.
+ */
+export function getArtDrawSize(input: {
+  cardW: number;
+  cardH: number;
+  artWidth: number;
+  artHeight: number;
+  scalePercent: number;
+  safeAreaFactor?: number;
+}) {
+  const safe = input.safeAreaFactor ?? 1;
+
+  // Clamped HERE, so every caller gets the slider's real range whether or not
+  // it remembered to clamp. The proof used to do this itself and the preview
+  // did it upstream — two copies of the same bound, one of which was about to
+  // be dropped when this was extracted.
+  const scale =
+    Math.min(Math.max(input.scalePercent, 20), ART_SCALE_CEILING) / 100;
+
+  const boxW = input.cardW * safe * scale;
+  const boxH = input.cardH * safe * scale;
+
+  const fit = Math.min(boxW / input.artWidth, boxH / input.artHeight);
+
+  return { drawW: input.artWidth * fit, drawH: input.artHeight * fit };
+}

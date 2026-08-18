@@ -60,6 +60,13 @@ function contourMask(
   const pixels = ctx.getImageData(0, 0, scratch.width, scratch.height).data;
   const mask = new Uint8Array(scratch.width * scratch.height);
 
+  // THE ONE COPY OF THE RAMP. die-cut.ts used to also export a
+  // thresholdAlphaToColor() that applied the same slope/intercept to an
+  // ImageData — exported, documented, and called by nothing since the SVG
+  // filter it mirrored was replaced. Two spellings of one rule, one of them
+  // invisible, is how the contour drifts; removed rather than kept "for
+  // reference".
+
   for (let i = 0, p = 0; i < pixels.length; i += 4, p += 1) {
     const ramped = slope * (pixels[i + 3] / 255) + intercept;
     mask[p] = ramped >= 0.5 ? 1 : 0;
@@ -76,7 +83,7 @@ function contourMask(
  * enclosed means vinyl. Iterative, not recursive: a 900x900 region would blow
  * the call stack.
  */
-function fillEnclosed(mask: Mask, width: number, height: number): Mask {
+export function fillEnclosed(mask: Mask, width: number, height: number): Mask {
   const outside = new Uint8Array(mask.length);
   const stack: number[] = [];
 

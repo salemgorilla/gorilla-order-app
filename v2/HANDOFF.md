@@ -248,6 +248,14 @@ history and re-does finished work.
   was found by executing something — building an email, measuring the DOM,
   running the pricing engine — not by reviewing code. Several scripted
   patches silently matched nothing and reported success.
+- **A comment asserting a fix is not evidence the fix works.**
+  `priceStickerItem` carried a careful paragraph explaining that quantity is
+  deliberately not clamped into state, so that a cleared "How many" could fail
+  validation. That fix was real and it was one layer too low: `NumberField`'s
+  blur still snapped the empty box up to 1 before state ever saw 0, so the
+  behaviour the comment described had never held. Clearing the box and tabbing
+  away submitted an order for ONE. Found by driving the form in a browser, not
+  by reading the comment that said it was handled.
 - **The live Printavo schema beats the published docs.** `lineItems` is a FLAT
   list; the docs render it nested.
 - `asciiSafe()` in `lib/printavo.ts` DELETES characters outside

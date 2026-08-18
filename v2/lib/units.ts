@@ -59,3 +59,36 @@ export function snapQuantity(value: number) {
   const n = Math.floor(Number(value) || 0);
   return Math.max(1, n);
 }
+
+/**
+ * What a number field should hold once the customer leaves it.
+ *
+ * ── WHY THIS IS NOT INLINE IN NumberField ─────────────────────────────────
+ * It used to be, and it was wrong, and nothing could have caught it. The blur
+ * handler ran `snap(Number(draft) || 0)` on every exit including an empty one
+ * — and `snapQuantity` is `Math.max(1, ...)`, so clearing "How many" and
+ * tabbing away silently wrote 1. No error, no invalid treatment, all five
+ * steps ticked green, and the order went through as a quantity of ONE.
+ * Stickers self-check-out, so that is a live payable link for one sticker
+ * instead of the thousand somebody meant to order. Signs did the same.
+ *
+ * The rule lives here so it can be asserted directly rather than through a
+ * component with no test harness. Every defect this project has shipped came
+ * from logic sitting somewhere nothing could reach it.
+ * ──────────────────────────────────────────────────────────────────────────
+ *
+ * A BLANK BOX IS NOT A VALUE. It resolves to 0 — which is what the
+ * `quantity > 0` rules in lib/validation.ts are written against, and what
+ * lets the field paint itself red and block submit. Anything actually typed
+ * still goes through `snap`, so a floor of 1 keeps holding for "0" and "-5":
+ * those are answers, and a wrong answer gets corrected. An empty field is not
+ * an answer, and gets left alone to be complained about.
+ */
+export function resolveBlurValue(
+  rawInput: string,
+  snap: (value: number) => number
+) {
+  if (rawInput.trim() === "") return 0;
+
+  return snap(Number(rawInput) || 0);
+}

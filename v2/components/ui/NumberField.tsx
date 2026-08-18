@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { resolveBlurValue } from "../../lib/units";
+
 type Props = {
   id: string;
   label: string;
@@ -21,6 +23,9 @@ type Props = {
    * fights the customer — typing "1.75" would rewrite to "1" the moment they
    * pressed 1. The price still updates live from the raw value; the snap
    * corrects it once they move on.
+   *
+   * NOT applied to an empty field — a snapper with a floor would turn
+   * "I cleared this" into "I want one". See resolveBlurValue.
    */
   snap: (value: number) => number;
   onChange: (value: number) => void;
@@ -85,8 +90,14 @@ export default function NumberField({
             onChange(Number(event.target.value) || 0);
           }}
           onBlur={() => {
-            const snapped = snap(Number(draft ?? value) || 0);
-            onChange(snapped);
+            /**
+             * A cleared box stays cleared — see resolveBlurValue in lib/units.
+             * Snapping an empty field wrote 1 into state, because snapQuantity
+             * has a floor, and that silently turned "I am about to retype
+             * this" into an order for one. The rule is extracted so it can be
+             * tested; this callback could not be.
+             */
+            onChange(resolveBlurValue(draft ?? String(value || ""), snap));
             setDraft(null);
           }}
           // The border classes are branched rather than appended, because

@@ -1164,6 +1164,8 @@ export default function Home() {
           ? "The background isn't one flat colour, so we can't remove it cleanly here. Send us the file and we'll cut it out by hand before printing."
           : result.reason === "nothing-to-remove"
           ? "We couldn't find a background to remove around the edge of this file."
+          : result.reason === "removed-everything"
+          ? "Your design is too close in colour to its background, so removing the background would take the design with it. Send the file as it is and we'll cut it out by hand before printing."
           : result.reason === "not-an-image"
           ? "We can only do this on an image file (PNG or JPG). Send it over and we'll handle this one by hand."
           : "Something went wrong removing the background. Send the file as it is and we'll take care of it.";

@@ -10,6 +10,7 @@ import {
   clampArtScaleToShape,
   getBleedThreshold,
   getSafeAreaFactor,
+  getStickerCard,
 } from "../../lib/sticker-geometry";
 
 export {
@@ -175,8 +176,28 @@ export default function StickerShape({
     height: `${scale}%`,
   };
 
+  /**
+   * The card takes the sticker's real proportions, for EVERY shape.
+   *
+   * These three lines used to sit below the die-cut early return, so only
+   * shaped stickers got them — the comment there says the point out loud:
+   * "so a 2x6 renders as a tall rectangle rather than lying to the customer
+   * with a square." A die cut was handed a flat 256 square and did exactly
+   * that. On a 4" x 1" sticker the preview drew the art four times taller
+   * than the shop can cut, while the emailed proof — which does honour the
+   * dimensions — drew it correctly. The customer approved one picture and
+   * the shop received a different one.
+   */
+  const { cardW, cardH } = getStickerCard(widthInches, heightInches, CARD_PX);
+
   // ---------- DIE CUT: contour hugs the art, opaque stock inside it ----------
   if (isDieCut) {
+    /**
+     * Against CARD_PX, which is always the LONGEST side — the same reference
+     * getStickerGeometry uses when it converts this to the inch figure beside
+     * the slider (it is passed longestInches). Keep the two together or the
+     * border drawn stops matching the border quoted.
+     */
     const borderPx = Math.round((margin / 100) * 16);
 
     return (
@@ -203,7 +224,8 @@ export default function StickerShape({
               bodyColor={getStickerBodyColor(material)}
               magentaCutLine={magentaCutLine}
               scale={scale}
-              sizePx={CARD_PX}
+              cardW={cardW}
+              cardH={cardH}
             />
           ) : (
             <div className="flex items-center justify-center" style={artBoxStyle}>
@@ -226,17 +248,10 @@ export default function StickerShape({
   // diameter, so a circle needs a much tighter safe area than a square â€”
   // sizing by plain percentage is what made art run off the round shapes.
   //
-  // These are the same three lines getStickerGeometry() uses. They stay here
-  // rather than calling it because this branch needs the PIXELS while the
-  // sliders need the INCHES; if either changes, change both.
-  // The card takes the sticker's real proportions. The longest side is always
-  // CARD_PX, so a 2x6 renders as a tall rectangle (or an oval, if the shape is
-  // Circle) rather than lying to the customer with a square.
-  const w = Number(widthInches) || 0;
-  const h = Number(heightInches) || 0;
-  const longest = Math.max(w, h);
-  const cardW = longest > 0 ? CARD_PX * (w / longest) : CARD_PX;
-  const cardH = longest > 0 ? CARD_PX * (h / longest) : CARD_PX;
+  // These are the same lines getStickerGeometry() uses. They stay here rather
+  // than calling it because this branch needs the PIXELS while the sliders
+  // need the INCHES; if either changes, change both. cardW/cardH are now
+  // computed once above, for die cuts too.
 
   // Art is sized against the TIGHT axis so it can never overflow the narrow
   // side of a rectangle â€” the same reason the safe-area factor exists.

@@ -1,11 +1,15 @@
 /**
  * The die-cut contour, in one place.
  *
- * Two renderers draw this edge: the on-screen preview (SVG filter, in
- * components/preview/StickerShape.tsx) and the proof attached to the quote
- * email (canvas, in lib/sticker-proof.ts). They MUST agree — the whole point
- * of the emailed proof is that it shows the customer the same cut they
- * approved on screen. Sharing the constants is what keeps them from drifting.
+ * Two renderers draw this edge: the on-screen preview (components/preview/
+ * DieCutCanvas.tsx) and the proof attached to the quote email
+ * (lib/sticker-proof.ts). Both go through composeDieCut, so the contour
+ * itself cannot differ — the preview stopped being an SVG filter when it
+ * moved to canvas, and this said otherwise until 2026-08-18.
+ *
+ * They MUST agree, and sharing constants is only half of it: the two also
+ * have to draw the same RECTANGLE at the same relative art size, which they
+ * did not. See getStickerCard in lib/sticker-geometry.ts.
  *
  * THE TECHNIQUE: blur the alpha, then threshold it back to a hard edge.
  *
@@ -112,34 +116,6 @@ export const CUT_EDGE_INTERCEPT = 0.5 - CUT_EDGE_SLOPE * CUT_EDGE_THRESHOLD;
 /** Blur sigma that puts the contour `borderPx` outside the artwork. */
 export function contourSigma(borderPx: number) {
   return Math.max(0.4, (borderPx * EDGE_GAIN) / EDGE_PROBIT);
-}
-
-/**
- * The canvas equivalent of the SVG feFuncA threshold.
- *
- * Applies the same linear ramp to the alpha channel and paints every surviving
- * pixel the given colour, turning a blurred silhouette into a hard-edged band.
- * Mutates the ImageData in place.
- */
-export function thresholdAlphaToColor(
-  imageData: ImageData,
-  color: { r: number; g: number; b: number },
-  slope: number = EDGE_THRESHOLD_SLOPE,
-  intercept: number = EDGE_THRESHOLD_INTERCEPT
-) {
-  const data = imageData.data;
-
-  for (let i = 0; i < data.length; i += 4) {
-    const alpha = data[i + 3] / 255;
-    const ramped = slope * alpha + intercept;
-
-    data[i] = color.r;
-    data[i + 1] = color.g;
-    data[i + 2] = color.b;
-    data[i + 3] = Math.max(0, Math.min(1, ramped)) * 255;
-  }
-
-  return imageData;
 }
 
 /** "#e6e4de" -> {r,g,b}. */

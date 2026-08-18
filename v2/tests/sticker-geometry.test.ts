@@ -4,8 +4,10 @@ import assert from "node:assert/strict";
 import {
   ART_SCALE_CEILING,
   clampArtScaleToShape,
+  getArtDrawSize,
   getBleedThreshold,
   getSafeAreaFactor,
+  getStickerCard,
 } from "../lib/sticker-geometry";
 
 /**
@@ -127,5 +129,135 @@ describe("the safe-area factors themselves are untouched", () => {
     assert.equal(getSafeAreaFactor("Oval"), 0.707);
     assert.equal(getSafeAreaFactor("Rounded Corners"), 0.88);
     assert.equal(getSafeAreaFactor("Square Corners"), 0.96);
+  });
+});
+
+/**
+ * The card, and the art inside it.
+ *
+ * ── WHAT WENT WRONG ───────────────────────────────────────────────────────
+ * The rule "the card takes the sticker's real proportions" had two copies —
+ * the shaped branch of StickerShape, and lib/sticker-proof.ts — and the
+ * die-cut preview had NEITHER. It was handed a flat 256px square and drew
+ * every die cut as though it were square.
+ *
+ * Measured in Chromium through the real compositor, with a square logo:
+ *
+ *   sticker    preview art / proof art   (1.00 = the two agree)
+ *   3" x 3"    1.00                      <- square, so it looked fine
+ *   4" x 2"    2.00
+ *   1" x 3"    2.84
+ *   4" x 1"    3.79
+ *
+ * A customer ordering a 4" x 1" die cut approved a picture showing their art
+ * nearly four times larger, relative to the sticker, than the proof the shop
+ * cuts from. Square stickers agreed exactly, which is why it survived.
+ *
+ * The border was never wrong: it scales against the LONGEST side, which is
+ * what getStickerGeometry is passed (`longestInches`) to produce the inch
+ * figure printed beside the slider. Changing that would have broken the
+ * agreement between the border drawn and the border quoted.
+ * ──────────────────────────────────────────────────────────────────────────
+ */
+describe("the card carries the sticker's real proportions", () => {
+  test("a square sticker is a square card", () => {
+    assert.deepEqual(getStickerCard(3, 3, 256), { cardW: 256, cardH: 256 });
+  });
+
+  test("the long side always fills the box", () => {
+    assert.deepEqual(getStickerCard(4, 2, 256), { cardW: 256, cardH: 128 });
+    assert.deepEqual(getStickerCard(2, 6, 256), { cardW: 256 / 3, cardH: 256 });
+  });
+
+  test("the preview and the proof describe the same rectangle", () => {
+    // 256 on the card, 720 on the proof stage. Same shape, different
+    // magnification — that is the whole invariant.
+    const preview = getStickerCard(4, 1, 256);
+    const proof = getStickerCard(4, 1, 720);
+
+    assert.equal(preview.cardW / preview.cardH, proof.cardW / proof.cardH);
+    assert.equal(proof.cardW / preview.cardW, 720 / 256);
+  });
+
+  test("no dimensions falls back to a square", () => {
+    // A preset size or a form nobody has filled in yet. This is what those
+    // rendered as before dimensions existed, and must keep rendering as.
+    assert.deepEqual(getStickerCard(0, 0, 256), { cardW: 256, cardH: 256 });
+  });
+});
+
+describe("art is fitted to the tight axis", () => {
+  const square = { artWidth: 100, artHeight: 100 };
+
+  test("a square logo on a wide sticker is limited by the height", () => {
+    // THE BUG, as a number. The die-cut preview used to fit against a square
+    // and would have drawn 256; the sticker is only a quarter as tall as it
+    // is wide, so 64 is what can actually be cut.
+    const { cardW, cardH } = getStickerCard(4, 1, 256);
+    const { drawW, drawH } = getArtDrawSize({
+      cardW,
+      cardH,
+      ...square,
+      scalePercent: 100,
+    });
+
+    assert.equal(drawH, 64);
+    assert.equal(drawW, 64);
+  });
+
+  test("and by the width on a tall sticker", () => {
+    const { cardW, cardH } = getStickerCard(1, 4, 256);
+    const { drawW } = getArtDrawSize({
+      cardW,
+      cardH,
+      ...square,
+      scalePercent: 100,
+    });
+
+    assert.equal(drawW, 64);
+  });
+
+  test("the art keeps its own aspect ratio", () => {
+    // Fitted, not stretched. A 2:1 logo stays 2:1.
+    const { drawW, drawH } = getArtDrawSize({
+      cardW: 256,
+      cardH: 256,
+      artWidth: 200,
+      artHeight: 100,
+      scalePercent: 100,
+    });
+
+    assert.equal(drawW / drawH, 2);
+  });
+
+  test("the safe-area factor holds art off a round cut", () => {
+    // Die cut passes no factor — its contour is generated FROM the art, so
+    // there is no fixed outline to stay clear of.
+    const plain = getArtDrawSize({ cardW: 256, cardH: 256, ...square, scalePercent: 100 });
+    const circle = getArtDrawSize({
+      cardW: 256,
+      cardH: 256,
+      ...square,
+      scalePercent: 100,
+      safeAreaFactor: getSafeAreaFactor("Circle"),
+    });
+
+    assert.equal(circle.drawW, plain.drawW * getSafeAreaFactor("Circle"));
+  });
+
+  test("the slider's range is enforced here, not by each caller", () => {
+    // The proof clamped this itself and the preview clamped upstream. Two
+    // copies of one bound, and extracting the fit nearly dropped one.
+    const base = { cardW: 256, cardH: 256, ...square };
+
+    assert.equal(
+      getArtDrawSize({ ...base, scalePercent: 5 }).drawW,
+      getArtDrawSize({ ...base, scalePercent: 20 }).drawW
+    );
+
+    assert.equal(
+      getArtDrawSize({ ...base, scalePercent: 900 }).drawW,
+      getArtDrawSize({ ...base, scalePercent: ART_SCALE_CEILING }).drawW
+    );
   });
 });

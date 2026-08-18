@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 
 import { composeDieCut } from "../../lib/die-cut-canvas";
+import { getArtDrawSize } from "../../lib/sticker-geometry";
 
 type Props = {
   artworkUrl: string;
@@ -13,7 +14,15 @@ type Props = {
   magentaCutLine: boolean;
   /** How large the art sits within the sticker, 20-150. */
   scale: number;
-  sizePx: number;
+  /**
+   * The sticker's drawing area, in canvas pixels, at its REAL proportions —
+   * longest side CARD_PX. Was a single square `sizePx`, which drew a 4" x 1"
+   * die cut as if it were 4" x 4": the art came out four times taller than
+   * the shop can cut it, and disagreed with the emailed proof, which had the
+   * dimensions right all along.
+   */
+  cardW: number;
+  cardH: number;
 };
 
 /**
@@ -35,7 +44,8 @@ export default function DieCutCanvas({
   bodyColor,
   magentaCutLine,
   scale,
-  sizePx,
+  cardW,
+  cardH,
 }: Props) {
   const ref = useRef<HTMLCanvasElement>(null);
 
@@ -54,21 +64,29 @@ export default function DieCutCanvas({
       // Padding so the contour has room to grow; without it the edge is
       // clipped by the canvas it is drawn on.
       const pad = Math.ceil(borderPx * 3 + 12);
-      const box = sizePx * (scale / 100);
-      const fit = Math.min(box / image.width, box / image.height);
-      const drawW = image.width * fit;
-      const drawH = image.height * fit;
+
+      // Fitted against BOTH axes, so the tight one binds. A square logo on a
+      // 4" x 1" sticker is limited by the 1" — which is the whole reason the
+      // card carries its real proportions. Identical to the sticker-proof
+      // branch in lib/sticker-proof.ts; that is the point.
+      const { drawW, drawH } = getArtDrawSize({
+        cardW,
+        cardH,
+        artWidth: image.width,
+        artHeight: image.height,
+        scalePercent: scale,
+      });
 
       const art = document.createElement("canvas");
-      art.width = sizePx + pad * 2;
-      art.height = sizePx + pad * 2;
+      art.width = Math.ceil(cardW) + pad * 2;
+      art.height = Math.ceil(cardH) + pad * 2;
       const actx = art.getContext("2d");
       if (!actx) return;
 
       actx.drawImage(
         image,
-        pad + (sizePx - drawW) / 2,
-        pad + (sizePx - drawH) / 2,
+        pad + (cardW - drawW) / 2,
+        pad + (cardH - drawH) / 2,
         drawW,
         drawH
       );
@@ -97,7 +115,7 @@ export default function DieCutCanvas({
     return () => {
       cancelled = true;
     };
-  }, [artworkUrl, borderPx, bodyColor, magentaCutLine, scale, sizePx]);
+  }, [artworkUrl, borderPx, bodyColor, magentaCutLine, scale, cardW, cardH]);
 
   return (
     <canvas

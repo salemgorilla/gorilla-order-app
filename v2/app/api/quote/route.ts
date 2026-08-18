@@ -247,7 +247,13 @@ export function repriceStickers(order: Record<string, unknown>) {
   const clientTotal = Number(clientPricing.total) || 0;
 
   if (!isStickerOrder(order)) {
-    return { order, mismatch: false, clientTotal, serverTotal: clientTotal };
+    return {
+      order,
+      mismatch: false,
+      unpriceable: false,
+      clientTotal,
+      serverTotal: clientTotal,
+    };
   }
 
   const product = (order.product || {}) as Record<string, unknown>;
@@ -287,6 +293,35 @@ export function repriceStickers(order: Record<string, unknown>) {
       pricedItems.reduce((sum, item) => sum + item.linePrice, 0) * 100
     ) / 100;
 
+  /**
+   * A design with no usable area cannot be priced, and must not auto-bill.
+   *
+   * ── WHAT THIS CATCHES ─────────────────────────────────────────────────
+   * The material formula is area x rate, so a payload carrying no width, no
+   * height and no usable size label prices at exactly $0 and says nothing.
+   * A submission for 1,000 stickers came out of here at $25 — the setup fee
+   * alone — and stickers self-check-out, so that is a live payable link at a
+   * price nobody set.
+   *
+   * The browser blocks the missing-dimensions case today: width and height
+   * are validated and submit is refused. That is not the point. This function
+   * exists BECAUSE the browser is not the authority on price, and it was
+   * trusting the browser for the one input the price is computed from.
+   *
+   * The test is the FIGURE, not one cause of it — any design whose material
+   * comes out at $0 or less. Missing dimensions is how it was found, and it
+   * is the case that matters; a real but tiny order lands there too (10 at
+   * 0.1" x 0.1" rounds to $0.00, though 1,000 of them is $0.32 and bills
+   * normally). Either way, $0 of material is not a price to charge against
+   * unattended.
+   *
+   * Deliberately not an error. The shop still gets the quote, the email and
+   * the Printavo record, and can price it by hand — the only thing withheld
+   * is the automatic payment link. Refusing the order outright would lose a
+   * real customer over a field we can ask about.
+   */
+  const unpriceable = pricedItems.some((item) => item.linePrice <= 0);
+
   // Counted from the items the server can see, never from a client-supplied
   // design count — that number decides how much setup is charged.
   const setupPrice = getCartSetupFee(items.length);
@@ -315,6 +350,7 @@ export function repriceStickers(order: Record<string, unknown>) {
     },
     // Cents of float drift are not worth shouting about; real tampering is.
     mismatch: Math.abs(serverTotal - clientTotal) > 0.01,
+    unpriceable,
     clientTotal,
     serverTotal,
   };
@@ -714,7 +750,30 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!kioskSession && isStickers && printavo.created && printavo.quoteId) {
+    /**
+     * Same rule, second reason: nothing auto-bills at a price nobody set.
+     *
+     * repriceStickers could not put a number on at least one design, so its
+     * material came out at $0 and the total is the setup fee alone. The quote,
+     * the email and the Printavo record all still go out — the shop prices it
+     * by hand, exactly as it does for signs — and only the payment link is
+     * withheld. Logged as an error rather than a note: it means a submission
+     * reached the server with no dimensions, which the browser should have
+     * refused, so something upstream is wrong as well.
+     */
+    if (priced.unpriceable && isStickers) {
+      console.error(
+        `UNPRICEABLE STICKER ORDER ${quoteNumber} — a design has no usable size, so material priced at $0. No payment link generated; price this one by hand.`
+      );
+    }
+
+    if (
+      !kioskSession &&
+      !priced.unpriceable &&
+      isStickers &&
+      printavo.created &&
+      printavo.quoteId
+    ) {
       checkout = await createStickerCheckout({
         quoteId: printavo.quoteId,
         publicUrl: printavo.publicUrl || "",

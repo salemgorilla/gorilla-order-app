@@ -80,6 +80,26 @@ export function parseStickerSizeInches(size: string | number) {
   return match ? Number(match[1]) : 0;
 }
 
+/**
+ * Every number in a size label, in order.
+ *
+ * A label is not always one number. describeStickerSize writes '2" x 6"' for
+ * a rectangular sticker, and parseStickerSizeInches — which takes the FIRST
+ * match — read that as 2, so the fallback priced a 2x6 as a 2x2. Twelve
+ * square inches billed as four: $12.80 per hundred instead of $38.40.
+ *
+ * Only reachable when the real dimensions are missing, which is exactly when
+ * the label is the only thing left to price from, so getting it wrong there
+ * is getting it wrong in the one case it exists for.
+ */
+function parseSizeNumbers(size: string | number): number[] {
+  if (typeof size === "number") return size > 0 ? [size] : [];
+
+  return (String(size || "").match(/[\d.]+/g) || [])
+    .map(Number)
+    .filter((n) => Number.isFinite(n) && n > 0);
+}
+
 /** Real dimensions, when the customer has entered them. */
 export type StickerDimensions = {
   widthInches: number;
@@ -99,7 +119,11 @@ function getAreaSqIn(size: string | number, dims?: StickerDimensions) {
   const h = Number(dims?.heightInches) || 0;
   if (w > 0 && h > 0) return w * h;
 
-  const inches = parseStickerSizeInches(size);
+  // Two numbers is a width and a height; one is a preset, which is square.
+  const numbers = parseSizeNumbers(size);
+  if (numbers.length >= 2) return numbers[0] * numbers[1];
+
+  const inches = numbers[0] || 0;
   return inches > 0 ? inches * inches : 0;
 }
 

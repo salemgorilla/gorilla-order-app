@@ -37,6 +37,14 @@ success.
 **Any change touching pricing or checkout ends with one real order reconciled
 against the Printavo invoice, to the cent.** Never with a passing test.
 
+`tests/price-sheet.test.ts` is the second line, not a substitute for that: 199
+committed totals across sizes, quantities, materials, carts and shipping, as
+literal numbers. Any edit that moves a price shows up as a readable diff, so a
+repricing has to be intended and reviewed rather than noticed later. Four of
+its rows are anchored to figures verified outside the repo, including the 15
+Aug Printavo reconciliation. Regenerate it deliberately, and say why in the
+commit.
+
 Test quotes: never pay one, always void it in Printavo afterwards.
 
 A worked example of why. The per-shape slider caps looked correct in the diff

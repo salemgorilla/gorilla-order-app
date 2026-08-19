@@ -1,7 +1,10 @@
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
 
-import { MAX_BLOB_ARTWORK_BYTES } from "../../../lib/upload-limits";
+import {
+  isAllowedUploadPath,
+  MAX_BLOB_ARTWORK_BYTES,
+} from "../../../lib/upload-limits";
 
 /**
  * Issues short-lived tokens so the browser can upload artwork STRAIGHT to blob
@@ -77,16 +80,35 @@ export async function POST(request: Request) {
     const result = await handleUpload({
       request,
       body,
-      onBeforeGenerateToken: async () => ({
-        // Deliberately NOT restricting content types. Print artwork arrives
-        // with unreliable MIME: Windows Chrome reports "" for .eps and
-        // "application/postscript" for .ai, and an allowlist would reject the
-        // exact files this shop is sent most. The size cap below is the real
-        // abuse guard.
-        maximumSizeInBytes: MAX_BLOB_ARTWORK_BYTES,
-        // Two customers uploading "logo.png" must not overwrite each other.
-        addRandomSuffix: true,
-      }),
+      onBeforeGenerateToken: async (pathname) => {
+        /**
+         * WHERE the token may write, not just how much it may write.
+         *
+         * This endpoint has to be public — a customer uploading artwork has
+         * no account and no session — so the scope of the token it mints is
+         * the only control there is. The pathname arrives from the caller and
+         * was previously ignored, which made this a public licence to write
+         * anything, anywhere in the shop's blob store, 100 MB at a time.
+         *
+         * Rejected by throwing: handleUpload surfaces it as the 400 below,
+         * and no token is ever generated.
+         */
+        if (!isAllowedUploadPath(pathname)) {
+          console.error(`ARTWORK UPLOAD REFUSED for path: ${pathname}`);
+          throw new Error("That upload path is not allowed.");
+        }
+
+        return {
+          // Deliberately NOT restricting content types. Print artwork arrives
+          // with unreliable MIME: Windows Chrome reports "" for .eps and
+          // "application/postscript" for .ai, and an allowlist would reject
+          // the exact files this shop is sent most. Size and path are the
+          // real guards.
+          maximumSizeInBytes: MAX_BLOB_ARTWORK_BYTES,
+          // Two customers uploading "logo.png" must not overwrite each other.
+          addRandomSuffix: true,
+        };
+      },
     });
 
     return NextResponse.json(result);

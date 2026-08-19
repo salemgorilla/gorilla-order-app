@@ -3,6 +3,7 @@ import { upload } from "@vercel/blob/client";
 import {
   MULTIPART_THRESHOLD_BYTES,
   MAX_BLOB_ARTWORK_BYTES,
+  QUOTE_ARTWORK_PREFIX,
 } from "./upload-limits";
 
 /**
@@ -29,7 +30,10 @@ export async function uploadArtworkToBlob(
   }
 
   try {
-    const result = await upload(file.name, file, {
+    // Prefixed so the authorising route can tell a legitimate quote upload
+    // from an arbitrary path somebody asked for — see isAllowedUploadPath.
+    // A bare filename is indistinguishable from anything else.
+    const result = await upload(`${QUOTE_ARTWORK_PREFIX}${file.name}`, file, {
       access: "public",
       handleUploadUrl: "/api/artwork-upload",
       // Big files go up in parallel chunks with per-chunk retry, so one flaky

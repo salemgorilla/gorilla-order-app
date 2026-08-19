@@ -18,6 +18,15 @@ and repointing them took the main site down once already.
 
 Working and verified:
 
+- **The artwork upload endpoint now scopes its token to a path** —
+  2026-08-19. `/api/artwork-upload` mints a blob write token and has to be
+  public: a customer uploading artwork has no account and no session. It was
+  scoped to a size and nothing else — `onBeforeGenerateToken` receives the
+  requested pathname and the route ignored it, so it would authorise writing
+  anywhere in the store, 100 MB at a time, into a publicly served bucket. Two
+  shapes are legitimate now and nothing else is: `quote-artwork/<file>` and
+  `handoff/<token>/<file>`. The quote form was uploading to a bare filename,
+  which is why there was nothing to check against; it is prefixed now.
 - **It's a quote until money changes hands** — 2026-08-19. Apparel and signs
   are hand-quoted, and the app was still heading their screens "Order Summary"
   and "Quote & Order Builder" and asking when they needed "this order" in hand.

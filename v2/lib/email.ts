@@ -165,7 +165,27 @@ type LineGroup = { title: string; lines: string[] };
 export type ArtworkDeliveryEntry = {
   designId: string;
   label: string;
+  /**
+   * Prose, for a human reading the email. Keep it prose — it is what the
+   * shop actually reads, and it says HOW the file arrived.
+   */
   status: string;
+  /**
+   * The same facts, structured, for anything that has to act on them.
+   *
+   * The blob URL used to exist only inside `status`, as
+   * "uploaded — name (2.1 MB): https://…". That is fine for a person and
+   * brittle for a parser, and it is why the URL reaching Printavo went
+   * unnoticed: it was buried mid-sentence under a heading that said the file
+   * had been emailed. Carried separately so neither reader has to pick the
+   * other's format apart.
+   *
+   * Absent when the file was attached to the email rather than uploaded —
+   * those two are different facts and must not be conflated.
+   */
+  design?: number;
+  fileName?: string;
+  url?: string;
 };
 
 /** "100 x 3\" x 3\" Die Cut, Matte" — enough to identify the design at a glance. */

@@ -115,14 +115,21 @@ describe("the production note stops promising a file that does not exist", () =>
     assert.doesNotMatch(note, /Artwork is attached/);
   });
 
-  test("an uploaded-file order is untouched", () => {
+  test("an order that HAS a file is not told there is none", () => {
+    /**
+     * Asserted as a property, not as a sentence. This test used to pin the
+     * exact wording "Artwork is attached to the quote email" and broke the
+     * moment that line was corrected — the line was itself wrong, so the
+     * test was holding a bug in place. What has to stay true is narrower:
+     * an order with a file must never be told it has none.
+     */
     const note = signsPlan({
       fileName: "banner.pdf",
       file: { name: "banner.pdf" },
     }).productionNote;
 
-    assert.match(note, /Artwork is attached to the quote email/);
     assert.doesNotMatch(note, /No artwork file/);
+    assert.match(note, /quote email/);
   });
 });
 

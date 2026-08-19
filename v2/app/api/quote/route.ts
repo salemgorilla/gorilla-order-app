@@ -7,7 +7,12 @@ import {
   getStickerMaterialPrice,
 } from "../../../lib/pricing";
 
-import { sendQuoteEmail, type QuoteAttachment } from "../../../lib/email";
+import {
+  sendQuoteEmail,
+  type ArtworkDeliveryEntry,
+  type QuoteAttachment,
+} from "../../../lib/email";
+import { getDesignNumbers } from "../../../lib/attachment-plan";
 import { subscribeToNewsletter } from "../../../lib/newsletter";
 import { describeKioskSource, readKioskSession } from "../../../lib/kiosk";
 import {
@@ -458,11 +463,12 @@ export async function POST(request: Request) {
      * The email now renders a block per design and needs the design id to do
      * it; the joined string below is what Printavo and the API response take.
      */
-    const artworkDelivery: {
-      designId: string;
-      label: string;
-      status: string;
-    }[] = [];
+    /**
+     * Typed from lib/email's own definition rather than restated here. The
+     * inline copy that used to sit in this spot is why the entry could gain
+     * fields at one end and not the other.
+     */
+    const artworkDelivery: ArtworkDeliveryEntry[] = [];
     let emailBytesUsed = 0;
 
     // Design order, so the labels below match the order in the quote.
@@ -509,6 +515,13 @@ export async function POST(request: Request) {
           status: `uploaded — ${part.blob.name} (${mb(part.blob.size)} MB): ${
             part.blob.url
           }`,
+          // The same facts, structured, so Printavo can list the links under
+          // an honest heading and a reorder can parse them. `number` comes
+          // from the designNumber Map — the cart position, never this loop's
+          // index; see the note where the Map is built.
+          design: number,
+          fileName: part.blob.name,
+          url: part.blob.url,
         });
         continue;
       }
@@ -580,6 +593,22 @@ export async function POST(request: Request) {
           .join("\n")
       : "No file uploaded";
 
+    /**
+     * The permanent artwork links, for the Printavo record.
+     *
+     * Only the designs that actually went to storage have one. A design
+     * attached to the email has no URL and must not appear here — "we mailed
+     * you the file" and "here is a link to the file" are different promises,
+     * and the old single string made them look the same.
+     */
+    const artworkLinks = artworkDelivery
+      .filter((entry) => entry.url)
+      .map((entry) => ({
+        design: entry.design ?? 0,
+        name: entry.fileName ?? "artwork",
+        url: entry.url as string,
+      }));
+
     const quoteRecord = {
       quoteNumber,
       receivedAt,
@@ -640,8 +669,14 @@ export async function POST(request: Request) {
       },
       internalNotes: [
         "This quote was generated from the Gorilla Order app.",
-        "The uploaded artwork is attached to the quote email when under 15 MB.",
-        "Next step: also store the quote + artwork in a database or Sheet for a searchable record.",
+        "Artwork goes to blob storage and its permanent link lands in the Printavo customer note, under ARTWORK FILES. Files small enough are attached to the quote email as well.",
+        // Was "Next step: also store the quote + artwork in a database or
+        // Sheet for a searchable record." That next step is already taken and
+        // has been for a while: the quote number, the customer, the spec and
+        // the artwork link are all on the Printavo quote, which is searchable
+        // and is what the shop already works from. Leaving the line in invited
+        // somebody to build a second record nobody needs.
+        "Printavo IS that searchable record. No database or Sheet is needed.",
       ],
     };
 
@@ -707,6 +742,7 @@ export async function POST(request: Request) {
       order: pricedOrder,
       artworkAnalysis,
       attachmentInfo,
+      artworkLinks,
     });
 
     if (printavo.created) {

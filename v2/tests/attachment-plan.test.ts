@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   collectKnockoutCandidates,
+  getDesignNumbers,
   planInlineArtwork,
   planKnockouts,
   planProofs,
@@ -283,5 +284,57 @@ describe("only the sticker flow sends knockouts", () => {
     );
 
     assert.deepEqual(candidates.map((c) => c.id), ["d2", "d1"]);
+  });
+});
+
+describe("a file is labelled with its design's number, not its own", () => {
+  /**
+   * ── THIS ALREADY HAPPENED, AND IT COSTS A REPRINT ─────────────────────────
+   * Only designs that actually sent a file reach the upload loop. Numbering by
+   * that loop's index numbers the FILES: on an order whose middle design has
+   * no artwork, design 3's file was labelled "Design 2" and attached as
+   * design-2-<name>.png, so the shop's file-to-design map pointed design 3's
+   * art at design 2.
+   *
+   * The fix has been correct in the route for a while. What it lacked was
+   * anything able to check it — the rule sat inside a handler needing a
+   * Request, multipart parts and a blob store to run at all.
+   * ──────────────────────────────────────────────────────────────────────────
+   */
+  test("numbers follow cart position", () => {
+    const numbers = getDesignNumbers(["a", "b", "c"]);
+
+    assert.equal(numbers.get("a"), 1);
+    assert.equal(numbers.get("b"), 2);
+    assert.equal(numbers.get("c"), 3);
+  });
+
+  test("a design with no artwork does not renumber the ones after it", () => {
+    // THE DEFECT, as a number. Design "b" sent no file, so only "a" and "c"
+    // reach the upload loop — and "c" is design THREE, not design two.
+    const numbers = getDesignNumbers(["a", "b", "c"]);
+    const partsWithFiles = ["a", "c"];
+
+    assert.deepEqual(
+      partsWithFiles.map((id) => numbers.get(id)),
+      [1, 3],
+      "counting the files instead of the cart labels design 3's art as design 2"
+    );
+  });
+
+  test("a part the cart does not know about has no number", () => {
+    // The caller falls back to the loop index for this, which is the best it
+    // can do — but it must be reached only when the cart genuinely has no
+    // entry, never as the ordinary path.
+    assert.equal(getDesignNumbers(["a"]).get("ghost"), undefined);
+  });
+
+  test("an empty cart numbers nothing", () => {
+    assert.equal(getDesignNumbers([]).size, 0);
+  });
+
+  test("the single-file flows still get design 1", () => {
+    // Signs and apparel keep their file in the order-level slot, id "order".
+    assert.equal(getDesignNumbers(["order"]).get("order"), 1);
   });
 });

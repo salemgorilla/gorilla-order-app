@@ -182,3 +182,31 @@ export function planProofs(
 
   return { attached, dropped, bytesUsed: bytesUsed + spent };
 }
+
+/**
+ * Which design number each uploaded file belongs to.
+ *
+ * ── THE BUG THIS EXISTS TO STOP, WHICH ALREADY HAPPENED ONCE ──────────────
+ * Only designs that actually sent a file reach the upload loop. Numbering by
+ * that loop's index numbers the FILES, not the designs — so on an order whose
+ * middle design has no artwork, design 3's file was labelled "Design 2" and
+ * attached as design-2-<name>.png. The shop's file-to-design map pointed
+ * design 3's art at design 2, which is a wrong sticker printed, not a wrong
+ * caption.
+ *
+ * The fix lives in app/api/quote/route.ts as a Map built from the cart, and
+ * it is correct. What it did not have was anything able to check it: the rule
+ * sat inside a route handler that needs a Request, multipart parts and a blob
+ * store to run at all. So the fix was one careless edit from silently coming
+ * undone, in the one place a mistake means reprinting somebody's order.
+ *
+ * Number by CART POSITION, which is what the customer sees and what the email
+ * counts from.
+ * ──────────────────────────────────────────────────────────────────────────
+ *
+ * @param cartItemIds every design in the order, in the order the customer
+ *   built them — including the ones with no artwork.
+ */
+export function getDesignNumbers(cartItemIds: string[]) {
+  return new Map(cartItemIds.map((id, index) => [id, index + 1] as const));
+}

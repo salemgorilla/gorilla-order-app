@@ -68,6 +68,19 @@ describe("getEmailError", () => {
     assert.match(String(getEmailError("dana@gmailcom")), /@ and a domain/);
   });
 
+  it("rejects the undeliverable shapes the old local copies allowed", () => {
+    // /api/lead and the abandoned-quote beacon each carried their own regex,
+    // looser than this one on exactly these inputs. No provider accepts them,
+    // so the extra permissiveness only ever admitted leads nobody could
+    // follow up.
+    for (const email of ["a@b.c.", "a@b..c", "dana@example.com."]) {
+      assert.ok(
+        getEmailError(email),
+        `expected ${JSON.stringify(email)} to be rejected`
+      );
+    }
+  });
+
   it("is the same predicate lib/email.ts uses before sending", () => {
     // If these ever diverge, the form accepts an address the mail path then
     // refuses — which is the silent-failure shape this whole fix is about.

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { looksLikeEmailAddress } from "../../../lib/email-address";
+
 import { escapeEmailHtml, sendShopEmail } from "../../../lib/email";
 
 /**
@@ -33,12 +35,20 @@ function clean(value: unknown, limit = 300) {
 }
 
 /**
- * Deliberately permissive. This decides whether a lead is worth telling the
- * shop about, not whether an address is deliverable — a regex that rejects a
+ * Deliberately permissive: this decides whether a lead is worth telling the
+ * shop about, not whether an address is deliverable — a rule that rejects a
  * real address loses exactly the lead this route exists to keep.
+ *
+ * It used to say that with its OWN copy of the regex, subtly looser than the
+ * one lib/email-address.ts applies. The only inputs the two disagreed about
+ * were trailing dots and doubled dots — "a@b.c." and "a@b..c" — which no
+ * provider accepts, so the extra permissiveness admitted nothing anyone could
+ * follow up and cost a third copy of a rule that was already duplicated
+ * three ways. If leads ever need a looser test than the form does, loosen it
+ * in one place.
  */
 function looksLikeEmail(value: string) {
-  return /^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(value);
+  return looksLikeEmailAddress(value);
 }
 
 export async function POST(request: Request) {

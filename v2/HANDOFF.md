@@ -18,6 +18,13 @@ and repointing them took the main site down once already.
 
 Working and verified:
 
+- **`/api/email-test` is admin-guarded** — 2026-08-19. It was a public GET
+  that SENDS MAIL to the shop, built by `sendQuoteEmail`, so every hit looked
+  like a real submission in the inbox. A GET needs no attacker: a crawler, a
+  link preview or a prefetch would fire it. Now 503 with no ADMIN_SECRET and
+  401 without it, same shape as `/api/health`. Proven by running all four
+  paths locally. `/api/printavo-test` stays public — it reports config and
+  sends nothing.
 - **The artwork upload endpoint now scopes its token to a path** —
   2026-08-19. `/api/artwork-upload` mints a blob write token and has to be
   public: a customer uploading artwork has no account and no session. It was

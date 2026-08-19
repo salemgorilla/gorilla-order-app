@@ -8,6 +8,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { SALES_TAX, getSignsTotals, getStickerTotals } from "../lib/tax";
+import { looksLikeEmailAddress } from "../lib/email-address";
 
 import Header from "../components/Header";
 import StepNav from "../components/StepNav";
@@ -1742,8 +1743,10 @@ export default function Home() {
       // They finished. The quote itself is the record; a second notice saying
       // they did not finish would be actively wrong.
       if (snapshot.submitted) return;
-      // No address means nothing to follow up on.
-      if (!/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(snapshot.email.trim())) return;
+      // No address means nothing to follow up on. Asks the shared rule rather
+      // than carrying a third copy of the regex — this gate and the one in
+      // /api/lead had drifted apart from it already.
+      if (!looksLikeEmailAddress(snapshot.email)) return;
 
       leadSentRef.current = true;
 

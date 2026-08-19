@@ -18,6 +18,13 @@ and repointing them took the main site down once already.
 
 Working and verified:
 
+- **The form remembers a returning customer's contact details** — name,
+  company, email, phone — on their own device, and says so with a way out.
+  Contact fields only: `toRememberedContact` in `lib/remembered-contact.ts`
+  builds a new object from four named fields, so handing it the whole customer
+  record still cannot write notes, attribution or the newsletter tick. **Never
+  at the kiosk**, gated on `kiosk.enabled` — the same signal every other kiosk
+  behaviour reads, verified in a browser with a record present.
 - **Reconciled again on 19 Aug**, after the pricing work of 17–18 Aug: a real
   sticker order placed on production, checked against the Printavo invoice,
   and voided. That is the `AGENTS.md` gate for a pricing change, and it is the
@@ -50,6 +57,17 @@ Working and verified:
   number from that param. The email field is deliberately NOT prefillable
   from the URL: it is the only thing between a guessed order number and
   someone else's order status.
+
+### Repeat customers — where the spec stands
+
+**2026-08-19.** `GORILLA-SPEC-repeat-customer.md` has four phases.
+
+- **Phase 0 (artwork URLs findable and parseable) — SHIPPED.** See the ARTWORK
+  FILES block and `ARTWORK_LINKS_JSON` in the Printavo customer note.
+- **Phase 1 (remember the customer on their device) — SHIPPED.** Above.
+- **Phases 2 and 3 (`/my-orders`, reorder) — BLOCKED**, on the probe below.
+  Not started, deliberately. Both assume a contact's orders can be listed in
+  one Printavo query and nobody has checked.
 
 ### Open question — can we list one contact's orders in one query?
 

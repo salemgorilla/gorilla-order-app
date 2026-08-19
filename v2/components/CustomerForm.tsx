@@ -24,6 +24,18 @@ type Props = {
     customerName?: string;
     email?: string;
   };
+
+  /**
+   * Set when the boxes were filled in from a previous order on this device.
+   *
+   * Shown, not silent. A form that fills itself in without saying so leaves
+   * the customer wondering where the shop got their details, and gives them
+   * nowhere to go if the answer is "from the last person who used this
+   * laptop". Never set at the kiosk — the decision is made upstream, on the
+   * same kiosk signal everything else reads.
+   */
+  prefilledFromLastOrder?: boolean;
+  onClearRemembered?: () => void;
 };
 
 // Split so the invalid state can swap the border rather than stack a second
@@ -62,6 +74,8 @@ export default function CustomerForm({
   newsletterOptIn,
   onChange,
   errors,
+  prefilledFromLastOrder = false,
+  onClearRemembered,
 }: Props) {
   function toggleHeardAbout(option: string, checked: boolean) {
     onChange({
@@ -78,6 +92,22 @@ export default function CustomerForm({
       <p className="spec mt-1 text-xs text-[var(--ink-muted)]">
         REQUIRED FIELDS MARKED
       </p>
+
+      {/* Say it happened, and offer the way out in the same breath. The exit
+          matters more than the notice: the case where somebody needs it is
+          the case where these are not their details. */}
+      {prefilledFromLastOrder && (
+        <p className="mt-3 border-l-2 border-[var(--rule)] pl-3 text-fine leading-5 text-[var(--ink-muted)]">
+          Filled in from your last order on this device.{" "}
+          <button
+            type="button"
+            onClick={onClearRemembered}
+            className="font-bold text-[var(--ink-black)] underline underline-offset-2 transition-colors duration-[120ms] ease-linear hover:text-[var(--gorilla-green)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gorilla-green)]"
+          >
+            Not you? Clear it.
+          </button>
+        </p>
+      )}
 
       <div className="mt-5 space-y-4">
         <Field

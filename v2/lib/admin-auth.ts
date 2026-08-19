@@ -3,12 +3,15 @@ import { timingSafeEqual } from "node:crypto";
 /**
  * The shop's own key, and the one place that decides whether a caller has it.
  *
- * Two routes guard on ADMIN_SECRET — /api/health, which names which
- * integrations are dark, and /api/payment-request, which asks a customer for
- * money. They each read the variable and compared it themselves, and they did
- * it slightly differently. This is the one comparison in the app where being
- * wrong means either the shop is locked out of its own tools or someone else
- * is not.
+ * Several routes guard on ADMIN_SECRET: /api/health names which integrations
+ * are dark, /api/payment-request asks a customer for money, /api/status-email
+ * and /api/email-test both send mail. They each used to read the variable and
+ * compare it themselves, slightly differently. This is the one comparison in
+ * the app where being wrong means either the shop is locked out of its own
+ * tools or someone else is not — so it happens here, once.
+ *
+ * The list above will go stale; the rule will not. Anything that spends money,
+ * sends mail, or reports what is configured guards on this.
  *
  * ── WHY TRIM ──────────────────────────────────────────────────────────────
  * `process.env.ADMIN_SECRET` was compared raw. A trailing newline or space in

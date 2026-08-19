@@ -19,6 +19,84 @@ making.
 handoff is explicit: if a contact's orders are not retrievable in one query,
 that is a real finding and the decision goes back to Gabe.
 
+## Check these FOUR things in the Printavo UI first — they may make most of this unnecessary
+
+**2026-08-19. Added after Gabe pointed out Printavo has a QR on each invoice.**
+Chasing that turned up three more native features that overlap what we were
+about to build. **None of this is verified** — Printavo's support site and
+changelog are both blocked by this sandbox's egress proxy, so what follows is
+from search-result summaries, not pages anybody here has read. Treat every line
+as "worth two minutes in the UI", not as fact.
+
+Each is faster to check than to build around.
+
+### 1. The Customer Public Profile — this may BE `/my-orders`
+
+Reportedly: `Customers > (the customer) > Public Profile` gives a shareable URL
+where **that customer sees all their quotes and invoices and where each order
+is in the workflow.**
+
+That is Phase 2 of `GORILLA-SPEC-repeat-customer.md`, already built by the
+vendor. If it holds up:
+
+- Phase 2 does not need building. Link to it instead.
+- **It stops the contact-orders question below from gating anything**, because
+  Printavo does the listing. That probe would then matter only for Phase 3's
+  reorder.
+
+There is also said to be a shortcode `[customer-public-profile-url]` that drops
+the link into Printavo's own invoice emails — which would give every customer
+their order list without us sending anything at all.
+
+**Open one for a real customer with two or more orders.** Does it show enough?
+Is it presentable? That is the whole decision.
+
+### 2. The privacy setting on invoices and profiles
+
+Reportedly, with it enabled, an emailed or texted link works for **3 days**,
+after which the viewer must enter the email address on the order.
+
+That is the same shape as the magic link the spec proposes building — a
+short-lived link, otherwise prove the address. If Printavo already does it, the
+HMAC token and `ORDER_ACCESS_SECRET` in Phase 2 are work we do not need.
+
+**Find out whether it is ON for account 23070.** It decides whether a public
+invoice link is safe to hand a customer at the counter. We do not know today,
+which is why the kiosk screen does not show one.
+
+### 3. The QR on each invoice — we probably do not need to borrow it
+
+Reportedly it opens the invoice, falling back to the Public Invoice View when
+the scanner is not logged in. If so it is a QR **of a URL we already have**:
+`quoteCreate` returns `publicUrl`, and we store it on every quote — kiosk
+orders included, where we currently throw it away.
+
+So there is nothing to fetch from the API. `qrcode` is already a dependency and
+`KioskPickupCard` already renders one. Pointing a second QR at `publicUrl` is a
+few lines, gated only on question 2.
+
+### 4. Can a payment request go by SMS instead of email?
+
+Reportedly Printavo can send a payment request by text. Our
+`paymentRequestCreate` call takes an `email { to, subject, body }` block and
+nobody has looked for an SMS equivalent.
+
+This matters at the counter. Today a kiosk order deliberately generates NO
+payment request, because creating one necessarily emails a live payable link to
+an address a member of staff typed by ear — see `lib/kiosk.ts`. **If the API
+can deliver by SMS to a phone number the customer reads back, that objection
+goes away** and the kiosk can take payment the way the website does.
+
+Ask the schema — one request:
+
+```graphql
+query { __type(name: "PaymentRequestCreateInput") { inputFields { name type { name kind } } } }
+```
+
+Report the field list.
+
+---
+
 ## Before you run anything
 
 **The rate limit is 10 requests per 5 seconds, account-wide, and one submitted

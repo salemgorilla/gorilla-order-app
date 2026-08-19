@@ -91,6 +91,26 @@ route around it by adding storage.
 Mind the rate limit while probing: 10 requests per 5 seconds, account-wide, and
 one submitted quote costs 3. A probe loop can take live checkout down.
 
+### Printavo may already do some of what we are about to build
+
+**2026-08-19. UNVERIFIED — check before building anything in Phase 2.** Gabe
+pointed out that Printavo puts a QR on each invoice; chasing that turned up
+three more native features that overlap the repeat-customer spec. Written up in
+`PRINTAVO-PROBE.md`, which is now the one place to look before starting that
+work. Printavo's own docs are blocked by the coding sandbox's egress proxy, so
+these came from search summaries, not pages anybody read.
+
+The headline: **Printavo has a Customer Public Profile** — a shareable URL where
+a customer sees all their quotes and invoices and where each is in the workflow.
+If that is what it sounds like, it IS Phase 2, it removes the need for the
+magic-link and `ORDER_ACCESS_SECRET` work, and it stops the contact-orders probe
+gating anything except Phase 3's reorder.
+
+Also worth two minutes each: whether Printavo's invoice privacy setting (a
+3-day link, then an email challenge) is on for 23070, and whether
+`PaymentRequestCreateInput` accepts SMS delivery — the second would remove the
+only reason the kiosk cannot take payment the way the website does.
+
 ### Half-built on purpose — status emails have no trigger
 
 **2026-08-19.** `/api/status-email` sends a customer "your order is ready"

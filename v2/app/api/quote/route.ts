@@ -8,11 +8,13 @@ import {
 } from "../../../lib/pricing";
 
 import {
+  sendCustomerEmail,
   sendQuoteEmail,
   type ArtworkDeliveryEntry,
   type QuoteAttachment,
 } from "../../../lib/email";
 import { getDesignNumbers } from "../../../lib/attachment-plan";
+import { buildOrderConfirmation } from "../../../lib/order-confirmation";
 import { subscribeToNewsletter } from "../../../lib/newsletter";
 import { describeKioskSource, readKioskSession } from "../../../lib/kiosk";
 import {
@@ -903,6 +905,48 @@ export async function POST(request: Request) {
           printavo,
         },
         { status: 502 }
+      );
+    }
+
+    /**
+     * The customer's own copy — for every order Printavo will not email.
+     *
+     * Deliberately AFTER the reachedShop gate above. If nothing reached the
+     * shop we return 502 and never get here, so this email cannot tell
+     * somebody "we've got your order" about an order that exists nowhere.
+     *
+     * Best-effort like every other channel here: buildOrderConfirmation
+     * decides whether there is anything to send, sendCustomerEmail fails
+     * closed with no shop fallback, and neither throws. A customer who does
+     * not get this still has the number on screen.
+     */
+    const confirmation = buildOrderConfirmation({
+      quoteNumber,
+      customerEmail: String(customerRecord.email || ""),
+      customerName: String(customerRecord.customerName || ""),
+      paymentEmailSent: Boolean(checkout?.ready),
+      printavoCreated: Boolean(printavo.created),
+      kiosk: Boolean(kioskSession),
+    });
+
+    if (confirmation.send) {
+      const sent = await sendCustomerEmail({
+        to: String(customerRecord.email || ""),
+        subject: confirmation.subject,
+        text: confirmation.text,
+        html: confirmation.html,
+      });
+
+      console.log(
+        sent.sent
+          ? `CUSTOMER CONFIRMATION SENT for ${quoteNumber}`
+          : `CUSTOMER CONFIRMATION NOT SENT for ${quoteNumber}: ${
+              sent.error ?? "no email provider configured"
+            }`
+      );
+    } else {
+      console.log(
+        `CUSTOMER CONFIRMATION SKIPPED for ${quoteNumber}: ${confirmation.reason}`
       );
     }
 

@@ -150,10 +150,15 @@ export default function QuoteConfirmationScreen({
             </p>
           </div>
 
-          {/* The counter customer gets no email from this system, so this is
-              the only moment they can be handed their order number and the
-              tracker. Website orders are untouched — they get both in the
-              Printavo payment request. */}
+          {/* The counter customer gets no email from this system — not the
+              payment request (suppressed on the server for kiosk sessions)
+              and not the confirmation (same rule, lib/order-confirmation.ts).
+              So this is the only moment they can be handed their order number
+              and the tracker.
+
+              Website orders are untouched: a sticker order that billed gets
+              both in the Printavo payment request, and every other order now
+              gets them in our own confirmation email. */}
           {kiosk.enabled && quoteConfirmation?.quoteNumber && (
             <KioskPickupCard
               quoteNumber={quoteConfirmation.quoteNumber}

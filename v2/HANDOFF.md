@@ -7,17 +7,38 @@ next session will act on it.
 
 Read this first, then `AGENTS.md` and `DESIGN-SYSTEM.md`.
 
-## Live right now — 2026-08-19, `main` @ `0d81b42`
+## Live right now — 2026-08-19, `main` @ `97b5bc8`
 
 `main` is deployed to https://labs.gorillasalem.com (Vercel, production branch
 is `main`, root directory `v2`). The custom domain is wired correctly — do NOT
 touch the `@` or `www` DNS records for gorillasalem.com, those are Squarespace
 and repointing them took the main site down once already.
 
-531 tests passing, `tsc` clean, 0 lint errors.
+623 tests passing, `tsc` clean, 0 lint errors.
 
 Working and verified:
 
+- **Every customer now gets an email with their order number** — 2026-08-19.
+  Until today exactly one customer-facing email existed and it was not ours:
+  Printavo's payment request, created only for a sticker order that billed.
+  A signs or apparel customer got NOTHING — they saw their `GS-` number on the
+  confirmation screen, closed the tab, and had no way back to it and no way to
+  use `/track`, which needs that number. Same silence when a sticker order's
+  payment link failed to generate. `lib/order-confirmation.ts` decides who is
+  owed one; the send sits after the `reachedShop` gate in the quote route, so
+  it can never claim an order landed when nothing did. Kiosk is excluded on
+  purpose — same rule as the payment request.
+
+  **Not yet seen in an inbox.** The decision logic is covered by 13 tests and
+  three mutations, but no confirmation has been sent through a real provider —
+  this environment has no mail transport, so a local submit dies at
+  `UNDELIVERED` before it gets that far. Place one signs order on production
+  and check the address it goes to.
+- **Staff see whether the customer was matched or created** — 2026-08-19.
+  Printavo matches on email alone, so a returning customer using a different
+  address silently becomes a second record. `lib/customer-record.ts` turns the
+  submit result into one line on the kiosk confirmation, in rush red when it
+  needs a question asked. Kiosk only.
 - **A counter customer leaves with their order number.** A kiosk order gets no
   email — the server suppresses the payment request deliberately — and that
   email was also the only place anyone was ever told their `GS-` number, so

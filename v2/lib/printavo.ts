@@ -860,6 +860,34 @@ export function buildPrintavoQuotePlan(input: {
         stickerItems.length > 1 ? ` / ${stickerItems.length} designs` : ""
       }`;
 
+  /**
+   * The template brief, when the customer personalised one of ours.
+   *
+   * A template REPLACES the upload — lib/validation.ts stops asking for a
+   * file the moment one is chosen, because the template is the artwork. So
+   * for these orders there is no attachment anywhere, and the words the
+   * customer typed are the entire job.
+   *
+   * They were reaching the shop email and nothing else. The Printavo record
+   * read "50x Yard Sign / Size / Material / Finishing" with no hint that a
+   * brief existed, while its production note said "Artwork is attached to
+   * the quote email" — which for a template order is not true, and sends
+   * whoever reads it hunting for a file that was never created.
+   *
+   * Apparel already settled this argument for its own flow: a special order
+   * appends the customer's notes to the description, because what they
+   * actually asked for IS the job. A template sign is the same case.
+   */
+  const templateBrief = ((order.artwork as AnyRecord)?.template ||
+    null) as AnyRecord | null;
+
+  const templateLines = templateBrief
+    ? (Array.isArray(templateBrief.text) ? templateBrief.text : [])
+        .map((entry) => entry as AnyRecord)
+        .map((entry) => `  ${str(entry.label, "Line")}: ${str(entry.value)}`)
+        .filter((line) => line.trim().length > 0)
+    : [];
+
   const description = signs
     ? [
         `${quantity}x ${signLabel}`,
@@ -869,6 +897,20 @@ export function buildPrintavoQuotePlan(input: {
         `Sides: ${str(product.sides, "Single-sided")}`,
         ...(productNeedsHandPricing
           ? [`PRICING NEEDED — this sign is quoted by hand.`]
+          : []),
+        // What the customer actually asked for. No file exists for these.
+        ...(templateBrief
+          ? [
+              "",
+              `*** TEMPLATE ARTWORK - NO FILE UPLOADED ***`,
+              `Set these words into our "${str(
+                templateBrief.name,
+                str(templateBrief.id, "Unnamed")
+              )}" master and send a proof:`,
+              ...(templateLines.length
+                ? templateLines
+                : ["  (the customer left every line blank)"]),
+            ]
           : []),
       ].join("\n")
     : apparel
@@ -987,7 +1029,11 @@ export function buildPrintavoQuotePlan(input: {
     "Auto-created by Gorilla Order from a website quote request.",
     "STATUS: UNCONFIRMED — review pricing, artwork, sizes and stock before quoting the customer.",
     "Website pricing is an estimate only.",
-    "Artwork is attached to the quote email, not uploaded to Printavo.",
+    // Only true when there IS a file. A template order has none, and sending
+    // somebody to look for one is worse than saying nothing.
+    templateBrief
+      ? "No artwork file — this is a template order. The words to set are on the line item above, and in the quote email."
+      : "Artwork is attached to the quote email, not uploaded to Printavo.",
   ].join("\n");
 
   return {

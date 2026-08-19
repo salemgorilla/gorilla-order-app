@@ -96,7 +96,7 @@ export default function QuoteConfirmationScreen({
 
             <h1 className="mt-3 text-display font-bold tracking-[-0.06em] text-[var(--ink-black)] sm:text-display">
               {canPayNow
-                ? "Your order is priced and ready."
+                ? "Your quote is priced and ready."
                 : "Your request was sent to Gorilla Salem."}
             </h1>
 

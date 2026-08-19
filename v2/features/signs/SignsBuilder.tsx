@@ -334,7 +334,7 @@ export default function SignsBuilder({
               {
                 value: "Ship" as const,
                 label: "Ship It",
-                detail: "Shipping quoted with your order",
+                detail: "Shipping quoted separately",
                 price: `from $${DECAL_SHIPPING_PRICE}`,
               },
             ] satisfies {

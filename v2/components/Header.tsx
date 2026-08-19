@@ -20,7 +20,7 @@ export default function Header() {
         </h1>
 
         <div className="spec border border-[var(--rule)] bg-[var(--paper)] px-5 py-2 text-spec font-bold text-[var(--ink-muted)]">
-          Quote &amp; Order Builder
+          Quote Builder
         </div>
       </div>
     </header>

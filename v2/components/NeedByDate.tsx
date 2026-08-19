@@ -111,7 +111,7 @@ export default function NeedByDate({
           read the same instruction twice to find out it was one problem. */}
       {!needBy && !error && (
         <p className="mt-4 border border-[var(--rule)] border-l-4 border-l-[var(--ink-warn)] bg-[var(--surface-warn)] p-3 text-sm font-bold text-[var(--ink-warn)]">
-          Required before submitting: enter the date you need this order in hand.
+          Required before submitting: enter the date you need this in hand.
         </p>
       )}
 

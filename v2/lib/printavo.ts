@@ -482,7 +482,7 @@ export async function createPaymentRequest(input: {
               input.subject || `Gorilla Salem — payment request for ${label}`,
             body:
               input.body ||
-              `Hi,\n\nYour order is ready for payment. Use the link below to pay securely.\n\n${label}\nAmount due: $${amount.toFixed(
+              `Hi,\n\nYour quote is ready for payment. Use the link below to pay securely.\n\n${label}\nAmount due: $${amount.toFixed(
                 2
               )}\n\nThanks,\nGorilla Salem`,
           },
@@ -550,7 +550,7 @@ export async function createStickerCheckout(input: {
       // total Printavo computed. The app deliberately does not pass a figure
       // it derived itself.
       to: input.customerEmail ? [input.customerEmail] : undefined,
-      subject: "Your Gorilla Salem sticker order — ready to pay",
+      subject: "Your Gorilla Salem sticker quote — ready to pay",
       body:
         "Thanks for your order.\n\n" +
         "Your stickers are priced and ready to pay using the link below. " +

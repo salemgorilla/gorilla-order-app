@@ -18,6 +18,14 @@ and repointing them took the main site down once already.
 
 Working and verified:
 
+- **It's a quote until money changes hands** — 2026-08-19. Apparel and signs
+  are hand-quoted, and the app was still heading their screens "Order Summary"
+  and "Quote & Order Builder" and asking when they needed "this order" in hand.
+  Copy only, no logic. `lib/order-status.ts`, `/track` and the Printavo
+  nickname are deliberately untouched: their "order" is post-payment, load
+  bearing, or both. Walked all three flows in a browser afterwards — the only
+  lines still saying "order" are "Pick what you're ordering" and "Special
+  order", both correct.
 - **Every customer now gets an email with their order number** — 2026-08-19.
   Until today exactly one customer-facing email existed and it was not ours:
   Printavo's payment request, created only for a sticker order that billed.

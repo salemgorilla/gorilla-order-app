@@ -3347,7 +3347,12 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             Gorilla Salem
           </p>
           <p className="mt-2 text-lg font-bold text-[var(--ink-black)]">
-            Custom printing, local service, real people reviewing your order.
+            {/* Footer copy, shown on every step in every flow — including step
+                one, where nothing has been ordered, quoted or paid for. Says
+                "every job" rather than naming a transaction stage it cannot
+                know, and keeps the promise it was making: a human looks at
+                the work. */}
+            Custom printing, local service, real people reviewing every job.
           </p>
           <p className="mt-2 text-sm font-bold text-[var(--ink-muted)]">
             Salem, Massachusetts •{" "}

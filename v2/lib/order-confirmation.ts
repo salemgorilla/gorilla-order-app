@@ -21,6 +21,13 @@ import { getTrackUrl } from "./order-status";
  * failed to generate — Printavo unreachable, or a cart priced at $0 that the
  * shop has to quote by hand.
  *
+ * ── WHY IT SAYS "QUOTE" AND NOT "ORDER" ──────────────────────────────────
+ * It's a quote until money changes hands. Every message this function sends
+ * is, by its own send conditions, one nobody has paid for — that is precisely
+ * why Printavo has not emailed them. lib/status-email.ts says "order number"
+ * for the opposite reason: it only fires on statuses a paid job reaches.
+ * The two are meant to disagree.
+ *
  * ── WHY IT SAYS SO LITTLE ─────────────────────────────────────────────────
  * Every order that reaches this function is one the shop has not finished
  * pricing, or one whose payment link did not generate. So the email promises
@@ -85,20 +92,20 @@ export function buildOrderConfirmation(input: {
   const name = String(input.customerName || "").trim();
   const greeting = name ? `Hi ${name},` : "Hi,";
 
-  const subject = `We've got your order — ${quoteNumber}`;
+  const subject = `We've got your request — ${quoteNumber}`;
 
   const text = [
     greeting,
     "",
-    "Thanks — your order is in. We'll be in touch shortly with your price and a proof before anything goes on a machine.",
+    "Thanks — your quote request is in. We'll be in touch shortly with your price and a proof before anything goes on a machine.",
     "",
-    `Order number: ${quoteNumber}`,
+    `Quote number: ${quoteNumber}`,
     // Withheld when Printavo never accepted the quote: see printavoCreated.
     ...(input.printavoCreated
       ? [`Check on it any time: ${getTrackUrl(quoteNumber)}`]
       : []),
     "",
-    "Keep this email — the order number is how we both find it.",
+    "Keep this email — the quote number is how we both find it.",
     "",
     "Thanks,",
     "Gorilla Salem",
@@ -106,12 +113,12 @@ export function buildOrderConfirmation(input: {
 
   const html = [
     `<p>${escapeEmailHtml(greeting)}</p>`,
-    `<p>Thanks &mdash; your order is in. We&rsquo;ll be in touch shortly with your price and a proof before anything goes on a machine.</p>`,
-    `<p style="margin-top:20px">Order number: <strong>${escapeEmailHtml(quoteNumber)}</strong>`,
+    `<p>Thanks &mdash; your quote request is in. We&rsquo;ll be in touch shortly with your price and a proof before anything goes on a machine.</p>`,
+    `<p style="margin-top:20px">Quote number: <strong>${escapeEmailHtml(quoteNumber)}</strong>`,
     input.printavoCreated
       ? `<br><a href="${escapeEmailHtml(getTrackUrl(quoteNumber))}">Check on it any time</a></p>`
       : `</p>`,
-    `<p style="margin-top:20px">Keep this email &mdash; the order number is how we both find it.</p>`,
+    `<p style="margin-top:20px">Keep this email &mdash; the quote number is how we both find it.</p>`,
     `<p style="margin-top:20px">Thanks,<br>Gorilla Salem</p>`,
   ].join("\n");
 

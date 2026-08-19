@@ -565,7 +565,7 @@ export default function ApparelBuilder({
               Size Breakdown
             </p>
             <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
-              Use the buttons to make the total match the order quantity.
+              Use the buttons to make the total match the quantity.
             </p>
           </div>
 
@@ -676,7 +676,7 @@ export default function ApparelBuilder({
 
           {sizeBreakdownMatchesQuantity && sizeQuantityTotal > 0 && (
             <p className="mt-2 text-sm font-bold leading-6 text-[var(--gorilla-green)]">
-              Size breakdown total matches the order quantity.
+              Size breakdown total matches the quantity.
             </p>
           )}
 

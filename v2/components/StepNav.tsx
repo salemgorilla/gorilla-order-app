@@ -67,7 +67,7 @@ export default function StepNav({
   }
 
   return (
-    <nav aria-label="Order steps" className="mb-6">
+    <nav aria-label="Quote steps" className="mb-6">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <p className="spec text-spec text-[var(--ink-muted)]">
           Step {currentIndex + 1} of {STEP_COUNT}

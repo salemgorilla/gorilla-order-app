@@ -123,7 +123,7 @@ export function getOrderFieldErrors(order: Order): FieldErrors {
   }
 
   if (!order.production.needBy) {
-    errors.needBy = "Enter the date you need this order in hand.";
+    errors.needBy = "Enter the date you need this in hand.";
   }
 
   if (!order.customer.customerName.trim()) {

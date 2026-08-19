@@ -49,7 +49,7 @@ export default function KioskChrome({
             {staff ? (
               <>Writing up an order{staffName ? ` — ${staffName}` : ""}</>
             ) : (
-              <>Build your order</>
+              <>Build your quote</>
             )}
           </p>
         </div>
@@ -61,7 +61,7 @@ export default function KioskChrome({
           onClick={onStartNew}
           className="min-h-[56px] cursor-pointer border-2 border-[var(--gorilla-green)] bg-[var(--gorilla-green)] px-6 text-base font-bold text-[var(--paper)] transition-colors duration-[120ms] ease-linear hover:bg-[var(--gorilla-green-dark)] active:translate-x-[2px] active:translate-y-[2px]"
         >
-          Start a new order
+          Start a new quote
         </button>
 
         {staff ? (

@@ -84,7 +84,7 @@ export default function IdleReset({ idleMs, finished, onReset }: Props) {
       // needs to know their order is about to be cleared.
       role="alertdialog"
       aria-live="assertive"
-      aria-label="This order is about to be cleared"
+      aria-label="This quote is about to be cleared"
       className="fixed inset-x-0 bottom-0 z-50 border-t-4 border-[var(--rush-red)] bg-[var(--paper)] p-5 shadow-none"
     >
       <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-4">
@@ -95,7 +95,7 @@ export default function IdleReset({ idleMs, finished, onReset }: Props) {
           <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
             {finished
               ? "Clearing the screen for the next customer"
-              : "This order will be cleared"}{" "}
+              : "This quote will be cleared"}{" "}
             in <span className="spec">{seconds}s</span>. Touch anywhere to keep
             going.
           </p>

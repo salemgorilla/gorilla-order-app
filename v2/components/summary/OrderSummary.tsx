@@ -38,7 +38,7 @@ export default function OrderSummary({ order }: Props) {
       </p>
 
       <h2 className="mt-2 text-head font-bold tracking-display">
-        Order Summary
+        Quote Summary
       </h2>
 
       <div className="mt-8 space-y-4">

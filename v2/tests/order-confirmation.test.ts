@@ -27,7 +27,7 @@ describe("who gets a confirmation", () => {
     if (!decision.send) return;
 
     assert.match(decision.subject, /GS-1042/);
-    assert.match(decision.text, /Order number: GS-1042/);
+    assert.match(decision.text, /Quote number: GS-1042/);
   });
 
   it("a paid sticker order does NOT — Printavo already emailed them", () => {

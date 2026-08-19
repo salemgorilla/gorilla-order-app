@@ -1,3 +1,5 @@
+import { isValidHandoffToken } from "./handoff";
+
 /**
  * How much artwork can actually ride along with a quote.
  *
@@ -110,3 +112,77 @@ export const MAX_BLOB_ARTWORK_LABEL = "100 MB";
 
 /** Above this the file is uploaded in parallel chunks rather than one request. */
 export const MULTIPART_THRESHOLD_BYTES = 8 * 1024 * 1024;
+
+/**
+ * Where a client upload is allowed to write.
+ *
+ * ── WHY THIS EXISTS ───────────────────────────────────────────────────────
+ * /api/artwork-upload mints a write token for the browser, and it is public
+ * by necessity: a customer uploading artwork has no account and no session.
+ * The only thing standing between that endpoint and the shop's blob store is
+ * what the token is scoped to.
+ *
+ * It was scoped to a size and nothing else. `onBeforeGenerateToken` receives
+ * the requested pathname and the route ignored it, so the endpoint would mint
+ * a token for ANY path the caller asked for — 100 MB at a time, unlimited
+ * files, into a publicly-served store. That is the shop's storage bill and the
+ * shop's domain serving whatever somebody chose to put there.
+ *
+ * It also made the hand-off token's security story decorative. lib/handoff.ts
+ * describes that token as the capability that scopes an upload to one prefix;
+ * nothing was checking it.
+ *
+ * ── THE RULE ──────────────────────────────────────────────────────────────
+ * Two shapes are legitimate and nothing else is:
+ *
+ *   quote-artwork/<file>          the quote form
+ *   handoff/<token>/<file>        a customer's phone, token shape enforced
+ *
+ * One segment after the prefix, so the store cannot be used as a tree. No
+ * traversal, no absolute paths, no control characters — the pathname becomes
+ * a blob key, and "../" in a key is how one prefix reaches another.
+ *
+ * Deliberately NOT a content-type check. See the note in the route: print
+ * artwork arrives with unreliable MIME (Windows Chrome reports "" for .eps),
+ * and an allowlist would reject the files this shop is sent most.
+ * ──────────────────────────────────────────────────────────────────────────
+ */
+export const QUOTE_ARTWORK_PREFIX = "quote-artwork/";
+
+export function isAllowedUploadPath(pathname: unknown): pathname is string {
+  if (typeof pathname !== "string") return false;
+
+  const path = pathname.trim();
+
+  // A blob key long enough to be a problem is not a filename.
+  if (!path || path.length > 400) return false;
+
+  if (
+    path.startsWith("/") ||
+    path.includes("\\") ||
+    /[\u0000-\u001f]/.test(path)
+  ) {
+    return false;
+  }
+
+  // Traversal is a check on SEGMENTS, not on the characters. A blanket ban on
+  // ".." anywhere would also reject "logo..png", and this module's whole
+  // posture is that a false negative costs a real customer their upload.
+  if (path.split("/").some((segment) => segment === "." || segment === "..")) {
+    return false;
+  }
+
+  if (path.startsWith(QUOTE_ARTWORK_PREFIX)) {
+    const file = path.slice(QUOTE_ARTWORK_PREFIX.length);
+    return file.length > 0 && !file.includes("/");
+  }
+
+  const handoff = /^handoff\/([^/]+)\/([^/]+)$/.exec(path);
+
+  // The token shape is asked of lib/handoff.ts rather than re-encoded here.
+  // Two copies of "what a hand-off token looks like" is how the check and the
+  // generator come to disagree.
+  if (handoff) return isValidHandoffToken(handoff[1]);
+
+  return false;
+}

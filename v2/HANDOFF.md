@@ -7,17 +7,21 @@ next session will act on it.
 
 Read this first, then `AGENTS.md` and `DESIGN-SYSTEM.md`.
 
-## Live right now — 2026-08-17, `main` @ `b289d4a`
+## Live right now — 2026-08-19, `main` @ `0d81b42`
 
 `main` is deployed to https://labs.gorillasalem.com (Vercel, production branch
 is `main`, root directory `v2`). The custom domain is wired correctly — do NOT
 touch the `@` or `www` DNS records for gorillasalem.com, those are Squarespace
 and repointing them took the main site down once already.
 
-234 tests passing, `tsc` clean, 0 lint errors.
+531 tests passing, `tsc` clean, 0 lint errors.
 
 Working and verified:
 
+- **Reconciled again on 19 Aug**, after the pricing work of 17–18 Aug: a real
+  sticker order placed on production, checked against the Printavo invoice,
+  and voided. That is the `AGENTS.md` gate for a pricing change, and it is the
+  thing 199 committed price rows cannot substitute for.
 - **Stickers self-checkout, and the invoice matches the site.** Verified live
   on 15 Aug against a real three-design order: `$136.40` goods, `$50.00` setup,
   `$144.93` due — Printavo to the cent. Sticker orders can arrive already paid.
@@ -55,7 +59,9 @@ Working and verified:
   genuine rebuilds), and surrounding whitespace (`getRequiredEnv` now trims,
   and the 401 survived it). What remains is the credential pair itself for
   account `00424`, or API access not being enabled on that account. **Waiting
-  on S&S, not on code.** `/api/health?secret=` reports both credentials'
+  on S&S, not on code.** Re-checked 19 Aug against production after two more
+  redeploys — `/api/ss-catalog` returns the same 401. Nothing about this has
+  moved, and nothing in the repo will move it. `/api/health?secret=` reports both credentials'
   character counts so a wrong value can be spotted without printing it.
 - **`ZAPIER_NEWSLETTER_HOOK_URL` unset.** Opt-ins write a consent record and
   reach no list. Backfillable from past quote emails once a hook exists — the
@@ -68,35 +74,32 @@ Working and verified:
   routes to `ApparelRequestBuilder`, because the menu flow's pricing is not
   signed off.
 
-### Pending decision — do signs and apparel customers get an email at all?
+### Decided — signs and apparel customers get no email, for now
 
-**2026-08-17. Written up, not chosen — this is Gabe's call, not a code task.**
+**2026-08-19. Gabe chose option 1. This is settled; do not re-litigate it.**
 
 Signs and apparel are hand-quoted, so no payment request fires, so those
 customers receive NOTHING from the app: no confirmation, no order number, no
 tracking link. Only sticker customers who self-checkout get an email, and that
-email is Printavo's payment request — which now carries the /track link.
+email is Printavo's payment request — which carries the /track link. Nothing is
+sent AFTER payment either; a sticker customer pays and hears nothing until a
+proof arrives by hand.
 
-Second gap on the same axis: nothing is sent AFTER payment either. A sticker
-customer pays and hears nothing until a proof arrives by hand.
+Both gaps are known and accepted. A human is already in the loop on signs and
+apparel and can paste the tracking link, and tracking only pays off where a
+customer has a number to track — today only stickers issue one automatically.
 
-Three options, ascending:
+**Revisit when apparel goes live**, which is the point at which a second flow
+starts issuing order numbers on its own. The option then is a real confirmation
+email on submit for every flow, carrying the quote number and the tracking
+link.
 
-1. **Leave it.** Stickers are the automated flow; signs and apparel already
-   involve a human who can paste the link. Cheapest, and honest.
-2. **A real confirmation email for every flow**, on submit, carrying the quote
-   number and the tracking link. This is what makes tracking universal. It is a
-   new template plus a delivery path, not a string edit.
-3. **Also a post-payment email**, closing the "paid and heard nothing" gap.
-
-RECOMMENDATION: **1 now, 2 when apparel goes live.** Tracking only pays off
-where a customer has a number to track, and today only stickers issue one
-automatically. Option 2's real cost is not the template — it is that a
-customer-facing send must NOT inherit sendShopEmail's fallback chain, which
-drops through QUOTE_TO_EMAIL to a hardcoded address when the target is missing
-or malformed. Silently delivering a customer's confirmation to the shop inbox
-is worse than not sending it, so option 2 needs its own delivery path with its
-own failure behaviour. Worth doing deliberately rather than as an add-on.
+THE TRAP FOR WHOEVER BUILDS THAT. Its real cost is not the template. A
+customer-facing send must NOT inherit `sendShopEmail`'s fallback chain, which
+drops through `QUOTE_TO_EMAIL` to a hardcoded address when the target is
+missing or malformed. Silently delivering a customer's confirmation to the shop
+inbox is worse than not sending it, so it needs its own delivery path with its
+own failure behaviour.
 
 ### Branch state
 

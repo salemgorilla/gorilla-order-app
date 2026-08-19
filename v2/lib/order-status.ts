@@ -244,6 +244,12 @@ export const STEP_LABELS = [
  *
  * Two hardcoded copies of a hostname is how one of them ends up pointing at
  * a domain that moved.
+ *
+ * Hardcoded rather than derived from a request header: the submit path runs
+ * server-side, and the only address that matters is the one the customer can
+ * actually reach. A preview deployment must still send people to production —
+ * a tracking link pointing at a preview URL would 404 for them the moment that
+ * deployment is superseded.
  */
 export const TRACK_URL = "labs.gorillasalem.com/track";
 

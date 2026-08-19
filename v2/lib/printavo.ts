@@ -528,17 +528,6 @@ export type StickerCheckoutResult = {
  * the old "we'll follow up" path instead of a pay button. Never throw from
  * here — a payment hiccup must not fail a submission.
  */
-/**
- * Where a customer goes to check on an order.
- *
- * Hardcoded rather than derived from a request header: this runs server-side
- * during submit, and the only address that matters is the one the customer can
- * actually reach. A preview deployment must still send people to production —
- * a tracking link pointing at a preview URL would 404 for them the moment that
- * deployment is superseded.
- */
-const TRACK_URL = "labs.gorillasalem.com/track";
-
 export async function createStickerCheckout(input: {
   quoteId: string;
   publicUrl: string;

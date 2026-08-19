@@ -158,6 +158,7 @@ export default function QuoteConfirmationScreen({
             <KioskPickupCard
               quoteNumber={quoteConfirmation.quoteNumber}
               email={order.customer.email}
+              customerRecord={quoteConfirmation.customerRecord}
             />
           )}
 

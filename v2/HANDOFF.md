@@ -91,6 +91,33 @@ route around it by adding storage.
 Mind the rate limit while probing: 10 requests per 5 seconds, account-wide, and
 one submitted quote costs 3. A probe loop can take live checkout down.
 
+### Half-built on purpose — status emails have no trigger
+
+**2026-08-19.** `/api/status-email` sends a customer "your order is ready"
+message: admin-guarded, verifies the order with `lookupOrderStatus` (so it can
+only ever mail an address that already belongs to the order), translates the
+Printavo status through `toCustomerStatus`, and sends through
+`sendCustomerEmail`, which FAILS CLOSED and never falls back to
+`QUOTE_TO_EMAIL`.
+
+**Nothing calls it.** There is no watcher on Printavo, and that half cannot be
+built here:
+
+- **Webhooks** — unknown whether Printavo offers them for status changes.
+  Nobody has checked, and it needs a login.
+- **Polling** — needs somewhere to remember the last status seen per order, or
+  it re-sends on every tick. Printavo itself could hold that (a tag, or a line
+  in the note), which keeps the "no database" rule — but the query to list
+  orders to poll is the same one `PRINTAVO-PROBE.md` is waiting on.
+
+So: **answer the probe first**, then choose. Wiring a schedule to the endpoint
+is one HTTP call once that decision is made. Until then the shop can trigger it
+by hand and it works.
+
+Only `ready`, `done` and `hold` stages email at all — see the reasoning in
+`lib/status-email.ts`. That is a promise about how often the shop writes to
+people, and it should change deliberately.
+
 ### Known broken — do not re-diagnose these
 
 - **S&S catalogue returns 401.** `Style 39 failed with 401: "Authorization has

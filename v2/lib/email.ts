@@ -968,6 +968,77 @@ export async function sendShopEmail(input: {
   }
 }
 
+/**
+ * A message to a CUSTOMER. The important difference from sendShopEmail.
+ *
+ * ── WHY THIS IS A SEPARATE FUNCTION AND NOT AN OPTION ─────────────────────
+ * sendShopEmail DEMOTES a missing or malformed recipient to QUOTE_TO_EMAIL,
+ * and that is right for a shop notice: delivering an abandoned-quote alert to
+ * the main inbox is enormously better than delivering it nowhere.
+ *
+ * It is dangerous here. A customer's order update — and, if this is ever used
+ * for one, a magic link — demoted to the shop inbox is somebody's private
+ * information landing in a mailbox several people read, while the log says
+ * "sent". The failure is silent and it looks like success.
+ *
+ * So this FAILS CLOSED. No fallback, no default, no "send it somewhere". A
+ * bad address sends nothing and says so. Two callers have now needed this
+ * warning written out — the tracker handoff and the repeat-customer spec —
+ * which is why it exists once, here, rather than as a flag on the other one.
+ * ──────────────────────────────────────────────────────────────────────────
+ */
+export async function sendCustomerEmail(input: {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+  replyTo?: string;
+}): Promise<QuoteEmailResult> {
+  const provider = getEmailProvider();
+
+  if (!provider) {
+    return { sent: false, skipped: true };
+  }
+
+  const to = String(input.to || "").trim();
+
+  if (!looksLikeEmailAddress(to)) {
+    // Logged rather than thrown: a status update is not worth failing an
+    // operation over, but it must never quietly go to the shop instead.
+    console.error(
+      `CUSTOMER EMAIL NOT SENT: "${to}" is not a usable address. Nothing was sent — a customer-facing message is never redirected to the shop inbox.`
+    );
+
+    return { sent: false, error: "No usable customer address." };
+  }
+
+  try {
+    return provider === "gmail"
+      ? await sendViaGmail({
+          to,
+          subject: input.subject,
+          text: input.text,
+          html: input.html,
+          replyTo: input.replyTo,
+          attachments: [],
+        })
+      : await sendViaResend({
+          to,
+          subject: input.subject,
+          text: input.text,
+          html: input.html,
+          replyTo: input.replyTo,
+          attachments: [],
+        });
+  } catch (error) {
+    return {
+      sent: false,
+      provider,
+      error: error instanceof Error ? error.message : "Unknown email error.",
+    };
+  }
+}
+
 /** Shared by the quote body and the plain notices above. */
 export function escapeEmailHtml(value: string) {
   return escapeHtml(value);

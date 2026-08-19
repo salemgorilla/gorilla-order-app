@@ -97,6 +97,34 @@ Report the field list.
 
 ---
 
+## Also worth 60 seconds in the UI: the account's default tax rate
+
+**Settings, wherever Printavo keeps sales tax.** Write down whether a default
+rate is configured on the account, and what it is.
+
+This is not idle curiosity. `buildPrintavoQuotePlan` sends `salesTax: 6.25` on
+stickers and signs and **omits the field entirely on apparel**, because
+Massachusetts exempts clothing. What Printavo does with an absent field is
+unverified:
+
+- **If there is no account default**, apparel invoices tax-free and the app
+  and the invoice agree. Nothing to do.
+- **If there IS an account default**, Printavo may apply it to every apparel
+  quote — so the app tells the customer clothing is exempt and the invoice
+  charges them 6.25% anyway. On a 24-shirt order that is real money and it is
+  the shop's error, not the customer's.
+
+The sticker path was reconciled to the cent on 15 Aug, so the rate we send is
+demonstrably right when we send one. Nobody has ever reconciled an apparel
+invoice, because apparel ships as a hand-quote request.
+
+**Do not "fix" this speculatively.** Sending an explicit `salesTax: 0` would
+close the hole if Printavo accepts it and break apparel quote creation if it
+does not, and that cannot be tested from the build environment. Read the
+setting first; the fix follows from the answer.
+
+---
+
 ## Before you run anything
 
 **The rate limit is 10 requests per 5 seconds, account-wide, and one submitted

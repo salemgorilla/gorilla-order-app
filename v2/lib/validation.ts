@@ -1,4 +1,38 @@
+import { looksLikeEmailAddress } from "./email-address";
 import { Order, StickerItem } from "../types/order";
+
+/**
+ * The email rule, once, for all three flows.
+ *
+ * ── WHAT THE OLD RULE LET THROUGH ─────────────────────────────────────────
+ * All three flows checked `!email.trim()` and nothing else, so the single
+ * character "x" was a valid email address as far as this app was concerned.
+ * So were "dana@", "@example.com", "no at sign" and — the one a real customer
+ * actually types — "dana@gmailcom".
+ *
+ * Nothing downstream caught it, because everything downstream assumed this
+ * layer had. The address became the Printavo contact, the recipient of a live
+ * payment link, and the second half of the /track lookup, and the customer
+ * got a green confirmation screen for an order nobody could ever reach them
+ * about. For stickers that means an unpayable invoice; for signs and apparel
+ * it means a quote request the shop cannot answer.
+ *
+ * Three copies of an insufficient rule is how it survived this long, so there
+ * is now one copy, and it is the same predicate lib/email.ts uses before it
+ * hands an address to a mail provider. The two layers cannot disagree.
+ * ──────────────────────────────────────────────────────────────────────────
+ */
+export function getEmailError(email: string) {
+  if (!email.trim()) return "Enter your email.";
+
+  if (!looksLikeEmailAddress(email)) {
+    // Names the fix rather than just the failure: "invalid" tells someone
+    // staring at an address that looks fine to them precisely nothing.
+    return "Check your email address — it needs an @ and a domain, like name@example.com.";
+  }
+
+  return null;
+}
 
 /** The subset of FieldKey that belongs to one design rather than the order. */
 export type ItemFieldKey = "artwork" | "width" | "height" | "quantity";
@@ -96,8 +130,9 @@ export function getOrderFieldErrors(order: Order): FieldErrors {
     errors.customerName = "Enter your name.";
   }
 
-  if (!order.customer.email.trim()) {
-    errors.customerEmail = "Enter your email.";
+  const emailError = getEmailError(order.customer.email);
+  if (emailError) {
+    errors.customerEmail = emailError;
   }
 
   // Phone is optional (matches the apparel flow) — collected but not required.
@@ -184,8 +219,9 @@ export function getSignsFieldErrors(
     errors.customerName = "Enter your name.";
   }
 
-  if (!order.customer.email.trim()) {
-    errors.customerEmail = "Enter your email.";
+  const emailError = getEmailError(order.customer.email);
+  if (emailError) {
+    errors.customerEmail = emailError;
   }
 
   // A template IS the artwork. Choosing one replaces the upload rather than
@@ -268,8 +304,9 @@ export function getApparelFieldErrors(
     errors.customerName = "Enter your name.";
   }
 
-  if (!order.customer.email.trim()) {
-    errors.customerEmail = "Enter your email.";
+  const emailError = getEmailError(order.customer.email);
+  if (emailError) {
+    errors.customerEmail = emailError;
   }
 
   if (!order.production.needBy.trim()) {

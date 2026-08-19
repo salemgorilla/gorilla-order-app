@@ -15,6 +15,7 @@ import {
 } from "../../../lib/email";
 import { getDesignNumbers } from "../../../lib/attachment-plan";
 import { buildOrderConfirmation } from "../../../lib/order-confirmation";
+import { getEmailError } from "../../../lib/validation";
 import { subscribeToNewsletter } from "../../../lib/newsletter";
 import { describeKioskSource, readKioskSession } from "../../../lib/kiosk";
 import {
@@ -387,6 +388,37 @@ export async function POST(request: Request) {
       proofsDropped,
     } =
       await parseQuoteRequest(request);
+
+    /**
+     * An order nobody can be reached about is not an order.
+     *
+     * Same argument as repriceStickers below: the browser validates this, and
+     * the browser is not the authority. This endpoint is public, and an
+     * address that cannot receive mail poisons everything downstream — it
+     * becomes the Printavo contact, the recipient of a live payment link, and
+     * half of the /track lookup. Worse, when the address is missing entirely
+     * the payment request falls back to whatever contact Printavo has on the
+     * quote, which for an unmatched customer is the shop's own fallback
+     * contact: a payable link for someone else's order, delivered to us.
+     *
+     * Refused rather than accepted-and-flagged, unlike the unpriceable case
+     * further down. There the shop can still price the job by hand and ring
+     * the customer; here there is nobody to ring.
+     *
+     * Same predicate the form uses, so the two layers cannot disagree.
+     */
+    const emailError = getEmailError(
+      String(
+        (order.customer as Record<string, unknown> | undefined)?.email ?? ""
+      )
+    );
+
+    if (emailError) {
+      return NextResponse.json(
+        { success: false, message: emailError },
+        { status: 400 }
+      );
+    }
 
     const quoteNumber = generateQuoteNumber();
     const receivedAt = new Date().toISOString();

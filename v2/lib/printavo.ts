@@ -556,9 +556,10 @@ export async function createStickerCheckout(input: {
         "Your stickers are priced and ready to pay using the link below. " +
         "Once you pay we'll send a proof before anything goes to print — if " +
         "we can't print your artwork, you get a full refund.\n\n" +
-        // The ONLY message a customer receives from this system, so it is the
-        // only place a tracking link can reach them. /track was finished,
-        // on-brand and linked from nowhere.
+        // For a sticker order that bills, this is the message that carries
+        // the tracking link. Everything else now gets it from our own
+        // confirmation email instead — see lib/order-confirmation.ts, which
+        // suppresses itself when this one went out.
         //
         // The number is prefilled from the URL; the email deliberately is not.
         // Requiring it is what stops a guessed order number returning someone
@@ -1286,10 +1287,17 @@ export async function createPrintavoQuote(input: {
           customerNote: asciiSafe(plan.customerNote),
           productionNote: asciiSafe(plan.productionNote),
           tags: plan.tags,
-          // Only the flows that actually take money carry tax. Printavo
-          // computes salesTaxAmount from this rate and the per-line `taxed`
-          // flags, so the app never derives a figure that could drift from
-          // the invoice the customer pays.
+          // Taxability follows the GOODS, not whether the flow takes money —
+          // keying it off checkout was right for apparel by accident and
+          // wrong for signs. See lib/tax.ts. Printavo computes salesTaxAmount
+          // from this rate and the per-line `taxed` flags, so the app never
+          // derives a figure that could drift from the invoice the customer
+          // pays.
+          //
+          // NOTE: omitted entirely on an exempt flow. Whether Printavo then
+          // applies an ACCOUNT-level default rate is unverified — it is the
+          // tax question in PRINTAVO-PROBE.md, and it decides whether apparel
+          // is really invoiced tax-free.
           ...(plan.salesTaxRate ? { salesTax: plan.salesTaxRate } : {}),
         },
       }

@@ -1,6 +1,8 @@
 "use client";
 
 import Header from "../components/Header";
+import KioskPickupCard from "../components/kiosk/KioskPickupCard";
+import { useKiosk } from "../components/kiosk/KioskProvider";
 import type { Order } from "../types/order";
 import type { ApparelQuote } from "../lib/apparel";
 import type { ApparelPricingResult } from "../lib/apparel-pricing";
@@ -54,6 +56,14 @@ export default function QuoteConfirmationScreen({
   // sticky estimate bar. See getQuoteTotals in lib/tax — four surfaces showed
   // this figure and only one of them had tax.
   const stickerTotals = getStickerTotals(order.pricing);
+
+  /**
+   * Read here rather than threaded in as a prop, so there is one way of
+   * knowing this is a kiosk — the same context every other kiosk behaviour
+   * uses. The default is the WEBSITE, so a screen that forgets to consider
+   * the counter behaves exactly as it always has.
+   */
+  const kiosk = useKiosk();
 
   // Absent for signs and apparel, and absent for stickers whenever Printavo
   // was unreachable — in every one of those cases the screen falls back to
@@ -139,6 +149,17 @@ export default function QuoteConfirmationScreen({
                 : "just now"}
             </p>
           </div>
+
+          {/* The counter customer gets no email from this system, so this is
+              the only moment they can be handed their order number and the
+              tracker. Website orders are untouched — they get both in the
+              Printavo payment request. */}
+          {kiosk.enabled && quoteConfirmation?.quoteNumber && (
+            <KioskPickupCard
+              quoteNumber={quoteConfirmation.quoteNumber}
+              email={order.customer.email}
+            />
+          )}
 
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             <div className=" border border-[var(--rule)] p-5">

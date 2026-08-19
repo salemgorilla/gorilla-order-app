@@ -2,6 +2,8 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+import { getTrackUrl, TRACK_URL } from "../lib/order-status";
+
 /**
  * The door to /track.
  *
@@ -22,12 +24,46 @@ describe("the payment email carries the link", () => {
     // Deliberately not derived from a request header: a preview deployment
     // must still send customers to production, or the link 404s for them once
     // that deployment is superseded.
-    assert.match(printavo, /const TRACK_URL = "labs\.gorillasalem\.com\/track"/);
+    assert.equal(TRACK_URL, "labs.gorillasalem.com/track");
+    assert.match(getTrackUrl("GS-1"), /^https:\/\/labs\.gorillasalem\.com\/track\?/);
   });
 
   test("the order number is passed in and URL-encoded", () => {
+    /**
+     * Executed rather than read from source. These used to grep printavo.ts
+     * for `encodeURIComponent`, which broke the moment the URL construction
+     * moved into a shared helper — a test that passes only while the code is
+     * arranged one particular way. getTrackUrl is a real function now, so
+     * assert what it produces.
+     */
     assert.match(printavo, /quoteNumber\?: string/);
-    assert.match(printavo, /order=\$\{encodeURIComponent\(/);
+
+    assert.equal(
+      getTrackUrl("GS-20260819-AB12C"),
+      "https://labs.gorillasalem.com/track?order=GS-20260819-AB12C"
+    );
+
+    // A quote number should never need escaping — but a URL builder that
+    // does not escape is one bad input away from a broken link.
+    assert.equal(
+      getTrackUrl("GS 1&x=2"),
+      "https://labs.gorillasalem.com/track?order=GS%201%26x%3D2"
+    );
+  });
+
+  test("no order number means a bare tracker link, not ?order=", () => {
+    assert.equal(getTrackUrl(), "https://labs.gorillasalem.com/track");
+    assert.equal(getTrackUrl("   "), "https://labs.gorillasalem.com/track");
+  });
+
+  test("the link never carries the email, and has no parameter for one", () => {
+    // The whole security property of /track in one assertion. Requiring the
+    // email is what stops a guessed order number returning someone else's
+    // status.
+    const url = getTrackUrl("GS-20260819-AB12C");
+
+    assert.doesNotMatch(url, /email/i);
+    assert.doesNotMatch(url, /@/);
   });
 
   test("no link is written when there is no quote number", () => {
@@ -39,7 +75,7 @@ describe("the payment email carries the link", () => {
   test("the customer is told they also need their email", () => {
     // The link cannot carry it, so the email has to say so or the customer
     // arrives at a form they think is broken.
-    assert.match(printavo, /you'll need this order number/);
+    assert.match(printavo, /you'll need this order/);
     assert.match(printavo, /this email address/);
   });
 
@@ -100,5 +136,77 @@ describe("/track prefills the number and never the email", () => {
     // Without one the route opts out of static rendering and the build fails.
     assert.match(track, /<Suspense/);
     assert.match(track, /<TrackForm \/>/);
+  });
+});
+
+describe("the counter customer is told their number", () => {
+  /**
+   * ── WHY THIS IS THE ONLY PLACE ────────────────────────────────────────────
+   * A kiosk order gets no email. The server suppresses the Printavo payment
+   * request on purpose (lib/kiosk.ts: a live payment link, emailed to somebody
+   * standing in front of you, at an address staff typed by ear).
+   *
+   * The consequence nobody had joined up is that the payment email is ALSO the
+   * only place a customer is ever told their GS- number. So a walk-in who paid
+   * in full left with nothing, and /track — which needs the number AND the
+   * email — was unusable to exactly those people.
+   *
+   * The confirmation screen is the one moment they can be told, and the kiosk
+   * wipes it 45 seconds after submit.
+   */
+  const card = readFileSync(
+    new URL("../components/kiosk/KioskPickupCard.tsx", import.meta.url),
+    "utf8"
+  );
+  const confirmation = readFileSync(
+    new URL("../features/QuoteConfirmation.tsx", import.meta.url),
+    "utf8"
+  );
+
+  test("the card is shown at the kiosk and nowhere else", () => {
+    // A website customer already gets the number and the link in the payment
+    // email; rendering this to them would be noise, and it carries a line
+    // addressed to staff.
+    assert.match(confirmation, /kiosk\.enabled && quoteConfirmation\?\.quoteNumber/);
+  });
+
+  test("it reads the kiosk from the shared context, not a second signal", () => {
+    assert.match(confirmation, /useKiosk\(\)/);
+  });
+
+  test("the QR points at the tracker with the number prefilled", () => {
+    assert.match(card, /getTrackUrl\(quoteNumber\)/);
+    assert.equal(
+      getTrackUrl("GS-20260819-AB12C"),
+      "https://labs.gorillasalem.com/track?order=GS-20260819-AB12C"
+    );
+  });
+
+  test("the number and the URL are printed in full, not only as a QR", () => {
+    // A QR nobody can scan is a dead end, and the number has to be copyable
+    // by hand onto a paper slip.
+    assert.match(card, /\{quoteNumber\}/);
+    assert.match(card, /\{trackUrl\}/);
+  });
+
+  test("an order with no email says the tracker will not open", () => {
+    /**
+     * NOT REACHABLE THROUGH THE FORM TODAY — email is a required field, so a
+     * submit without one is blocked and this screen never renders. Confirmed
+     * by trying it in a browser rather than assumed.
+     *
+     * Kept, and asserted, for one specific reason: a walk-in paying cash who
+     * does not want to hand over an address is an obvious near-future change
+     * to make at the counter, and the day somebody makes email optional here
+     * this branch is what stops the card rendering an empty span where the
+     * address should be. Without it that change looks fine and quietly ships
+     * a card that promises tracking nobody can open.
+     */
+    assert.match(card, /cannot be opened/);
+  });
+
+  test("no payment link is rendered — there is never one to render", () => {
+    assert.doesNotMatch(card, /payUrl|checkout/);
+    assert.match(card, /no payment link was emailed/i);
   });
 });

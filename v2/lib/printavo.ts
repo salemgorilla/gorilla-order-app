@@ -651,6 +651,15 @@ function describeStickerSpec(spec: AnyRecord, quantity: number) {
   ].join("\n");
 }
 
+/**
+ * A permanent artwork link, one per design that went to blob storage.
+ *
+ * Designs whose file was ATTACHED to the email have none, deliberately —
+ * "we mailed you the file" and "here is a link to the file" are different
+ * promises and the note used to render them as one sentence.
+ */
+export type ArtworkLink = { design: number; name: string; url: string };
+
 export type PrintavoQuotePlan = {
   nickname: string;
   customerDueAt: string;
@@ -703,6 +712,7 @@ export function buildPrintavoQuotePlan(input: {
   order: AnyRecord;
   artworkAnalysis: AnyRecord | null;
   attachmentInfo?: string;
+  artworkLinks?: ArtworkLink[];
 }): PrintavoQuotePlan {
   /**
    * Set when the order was taken on the shop's own terminal. Read straight
@@ -711,6 +721,7 @@ export function buildPrintavoQuotePlan(input: {
    */
   const kiosk = (input.order.kiosk as AnyRecord | null) || null;
   const { quoteNumber, order, artworkAnalysis, attachmentInfo } = input;
+  const artworkLinks = input.artworkLinks ?? [];
 
   const customer = (order.customer as AnyRecord) || {};
   const product = (order.product as AnyRecord) || {};
@@ -1020,7 +1031,34 @@ export function buildPrintavoQuotePlan(input: {
     "ARTWORK",
     `File: ${str(artworkAnalysis?.fileName, "No file uploaded")}`,
     `Estimated colors: ${str(artworkAnalysis?.estimatedColorCount, "N/A")}`,
-    `Emailed to shop: ${str(attachmentInfo, "N/A")}`,
+    /**
+     * The links, under a heading that says what they are.
+     *
+     * These URLs have always been in this note. They sat inside the
+     * `Emailed to shop:` sentence, mid-line, after a file size — so anyone
+     * scanning the note read "emailed" and never registered a link was
+     * there. A previous reader of this codebase concluded from that heading
+     * that the URL never reached Printavo at all. It always had; the label
+     * was the bug.
+     *
+     * Every past order therefore already carries its artwork link. Nothing
+     * needs backfilling — only relabelling from here on.
+     */
+    ...(artworkLinks.length
+      ? [
+          "",
+          "ARTWORK FILES - OPEN THESE",
+          ...artworkLinks.flatMap((link) => [
+            `Design ${link.design}: ${link.name}`,
+            `  ${link.url}`,
+          ]),
+          // One line, parseable, for the reorder flow to read a past order's
+          // artwork back without unpicking the prose above it.
+          `ARTWORK_LINKS_JSON: ${JSON.stringify(artworkLinks)}`,
+          "",
+        ]
+      : []),
+    `Delivery: ${str(attachmentInfo, "N/A")}`,
     "",
     `Customer notes: ${str(customer.notes, "None")}`,
   ].join("\n");
@@ -1029,11 +1067,19 @@ export function buildPrintavoQuotePlan(input: {
     "Auto-created by Gorilla Order from a website quote request.",
     "STATUS: UNCONFIRMED — review pricing, artwork, sizes and stock before quoting the customer.",
     "Website pricing is an estimate only.",
-    // Only true when there IS a file. A template order has none, and sending
-    // somebody to look for one is worse than saying nothing.
+    /**
+     * This line said "Artwork is attached to the quote email, not uploaded to
+     * Printavo" for every order. It was false twice over: a template order has
+     * no file at all, and an uploaded order's permanent link is two fields
+     * away in the customer note. Saying otherwise sent whoever read it to the
+     * wrong place — or, worse, told them the record they were looking at was
+     * not the record.
+     */
     templateBrief
       ? "No artwork file — this is a template order. The words to set are on the line item above, and in the quote email."
-      : "Artwork is attached to the quote email, not uploaded to Printavo.",
+      : artworkLinks.length
+      ? "Artwork links are in the customer note, under ARTWORK FILES. They are permanent — open them from here, no need to find the email."
+      : "Artwork came in as an email attachment; there is no link to open. See the quote email.",
   ].join("\n");
 
   return {
@@ -1209,6 +1255,7 @@ export async function createPrintavoQuote(input: {
   order: AnyRecord;
   artworkAnalysis: AnyRecord | null;
   attachmentInfo?: string;
+  artworkLinks?: ArtworkLink[];
 }): Promise<PrintavoResult> {
   if (!isConfigured()) {
     return { created: false, skipped: true };
@@ -1359,9 +1406,10 @@ export type OrderLookupResult =
  *
  * ── VERIFIED LIVE, WITH ONE THING STILL UNKNOWN ──────────────────────────
  * This shipped marked UNVERIFIED because it was written from the published
- * schema with no credentials to run it against. It has since been run: a real
- * order was looked up against the live account and returned a real status, so
- * the `orders(query:)` connection and the `status { name }` shape are correct.
+ * schema with no credentials to run it against. It has since been run: on
+ * 17 Aug 2026 a real order was looked up against the live account (23070)
+ * through the customer tracker and returned a real status, so the
+ * `orders(query:)` connection and the `status { name }` shape are correct.
  * Corrected here because the old warning would send a future session to
  * "fix" working code — and the published schema has been wrong for this
  * integration before (lineItems is documented nested and is flat live).

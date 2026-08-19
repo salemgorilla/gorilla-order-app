@@ -51,6 +51,22 @@ Working and verified:
   from the URL: it is the only thing between a guessed order number and
   someone else's order status.
 
+### Open question — can we list one contact's orders in one query?
+
+**2026-08-19. NOT ANSWERED. See `PRINTAVO-PROBE.md`, which is the probe ready
+to paste.** Phases 2 and 3 of the repeat-customer spec both assume yes and
+nobody has checked. It cannot be answered from a coding session: there are no
+Printavo credentials in that environment and no endpoint that runs arbitrary
+GraphQL, and shipping one to production to answer a research question is not a
+trade worth making. Five minutes for anyone with a Printavo login.
+
+**If the answer turns out to be no, that is a finding, not a failure** — it
+means those phases need a database and the decision goes back to Gabe. Do not
+route around it by adding storage.
+
+Mind the rate limit while probing: 10 requests per 5 seconds, account-wide, and
+one submitted quote costs 3. A probe loop can take live checkout down.
+
 ### Known broken — do not re-diagnose these
 
 - **S&S catalogue returns 401.** `Style 39 failed with 401: "Authorization has
@@ -67,6 +83,13 @@ Working and verified:
   reach no list. Backfillable from past quote emails once a hook exists — the
   consent wording is in `buildCustomerLines` and is shared by both the text and
   HTML renderings, so the record cannot disagree with itself.
+- **Artwork blobs never expire, as far as the code is concerned.** Checked
+  2026-08-19: `handleUpload` passes no TTL and no expiry, and nothing in the
+  repo calls `del()` — only `upload`, `handleUpload` and `list` are imported
+  from `@vercel/blob` anywhere. So the artwork links now surfaced in the
+  Printavo note are permanent, and reorder has retroactive coverage over every
+  past order. The one thing a coding session cannot see is a lifecycle rule set
+  on the store itself in the Vercel dashboard; worth one glance to close it off.
 - **`PRINTAVO_CUSTOMER_ID` unset.** Optional fallback for a quote whose
   customer email cannot be resolved. Silent when it fires.
 - Apparel is `status: "request"` deliberately, because of the S&S 401. The full

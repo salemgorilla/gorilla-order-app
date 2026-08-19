@@ -18,6 +18,12 @@ and repointing them took the main site down once already.
 
 Working and verified:
 
+- **A counter customer leaves with their order number.** A kiosk order gets no
+  email — the server suppresses the payment request deliberately — and that
+  email was also the only place anyone was ever told their `GS-` number, so
+  walk-ins could not use `/track` at all. The kiosk confirmation screen now
+  shows the number, the tracker URL, a QR to it with the number prefilled, and
+  which address they will need. Website orders are untouched.
 - **The form remembers a returning customer's contact details** — name,
   company, email, phone — on their own device, and says so with a way out.
   Contact fields only: `toRememberedContact` in `lib/remembered-contact.ts`

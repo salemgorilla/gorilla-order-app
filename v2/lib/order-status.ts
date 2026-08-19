@@ -232,3 +232,31 @@ export const STEP_LABELS = [
   "Printing",
   "Ready",
 ] as const;
+
+/**
+ * Where a customer goes to check on an order.
+ *
+ * ── ONE COPY, BECAUSE THERE ARE NOW TWO CALLERS ───────────────────────────
+ * This lived inside lib/printavo.ts, private, because only the payment email
+ * needed it. The kiosk needs it too now: a counter customer never receives
+ * that email — the server suppresses the payment request deliberately — so
+ * the screen in front of them is the only place they will ever see this.
+ *
+ * Two hardcoded copies of a hostname is how one of them ends up pointing at
+ * a domain that moved.
+ */
+export const TRACK_URL = "labs.gorillasalem.com/track";
+
+/**
+ * The full tracking link, with the order number prefilled when we have it.
+ *
+ * The email is NEVER put in this URL, and there is deliberately no parameter
+ * for it. It is the only thing standing between a guessed order number and
+ * somebody else's order status — see the note in app/track/page.tsx.
+ */
+export function getTrackUrl(quoteNumber?: string) {
+  const number = String(quoteNumber || "").trim();
+  if (!number) return `https://${TRACK_URL}`;
+
+  return `https://${TRACK_URL}?order=${encodeURIComponent(number)}`;
+}

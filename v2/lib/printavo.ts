@@ -1,4 +1,5 @@
 import { isTaxableFlow, SALES_TAX } from "./tax";
+import { getTrackUrl } from "./order-status";
 
 // Pushes each submitted quote into Printavo as a DRAFT/UNCONFIRMED quote.
 //
@@ -575,10 +576,8 @@ export async function createStickerCheckout(input: {
         // else's status — see app/track/page.tsx.
         (input.quoteNumber
           ? `Want to check on it later? Track your order at ` +
-            `https://${TRACK_URL}?order=${encodeURIComponent(
-              input.quoteNumber
-            )} — you'll need this order number (${input.quoteNumber}) and ` +
-            `this email address.\n\n`
+            `${getTrackUrl(input.quoteNumber)} — you'll need this order ` +
+            `number (${input.quoteNumber}) and this email address.\n\n`
           : "") +
         "Thanks,\nGorilla Salem",
     });

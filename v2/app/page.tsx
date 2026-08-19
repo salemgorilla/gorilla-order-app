@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { SALES_TAX, getSignsTotals, getStickerTotals } from "../lib/tax";
 
 import Header from "../components/Header";
@@ -10,6 +16,18 @@ import TemplateDesigner from "../components/TemplateDesigner";
 import StepFooter from "../components/StepFooter";
 import UploadBox from "../components/upload/UploadBox";
 import { useKiosk } from "../components/kiosk/KioskProvider";
+import {
+  forgetCustomer,
+  getCustomerServerSnapshot,
+  getCustomerSnapshot,
+  rememberCustomer,
+  subscribeCustomer,
+} from "../components/customerStore";
+import {
+  applyRememberedContact,
+  shouldOfferRememberedContact,
+  toRememberedContact,
+} from "../lib/remembered-contact";
 import BackgroundRemovalControl from "../components/upload/BackgroundRemovalControl";
 import ArtworkHandoff from "../components/kiosk/ArtworkHandoff";
 import ArtworkGuidance from "../components/upload/ArtworkGuidance";
@@ -123,6 +141,37 @@ export default function Home() {
    */
   const kiosk = useKiosk();
 
+  /**
+   * The contact details this browser remembers from a previous order.
+   *
+   * Read through an external store so the server renders "nothing" honestly
+   * and the client has the real answer before paint — see
+   * components/customerStore.ts.
+   *
+   * OFF AT THE KIOSK, and gated on `kiosk.enabled`, which is the same signal
+   * every other kiosk behaviour reads. There is deliberately no second way of
+   * knowing: a shared terminal showing the previous customer's name and
+   * address to whoever walks up next is the exact failure kiosk mode exists to
+   * prevent, and a prefill would survive the remount that throws the rest of
+   * the state away.
+   */
+  const rememberedContact = useSyncExternalStore(
+    subscribeCustomer,
+    getCustomerSnapshot,
+    getCustomerServerSnapshot
+  );
+
+  const offerRemembered = shouldOfferRememberedContact({
+    isKiosk: kiosk.enabled,
+    contact: rememberedContact,
+  });
+
+  // Applied once, and never over anything already typed. Somebody who has
+  // started filling the form in is telling us something more recent than
+  // storage is.
+  const [rememberedApplied, setRememberedApplied] = useState(false);
+
+
   // Which step is on screen. The form is no longer one scroll — see
   // lib/steps.ts for the step list and the field-to-step map.
   const [currentStepId, setCurrentStepId] = useState<StepId>("product");
@@ -154,6 +203,7 @@ export default function Home() {
         }
       : defaultOrder
   );
+
   const [apparelQuoteState, setApparelQuoteState] = useState(defaultApparelQuote);
   const [signsQuote, setSignsQuote] = useState(defaultSignsQuote);
   const [ssProducts, setSsProducts] = useState<SsCatalogProduct[]>([]);
@@ -1577,6 +1627,39 @@ export default function Home() {
     setCurrentStepId(id);
     setVisitedStepIds((seen) => (seen.includes(id) ? seen : [...seen, id]));
     setStepScrollToken((token) => token + 1);
+
+    // Prefill the contact boxes when the customer arrives at the step that
+    // has them, once, and never over anything already typed.
+    //
+    // On the NAVIGATION rather than in an effect, deliberately. Copying an
+    // external store into React state with a synchronous effect is the shape
+    // React's own guidance warns about, and the lint rule here treats it as
+    // an error — rightly: it costs a second render on every mount to move a
+    // value that only matters when somebody reaches this step. Arriving at
+    // Contact is a real event, and it is exactly when the prefill is useful.
+    if (id === "contact" && offerRemembered && !rememberedApplied) {
+      applyRemembered();
+    }
+  }
+
+  /**
+   * Fill the empty contact boxes from what this device remembers.
+   *
+   * Only the four fields applyRememberedContact returns are spread in.
+   * newsletterOptIn is not among them and never will be — consent is
+   * re-asked, not remembered.
+   */
+  function applyRemembered() {
+    if (!rememberedContact) return;
+
+    setOrder((prev) => {
+      const updates = applyRememberedContact(rememberedContact, prev.customer);
+      if (!Object.keys(updates).length) return prev;
+
+      return { ...prev, customer: { ...prev.customer, ...updates } };
+    });
+
+    setRememberedApplied(true);
   }
 
   /**
@@ -2006,6 +2089,19 @@ export default function Home() {
 
       setSubmittedProductId(selectedProductId);
       setQuoteSubmitted(true);
+
+      /**
+       * Remember the contact details for next time — contact fields only.
+       *
+       * toRememberedContact builds a fresh object from four named fields, so
+       * handing it the whole customer record cannot leak notes, attribution
+       * or the newsletter tick. Never at the kiosk: see the note beside
+       * `offerRemembered`.
+       */
+      if (!kiosk.enabled) {
+        const contact = toRememberedContact(order.customer);
+        if (contact) rememberCustomer(contact);
+      }
     } catch (error) {
       console.error(error);
 
@@ -3000,6 +3096,19 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 errors={{
                   customerName: fieldErrors.customerName,
                   email: fieldErrors.customerEmail,
+                }}
+                prefilledFromLastOrder={offerRemembered && rememberedApplied}
+                onClearRemembered={() => {
+                  forgetCustomer();
+                  // Clear the boxes too. Telling somebody "not you? clear it"
+                  // and then leaving the previous person's name on screen
+                  // would be the worst of both.
+                  updateCustomer({
+                    customerName: "",
+                    company: "",
+                    email: "",
+                    phone: "",
+                  });
                 }}
               />
               )}

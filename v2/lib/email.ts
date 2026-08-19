@@ -23,6 +23,11 @@
 // the add-on catalogue and the pricing engines behind it.
 import type { AddOn } from "../types/order";
 
+// Re-exported so the many existing callers here keep working; the rule itself
+// lives alone so the form can use it without importing this file.
+export { looksLikeEmailAddress } from "./email-address";
+import { looksLikeEmailAddress } from "./email-address";
+
 export type QuoteEmailResult = {
   sent: boolean;
   skipped?: boolean;
@@ -137,20 +142,6 @@ export function buildCustomerLines(input: {
   ];
 }
 
-/**
- * Is this something a mail provider will accept as a recipient?
- *
- * Deliberately strict about the one thing that actually breaks: exactly one
- * "@", a domain with a dot, and no whitespace. A real address that fails this
- * is vanishingly rare; a typo that passes a looser check is not — the shop had
- * LEAD_TO_EMAIL set to an address with TWO "@" signs, which every provider
- * rejects and which nothing in this app noticed, because a non-empty string
- * was treated as a working address.
- */
-export function looksLikeEmailAddress(value: unknown) {
-  const address = String(value ?? "").trim();
-  return /^[^@\s]+@[^@\s.]+(\.[^@\s.]+)+$/.test(address);
-}
 
 /**
  * A titled run of "Label: Value" lines.

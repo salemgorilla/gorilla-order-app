@@ -2085,6 +2085,21 @@ export default function Home() {
         message: result.message,
         // Stickers only, and null whenever Printavo was unreachable.
         checkout: result.checkout ?? null,
+        /**
+         * Whether this joined an existing Printavo contact or made a new one.
+         * The API has always returned it; nothing has ever shown it. Only the
+         * counter renders it — see lib/customer-record.ts.
+         */
+        customerRecord: result.printavo
+          ? {
+              created: Boolean(result.printavo.created),
+              skipped: Boolean(result.printavo.skipped),
+              matchedExistingCustomer: Boolean(
+                result.printavo.matchedExistingCustomer
+              ),
+              createdCustomer: Boolean(result.printavo.createdCustomer),
+            }
+          : null,
       });
 
       setSubmittedProductId(selectedProductId);

@@ -16,6 +16,16 @@ export type QuoteConfirmation = {
   receivedAt: string;
   message: string;
   checkout?: StickerCheckout | null;
+  /**
+   * What happened to the customer's Printavo record. Shown at the counter
+   * only — see lib/customer-record.ts for why the website does not get it.
+   */
+  customerRecord?: {
+    created: boolean;
+    skipped?: boolean;
+    matchedExistingCustomer?: boolean;
+    createdCustomer?: boolean;
+  } | null;
 };
 
 export type SsCatalogSize = {

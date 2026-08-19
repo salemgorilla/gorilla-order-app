@@ -4,11 +4,20 @@ import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 
 import { getTrackUrl } from "../../lib/order-status";
+import {
+  describeCustomerRecord,
+  type CustomerRecordNote,
+} from "../../lib/customer-record";
 
 type Props = {
   quoteNumber: string;
   /** The address the order is filed under. Blank is possible and handled. */
   email: string;
+  /**
+   * What Printavo did with the customer's record. Null when the quote never
+   * reached Printavo, in which case there is nothing honest to report.
+   */
+  customerRecord?: Parameters<typeof describeCustomerRecord>[0] | null;
 };
 
 /**
@@ -34,7 +43,15 @@ type Props = {
  * Everything here is a READ of what they already gave us. No payment link is
  * rendered and none exists — on a kiosk order there is nothing to render.
  */
-export default function KioskPickupCard({ quoteNumber, email }: Props) {
+export default function KioskPickupCard({
+  quoteNumber,
+  email,
+  customerRecord,
+}: Props) {
+  const record: CustomerRecordNote | null = customerRecord
+    ? describeCustomerRecord(customerRecord)
+    : null;
+
   const [qrSvg, setQrSvg] = useState("");
 
   const trackUrl = getTrackUrl(quoteNumber);
@@ -116,9 +133,28 @@ export default function KioskPickupCard({ quoteNumber, email }: Props) {
 
       {/* For the member of staff, not the customer. Kept last and plainly
           marked, because the block above is the one being read aloud. */}
-      <p className="mt-6 border-t border-[var(--rule)] pt-4 text-fine font-bold text-[var(--ink-black)]">
-        STAFF: take payment in full now — no payment link was emailed.
-      </p>
+      <div className="mt-6 border-t border-[var(--rule)] pt-4">
+        <p className="text-fine font-bold text-[var(--ink-black)]">
+          STAFF: take payment in full now — no payment link was emailed.
+        </p>
+
+        {/* Only useful while the customer is still standing here. Matching is
+            email-only, so a returning customer who gave a different address
+            has just become a second record — and this is the last moment
+            anybody can ask. */}
+        {record && (
+          <p
+            className={`mt-3 border-l-2 pl-3 text-fine leading-5 ${
+              record.attention
+                ? "border-[var(--rush-red)] text-[var(--rush-red)]"
+                : "border-[var(--rule)] text-[var(--ink-muted)]"
+            }`}
+          >
+            <span className="spec font-bold">{record.label}.</span>{" "}
+            {record.detail}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 
-import { getTrackUrl } from "../../lib/order-status";
+import { canOfferTracker, getTrackUrl } from "../../lib/order-status";
 import {
   describeCustomerRecord,
   type CustomerRecordNote,
@@ -18,6 +18,17 @@ type Props = {
    * reached Printavo, in which case there is nothing honest to report.
    */
   customerRecord?: Parameters<typeof describeCustomerRecord>[0] | null;
+  /**
+   * Whether Printavo accepted the quote.
+   *
+   * /track queries Printavo and nothing else, so without this the tracker
+   * URL and its QR code lead to "no such order" — shown to a customer who is
+   * standing at the counter having just paid. Passed explicitly rather than
+   * read off customerRecord: that prop is about which contact the order was
+   * filed under, and borrowing its `created` flag for a different question is
+   * how the two come to be changed independently.
+   */
+  printavoCreated: boolean;
 };
 
 /**
@@ -47,6 +58,7 @@ export default function KioskPickupCard({
   quoteNumber,
   email,
   customerRecord,
+  printavoCreated,
 }: Props) {
   const record: CustomerRecordNote | null = customerRecord
     ? describeCustomerRecord(customerRecord)
@@ -54,9 +66,19 @@ export default function KioskPickupCard({
 
   const [qrSvg, setQrSvg] = useState("");
 
+  // Both halves are needed: Printavo has to hold the order, and they have to
+  // have given an address to answer the tracker's second question with.
+  const trackable = canOfferTracker({ quoteNumber, printavoCreated });
+  const showTracker = trackable && Boolean(email);
+
   const trackUrl = getTrackUrl(quoteNumber);
 
   useEffect(() => {
+    // Nothing to encode. Returning without touching state rather than
+    // clearing it: the render below is already gated on showTracker, and
+    // setting state synchronously in an effect cascades renders.
+    if (!showTracker) return;
+
     let cancelled = false;
 
     // SVG rather than a canvas image, matching ArtworkHandoff: it stays crisp
@@ -78,7 +100,7 @@ export default function KioskPickupCard({
     return () => {
       cancelled = true;
     };
-  }, [trackUrl]);
+  }, [trackUrl, showTracker]);
 
   return (
     <div className="mt-8 border border-[var(--ink-black)] bg-[var(--paper)] p-6 text-left sm:p-8">
@@ -94,14 +116,28 @@ export default function KioskPickupCard({
             {quoteNumber}
           </p>
 
-          <p className="mt-5 text-fine text-[var(--ink-muted)]">
-            Check progress at
-          </p>
-          <p className="spec mt-1 break-all text-sm font-bold text-[var(--ink-black)]">
-            {trackUrl}
-          </p>
+          {trackable && (
+            <>
+              <p className="mt-5 text-fine text-[var(--ink-muted)]">
+                Check progress at
+              </p>
+              <p className="spec mt-1 break-all text-sm font-bold text-[var(--ink-black)]">
+                {trackUrl}
+              </p>
+            </>
+          )}
 
-          {email ? (
+          {!trackable ? (
+            /* Printavo never took the quote. The number is real and the shop
+               will honour it from the email, but /track queries Printavo, so
+               sending them there would answer "no such order" — to somebody
+               who has just paid, while they are still at the counter. */
+            <p className="mt-4 border-l-2 border-[var(--rush-red)] pl-3 text-fine leading-5 text-[var(--rush-red)]">
+              This one did not reach Printavo, so the online tracker will not
+              find it yet. Write the order up by hand and tell them to call if
+              they need an update.
+            </p>
+          ) : email ? (
             <p className="mt-4 border-l-2 border-[var(--rule)] pl-3 text-fine leading-5 text-[var(--ink-muted)]">
               They will need this order number and{" "}
               <span className="spec font-bold text-[var(--ink-black)]">
@@ -120,7 +156,7 @@ export default function KioskPickupCard({
           )}
         </div>
 
-        {qrSvg && (
+        {showTracker && qrSvg && (
           <div
             className="w-40 shrink-0 border border-[var(--rule)] bg-white p-3 sm:w-44"
             aria-label="Scan to track this order"

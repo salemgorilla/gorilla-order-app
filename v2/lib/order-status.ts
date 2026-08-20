@@ -254,6 +254,34 @@ export const STEP_LABELS = [
 export const TRACK_URL = "labs.gorillasalem.com/track";
 
 /**
+ * Is there anything for the tracker to find?
+ *
+ * ── WHY THIS IS A QUESTION AT ALL ─────────────────────────────────────────
+ * /track asks PRINTAVO. It does not read anything this app stores, because
+ * this app stores nothing. So a tracking link is only meaningful once the
+ * quote has actually landed in Printavo — and createPrintavoQuote is
+ * best-effort by design, returning { created: false } rather than failing the
+ * submission, precisely so a customer never loses an order to an outage.
+ *
+ * The result is a real state: a genuine GS- number, a genuine order the shop
+ * will honour from its email, and nothing for /track to match. Handing that
+ * customer a link — or worse, a QR code at the counter — sends them to a page
+ * that says we have never heard of them, seconds after they paid.
+ *
+ * One predicate rather than three, because it is now asked in three places:
+ * the confirmation email, the confirmation screen, and the kiosk pickup card.
+ * They disagreed once already — the kiosk card drew its QR unconditionally.
+ * ──────────────────────────────────────────────────────────────────────────
+ */
+export function canOfferTracker(input: {
+  quoteNumber?: string;
+  /** True only when Printavo accepted the quote. */
+  printavoCreated: boolean;
+}): boolean {
+  return Boolean(input.printavoCreated && String(input.quoteNumber || "").trim());
+}
+
+/**
  * The full tracking link, with the order number prefilled when we have it.
  *
  * The email is NEVER put in this URL, and there is deliberately no parameter

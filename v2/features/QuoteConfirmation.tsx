@@ -8,6 +8,7 @@ import type { ApparelQuote } from "../lib/apparel";
 import type { ApparelPricingResult } from "../lib/apparel-pricing";
 import type { QuoteConfirmation, SsCatalogColor } from "./types";
 import { SALES_TAX, getStickerTotals } from "../lib/tax";
+import { canOfferTracker, getTrackUrl } from "../lib/order-status";
 import {
   getSignProduct,
   getSignSizeLabel,
@@ -64,6 +65,19 @@ export default function QuoteConfirmationScreen({
    * the counter behaves exactly as it always has.
    */
   const kiosk = useKiosk();
+
+  /**
+   * Only offer the tracker when there is something for it to find.
+   *
+   * /track queries Printavo, and createPrintavoQuote is best-effort — it
+   * returns { created: false } rather than failing the submission, so a real
+   * order can exist in the shop's email with nothing for /track to match.
+   * Same predicate the confirmation email and the kiosk card ask.
+   */
+  const showTracker = canOfferTracker({
+    quoteNumber: quoteConfirmation?.quoteNumber,
+    printavoCreated: Boolean(quoteConfirmation?.printavoCreated),
+  });
 
   // Absent for signs and apparel, and absent for stickers whenever Printavo
   // was unreachable — in every one of those cases the screen falls back to
@@ -148,6 +162,27 @@ export default function QuoteConfirmationScreen({
                 ? new Date(quoteConfirmation.receivedAt).toLocaleString()
                 : "just now"}
             </p>
+
+            {/* The number was on this screen from the start and the way to
+                USE it was not. Every other surface had it — the payment
+                email, our confirmation email, the kiosk card — so the one
+                place the customer is definitely looking, at the moment they
+                definitely have the number, was the only one that made them
+                go and find an email instead.
+
+                Not shown at the kiosk: KioskPickupCard says all of this
+                already, in a form built to be read across a counter. */}
+            {!kiosk.enabled && showTracker && (
+              <p className="mt-5 text-sm font-bold leading-6 text-[var(--ink-muted)]">
+                <a
+                  className="underline decoration-1 underline-offset-2 transition-colors duration-[120ms] ease-linear hover:text-[var(--gorilla-green)]"
+                  href={getTrackUrl(quoteConfirmation?.quoteNumber)}
+                >
+                  Check on this quote any time
+                </a>{" "}
+                &mdash; it asks for this number and your email address.
+              </p>
+            )}
           </div>
 
           {/* The counter customer gets no email from this system — not the
@@ -164,6 +199,7 @@ export default function QuoteConfirmationScreen({
               quoteNumber={quoteConfirmation.quoteNumber}
               email={order.customer.email}
               customerRecord={quoteConfirmation.customerRecord}
+              printavoCreated={Boolean(quoteConfirmation.printavoCreated)}
             />
           )}
 

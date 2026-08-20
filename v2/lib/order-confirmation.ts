@@ -1,5 +1,5 @@
 import { escapeEmailHtml, looksLikeEmailAddress } from "./email";
-import { getTrackUrl } from "./order-status";
+import { canOfferTracker, getTrackUrl } from "./order-status";
 
 /**
  * "We've got it" — the receipt for every order that Printavo will not email.
@@ -92,6 +92,11 @@ export function buildOrderConfirmation(input: {
   const name = String(input.customerName || "").trim();
   const greeting = name ? `Hi ${name},` : "Hi,";
 
+  const showTracker = canOfferTracker({
+    quoteNumber,
+    printavoCreated: input.printavoCreated,
+  });
+
   const subject = `We've got your request — ${quoteNumber}`;
 
   const text = [
@@ -100,10 +105,10 @@ export function buildOrderConfirmation(input: {
     "Thanks — your quote request is in. We'll be in touch shortly with your price and a proof before anything goes on a machine.",
     "",
     `Quote number: ${quoteNumber}`,
-    // Withheld when Printavo never accepted the quote: see printavoCreated.
-    ...(input.printavoCreated
-      ? [`Check on it any time: ${getTrackUrl(quoteNumber)}`]
-      : []),
+    // Withheld when Printavo never accepted the quote — canOfferTracker
+    // carries the reasoning, and the kiosk card and the confirmation screen
+    // ask the same question.
+    ...(showTracker ? [`Check on it any time: ${getTrackUrl(quoteNumber)}`] : []),
     "",
     "Keep this email — the quote number is how we both find it.",
     "",
@@ -115,7 +120,7 @@ export function buildOrderConfirmation(input: {
     `<p>${escapeEmailHtml(greeting)}</p>`,
     `<p>Thanks &mdash; your quote request is in. We&rsquo;ll be in touch shortly with your price and a proof before anything goes on a machine.</p>`,
     `<p style="margin-top:20px">Quote number: <strong>${escapeEmailHtml(quoteNumber)}</strong>`,
-    input.printavoCreated
+    showTracker
       ? `<br><a href="${escapeEmailHtml(getTrackUrl(quoteNumber))}">Check on it any time</a></p>`
       : `</p>`,
     `<p style="margin-top:20px">Keep this email &mdash; the quote number is how we both find it.</p>`,

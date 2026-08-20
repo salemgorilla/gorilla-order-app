@@ -386,6 +386,14 @@ history and re-does finished work.
 
 ## Things worth not re-learning
 
+- **The quote route can be imported and driven under `tsx --test`.** `POST`
+  from `app/api/quote/route.ts` takes a plain `Request` with a `FormData`
+  body and runs the entire pipeline in-process — no dev server, no Next
+  runtime. `tests/quote-route.test.ts` does this. With nothing configured it
+  ends at the 502 undelivered path, so everything up to delivery is
+  exercised and delivery is not. The checkout branch that creates a payment
+  link is NOT reachable this way and that file does not pretend otherwise.
+
 - **Verify by running, not by reading.** Nearly every real bug this session
   was found by executing something — building an email, measuring the DOM,
   running the pricing engine — not by reviewing code. Several scripted

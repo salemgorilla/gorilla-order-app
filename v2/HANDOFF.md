@@ -18,6 +18,16 @@ and repointing them took the main site down once already.
 
 Working and verified:
 
+- **The die-cut border is one function, not three** — 2026-08-20.
+  `getBorderPx` in `lib/die-cut.ts`. StickerShape computed it twice (to draw
+  the border, and to quote it in inches beside the slider) and rounded to
+  whole pixels; `sticker-proof` computed it a third time and did NOT round, so
+  the emailed proof drew a border that was not the width the customer had been
+  quoted. Sub-visual — a few thousandths of an inch on a 3" sticker — but
+  `lib/die-cut.ts` opens by insisting the two renderers cannot differ, and a
+  third copy of a rule is how they come to. Verified in a browser: uploaded
+  artwork, drove the slider 0→100, preview renders and quotes 0.19" at full
+  margin, which is 16px on a 256px card at 3".
 - **The sticker estimate in the shop email now adds up** — 2026-08-20. The
   breakdown listed material and shipping and stopped: on the reference cart
   the shop read `$110.30` with `$60.80` and `$12.00` beneath it and no account

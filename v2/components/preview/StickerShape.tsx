@@ -2,7 +2,7 @@
 
 import DieCutCanvas from "./DieCutCanvas";
 
-import { getStickerBodyColor, MAGENTA } from "../../lib/die-cut";
+import { getBorderPx, getStickerBodyColor, MAGENTA } from "../../lib/die-cut";
 // Re-exported so existing importers keep working; lib/sticker-geometry is the
 // single source, shared with the canvas proof the shop cuts from.
 import {
@@ -108,7 +108,9 @@ export function getStickerGeometry(input: {
 
   if (input.shape === "Die Cut") {
     // The contour hugs the art, so the meaningful figure is the border width.
-    const borderPx = Math.round((margin / 100) * 16);
+    // Shared with the drawing below and with the emailed proof — see
+    // getBorderPx in lib/die-cut.ts for why all three must be one function.
+    const borderPx = getBorderPx(margin);
     return {
       artInches: 0,
       borderInches: pxPerInch ? borderPx / pxPerInch : 0,
@@ -198,7 +200,7 @@ export default function StickerShape({
      * the slider (it is passed longestInches). Keep the two together or the
      * border drawn stops matching the border quoted.
      */
-    const borderPx = Math.round((margin / 100) * 16);
+    const borderPx = getBorderPx(margin);
 
     return (
       // max-w-full is a backstop, not the fix: it guarantees the stage can never

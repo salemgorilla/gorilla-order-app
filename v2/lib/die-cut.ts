@@ -127,3 +127,41 @@ export function hexToRgb(hex: string) {
     b: parseInt(clean.slice(4, 6), 16),
   };
 }
+
+/**
+ * The die-cut border width, in canvas pixels.
+ *
+ * ── WHY THIS IS SHARED ────────────────────────────────────────────────────
+ * Three places needed this number and each worked it out for itself:
+ *
+ *   StickerShape, to DRAW the border on screen
+ *   StickerShape again, to QUOTE the border to the customer in inches
+ *   sticker-proof, to draw the border on the proof the shop is emailed
+ *
+ * The first two rounded to whole pixels. The third did not, so the emailed
+ * proof drew a border that was not the width the customer had been quoted:
+ * at the default margin of 40 the preview and the quote say 6px of a 256px
+ * card and the proof drew 6.4, and at a margin of 10 the preview said 2 and
+ * the proof drew 1.6. Sub-visual on a 3" sticker — a few thousandths of an
+ * inch — but the whole point of this module's contour work is that the two
+ * renderers cannot differ, and a third copy of a rule is how they come to.
+ *
+ * ── WHY IT ROUNDS ─────────────────────────────────────────────────────────
+ * Because the preview does, and the preview is what the customer approved.
+ * The inch figure beside the slider is derived from the SAME rounded pixel
+ * count, so rounding here is what keeps the drawn border, the quoted border
+ * and the emailed border the same border.
+ */
+export const PREVIEW_CARD_PX = 256;
+
+/** Border at 100% margin, on a PREVIEW_CARD_PX card. */
+export const BORDER_AT_FULL_MARGIN = 16;
+
+export function getBorderPx(artMargin: number, stagePx = PREVIEW_CARD_PX) {
+  const margin = Math.min(Math.max(Number(artMargin) || 0, 0), 100);
+  const previewBorder = Math.round((margin / 100) * BORDER_AT_FULL_MARGIN);
+
+  // Scaled so a larger stage shows the same border at the same relative size.
+  // Exactly 1 on the preview itself, so the preview keeps whole pixels.
+  return previewBorder * (stagePx / PREVIEW_CARD_PX);
+}

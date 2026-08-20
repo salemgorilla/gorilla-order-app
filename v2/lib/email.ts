@@ -322,8 +322,11 @@ export function buildQuoteEmail(input: {
       line("Product", str(product.signType, "Not selected")),
       line("Quantity", String(quantity)),
       line("Size", str(product.size, "Not specified")),
-      line("Material", str(product.material)),
-      line("Finishing", str(product.finishing)),
+      // Real signs payloads always carry both. The fallbacks exist because a
+      // blank value reads as a rendering fault rather than as missing data —
+      // the same reason the customer block says "N/A" instead of nothing.
+      line("Material", str(product.material, "Not specified")),
+      line("Finishing", str(product.finishing, "Not specified")),
       line("Sides", str(product.sides, "Single-sided"))
     );
   } else if (items.length > 1) {
@@ -457,6 +460,27 @@ export function buildQuoteEmail(input: {
   } else {
     estimateLines.push(
       line("Stickers", money(pricing.stickerPrice)),
+      /**
+       * The setup fee, which this breakdown used to omit entirely.
+       *
+       * Apparel lists "Setup / Screens" and signs itemise straight from the
+       * pricing engine. Stickers — the one flow that bills with nobody in the
+       * loop — listed material and shipping and stopped, so the lines under
+       * Estimated Total did not add up to it. On the reference cart the shop
+       * read $110.30 with $60.80 and $12.00 beneath it and no account of the
+       * missing $37.50.
+       *
+       * That matters most exactly where it was missing: AGENTS.md makes
+       * reconciling a real order against the Printavo invoice the gate for
+       * any pricing change, and this email is what the shop reconciles FROM.
+       * The Printavo customer note has carried the setup figure all along, so
+       * the two records disagreed on completeness.
+       *
+       * Always shown, never hidden when zero: setup is $25 for the first
+       * design and $12.50 for each one after, so $0.00 here is not a tidy
+       * blank to suppress, it is a bug worth seeing.
+       */
+      line("Setup", money(pricing.setupPrice)),
       line(
         "Shipping",
         shippingPrice > 0 ? money(shippingPrice) : "Free (local pickup)"

@@ -395,6 +395,16 @@ history and re-does finished work.
 
 ## Things worth not re-learning
 
+- **A warning nobody reads is not a warning.** `getDesignNumbers` was
+  imported into the quote route and never called — the route rebuilt the same
+  Map by hand, so the six tests protecting the design-number rule were
+  guarding a copy while the running code went unwatched. eslint had been
+  saying so the whole time, buried in 25 warnings, 11 of which were
+  deliberate `_`-prefixed discards. The config now ignores `^_`, the dead
+  symbols are gone, and the count is 8 — all of them the deliberate `<img>`
+  ones. Keep it that way; the next real signal has to be visible.
+
+
 - **The quote route can be imported and driven under `tsx --test`.** `POST`
   from `app/api/quote/route.ts` takes a plain `Request` with a `FormData`
   body and runs the entire pipeline in-process — no dev server, no Next

@@ -1,6 +1,5 @@
 "use client";
 
-import QuantitySelector from "../../components/QuantitySelector";
 import OptionSelector from "../../components/OptionSelector";
 import { apparelCatalog, type ApparelQuote } from "../../lib/apparel";
 import type { ArtworkAnalysis } from "../../lib/artwork";
@@ -33,7 +32,6 @@ type Props = {
   /** Only populated after a failed submit; empty until then. */
   fieldErrors?: FieldErrors;
 
-  onSelectQuantity: (quantity: number) => void;
   onSelectCategory: (category: string) => void;
   onSelectProduct: (product: SsCatalogProduct) => void;
   onSelectColor: (color: SsCatalogColor) => void;
@@ -68,7 +66,6 @@ export default function ApparelBuilder({
   sizeBreakdownFromButtons,
   sizeBreakdownMatchesQuantity,
   fieldErrors,
-  onSelectQuantity,
   onSelectCategory,
   onSelectProduct,
   onSelectColor,

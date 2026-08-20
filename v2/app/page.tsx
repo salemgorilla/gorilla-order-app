@@ -2889,9 +2889,6 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   sizeBreakdownFromButtons={sizeBreakdownFromButtons}
                   sizeBreakdownMatchesQuantity={sizeBreakdownMatchesQuantity}
                   fieldErrors={fieldErrors}
-                  onSelectQuantity={(quantity) =>
-                    updateApparelQuote({ quantity })
-                  }
                   onSelectCategory={handleApparelCategorySelect}
                   onSelectProduct={handleSsProductSelect}
                   onSelectColor={handleSsColorSelect}

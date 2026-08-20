@@ -3,7 +3,6 @@ import {
   AddOnOffer,
   getAddOnOffers,
   summariseAddOns,
-  toAddOn,
 } from "../../lib/addons";
 
 type Props = {

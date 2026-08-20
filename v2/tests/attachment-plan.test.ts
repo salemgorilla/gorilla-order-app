@@ -11,6 +11,7 @@ import {
 } from "../lib/attachment-plan";
 import {
   BODY_RESERVED_FOR_FIELDS_BYTES,
+  MAX_ATTACHED_ARTWORK_BYTES,
   MAX_INLINE_ARTWORK_TOTAL_BYTES,
   PLATFORM_BODY_LIMIT_BYTES,
 } from "../lib/upload-limits";
@@ -284,6 +285,63 @@ describe("only the sticker flow sends knockouts", () => {
     );
 
     assert.deepEqual(candidates.map((c) => c.id), ["d2", "d1"]);
+  });
+});
+
+describe("knockouts obey both ceilings, exactly as the artwork does", () => {
+  /**
+   * ── READ THIS BEFORE TRUSTING THE TESTS BELOW ─────────────────────────
+   * planInlineArtwork checks a per-file ceiling AND a cumulative one.
+   * planKnockouts checked only the cumulative one, and now checks both.
+   *
+   * These tests CANNOT tell the two versions apart, and saying so is the
+   * point. MAX_ATTACHED_ARTWORK_BYTES and MAX_INLINE_ARTWORK_TOTAL_BYTES are
+   * the same number, so at bytesUsed 0 anything failing one fails the other.
+   * Deleting the per-file branch from planKnockouts leaves every test in this
+   * file green — verified by doing it.
+   *
+   * So they assert the OBSERVABLE behaviour, which is worth having, and the
+   * per-file branch exists so the function stays correct if the two budgets
+   * ever stop being equal. upload-limits.ts is explicit that their equality is
+   * a decision rather than a law.
+   *
+   * The assertion immediately below is the tripwire: if those budgets diverge,
+   * it fails, and whoever diverged them is told that the per-file branch has
+   * become observable and now deserves a test that can actually see it.
+   * ──────────────────────────────────────────────────────────────────────
+   */
+  test("the two budgets are still equal, which is why the above holds", () => {
+    assert.equal(MAX_ATTACHED_ARTWORK_BYTES, MAX_INLINE_ARTWORK_TOTAL_BYTES);
+  });
+
+  test("drops a knockout too big to travel", () => {
+    const huge: Candidate = {
+      id: "d1",
+      name: "knockout.png",
+      size: MAX_ATTACHED_ARTWORK_BYTES + 1,
+    };
+
+    const plan = planKnockouts([huge], 0);
+
+    assert.deepEqual(plan.attached, []);
+    assert.deepEqual(plan.dropped, [huge]);
+    assert.equal(plan.bytesUsed, 0);
+  });
+
+  test("keeps taking the smaller ones behind it", () => {
+    // continue, not break — the same policy planInlineArtwork documents, so
+    // one oversized knockout cannot bury the rest.
+    const huge: Candidate = {
+      id: "d1",
+      name: "big.png",
+      size: MAX_ATTACHED_ARTWORK_BYTES + 1,
+    };
+    const small: Candidate = { id: "d2", name: "small.png", size: 1000 };
+
+    const plan = planKnockouts([huge, small], 0);
+
+    assert.deepEqual(plan.attached, [small]);
+    assert.deepEqual(plan.dropped, [huge]);
   });
 });
 

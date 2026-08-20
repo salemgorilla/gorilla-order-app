@@ -20,11 +20,9 @@ function priceCopy(amount: number) {
 import {
   allowsDoubleSided,
   getBannerAddOns,
-  CUSTOM_SIZE,
   getDoubleSidedMethod,
   getFinishingOptions,
   getSignProduct,
-  getSizeOptions,
   signsCatalog,
   type SignsQuote,
 } from "../../lib/signs";
@@ -51,10 +49,8 @@ export default function SignsBuilder({
   onSelectDeliveryMethod,
 }: Props) {
   const product = getSignProduct(signsQuote.productId);
-  const isCustomSize = signsQuote.size === CUSTOM_SIZE;
   // Yard signs price from a per-unit table keyed on size, so they are frozen.
   const isYardSign = product.pricingMethod === "yard";
-  const sizeOptions = getSizeOptions(product);
 
   return (
     <>

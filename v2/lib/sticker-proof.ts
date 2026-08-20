@@ -1,4 +1,9 @@
-import { getStickerBodyColor, MAGENTA, STICKER_EDGE } from "./die-cut";
+import {
+  getBorderPx,
+  getStickerBodyColor,
+  MAGENTA,
+  STICKER_EDGE,
+} from "./die-cut";
 import { composeDieCut } from "./die-cut-canvas";
 import {
   getArtDrawSize,
@@ -40,19 +45,6 @@ const PAPER = "#f4f1ea";
 const INK = "#111111";
 const MUTED = "#8a8578";
 const RULE = "#d8d2c4";
-
-/**
- * The border, in canvas pixels.
- *
- * The preview computes this as a fraction of a 256px card. The proof stage is
- * larger, so the same artMargin has to scale with it or the emailed proof
- * would show a visibly thinner edge than the one the customer approved.
- */
-function borderPxForStage(artMargin: number, stagePx: number) {
-  const PREVIEW_CARD_PX = 256;
-  const previewBorder = (Math.min(Math.max(artMargin, 0), 100) / 100) * 16;
-  return previewBorder * (stagePx / PREVIEW_CARD_PX);
-}
 
 function loadImage(src: string) {
   return new Promise<HTMLImageElement | null>((resolve) => {
@@ -149,7 +141,7 @@ export async function renderStickerProof(
      * slider. The border drawn here and the border quoted there have to be
      * the same measurement.
      */
-    const borderPx = borderPxForStage(spec.artMargin, Math.max(cardW, cardH));
+    const borderPx = getBorderPx(spec.artMargin, Math.max(cardW, cardH));
 
     if (isDieCut) {
       // Art on a transparent layer, padded so the contour has room to grow.

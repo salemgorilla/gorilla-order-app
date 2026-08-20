@@ -410,6 +410,15 @@ history and re-does finished work.
 
 ## Things worth not re-learning
 
+- **Render the shop email and LOOK at it.** `buildQuoteEmail` returns `text`
+  and `html`; only the text had ever been read. The first version of the
+  price-check row read perfectly as text and was unusable as HTML on a phone —
+  the label cell is `white-space: nowrap`, so the longest label sets the
+  column width for its whole section and a 27-character label left the value
+  about sixty pixels to wrap in. Write the html to a file, open it in
+  Chromium at 390px, and look. That is how the shop reads it.
+
+
 - **A warning nobody reads is not a warning.** `getDesignNumbers` was
   imported into the quote route and never called — the route rebuilt the same
   Map by hand, so the six tests protecting the design-number rule were

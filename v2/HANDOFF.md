@@ -18,6 +18,14 @@ and repointing them took the main site down once already.
 
 Working and verified:
 
+- **The sticker estimate in the shop email now adds up** — 2026-08-20. The
+  breakdown listed material and shipping and stopped: on the reference cart
+  the shop read `$110.30` with `$60.80` and `$12.00` beneath it and no account
+  of the missing `$37.50` setup. Apparel had a "Setup / Screens" line and
+  signs itemise from the engine; stickers — the flow that bills unattended —
+  did not. Found by rendering the whole email and reading it, which nothing
+  had done. Four tests now assert the lines sum to the total, one of them
+  against figures `repriceStickers` actually produced.
 - **A price disagreement now reaches the shop email** — 2026-08-20.
   `repriceStickers` has always refused the browser's total and charged its
   own. The disagreement went to one `console.error` and nowhere else. It is

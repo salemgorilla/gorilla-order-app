@@ -22,6 +22,7 @@
 // Type-only import — erased at build time, so the email path stays free of
 // the add-on catalogue and the pricing engines behind it.
 import type { AddOn } from "../types/order";
+import type { RepricingNote } from "./repricing-note";
 
 // Re-exported so the many existing callers here keep working; the rule itself
 // lives alone so the form can use it without importing this file.
@@ -212,6 +213,12 @@ export function buildQuoteEmail(input: {
   kiosk?: { mode: "self" | "staff"; staffName: string } | null;
   /** True when the browser had proofs it could not fit in the request body. */
   proofsDropped?: boolean;
+  /**
+   * Set only when the server's price disagreed with the browser's. Rendered
+   * beside the total, because that is the number being questioned — see
+   * lib/repricing-note.ts for why a console.error was not enough.
+   */
+  repricing?: RepricingNote | null;
 }) {
   const { quoteNumber, receivedAt, order, artworkAnalysis, attachmentInfo } =
     input;
@@ -404,6 +411,11 @@ export function buildQuoteEmail(input: {
         signsDelivery,
       ]
     : [line("Estimated Total", money(total)), line("Estimated Each", money(each))];
+
+  // Immediately after the total, because the total is the thing in question.
+  if (input.repricing) {
+    estimateLines.push(line(input.repricing.label, input.repricing.detail));
+  }
 
   if (signs) {
     // Itemised breakdown straight from the pricing engine. $0 lines are kept
@@ -844,6 +856,8 @@ export async function sendQuoteEmail(input: {
   knockouts?: { designId: string; filename: string }[];
   kiosk?: { mode: "self" | "staff"; staffName: string } | null;
   proofsDropped?: boolean;
+  /** Forwarded to buildQuoteEmail; null whenever the two prices agreed. */
+  repricing?: RepricingNote | null;
 }): Promise<QuoteEmailResult> {
   const provider = getEmailProvider();
 

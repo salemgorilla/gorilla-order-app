@@ -18,6 +18,13 @@ and repointing them took the main site down once already.
 
 Working and verified:
 
+- **A price disagreement now reaches the shop email** — 2026-08-20.
+  `repriceStickers` has always refused the browser's total and charged its
+  own. The disagreement went to one `console.error` and nowhere else. It is
+  now a line beside Estimated Total in the quote email, with the DIRECTION
+  called out: server higher than browser means the submission asked to pay
+  less than the job is worth, which is the direction that costs money. Silent
+  when the two agreed — a line on every order is a line nobody reads.
 - **One rule decides whether the tracker is offered** — 2026-08-19.
   `canOfferTracker` in `lib/order-status.ts`. /track queries Printavo and
   nothing else, and `createPrintavoQuote` is best-effort, so a real GS- number

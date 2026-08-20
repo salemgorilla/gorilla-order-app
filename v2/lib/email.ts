@@ -303,7 +303,7 @@ export function buildQuoteEmail(input: {
           ? (product.printLocations as string[]).join(", ")
           : str(product.printLocations)
       ),
-      line("Ink Colors", str(product.inkColors)),
+      line("Ink Colors", str(product.inkColors, "Not selected")),
       line("Size Breakdown", str(product.sizeBreakdown, "Not entered")),
       ...(product.specialOrder
         ? [
@@ -390,12 +390,25 @@ export function buildQuoteEmail(input: {
   const shippingPrice = Number(pricing.shippingPrice) || 0;
   // Signs are quoted by hand, so never show a $0.00 "estimate" that the shop
   // (or the customer) could mistake for a real price.
-  const signsDelivery = line(
-    "Delivery",
+  /**
+   * What the ESTIMATE block needs to say about delivery, which is only ever
+   * whether this total leaves something out.
+   *
+   * It used to be a "Delivery" row repeating the method — and TIMELINE has a
+   * "Delivery" row too, so on every signs PICKUP quote the shop read the
+   * identical sentence twice in one email. On a Ship quote the two at least
+   * said different things, but the estimate's job was still the exclusion,
+   * not the method.
+   *
+   * So: named for what it is, and present only when something is actually
+   * excluded. calculateSignsPricing returns productTotal + setupFee and never
+   * adds shipping, which is why "quoted separately" is the honest wording
+   * here and on the builder's delivery card.
+   */
+  const signsShipping =
     str(production.deliveryMethod) === "Ship"
-      ? "Ship (quote shipping)"
-      : "Local pickup in Salem"
-  );
+      ? [line("Shipping", "Quoted separately")]
+      : [];
 
   const estimateLines: string[] = primaryNeedsHandQuote && !signs
     ? [
@@ -403,7 +416,7 @@ export function buildQuoteEmail(input: {
         line("Why", str(pricing.note, "Special order — outside the online menu.")),
       ]
     : signs && Boolean(pricing.quoteRequired)
-    ? [line("Estimated Total", "Quoted by hand — needs pricing"), signsDelivery]
+    ? [line("Estimated Total", "Quoted by hand — needs pricing"), ...signsShipping]
     : signs
     ? // Signs have been live-priced since v3.10.0. This branch used to send
       // "needs pricing" unconditionally, so the shop lost the computed total
@@ -411,7 +424,7 @@ export function buildQuoteEmail(input: {
       [
         line("Estimated Total", money(total)),
         line("Estimated Each", money(pricing.unitPrice ?? each)),
-        signsDelivery,
+        ...signsShipping,
       ]
     : [line("Estimated Total", money(total)), line("Estimated Each", money(each))];
 

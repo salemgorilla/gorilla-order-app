@@ -62,7 +62,7 @@ describe("the direction is the point", () => {
 
     assert.ok(note);
     assert.equal(note.underpriced, true);
-    assert.match(note.label, /LOW/);
+    assert.match(note.detail, /LOWER/);
     assert.match(note.detail, /\$2\.00/);
     assert.match(note.detail, /\$110\.30/);
   });
@@ -77,7 +77,7 @@ describe("the direction is the point", () => {
 
     assert.ok(note);
     assert.equal(note.underpriced, false);
-    assert.match(note.label, /high/);
+    assert.match(note.detail, /higher/);
     assert.match(note.detail, /\$999\.00/);
   });
 
@@ -91,7 +91,7 @@ describe("the direction is the point", () => {
       const note = describeRepricing({ mismatch: true, clientTotal, serverTotal });
 
       assert.ok(note);
-      assert.match(note.detail, /Printavo was given/);
+      assert.match(note.detail, /Printavo has/);
       assert.match(note.detail, /\$110\.30/);
     }
   });
@@ -106,6 +106,45 @@ describe("the direction is the point", () => {
     assert.ok(note);
     assert.match(note.detail, /\$77\.24/);
     assert.doesNotMatch(note.detail, /77\.240000/);
+  });
+});
+
+describe("the label stays short enough for a phone", () => {
+  /**
+   * The shop email renders each row as a two-column table whose LABEL cell is
+   * `white-space: nowrap`, so the longest label in a section sets that
+   * column's width for every row in it. The first version of this label was
+   * "PRICE CHECK — submitted LOW", which on a 390px screen left the value
+   * about sixty pixels to wrap in: the warning came out roughly one syllable
+   * per line and was taller than the rest of the email.
+   *
+   * The plain-text version read perfectly the whole time. Only rendering the
+   * HTML in a browser showed it.
+   */
+  it("is never the widest label in the estimate block", () => {
+    const note = describeRepricing({
+      mismatch: true,
+      clientTotal: 2,
+      serverTotal: 110.3,
+    });
+
+    assert.ok(note);
+
+    // "Estimated Total" already sets the column width for this section, so
+    // anything at or under it costs the value column nothing.
+    assert.ok(
+      note.label.length <= "Estimated Total".length,
+      `"${note.label}" is wider than "Estimated Total" and would squeeze the value column`
+    );
+  });
+
+  it("says the same thing in both directions, so the column cannot jump", () => {
+    const low = describeRepricing({ mismatch: true, clientTotal: 2, serverTotal: 110.3 });
+    const high = describeRepricing({ mismatch: true, clientTotal: 999, serverTotal: 110.3 });
+
+    assert.ok(low);
+    assert.ok(high);
+    assert.equal(low.label, high.label);
   });
 });
 
@@ -141,14 +180,14 @@ describe("it reaches the shop email", () => {
 
     const email = emailFor(note);
 
-    assert.match(email.text, /PRICE CHECK/);
+    assert.match(email.text, /Price check/);
     assert.match(email.text, /\$2\.00/);
   });
 
   it("leaves the body untouched when the prices agreed", () => {
     const email = emailFor(null);
 
-    assert.doesNotMatch(email.text, /PRICE CHECK/);
+    assert.doesNotMatch(email.text, /Price check/);
   });
 
   it("still shows the total the shop will invoice, either way", () => {

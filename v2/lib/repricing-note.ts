@@ -31,6 +31,19 @@
  * ──────────────────────────────────────────────────────────────────────────
  */
 
+/**
+ * Short on purpose, and the direction lives in the detail rather than here.
+ *
+ * The shop email renders every row as a two-column table whose LABEL cell is
+ * `white-space: nowrap`. A long label therefore sets the column width for the
+ * whole section, and on a phone it left the value about sixty pixels to wrap
+ * in — the warning came out one syllable per line, taller than the rest of the
+ * email, and unreadable. Found by rendering the HTML in a browser at 390px,
+ * which is how the shop reads it. The plain-text version looked fine
+ * throughout, which is exactly why nothing caught it.
+ */
+const LABEL = "Price check";
+
 export type RepricingNote = {
   label: string;
   detail: string;
@@ -61,22 +74,20 @@ export function describeRepricing(input: {
 
   if (server > client) {
     return {
-      label: "PRICE CHECK — submitted LOW",
-      detail: `The browser submitted ${money(client)}; this was priced at ${money(
-        server
-      )} and ${money(server)} is what Printavo was given. Usually a page left ` +
-        `open through a price change. It is also what editing the total before ` +
-        `submitting looks like, so check the invoice before it goes out.`,
+      label: LABEL,
+      detail:
+        `Submitted ${money(client)}, LOWER than the ${money(server)} charged. ` +
+        `Printavo has ${money(server)}. Usually a stale page, sometimes an ` +
+        `edited total — check the invoice.`,
       underpriced: true,
     };
   }
 
   return {
-    label: "PRICE CHECK — submitted high",
-    detail: `The browser showed ${money(client)}; this was priced at ${money(
-      server
-    )} and ${money(server)} is what Printavo was given. The customer may have ` +
-      `seen the higher figure, so expect a question about it.`,
+    label: LABEL,
+    detail:
+      `Showed ${money(client)}, higher than the ${money(server)} charged. ` +
+      `Printavo has ${money(server)}. The customer may query it.`,
     underpriced: false,
   };
 }

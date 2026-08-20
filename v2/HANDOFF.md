@@ -18,6 +18,15 @@ and repointing them took the main site down once already.
 
 Working and verified:
 
+- **One rule decides whether the tracker is offered** — 2026-08-19.
+  `canOfferTracker` in `lib/order-status.ts`. /track queries Printavo and
+  nothing else, and `createPrintavoQuote` is best-effort, so a real GS- number
+  can exist with nothing for the tracker to match. Three surfaces ask now and
+  they had disagreed: the kiosk card drew its QR unconditionally, so a counter
+  customer whose quote missed Printavo would scan it seconds after paying and
+  be told no such order exists. The website confirmation screen also gained
+  the tracker link it never had — the number was on that screen from the
+  start and the way to use it was only ever in an email.
 - **`/api/email-test` is admin-guarded** — 2026-08-19. It was a public GET
   that SENDS MAIL to the shop, built by `sendQuoteEmail`, so every hit looked
   like a real submission in the inbox. A GET needs no attacker: a crawler, a

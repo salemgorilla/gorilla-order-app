@@ -26,6 +26,12 @@ export type QuoteConfirmation = {
     matchedExistingCustomer?: boolean;
     createdCustomer?: boolean;
   } | null;
+  /**
+   * Whether Printavo accepted the quote. Decides whether a tracking link is
+   * offered at all — /track queries Printavo, so without this the link
+   * answers "no such order". See canOfferTracker in lib/order-status.
+   */
+  printavoCreated?: boolean;
 };
 
 export type SsCatalogSize = {

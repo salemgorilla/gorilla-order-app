@@ -2103,6 +2103,7 @@ export default function Home() {
               createdCustomer: Boolean(result.printavo.createdCustomer),
             }
           : null,
+        printavoCreated: Boolean(result.printavo?.created),
       });
 
       setSubmittedProductId(selectedProductId);

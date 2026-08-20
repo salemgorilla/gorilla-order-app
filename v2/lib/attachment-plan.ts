@@ -137,7 +137,21 @@ export function planKnockouts(
   let used = bytesUsed;
 
   for (const candidate of candidates) {
-    if (used + candidate.size > MAX_INLINE_ARTWORK_TOTAL_BYTES) {
+    // Both ceilings, exactly as planInlineArtwork applies them. This checked
+    // only the cumulative one.
+    //
+    // Nothing observable changes: the per-file and per-request budgets are the
+    // same 3.5 MB, so at bytesUsed 0 anything failing one fails the other, and
+    // no test in the suite can tell the two versions apart — confirmed by
+    // deleting this line and watching everything stay green. It is here so the
+    // function is correct independently of that coincidence, because
+    // upload-limits.ts says the equality is a decision rather than a law, and
+    // "correct in one sibling, missing in the other" is this repo's most
+    // expensive shape of bug.
+    const tooBigAlone = isArtworkTooLargeToAttach(candidate);
+    const tooBigTogether = used + candidate.size > MAX_INLINE_ARTWORK_TOTAL_BYTES;
+
+    if (tooBigAlone || tooBigTogether) {
       dropped.push(candidate);
       continue;
     }

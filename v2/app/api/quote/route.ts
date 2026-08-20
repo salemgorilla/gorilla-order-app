@@ -528,9 +528,16 @@ export async function POST(request: Request) {
      * 3's art at design 2. Exactly the misalignment CART-PLAN calls out, just
      * moved from the payload into the labels. Number by cart position, which
      * is what the customer and the email both count from.
+     *
+     * Calls getDesignNumbers rather than rebuilding it. It was imported here
+     * and never used — the rule was extracted so it could be tested, six
+     * tests were written against it, and this line went on computing its own
+     * copy. The two agreed, so nothing was wrong; the safety net was simply
+     * attached to nothing, which is the failure the extraction was meant to
+     * prevent.
      */
-    const designNumber = new Map(
-      orderedItems.map((item, index) => [String(item.id), index + 1])
+    const designNumber = getDesignNumbers(
+      orderedItems.map((item) => String(item.id))
     );
 
     for (const [index, part] of partOrder.entries()) {

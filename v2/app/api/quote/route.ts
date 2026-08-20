@@ -15,6 +15,7 @@ import {
 } from "../../../lib/email";
 import { getDesignNumbers } from "../../../lib/attachment-plan";
 import { buildOrderConfirmation } from "../../../lib/order-confirmation";
+import { describeRepricing } from "../../../lib/repricing-note";
 import { getEmailError } from "../../../lib/validation";
 import { subscribeToNewsletter } from "../../../lib/newsletter";
 import { describeKioskSource, readKioskSession } from "../../../lib/kiosk";
@@ -436,6 +437,17 @@ export async function POST(request: Request) {
     // number is kept only to log a disagreement.
     const priced = repriceStickers(order);
 
+    /**
+     * The disagreement itself, kept rather than only logged.
+     *
+     * The console line below stays — it is what a deployment-wide problem
+     * shows up as. But a console.error in a serverless function log is
+     * something nobody watches, and this is the one signal that a submitted
+     * price did not match the priced one. The shop reads the quote email for
+     * every order, so it goes there too. See lib/repricing-note.ts.
+     */
+    const repricing = describeRepricing(priced);
+
     if (priced.mismatch) {
       console.error(
         `PRICE MISMATCH on ${quoteNumber}: browser said $${priced.clientTotal}, server computed $${priced.serverTotal}. Charging the server figure.`
@@ -730,6 +742,8 @@ export async function POST(request: Request) {
       receivedAt,
       order: pricedOrder,
       artworkAnalysis,
+      // Null on the overwhelming majority of orders, where the two agreed.
+      repricing,
       // Every design's file plus our proof of each cut, so the shop can
       // compare what was sent against what was approved — design by design.
       attachments: [

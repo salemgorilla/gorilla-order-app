@@ -137,7 +137,13 @@ body {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: var(--tracking-eyebrow);
-  color: var(--rush-red);
+  /* Muted, not --rush-red. The token is documented as "Rush, late, error.
+     Never decorative", and it was carrying three unrelated jobs: every
+     section eyebrow, every product availability line, and the rush surcharge
+     treatment it exists for. An eyebrow sits above a 44px headline; it does
+     not need to shout, and an alarm ink that appears on every section is not
+     an alarm any more. */
+  color: var(--ink-muted);
 }
 
 /* Backstop against horizontal scroll. `clip`, NEVER `hidden`: overflow

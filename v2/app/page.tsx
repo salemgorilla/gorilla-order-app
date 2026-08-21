@@ -2664,7 +2664,10 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             them and the step they are on. */}
         {currentStepId === "product" && (
         <div className="mb-10">
-          <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--rush-red)]">
+          {/* Same rule as .eyebrow above it in the cascade: this is a hand-
+              rolled eyebrow and was the one bit of alarm ink on an otherwise
+              monochrome hero. A location is not a warning. */}
+          <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--ink-muted)]">
             Printed Locally in Salem, MA
           </p>
 
@@ -2765,11 +2768,21 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     // customer had not tried to submit yet.
                     setShowFieldErrors(false);
                   }}
+                  aria-pressed={isSelected}
                   className={`border p-5 text-left transition ${
                     isSelected
-                      ? "border-[var(--gorilla-green)] bg-[var(--surface-ok)]"
+                      ? // cursor-pointer was on the UNSELECTED variant only, so
+                        // choosing a product made its card read as disabled.
+                        "cursor-pointer border-[var(--gorilla-green)] bg-[var(--surface-ok)]"
                       : isActive
-                      ? "cursor-pointer border-[var(--rule)] bg-white hover:-translate-y-0.5"
+                      ? // Was hover:-translate-y-0.5 — a lift toward the
+                        // viewer, which is soft elevation, in a system that
+                        // committed to letterpress (radius 0, --offset 3px,
+                        // hairlines, no shadows) and presses every other
+                        // control DOWN and away. The border stepping to ink is
+                        // the house move, and unlike a 1px→2px border it
+                        // cannot shift the layout.
+                        "cursor-pointer border-[var(--rule)] bg-white hover:border-[var(--ink-black)]"
                       : "cursor-not-allowed border-[var(--rule)] bg-[var(--shirt-blank)] opacity-70"
                   }`}
                 >
@@ -2777,6 +2790,17 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     <p className="text-lg font-bold text-[var(--ink-black)]">
                       {product.title}
                     </p>
+
+                    {/* Selection was carried by border and fill colour and
+                        nothing else, which fails SC 1.4.1 and leaves a
+                        greyscale or colour-blind reader with three cards that
+                        look alike. aria-pressed above says it to assistive
+                        tech; this says it on the screen. */}
+                    {isSelected && (
+                      <span className="spec shrink-0 bg-[var(--gorilla-green)] px-2 py-1 text-spec font-bold text-white">
+                        SELECTED
+                      </span>
+                    )}
 
                     {product.badge && (
                       <span
@@ -2795,12 +2819,17 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     {product.description}
                   </p>
 
-                  <p className="mt-4 text-xs font-bold uppercase tracking-[0.16em] text-[var(--rush-red)]">
-                    {product.status === "active"
-                      ? "Available now"
-                      : product.status === "request"
-                      ? "Quoted by hand"
-                      : "Coming soon"}
+                  {/* What happens after submit, not how finished the flow is.
+                      Stickers and signs are both `active`, so both cards read
+                      "Available now" — and only one of them takes payment.
+
+                      Muted ink, not --gorilla-green: green means SELECTED in
+                      this UI, and the card directly above now uses it for
+                      exactly that. The words carry the difference. */}
+                  <p className="mt-4 text-xs font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+                    {product.status === "coming-soon"
+                      ? "Coming soon"
+                      : product.fulfilment}
                   </p>
                 </button>
               );

@@ -33,7 +33,16 @@
 
   /* ---- Derived neutrals (deliberately few) ---- */
   --paper: #ffffff;          /* panel fill above the ground                     */
-  --rule: #d8d2c4;           /* 1px hairline frame                              */
+  /* Container edges. Was #d8d2c4, which measured 1.51:1 on --paper and
+     1.34:1 on --shirt-blank — WCAG 2.1 SC 1.4.11 wants 3:1 for a non-text
+     boundary, and this token draws every card, every step tile and every
+     section in the app. The whole structural language sat under the
+     threshold at which a border reads as a border. */
+  --rule: #8e8674;           /* 3.61:1 on --paper, 3.20:1 on --shirt-blank      */
+  /* The old value, kept for separators INSIDE a container, where the edge is
+     already established and a hairline only has to group. Decorative use
+     only — never a container edge. */
+  --rule-faint: #d8d2c4;     /* within-container hairline                       */
   --ink-muted: #5f594e;      /* secondary text — 4.5:1 on SHIRT BLANK           */
   --ink-warn: #6b4e0f;       /* caution text on SURFACE WARN — 4.5:1            */
 
@@ -64,6 +73,7 @@
   --color-blank: var(--shirt-blank);
   --color-paper: var(--paper);
   --color-rule: var(--rule);
+  --color-rule-faint: var(--rule-faint);
   --color-green: var(--gorilla-green);
   --color-green-dark: var(--gorilla-green-dark);
   --color-green-bright: var(--green-bright);

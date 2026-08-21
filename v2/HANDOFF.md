@@ -18,6 +18,17 @@ and repointing them took the main site down once already.
 
 Working and verified:
 
+- **Step 1 accessibility pass (PR 1 of the step-01 brief)** — 2026-08-20.
+  `--rule` was 1.51:1 on paper — the token that draws every card, tile and
+  section sat below the 3:1 WCAG floor for a boundary. Split into `--rule`
+  (`#8e8674`, container edges) and `--rule-faint` (the old value, separators
+  inside a container). Also: one `<h1>` instead of two, the current step tile
+  no longer announces itself as "done", the disabled CTA reads as dormant
+  rather than absent, and the hero claim pills are bordered and muted instead
+  of borderless green. `tests/token-contrast.test.ts` now measures the tokens
+  from `globals.css` so a colour cannot be nudged back under the floor.
+  **Item 1.4 of that brief was NOT applied** — see the note in the PR: the
+  step bar is deliberately not a gate.
 - **The die-cut border is one function, not three** — 2026-08-20.
   `getBorderPx` in `lib/die-cut.ts`. StickerShape computed it twice (to draw
   the border, and to quote it in inches beside the slider) and rounded to

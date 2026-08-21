@@ -28,7 +28,8 @@ into a component — add a token instead.
 | `--ink-warn` | `#6b4e0f` | Caution text on `--surface-warn` |
 | `--shirt-blank` | `#f4f1ea` | Page ground, panel tint |
 | `--paper` | `#ffffff` | Panel fill above the ground |
-| `--rule` | `#d8d2c4` | 1px hairline frame |
+| `--rule` | `#8e8674` | 1px hairline frame — **container edges**. 3.61:1 on paper, 3.20:1 on blank. Was `#d8d2c4` (1.51:1), below the 3:1 WCAG floor for a UI boundary. Held by `tests/token-contrast.test.ts`. |
+| `--rule-faint` | `#d8d2c4` | Hairline **inside** an already-bordered container. Exempt from 3:1 on purpose — the container edge carries the structure. Never a container edge. |
 | `--gorilla-green` | `#2e7d32` | Brand. Never replace. |
 | `--gorilla-green-dark` | `#1b5e20` | Hover/pressed step |
 | `--green-bright` | `#5dbb63` | Ink-on-black surfaces only |

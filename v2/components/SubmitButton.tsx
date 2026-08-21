@@ -35,7 +35,12 @@ export default function SubmitButton({
         "text-lede font-bold text-white",
         "transition-colors duration-[120ms] ease-linear",
         inactive
-          ? "cursor-not-allowed opacity-40"
+          ? // 60 rather than 40. WCAG exempts inactive controls so 40 was not
+            // a violation, but at 40% the label sits near 2.6:1 and the button
+            // reads as decoration rather than as one that will become
+            // available. It is the primary CTA; it should look dormant, not
+            // absent.
+            "cursor-not-allowed opacity-60"
           : // Ink inversion, same as every other affordance in the app.
             "cursor-pointer hover:bg-[var(--paper)] hover:text-[var(--rush-red)] active:translate-x-[2px] active:translate-y-[2px]",
       ].join(" ")}

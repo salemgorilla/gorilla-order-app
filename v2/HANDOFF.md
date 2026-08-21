@@ -18,6 +18,16 @@ and repointing them took the main site down once already.
 
 Working and verified:
 
+- **One sticker total, called by both sides** — 2026-08-20.
+  `quoteStickerCart` in `lib/pricing.ts`. The primitives were always shared;
+  the ARITHMETIC that adds them up was written twice — `recalculateOrder` in
+  the browser and `repriceStickers` on the server — so the figure a customer
+  is shown and the figure they are charged were two separate compositions.
+  Pure refactor: all 203 price-sheet rows unchanged, and a browser run of
+  100 x 3"x3" pickup shows $57.16 against the server's $53.80 + MA tax =
+  $57.16. This is the prerequisite the step-01 brief calls non-negotiable for
+  its price anchor; the anchor itself still needs a reference SKU and a
+  Printavo reconciliation. **A reconciliation is still owed** — see the PR.
 - **Product cards say what happens after submit (PR 2 of the brief)** —
   2026-08-20. Stickers and signs were both `active`, so both cards read
   "Available now" while only one of them takes payment. Each product now

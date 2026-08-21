@@ -23,7 +23,7 @@
  */
 
 /** Colour distance below which a pixel counts as background outright. */
-const HARD_TOLERANCE = 42;
+export const HARD_TOLERANCE = 42;
 
 /**
  * How many pixels in from the cut we treat as the blended edge.
@@ -45,7 +45,7 @@ const MIN_SEPARATION = 24;
  * How much of the border must match the background colour before we will
  * touch the file. Below this the background is not flat and we decline.
  */
-const MIN_BORDER_UNIFORMITY = 0.82;
+export const MIN_BORDER_UNIFORMITY = 0.82;
 
 /**
  * Longest edge we process. Bounds memory on a phone photo, and the result is
@@ -142,7 +142,25 @@ function loadImage(url: string) {
  * The border is the only place we can look. A design's own dominant colour is
  * irrelevant; what matters is what surrounds it.
  */
-function readBorder(data: Uint8ClampedArray, width: number, height: number) {
+/**
+ * What colour the background is, and how much of the border agrees.
+ *
+ * ── THIS IS THE GATE ──────────────────────────────────────────────────────
+ * `uniformity` is the number removeBackground refuses on. Below
+ * MIN_BORDER_UNIFORMITY the border is not one flat colour — a photo, a
+ * gradient, a design printed edge to edge — and the file is declined rather
+ * than processed, because the alternative is handing somebody back their
+ * artwork with a bite taken out of it.
+ *
+ * The two errors are not symmetric. Too strict costs a customer a
+ * convenience they can work around by uploading a PNG. Too permissive
+ * destroys the file they were about to have printed. So the threshold is the
+ * one number in this module worth testing directly.
+ *
+ * Exported for that reason, and for no other — nothing outside this file
+ * calls it in production.
+ */
+export function readBorder(data: Uint8ClampedArray, width: number, height: number) {
   const counts = new Map<string, { count: number; r: number; g: number; b: number }>();
   const samples: [number, number, number][] = [];
 

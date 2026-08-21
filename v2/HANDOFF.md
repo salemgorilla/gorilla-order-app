@@ -18,6 +18,13 @@ and repointing them took the main site down once already.
 
 Working and verified:
 
+- **The background-removal gate is testable now** — 2026-08-20. `readBorder`
+  decides whether we touch a customer's artwork at all — below
+  `MIN_BORDER_UNIFORMITY` the file is a photo or a gradient and is refused
+  rather than flood-filled. It was private and untested, and the two errors
+  are not symmetric: too strict costs a convenience, too permissive destroys
+  the file somebody was about to print. Exported and covered by 11 tests
+  built from real pixel buffers — no canvas needed.
 - **One sticker total, called by both sides** — 2026-08-20.
   `quoteStickerCart` in `lib/pricing.ts`. The primitives were always shared;
   the ARITHMETIC that adds them up was written twice — `recalculateOrder` in
@@ -452,6 +459,13 @@ history and re-does finished work.
   undercuts the app.
 
 ## Things worth not re-learning
+
+- **`HARD_TOLERANCE` in background removal is a EUCLIDEAN RGB distance, not a
+  per-channel delta.** 42 means one channel may be off by 42, or all three by
+  about 24 (42 / sqrt(3)). Reasoning about it per-channel is wrong by a factor
+  of sqrt(3), and it caught me writing a test. `tests/background-border.test.ts`
+  pins both readings.
+
 
 - **Render the shop email and LOOK at it.** `buildQuoteEmail` returns `text`
   and `html`; only the text had ever been read. The first version of the

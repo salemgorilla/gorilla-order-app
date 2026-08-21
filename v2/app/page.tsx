@@ -2677,16 +2677,26 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             quote request before sending it to Gorilla Salem.
           </p>
 
+          {/* Bordered, and in muted ink rather than green.
+              These were the only unbordered boxes in a system where every
+              other container has an edge, and they were set in
+              --gorilla-green, which everywhere else in this UI means SELECTED
+              or CONFIRMED. They are marketing claims, not states, and a
+              customer learning the colour vocabulary from this screen was
+              being taught it wrong before they reached a single control. */}
           <div className="mt-6 flex flex-wrap gap-3">
-            <span className=" bg-white px-4 py-2 text-sm font-bold text-[var(--gorilla-green)]">
-              Hand-printed locally
-            </span>
-            <span className=" bg-white px-4 py-2 text-sm font-bold text-[var(--gorilla-green)]">
-              Salem, Massachusetts
-            </span>
-            <span className=" bg-white px-4 py-2 text-sm font-bold text-[var(--gorilla-green)]">
-              Real proof review before production
-            </span>
+            {[
+              "Hand-printed locally",
+              "Salem, Massachusetts",
+              "Real proof review before production",
+            ].map((claim) => (
+              <span
+                key={claim}
+                className="border border-[var(--rule)] bg-white px-4 py-2 text-sm font-semibold text-[var(--ink-muted)]"
+              >
+                {claim}
+              </span>
+            ))}
           </div>
         </div>
         )}
@@ -2755,7 +2765,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     // customer had not tried to submit yet.
                     setShowFieldErrors(false);
                   }}
-                  className={` border p-5 text-left transition ${
+                  className={`border p-5 text-left transition ${
                     isSelected
                       ? "border-[var(--gorilla-green)] bg-[var(--surface-ok)]"
                       : isActive
@@ -2770,7 +2780,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
                     {product.badge && (
                       <span
-                        className={` px-3 py-1 text-xs font-bold ${
+                        className={`px-3 py-1 text-xs font-bold ${
                           isSelected
                             ? "bg-[var(--gorilla-green)] text-white"
                             : "bg-[var(--shirt-blank)] text-[var(--ink-muted)]"

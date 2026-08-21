@@ -105,21 +105,34 @@ export default function StepNav({
           const isCurrent = step.id === currentStepId;
           const state = getState(step.id, step.terminal);
 
+          /**
+           * A step cannot be where you ARE and also finished.
+           *
+           * getState marks any visited, error-free step "done" — including
+           * the one you are standing on — so the current tile rendered a
+           * check AND carried aria-current, and a screen reader announced
+           * "current step … done". Verified in a browser: the tile read
+           * "01 ✓ Product , done" while it was the current step.
+           *
+           * A problem still outranks both. A step you are on with a failing
+           * field has to say so; that is the whole point of the mark.
+           */
+          const showDone = state === "done" && !isCurrent;
+
           // Reserved slot, always rendered, so a step changing state does not
           // reflow the label under it.
-          const glyph =
-            state === "done" ? "✓" : state === "problem" ? "!" : "";
+          const glyph = state === "problem" ? "!" : showDone ? "✓" : "";
 
           // Said plainly, the way the shop says it. "Needs attention" is the
           // canned support phrasing the brand voice rules out, and it is also
           // vaguer than the thing it is describing.
           const statusLabel =
-            state === "done"
-              ? "done"
-              : state === "problem"
+            state === "problem"
               ? "something's missing"
               : isCurrent
               ? "you're here"
+              : state === "done"
+              ? "done"
               : "not started yet";
 
           return (
@@ -172,7 +185,7 @@ export default function StepNav({
                       "spec w-3 shrink-0 text-right text-spec font-bold",
                       // GREEN BRIGHT is the ink-on-black lift; GORILLA GREEN
                       // does not hold up on the inverted fill.
-                      state === "done"
+                      showDone
                         ? "text-[var(--gorilla-green)] group-hover:text-[var(--green-bright)]"
                         : "",
                       state === "problem"

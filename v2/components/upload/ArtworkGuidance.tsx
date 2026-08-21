@@ -73,7 +73,9 @@ export default function ArtworkGuidance({
         Not sure? Send what you have and we&rsquo;ll tell you if it will print.
       </p>
 
-      <dl className="divide-y divide-[var(--rule)]">
+      {/* Faint: these rules separate rows INSIDE a bordered panel, so the
+          container edge is already carrying the structure. */}
+      <dl className="divide-y divide-[var(--rule-faint)]">
         {specs.map((spec) => (
           // Two columns only once there is room for a readable measure. At
           // 375px the label column left the text about 20 characters wide, so

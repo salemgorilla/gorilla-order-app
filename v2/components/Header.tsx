@@ -9,7 +9,12 @@ export default function Header() {
             or a link and had no way to check who Gorilla Salem is without
             reading to the footer — on a tool that asks for a card number
             downstream, that is a trust problem, not a navigation one. */}
-        <h1 className="text-display font-bold tracking-display">
+        {/* A <p>, not an <h1>. The hero headline is the page's one top-level
+            heading; a second <h1> wrapping the wordmark leaves the document
+            with no single outline root, which is both an a11y defect and an
+            SEO one on a page whose job is local custom-print search. Every
+            class is unchanged — this is a tag swap, not a restyle. */}
+        <p className="text-display font-bold tracking-display">
           <a
             href="https://gorillasalem.com"
             className="transition-colors duration-[120ms] ease-linear hover:text-[var(--gorilla-green)]"
@@ -17,7 +22,7 @@ export default function Header() {
             <span>GORILLA</span>
             <span className="text-[var(--rush-red)]">LABS</span>
           </a>
-        </h1>
+        </p>
 
         <div className="spec border border-[var(--rule)] bg-[var(--paper)] px-5 py-2 text-spec font-bold text-[var(--ink-muted)]">
           Quote Builder

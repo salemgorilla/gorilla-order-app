@@ -18,6 +18,18 @@ and repointing them took the main site down once already.
 
 Working and verified:
 
+- **Product cards say what happens after submit (PR 2 of the brief)** —
+  2026-08-20. Stickers and signs were both `active`, so both cards read
+  "Available now" while only one of them takes payment. Each product now
+  carries a `fulfilment` line — "Instant price · pay online", "Instant price ·
+  we invoice", "Quoted by hand" — and `tests/product-fulfilment.test.ts`
+  asserts the pay-online claim against `isStickerOrder()` itself, so a card
+  can never promise a payment link for a flow that cannot raise one. Also:
+  `aria-pressed` plus a visible SELECTED marker (selection was colour-only),
+  `cursor-pointer` restored on the selected card, the hover lift replaced with
+  a border step, and `.eyebrow` off `--rush-red`. **Items 2.3's badge deletion
+  and the "hide Banners" suggestion were NOT applied** — `lib/products.tsx`
+  says the Beta badge is live ("that one really is still settling").
 - **Step 1 accessibility pass (PR 1 of the step-01 brief)** — 2026-08-20.
   `--rule` was 1.51:1 on paper — the token that draws every card, tile and
   section sat below the 3:1 WCAG floor for a boundary. Split into `--rule`

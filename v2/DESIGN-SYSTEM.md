@@ -33,7 +33,7 @@ into a component — add a token instead.
 | `--gorilla-green` | `#2e7d32` | Brand. Never replace. |
 | `--gorilla-green-dark` | `#1b5e20` | Hover/pressed step |
 | `--green-bright` | `#5dbb63` | Ink-on-black surfaces only |
-| `--rush-red` | `#b23a2e` | Rush, late, error. Never decorative. |
+| `--rush-red` | `#b23a2e` | Rush, late, error. Never decorative. Section eyebrows and product availability lines used to carry it and no longer do — an alarm ink on every section is not an alarm. |
 | `--rush-red-dark` | `#8c2c22` | Hover/pressed step |
 | `--surface-ok` / `--surface-warn` / `--surface-rush` | pale tints | Status panels |
 

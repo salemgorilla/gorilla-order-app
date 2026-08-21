@@ -68,9 +68,8 @@ import { createStickerItem, defaultOrder } from "../lib/order";
 import { AddOnOffer, toAddOn } from "../lib/addons";
 import {
   describeStickerSize,
-  getShippingPrice,
   getStickerMaterialPrice,
-  getCartSetupFee,
+  quoteStickerCart,
   STICKER_SETUP_FEE,
   STICKER_SETUP_FEE_ADDITIONAL,
 } from "../lib/pricing";
@@ -810,28 +809,19 @@ export default function Home() {
   function recalculateOrder(nextOrder: typeof order) {
     const priced = nextOrder.items.map(priceStickerItem);
 
-    const stickerPrice =
-      Math.round(
-        priced.reduce((sum, entry) => sum + entry.materialPrice, 0) * 100
-      ) / 100;
-
-    // $25 for the first design, $12.50 for each after. One design returns
-    // exactly $25, so a single-design order is priced identically to before
-    // the cart existed.
-    const setupPrice = getCartSetupFee(nextOrder.items.length);
-    const shippingPrice = getShippingPrice(nextOrder.production.deliveryMethod);
+    // The same call the SERVER makes in repriceStickers. Adding these up was
+    // written out in both places; the browser showing one total while the
+    // server bills another is the failure that costs money, so there is now
+    // one composition — see quoteStickerCart in lib/pricing.ts.
+    const pricing = quoteStickerCart({
+      materialPrices: priced.map((entry) => entry.materialPrice),
+      deliveryMethod: nextOrder.production.deliveryMethod,
+    });
 
     return {
       ...nextOrder,
       items: priced.map((entry) => entry.item),
-      pricing: {
-        ...nextOrder.pricing,
-        stickerPrice,
-        setupPrice,
-        shippingPrice,
-        total:
-          Math.round((stickerPrice + setupPrice + shippingPrice) * 100) / 100,
-      },
+      pricing: { ...nextOrder.pricing, ...pricing },
     };
   }
 

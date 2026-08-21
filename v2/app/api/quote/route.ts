@@ -2,9 +2,8 @@ import { NextResponse } from "next/server";
 
 import { MAX_ATTACHED_ARTWORK_BYTES } from "../../../lib/upload-limits";
 import {
-  getCartSetupFee,
-  getShippingPrice,
   getStickerMaterialPrice,
+  quoteStickerCart,
 } from "../../../lib/pricing";
 
 import {
@@ -331,16 +330,18 @@ export function repriceStickers(order: Record<string, unknown>) {
    */
   const unpriceable = pricedItems.some((item) => item.linePrice <= 0);
 
-  // Counted from the items the server can see, never from a client-supplied
-  // design count — that number decides how much setup is charged.
-  const setupPrice = getCartSetupFee(items.length);
-
-  const shippingPrice = getShippingPrice(
-    String(production.deliveryMethod || "")
-  );
-
-  const serverTotal =
-    Math.round((stickerPrice + setupPrice + shippingPrice) * 100) / 100;
+  /**
+   * The same call the BROWSER makes in recalculateOrder.
+   *
+   * Counted from the items the server can see, never from a client-supplied
+   * design count — that number decides how much setup is charged, and
+   * quoteStickerCart takes the count from the priced array rather than as a
+   * separate argument for exactly that reason.
+   */
+  const { setupPrice, shippingPrice, total: serverTotal } = quoteStickerCart({
+    materialPrices: pricedItems.map((item) => item.linePrice),
+    deliveryMethod: String(production.deliveryMethod || ""),
+  });
 
   return {
     order: {

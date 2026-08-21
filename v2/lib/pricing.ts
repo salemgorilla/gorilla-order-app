@@ -202,3 +202,65 @@ export function describeStickerSize(size: string, dims?: StickerDimensions) {
   const h = Number(dims?.heightInches) || 0;
   return w > 0 && h > 0 ? `${w}" x ${h}"` : size;
 }
+
+/**
+ * A priced sticker cart: material, setup, shipping and the total.
+ *
+ * ── WHY THIS EXISTS ───────────────────────────────────────────────────────
+ * The primitives below — getStickerMaterialPrice, getCartSetupFee,
+ * getShippingPrice — were already shared. The COMPOSITION was not. Adding
+ * them up was written twice, once in recalculateOrder (the browser, which
+ * shows the customer a number) and once in repriceStickers (the server, which
+ * charges it):
+ *
+ *   stickerPrice = round(sum of material prices)
+ *   setupPrice   = getCartSetupFee(design count)
+ *   shippingPrice= getShippingPrice(delivery method)
+ *   total        = round(stickerPrice + setupPrice + shippingPrice)
+ *
+ * Identical today, line for line. Two copies of the arithmetic that decides
+ * what a customer is charged is the shape this repo has been bitten by
+ * repeatedly, and here the failure mode is the worst one available: the
+ * browser quotes one number, the server bills another, and the only trace is
+ * a "PRICE MISMATCH" line in a function log.
+ *
+ * ── THE ROUNDING IS PART OF THE CONTRACT ──────────────────────────────────
+ * Rounded once on the material subtotal and once on the total, in that order.
+ * Not cosmetic: 72.7 + 4.54 is 77.24000000000001 in binary floating point, and
+ * changing WHERE the rounding happens moves cents. Both callers did it in
+ * exactly this order, and that is preserved rather than tidied.
+ */
+export type StickerCartQuote = {
+  stickerPrice: number;
+  setupPrice: number;
+  shippingPrice: number;
+  total: number;
+};
+
+export function quoteStickerCart(input: {
+  /**
+   * One material price per design, already computed by
+   * getStickerMaterialPrice. The setup fee counts THIS array, so a design
+   * that priced at zero still counts as a design — which is correct: setup
+   * is per artwork, not per dollar.
+   */
+  materialPrices: readonly number[];
+  deliveryMethod: string;
+}): StickerCartQuote {
+  const stickerPrice =
+    Math.round(input.materialPrices.reduce((sum, price) => sum + price, 0) * 100) /
+    100;
+
+  // $25 for the first design, $12.50 for each after. One design returns
+  // exactly $25, so a single-design order prices identically to before the
+  // cart existed.
+  const setupPrice = getCartSetupFee(input.materialPrices.length);
+  const shippingPrice = getShippingPrice(input.deliveryMethod);
+
+  return {
+    stickerPrice,
+    setupPrice,
+    shippingPrice,
+    total: Math.round((stickerPrice + setupPrice + shippingPrice) * 100) / 100,
+  };
+}

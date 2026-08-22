@@ -161,7 +161,7 @@ describe("the flows that share a rule all enforce it", () => {
           customHeightInches: 0,
         },
         emptyOrderPart,
-        "Custom size"
+        false
       ).quantity,
       "signs"
     );

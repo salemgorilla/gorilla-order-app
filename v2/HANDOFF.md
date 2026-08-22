@@ -7,17 +7,35 @@ next session will act on it.
 
 Read this first, then `AGENTS.md` and `DESIGN-SYSTEM.md`.
 
-## Live right now — 2026-08-22, `main` @ `3b3a0fa`
+## Live right now — 2026-08-22, `main` @ `338cd0c`
 
 `main` is deployed to https://labs.gorillasalem.com (Vercel, production branch
 is `main`, root directory `v2`). The custom domain is wired correctly — do NOT
 touch the `@` or `www` DNS records for gorillasalem.com, those are Squarespace
 and repointing them took the main site down once already.
 
-867 tests passing, `tsc` clean, 0 lint errors (8 warnings, all the
+886 tests passing, `tsc` clean, 0 lint errors (8 warnings, all the
 deliberate `<img>` uses).
 
 Working and verified:
+
+- **The shop is told the size the customer actually typed** — 2026-08-22.
+  `getSignSizeLabel` returned `quote.size`, a preset LABEL left over from the
+  days of a size dropdown. Since sizes became typed, that string was whatever
+  `getSizeOptions(product)[0]` happened to be: a rigid sign entered at
+  25" x 37" priced correctly off 6.42 sqft and reported itself as 12" x 18",
+  a banner as 2' x 4', a poster as 18" x 24". It reaches the shop email and
+  the Printavo payload as `product.size`, so the shop would have cut the wrong
+  sign from the right price. It now derives from `getSignDimensions` — the
+  function the PRICE derives from — so the two cannot disagree, and the tests
+  assert that by comparing the label's square footage against what the engine
+  billed.
+  The same root cause had also silently switched off the width/height
+  requirement, which was gated on the dead `CUSTOM_SIZE` sentinel: a banner
+  could be submitted with no size at all, degrade quietly into a hand-quote,
+  and the shop got a preset the customer never chose. That rule is now keyed
+  on whether the product types its size, so deleting a UI control cannot
+  disable it again.
 
 - **One $15 setup fee per design on signs, and no size fee at all** —
   2026-08-22, Gabe's decision, and it MOVES MONEY. Replaces a $16.50

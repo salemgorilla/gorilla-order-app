@@ -288,15 +288,34 @@ export function getSizeOptions(product: SignProduct) {
   return product.sizes.length > 0 ? [...labels, CUSTOM_SIZE] : [CUSTOM_SIZE];
 }
 
-/** Human-readable size, honoring a custom entry. */
+/**
+ * Human-readable size — the one the customer is buying.
+ *
+ * ── WHAT THIS USED TO REPORT ──────────────────────────────────────────────
+ * `quote.size`, which is a leftover preset LABEL. Since sizes became typed
+ * width and height, that label is whatever getSizeOptions(product)[0] happens
+ * to be and has nothing to do with what was entered. A rigid sign typed at
+ * 25" x 37" priced correctly off 6.42 sqft and then reported itself as
+ * 12" x 18" — to the summary card, to the review screen, to the shop email,
+ * and into the Printavo payload as `product.size`. The shop would have cut
+ * the wrong sign.
+ *
+ * It now derives from getSignDimensions, the same function the PRICE derives
+ * from, so the label and the money can no longer disagree. Yard signs are
+ * frozen at 18" x 24" there, which is exactly what their label should say.
+ */
 export function getSignSizeLabel(quote: SignsQuote) {
-  if (quote.size === CUSTOM_SIZE) {
-    if (quote.customWidthInches > 0 && quote.customHeightInches > 0) {
-      return `${quote.customWidthInches}" x ${quote.customHeightInches}" (custom)`;
-    }
-    return quote.customSize.trim() || "Custom size (not specified)";
+  const { widthInches, heightInches } = getSignDimensions(quote);
+
+  if (widthInches > 0 && heightInches > 0) {
+    return `${widthInches}" x ${heightInches}"`;
   }
-  return quote.size;
+
+  // Nothing resolves at all — a product with no sizes and nothing typed, i.e.
+  // window graphics. Saying so beats inventing a size: this string reaches
+  // the shop. (A product that HAS presets never lands here; getSignDimensions
+  // falls back to its first preset, and the price uses that same fallback.)
+  return quote.customSize.trim() || "Size not specified";
 }
 
 /** Finished dimensions of one piece, in inches. */

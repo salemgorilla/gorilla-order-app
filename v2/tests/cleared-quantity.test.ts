@@ -113,7 +113,8 @@ describe("the validation rules can now actually fire", () => {
         artwork: { file: { name: "art.pdf" } },
         production: { needBy: "2026-09-01" },
       } as Parameters<typeof getSignsFieldErrors>[1],
-      "Custom size"
+      // A yard sign: its size is fixed by the shop, so no dimensions are owed.
+      false
     );
   }
 

@@ -1276,13 +1276,36 @@ export function buildPrintavoQuotePlan(input: {
             },
           ]
         : []),
+      /**
+       * The DESCRIPTION carries the story; the ITEM NUMBER is the SKU and has
+       * to hold still. That is already how the sticker setup fee above works —
+       * "Setup and artwork prep (3 designs)" filed under a fixed
+       * GORILLA-DECAL-SETUP — and signs were the odd one out.
+       *
+       * They derived the item number from the label text, so the SKU moved
+       * whenever the wording did:
+       *
+       *   1 design    GORILLA-FEE-SETUP-FEE-PER-DESIGN
+       *   2 designs   GORILLA-FEE-SETUP-2-DESIGNS-15
+       *   3 designs   GORILLA-FEE-SETUP-3-DESIGNS-15
+       *   pole pockets on 2   GORILLA-FEE-POLE-POCKETS-2-15
+       *
+       * Every order filed the same charge under a different SKU, so "how much
+       * setup did we bill this quarter" had no answer. `code` comes from
+       * lib/signs-pricing.ts and names the CHARGE, not its wording.
+       */
       ...signsFeeLines.map((l) => ({
         description: str(l.label, "Fee"),
-        itemNumber: `GORILLA-FEE-${str(l.label, "FEE")
-          .toUpperCase()
-          .replace(/[^A-Z0-9]+/g, "-")
-          .slice(0, 24)
-          .replace(/-$/, "")}`,
+        itemNumber: `GORILLA-SIGN-${
+          str(l.code, "") ||
+          // Only reached by a line that predates `code` — kept so an old
+          // payload still produces something rather than a bare prefix.
+          str(l.label, "FEE")
+            .toUpperCase()
+            .replace(/[^A-Z0-9]+/g, "-")
+            .slice(0, 24)
+            .replace(/-$/, "")
+        }`,
         price: money(l.amount),
       })),
     ],

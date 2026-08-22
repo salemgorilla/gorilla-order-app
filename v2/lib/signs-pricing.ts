@@ -29,7 +29,19 @@ export type SignsPricingLine = {
    * quoteSignsCart collapses one setup line per design into a single row, and
    * a string match would break the moment the wording changed.
    */
-  kind?: "product" | "setup";
+  kind?: "product" | "setup" | "addOn";
+  /**
+   * A STABLE identifier for what this charge is, independent of how the label
+   * happens to read.
+   *
+   * lib/printavo.ts derives Printavo item numbers from these. It used to
+   * derive them from the label text, which meant the SKU moved every time the
+   * wording did: setup was GORILLA-FEE-SETUP-FEE-PER-DESIGN on one design and
+   * GORILLA-FEE-SETUP-2-DESIGNS-15 on two, and pole pockets carried the
+   * quantity and the rate. A shop cannot report on "how much setup did we
+   * bill" when every order files it under a different SKU.
+   */
+  code?: string;
 };
 
 export type SignsPricingResult = {
@@ -368,7 +380,12 @@ export function calculateSignsPricing(
 
       if (addOn.quoteByHand) {
         hasQuotedExtras = true;
-        lines.push({ label: `${addOn.label} — quoted separately`, amount: 0 });
+        lines.push({
+          label: `${addOn.label} — quoted separately`,
+          amount: 0,
+          kind: "addOn",
+          code: `ADDON-${key.toUpperCase()}`,
+        });
         continue;
       }
 
@@ -389,6 +406,8 @@ export function calculateSignsPricing(
             quantity > 1 ? ` × ${quantity}` : ""
           })`,
           amount: round2(amount),
+          kind: "addOn",
+          code: `ADDON-${key.toUpperCase()}`,
         });
         continue;
       }
@@ -402,6 +421,8 @@ export function calculateSignsPricing(
             ? `${addOn.label} (${quantity} × $${addOn.flat})`
             : addOn.label,
         amount: round2(amount),
+        kind: "addOn",
+        code: `ADDON-${key.toUpperCase()}`,
       });
     }
   }
@@ -423,6 +444,7 @@ export function calculateSignsPricing(
     label: "Setup fee (per design)",
     amount: cfg.setupFee,
     kind: "setup",
+    code: "SETUP",
   });
   const total = productTotal + cfg.setupFee;
 

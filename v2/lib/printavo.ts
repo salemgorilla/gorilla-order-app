@@ -1335,8 +1335,8 @@ export async function createPrintavoQuote(input: {
               // be misleading to anyone looking at the quote.
               taxed: plan.salesTaxRate !== null,
             })),
-            // Setup fee, custom size fee, banner add-ons — each its own line so
-            // the shop can adjust one charge without unpicking a lumped total.
+            // Setup fee, banner add-ons — each its own line so the shop can
+            // adjust one charge without unpicking a lumped total.
             ...plan.feeLineItems.map((fee, index) => ({
               description: asciiSafe(fee.description),
               itemNumber: fee.itemNumber,

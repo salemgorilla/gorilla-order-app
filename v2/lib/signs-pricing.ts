@@ -17,7 +17,6 @@ export type SignsPricingInput = {
   stepStakes?: boolean;
   /** The chosen finishing label. Banners use it for the no-hem credit. */
   finishing?: string;
-  isCustomSize: boolean;
   /** Banner finishing add-on keys (see signsPricingConfig.banner.addOns). */
   bannerAddOns?: string[];
 };
@@ -408,20 +407,11 @@ export function calculateSignsPricing(
   }
 
   // ---- order-level fees ----
-  lines.push({ label: "Setup fee", amount: cfg.setupFee });
-  let total = productTotal + cfg.setupFee;
-
-  // Custom size fee is hard stock only — a custom size leaves drop pieces when
-  // cut from a 48" x 96" sheet. Banners and posters print on roll material, so
-  // a custom size costs nothing extra there.
-  const isHardStock = (
-    cfg.hardStockMethods as readonly string[]
-  ).includes(input.method);
-
-  if (input.isCustomSize && isHardStock) {
-    lines.push({ label: "Custom size fee", amount: cfg.customSizeFee });
-    total += cfg.customSizeFee;
-  }
+  // One design per signs quote, so this is charged once — see the note on
+  // setupFee. There is no longer a second, size-dependent fee: a custom size
+  // costs the same as a standard one on every sign type.
+  lines.push({ label: "Setup fee (per design)", amount: cfg.setupFee });
+  const total = productTotal + cfg.setupFee;
 
   return {
     priceable: true,

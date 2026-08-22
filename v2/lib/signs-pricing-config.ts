@@ -25,21 +25,18 @@ export type YardSignSizePricing = {
 
 export const signsPricingConfig = {
   // ---------------- Order-level fees (from the PRICING GUIDE board) -------
-  /** Flat setup fee applied once per signs order (all sign types). */
-  setupFee: 16.5,
-
   /**
-   * Custom size fee — charged once when a non-standard size would leave drop
-   * pieces when cut from a sheet. HARD STOCK ONLY (rigid + corrugated);
-   * banners and posters print on roll material, so they never incur it.
+   * Setup, PER DESIGN, on every signs and banners order — every sign type,
+   * every size, standard or not. Gabe set this on 2026-08-22, replacing a
+   * $16.50 order fee plus a $22 custom size fee.
+   *
+   * "Per design" and "per order" are the same number today: the signs builder
+   * takes ONE artwork or ONE template per quote, unlike the sticker cart,
+   * which carries several designs and prices setup per design in
+   * lib/pricing.ts. If signs ever grow a multi-design cart, this fee is
+   * charged per design in it, and the line label already says so.
    */
-  customSizeFee: 22,
-
-  /** Sheet stock Gorilla buys. Custom sizes that don't nest into this leave drop. */
-  sheetStockInches: { width: 48, height: 96 },
-
-  /** Methods cut from sheet stock, i.e. the ones the custom size fee applies to. */
-  hardStockMethods: ["yard", "rigid"] as const,
+  setupFee: 15,
 
   /**
    * Double-sided surcharge, per square foot, for the $/sqft products.

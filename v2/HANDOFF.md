@@ -7,17 +7,29 @@ next session will act on it.
 
 Read this first, then `AGENTS.md` and `DESIGN-SYSTEM.md`.
 
-## Live right now — 2026-08-22, `main` @ `6dfe93b`
+## Live right now — 2026-08-22, `main` @ `3b3a0fa`
 
 `main` is deployed to https://labs.gorillasalem.com (Vercel, production branch
 is `main`, root directory `v2`). The custom domain is wired correctly — do NOT
 touch the `@` or `www` DNS records for gorillasalem.com, those are Squarespace
 and repointing them took the main site down once already.
 
-866 tests passing, `tsc` clean, 0 lint errors (8 warnings, all the
+867 tests passing, `tsc` clean, 0 lint errors (8 warnings, all the
 deliberate `<img>` uses).
 
 Working and verified:
+
+- **One $15 setup fee per design on signs, and no size fee at all** —
+  2026-08-22, Gabe's decision, and it MOVES MONEY. Replaces a $16.50
+  order-level fee plus the $22 custom size fee. Every row on the signs price
+  sheet fell by exactly $1.50 and by nothing else, which is the whole reason
+  that sheet exists. The $22 fee could never be charged anyway — `isCustomSize`
+  came from a size selector that no longer exists — so removing it settles the
+  copy/price disagreement in the direction customers were already being
+  charged, and `SignsBuilder` no longer promises a fee. "Per design" and "per
+  order" are the same figure today: the signs builder takes ONE artwork or
+  template per quote. Stickers are the multi-design flow and keep their own
+  fee in `lib/pricing.ts`.
 
 - **Yard-sign totals never go backwards now** — 2026-08-22, and this one
   MOVES MONEY. The board is a per-unit tier table, so at every tier boundary
@@ -426,15 +438,25 @@ Gabe's Squarespace footer button. The paragraph that used to sit here told you
 to start the build after PR #2; it is kept only so nobody finds it in the
 history and re-does finished work.
 
-### Owed on the yard-sign repricing — 2026-08-22
+### Owed on the signs repricing — 2026-08-22
+
+TWO changes landed on the signs money path today and NEITHER has been
+reconciled against a real Printavo invoice, which `AGENTS.md` requires and
+which cannot be done from a coding session:
+
+1. yard-sign totals made monotonic (only quantities 5, 9, 19, 29 moved);
+2. setup fee $16.50 per order + $22 size fee -> $15 per design (every signs
+   total fell $1.50).
+
+One order covers both if it is a yard-sign order at a bumped quantity.
 
 `AGENTS.md` is explicit that a pricing change ends with one real order
 reconciled against the Printavo invoice, to the cent, and never with a passing
 test. That has NOT happened for this change; it cannot be run from a coding
 session. **One yard-sign order at a bumped quantity — 5, 9, 19 or 29 — is the
-one that matters**, because those are the only totals that moved. 5 signs,
-single-sided, local pickup should invoice at $93.00 + $16.50 setup = $109.50
-before tax, $116.34 with MA 6.25%.
+one that matters**, because it exercises both changes at once. 5 signs,
+18" x 24", single-sided, local pickup should invoice at $93.00 + $15.00 setup
+= $108.00 before tax, $114.75 with MA 6.25%.
 
 Signs do not auto-bill, so a human sees the figure before money moves — which
 is why this was safe to ship ahead of the reconciliation, not a reason to skip
@@ -442,18 +464,6 @@ it.
 
 ### Still Gabe's call, not code
 
-- **The $22 custom size fee is unreachable, and the builder promises it**
-  — 2026-08-22. `SignsBuilder` tells a rigid-sign customer that hard stock
-  adds a $22 fee because odd sizes leave drop from a 48" x 96" sheet. No quote
-  can charge it: `app/page.tsx` passes
-  `isCustomSize: signsQuote.size === CUSTOM_SIZE`, and since the size selector
-  became typed dimensions, `size` is always a real label. The only product
-  that sets `CUSTOM_SIZE` is window graphics, which is hand-quoted and never
-  reaches the engine. The engine itself is right and is asserted to be.
-  Two ways to settle it and they are not equivalent — charge the fee on any
-  size that does not nest into the sheet (`sheetStockInches` is already in the
-  config), or drop the promise from the copy. Either moves money, so neither
-  was picked here.
 - **The server does not reprice signs.** `repriceStickers` returns early for
   anything that is not a sticker order, so the signs total that reaches the
   shop email and Printavo is whatever the browser computed. Stickers are

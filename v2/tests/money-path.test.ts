@@ -337,31 +337,33 @@ describe("signs: Printavo invoices exactly what the site quoted", () => {
   const scenarios: Array<[string, Parameters<typeof calculateSignsPricing>[0]]> = [
     [
       "yard signs, double-sided, with step stakes",
-      { method: "yard", quantity: 25, sizeKey: '18" x 24"', doubleSided: true, stepStakes: true, isCustomSize: false },
+      { method: "yard", quantity: 25, sizeKey: '18" x 24"', doubleSided: true, stepStakes: true },
     ],
     [
       "13 oz banner, single-sided",
-      { method: "banner", quantity: 1, widthInches: 24, heightInches: 96, material: "13 oz Scrim Vinyl", doubleSided: false, isCustomSize: true },
+      { method: "banner", quantity: 1, widthInches: 24, heightInches: 96, material: "13 oz Scrim Vinyl", doubleSided: false },
     ],
     [
       // Two panels sewn back to back, plus a per-linear-foot construction
       // charge — the most moving parts of any signs configuration.
       "13 oz banner, sewn double-sided",
-      { method: "banner", quantity: 2, widthInches: 36, heightInches: 120, material: "13 oz Scrim Vinyl", doubleSided: true, isCustomSize: true },
+      { method: "banner", quantity: 2, widthInches: 36, heightInches: 120, material: "13 oz Scrim Vinyl", doubleSided: true },
     ],
     [
       // The only line in the whole engine that is NEGATIVE.
       "18 oz banner with the no-hem credit",
-      { method: "banner", quantity: 1, widthInches: 24, heightInches: 96, material: "18 oz Heavy Duty Vinyl", doubleSided: false, isCustomSize: true, finishing: "No Hem or Grommets" },
+      { method: "banner", quantity: 1, widthInches: 24, heightInches: 96, material: "18 oz Heavy Duty Vinyl", doubleSided: false, finishing: "No Hem or Grommets" },
     ],
     [
-      // Hard stock, so this one earns the custom size fee; banners do not.
-      "rigid sign at a custom size",
-      { method: "rigid", quantity: 4, widthInches: 18, heightInches: 24, material: 'Dibond 1/8"', doubleSided: false, isCustomSize: true },
+      // Since 2026-08-22 an odd size costs no more than a standard one on any
+      // sign type, so this is here for the rigid per-sqft path rather than for
+      // a fee it used to carry.
+      "rigid sign at an odd size",
+      { method: "rigid", quantity: 4, widthInches: 18, heightInches: 24, material: 'Dibond 1/8"', doubleSided: false },
     ],
     [
       "banner with a per-linear-foot add-on",
-      { method: "banner", quantity: 3, widthInches: 24, heightInches: 96, material: "13 oz Scrim Vinyl", doubleSided: false, isCustomSize: true, bannerAddOns: ["webbing"] },
+      { method: "banner", quantity: 3, widthInches: 24, heightInches: 96, material: "13 oz Scrim Vinyl", doubleSided: false, bannerAddOns: ["webbing"] },
     ],
   ];
 
@@ -404,7 +406,6 @@ describe("signs: Printavo invoices exactly what the site quoted", () => {
       heightInches: 1,
       material: "18 oz Heavy Duty Vinyl",
       doubleSided: false,
-      isCustomSize: true,
       finishing: "No Hem or Grommets",
     });
 
@@ -418,12 +419,12 @@ describe("signs: Printavo invoices exactly what the site quoted", () => {
     // become a charge.
     const withQuoted = calculateSignsPricing({
       method: "banner", quantity: 1, widthInches: 24, heightInches: 96,
-      material: "13 oz Scrim Vinyl", doubleSided: false, isCustomSize: true,
+      material: "13 oz Scrim Vinyl", doubleSided: false,
       bannerAddOns: ["webbing", "pockets"],
     });
     const withoutQuoted = calculateSignsPricing({
       method: "banner", quantity: 1, widthInches: 24, heightInches: 96,
-      material: "13 oz Scrim Vinyl", doubleSided: false, isCustomSize: true,
+      material: "13 oz Scrim Vinyl", doubleSided: false,
       bannerAddOns: ["webbing"],
     });
 

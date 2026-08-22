@@ -125,20 +125,23 @@ describe("all three flows enforce it", () => {
   });
 
   it("signs reject a malformed address", () => {
-    const signsQuote = {
-      templateId: "t1",
-      quantity: 1,
-      size: "2x4",
-      customWidthInches: 0,
-      customHeightInches: 0,
-    };
+    const signsDesigns = [
+      {
+        templateId: "t1",
+        quantity: 1,
+        customWidthInches: 0,
+        customHeightInches: 0,
+        artwork: { file: null },
+        needsTypedSize: false,
+      },
+    ];
 
     assert.ok(
-      getSignsFieldErrors(signsQuote, signsOrder("dana@gmailcom"), false)
+      getSignsFieldErrors(signsDesigns, signsOrder("dana@gmailcom"))
         .customerEmail
     );
     assert.equal(
-      getSignsFieldErrors(signsQuote, signsOrder("dana@example.com"), false)
+      getSignsFieldErrors(signsDesigns, signsOrder("dana@example.com"))
         .customerEmail,
       undefined
     );

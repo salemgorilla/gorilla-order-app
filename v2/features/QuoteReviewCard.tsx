@@ -60,22 +60,41 @@ export default function QuoteReviewCard({
       <div className="mt-5 space-y-3 text-sm font-bold text-[var(--ink-muted)]">
         {isSignsSelected ? (
           <>
-            {(
-              [
-                ["Product", getSignProduct(signsQuote.productId).label],
-                ["Quantity", signsQuote.quantity.toLocaleString()],
-                ["Size", getSignSizeLabel(signsQuote)],
-                ["Material", signsQuote.material],
-                ["Finishing", signsQuote.finishing],
-                [
-                  "Sides",
-                  signsQuote.doubleSided ? "Double-sided" : "Single-sided",
-                ],
-              ] as [string, string][]
-            ).map(([label, value]) => (
-              <div key={label} className="flex justify-between gap-4">
-                <span>{label}</span>
-                <span className="text-right text-[var(--ink-black)]">{value}</span>
+            {signsQuote.designs.map((design, index) => (
+              <div
+                key={design.id}
+                className={
+                  index === 0
+                    ? "space-y-3"
+                    : "space-y-3 border-t border-[var(--rule-faint)] pt-3"
+                }
+              >
+                {signsQuote.designs.length > 1 && (
+                  <p className="spec text-spec uppercase tracking-[0.14em] text-[var(--ink-black)]">
+                    Design {String(index + 1).padStart(2, "0")}
+                  </p>
+                )}
+
+                {(
+                  [
+                    ["Product", getSignProduct(design.productId).label],
+                    ["Quantity", design.quantity.toLocaleString()],
+                    ["Size", getSignSizeLabel(design)],
+                    ["Material", design.material],
+                    ["Finishing", design.finishing],
+                    [
+                      "Sides",
+                      design.doubleSided ? "Double-sided" : "Single-sided",
+                    ],
+                  ] as [string, string][]
+                ).map(([label, value]) => (
+                  <div key={label} className="flex justify-between gap-4">
+                    <span>{label}</span>
+                    <span className="text-right text-[var(--ink-black)]">
+                      {value}
+                    </span>
+                  </div>
+                ))}
               </div>
             ))}
 

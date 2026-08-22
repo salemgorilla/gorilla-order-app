@@ -153,15 +153,17 @@ describe("the flows that share a rule all enforce it", () => {
 
     assert.ok(
       getSignsFieldErrors(
-        {
-          templateId: null,
-          quantity: 0,
-          size: '18" x 24"',
-          customWidthInches: 0,
-          customHeightInches: 0,
-        },
-        emptyOrderPart,
-        false
+        [
+          {
+            templateId: null,
+            quantity: 0,
+            customWidthInches: 0,
+            customHeightInches: 0,
+            artwork: { file: null },
+            needsTypedSize: false,
+          },
+        ],
+        emptyOrderPart
       ).quantity,
       "signs"
     );

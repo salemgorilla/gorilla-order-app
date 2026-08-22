@@ -1,14 +1,20 @@
 "use client";
 
-import { getSignProduct, getSignSizeLabel, type SignsQuote } from "../../lib/signs";
+import { getSignProduct, getSignSizeLabel, type SignsDesign } from "../../lib/signs";
 
 type Props = {
   artworkPreview: string | null;
-  signsQuote: SignsQuote;
+  design: SignsDesign;
+  /** "Design 2 of 3" — omitted on a single-design quote. */
+  label?: string | null;
 };
 
-export default function SignsPreviewCard({ artworkPreview, signsQuote }: Props) {
-  const product = getSignProduct(signsQuote.productId);
+export default function SignsPreviewCard({
+  artworkPreview,
+  design,
+  label,
+}: Props) {
+  const product = getSignProduct(design.productId);
 
   // Yard signs are roughly 3:4 landscape; banners are much wider. Only used to
   // shape the preview frame so the proof reads like the real thing.
@@ -20,7 +26,7 @@ export default function SignsPreviewCard({ artworkPreview, signsQuote }: Props) 
       <div className="flex items-center justify-between">
         <div>
           <p className="eyebrow">
-            Digital Proof
+            {label || "Digital Proof"}
           </p>
           <h3 className="mt-2 text-head font-bold tracking-display">
             Live Preview
@@ -28,7 +34,7 @@ export default function SignsPreviewCard({ artworkPreview, signsQuote }: Props) 
         </div>
 
         <div className=" bg-[var(--gorilla-green)] px-4 py-2 text-sm font-bold text-white">
-          {getSignSizeLabel(signsQuote)}
+          {getSignSizeLabel(design)}
         </div>
       </div>
 
@@ -64,7 +70,7 @@ export default function SignsPreviewCard({ artworkPreview, signsQuote }: Props) 
                 )}
               </div>
 
-              {signsQuote.finishing === "With H-Stakes" && (
+              {design.finishing === "With H-Stakes" && (
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1.5 bg-[var(--rule)]" />
               )}
             </div>
@@ -72,9 +78,9 @@ export default function SignsPreviewCard({ artworkPreview, signsQuote }: Props) 
 
           <div className="mt-4 grid grid-cols-3 gap-3 text-center">
             {[
-              ["Material", signsQuote.material],
-              ["Finishing", signsQuote.finishing],
-              ["Sides", signsQuote.doubleSided ? "Double" : "Single"],
+              ["Material", design.material],
+              ["Finishing", design.finishing],
+              ["Sides", design.doubleSided ? "Double" : "Single"],
             ].map(([label, value]) => (
               <div key={label} className=" bg-white p-3">
                 <p className="text-spec font-bold uppercase tracking-[0.14em] text-[var(--ink-muted)]">

@@ -24,31 +24,25 @@ import {
   getFinishingOptions,
   getSignProduct,
   signsCatalog,
-  type SignsQuote,
+  type SignsDesign,
 } from "../../lib/signs";
-import { DECAL_SHIPPING_PRICE } from "../../lib/pricing";
 import type { FieldErrors } from "../../lib/validation";
-import type { DeliveryMethod } from "../../types/order";
 
 type Props = {
-  signsQuote: SignsQuote;
-  deliveryMethod: DeliveryMethod;
+  design: SignsDesign;
   /** Only populated after a failed submit; empty until then. */
   fieldErrors?: FieldErrors;
-  onUpdate: (updates: Partial<SignsQuote>) => void;
+  onUpdate: (updates: Partial<SignsDesign>) => void;
   onSelectProduct: (productId: string) => void;
-  onSelectDeliveryMethod: (deliveryMethod: DeliveryMethod) => void;
 };
 
 export default function SignsBuilder({
-  signsQuote,
-  deliveryMethod,
+  design,
   fieldErrors,
   onUpdate,
   onSelectProduct,
-  onSelectDeliveryMethod,
 }: Props) {
-  const product = getSignProduct(signsQuote.productId);
+  const product = getSignProduct(design.productId);
   // Yard signs price from a per-unit table keyed on size, so they are frozen.
   const isYardSign = product.pricingMethod === "yard";
 
@@ -66,7 +60,7 @@ export default function SignsBuilder({
 
         <div className="grid gap-3 sm:grid-cols-2">
           {signsCatalog.products.map((item) => {
-            const isSelected = item.id === signsQuote.productId;
+            const isSelected = item.id === design.productId;
 
             return (
               <button
@@ -125,7 +119,7 @@ export default function SignsBuilder({
                 id="sign-width"
                 label="Width (in)"
                 unit="in"
-                value={signsQuote.customWidthInches}
+                value={design.customWidthInches}
                 min={0.01}
                 // "any" rather than a fixed step: a step of 0.25 made the
                 // browser reject 1.1 as invalid, which is now allowed.
@@ -139,7 +133,7 @@ export default function SignsBuilder({
                 id="sign-height"
                 label="Height (in)"
                 unit="in"
-                value={signsQuote.customHeightInches}
+                value={design.customHeightInches}
                 min={0.01}
                 // "any" rather than a fixed step: a step of 0.25 made the
                 // browser reject 1.1 as invalid, which is now allowed.
@@ -156,7 +150,7 @@ export default function SignsBuilder({
           <NumberField
             id="sign-quantity"
             label="How many"
-            value={signsQuote.quantity}
+            value={design.quantity}
             min={1}
             step={1}
             className="col-span-2 sm:col-span-1"
@@ -171,11 +165,11 @@ export default function SignsBuilder({
         </div>
 
         {!isYardSign &&
-          signsQuote.customWidthInches > 0 &&
-          signsQuote.customHeightInches > 0 && (
+          design.customWidthInches > 0 &&
+          design.customHeightInches > 0 && (
             <p className="mt-3 text-fine leading-5 text-[var(--ink-muted)]">
               {(
-                (signsQuote.customWidthInches * signsQuote.customHeightInches) /
+                (design.customWidthInches * design.customHeightInches) /
                 144
               ).toFixed(2)}{" "}
               sq ft each. Any size — an odd size costs no more than a
@@ -192,15 +186,15 @@ export default function SignsBuilder({
         <OptionSelector
           title="Material"
           options={product.materials}
-          selected={signsQuote.material}
+          selected={design.material}
           onSelect={(material) => onUpdate({ material })}
         />
       )}
 
       <OptionSelector
         title="Finishing"
-        options={getFinishingOptions(product, signsQuote.material)}
-        selected={signsQuote.finishing}
+        options={getFinishingOptions(product, design.material)}
+        selected={design.finishing}
         onSelect={(finishing) => onUpdate({ finishing })}
       />
 
@@ -217,15 +211,15 @@ export default function SignsBuilder({
 
           <div className="space-y-3">
             {getBannerAddOns(
-              signsQuote.material,
-              signsQuote.doubleSided
+              design.material,
+              design.doubleSided
             ).map((addOn) => {
-              const checked = signsQuote.bannerAddOns.includes(addOn.key);
+              const checked = design.bannerAddOns.includes(addOn.key);
               // Pole pockets replace grommets on an edge, so the shop treats
               // them as an alternative to the included grommet finishing.
               const conflicts =
                 addOn.key === "polePockets" &&
-                signsQuote.finishing === "Hemmed + Grommets";
+                design.finishing === "Hemmed + Grommets";
 
               return (
                 <label
@@ -237,8 +231,8 @@ export default function SignsBuilder({
                     checked={checked}
                     onChange={(event) => {
                       const next = event.target.checked
-                        ? [...signsQuote.bannerAddOns, addOn.key]
-                        : signsQuote.bannerAddOns.filter(
+                        ? [...design.bannerAddOns, addOn.key]
+                        : design.bannerAddOns.filter(
                             (k) => k !== addOn.key
                           );
                       onUpdate({ bannerAddOns: next });
@@ -266,12 +260,12 @@ export default function SignsBuilder({
         </div>
       )}
 
-      {allowsDoubleSided(product, signsQuote.material) && (
+      {allowsDoubleSided(product, design.material) && (
         <div className=" border border-[var(--rule)] bg-[var(--shirt-blank)] p-4">
           <label className="flex cursor-pointer items-start gap-3">
             <input
               type="checkbox"
-              checked={signsQuote.doubleSided}
+              checked={design.doubleSided}
               onChange={(event) =>
                 onUpdate({ doubleSided: event.target.checked })
               }
@@ -284,12 +278,12 @@ export default function SignsBuilder({
               <span className="mt-1 block text-sm font-bold leading-5 text-[var(--ink-muted)]">
                 {product.pricingMethod === "yard"
                   ? "Double-sided pricing is built into the quantity price."
-                  : getDoubleSidedMethod(product, signsQuote.material) === "sewn"
+                  : getDoubleSidedMethod(product, design.material) === "sewn"
                   ? // 13 oz shows through, so this is genuinely two banners.
                     // Say so before the price moves, not after.
                     `13 oz shows through, so this is two banners sewn back to back — double the material, plus ${priceCopy(
                       signsPricingConfig.banner.doubleSided[
-                        signsQuote.material
+                        design.material
                       ]?.constructionPerLinearFoot ?? 0
                     )} per linear foot to construct.`
                   : `Adds ${priceCopy(
@@ -301,71 +295,6 @@ export default function SignsBuilder({
         </div>
       )}
 
-      <div>
-        <div className="mb-3">
-          <p className="eyebrow">
-            Delivery
-          </p>
-          <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
-            Pick it up free in Salem, or we can ship it to you.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {(
-            [
-              {
-                value: "Pickup" as const,
-                label: "Local Pickup",
-                detail: "Pick up in Salem, MA",
-                price: "Free",
-              },
-              {
-                value: "Ship" as const,
-                label: "Ship It",
-                detail: "Shipping quoted separately",
-                price: `from $${DECAL_SHIPPING_PRICE}`,
-              },
-            ] satisfies {
-              value: DeliveryMethod;
-              label: string;
-              detail: string;
-              price: string;
-            }[]
-          ).map((option) => {
-            const isSelected = deliveryMethod === option.value;
-
-            return (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => onSelectDeliveryMethod(option.value)}
-                className={` border p-4 text-left transition ${
-                  isSelected
-                    ? "border-[var(--gorilla-green)] bg-[var(--surface-ok)]"
-                    : "border-[var(--rule)] bg-[var(--shirt-blank)] hover:bg-white"
-                }`}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="font-bold text-[var(--ink-black)]">{option.label}</p>
-                  <span
-                    className={` px-3 py-1 text-xs font-bold ${
-                      isSelected
-                        ? "bg-[var(--gorilla-green)] text-white"
-                        : "bg-white text-[var(--gorilla-green)]"
-                    }`}
-                  >
-                    {option.price}
-                  </span>
-                </div>
-                <p className="mt-2 text-sm font-bold text-[var(--ink-muted)]">
-                  {option.detail}
-                </p>
-              </button>
-            );
-          })}
-        </div>
-      </div>
     </>
   );
 }

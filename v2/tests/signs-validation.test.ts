@@ -17,17 +17,18 @@ function signs(overrides: Record<string, unknown> = {}) {
   return {
     templateId: null,
     quantity: 25,
-    size: '18" x 24"',
     customWidthInches: 0,
     customHeightInches: 0,
+    artwork: { file: { name: "art.pdf" } },
+    // The fixture is a yard sign — the one product whose size the shop fixes.
+    needsTypedSize: false,
     ...overrides,
-  } as Parameters<typeof getSignsFieldErrors>[0];
+  } as Parameters<typeof getSignsFieldErrors>[0][number];
 }
 
 function order(overrides: Record<string, unknown> = {}) {
   return {
     customer: { customerName: "Casey", email: "casey@example.com" },
-    artwork: { file: { name: "art.pdf" } },
     production: { needBy: "2026-09-01" },
     ...overrides,
   } as Parameters<typeof getSignsFieldErrors>[1];
@@ -44,9 +45,8 @@ function errorsFor(
   needsTypedSize = false
 ) {
   return getSignsFieldErrors(
-    signs(signsOverrides),
-    order(orderOverrides),
-    needsTypedSize
+    [signs({ needsTypedSize, ...signsOverrides })],
+    order(orderOverrides)
   );
 }
 
@@ -82,12 +82,17 @@ describe("the rules signs already had still hold", () => {
   test("a template counts as artwork, so no file is demanded", () => {
     // Choosing a template REPLACES the upload. Requiring both would make a
     // finished design unsubmittable.
-    const errors = errorsFor({ templateId: "open-house" }, { artwork: { file: null } });
+    // Artwork moved onto the DESIGN when signs grew a design list — a quote
+    // with three signs in it has three files, not one.
+    const errors = errorsFor({
+      templateId: "open-house",
+      artwork: { file: null },
+    });
     assert.equal(errors.artwork, undefined);
   });
 
   test("no template and no file is a missing answer", () => {
-    const errors = errorsFor({}, { artwork: { file: null } });
+    const errors = errorsFor({ artwork: { file: null } });
     assert.equal(
       errors.artwork,
       "Upload your artwork, or start from one of our templates."
@@ -152,13 +157,18 @@ describe("every key signs can raise has a step that owns it", () => {
      * so a rule added later is covered without anyone remembering to.
      */
     const everythingWrong = getSignsFieldErrors(
-      signs({ quantity: 0, templateId: null }),
+      [
+        signs({
+          quantity: 0,
+          templateId: null,
+          artwork: { file: null },
+          needsTypedSize: true,
+        }),
+      ],
       order({
         customer: { customerName: "", email: "" },
-        artwork: { file: null },
         production: { needBy: "" },
-      }),
-      true
+      })
     );
 
     assert.ok(Object.keys(everythingWrong).length >= 7, "expected a full sweep of failures");

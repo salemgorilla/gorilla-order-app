@@ -196,25 +196,65 @@ export function isOrderReady(order: Order) {
  * Takes only what it reads. `order` supplies the customer, the artwork file
  * and the date; `signsQuote` supplies everything about the sign itself.
  */
-export function getSignsFieldErrors(
-  signsQuote: {
-    /** null when the customer is uploading their own art rather than using a template. */
-    templateId: string | null;
-    quantity: number;
-    size: string;
-    customWidthInches: number;
-    customHeightInches: number;
-  },
-  order: {
-    customer: { customerName: string; email: string };
-    artwork: { file: unknown };
-    production: { needBy: string };
-  },
+export type SignsDesignInput = {
+  /** null when the customer is uploading their own art rather than using a template. */
+  templateId: string | null;
+  quantity: number;
+  customWidthInches: number;
+  customHeightInches: number;
+  artwork: { file: unknown };
   /**
    * False only for products whose size is fixed by the shop — yard signs are
    * made at one size and show no width or height field.
    */
-  needsTypedSize: boolean
+  needsTypedSize: boolean;
+};
+
+/**
+ * One design's own failures.
+ *
+ * Split out when signs grew a design list, for the same reason
+ * getItemFieldErrors exists for stickers: the flat map below can only name
+ * ONE artwork problem, and with three designs on screen the customer needs to
+ * know WHICH one is missing a file.
+ */
+export function getSignsDesignFieldErrors(
+  design: SignsDesignInput
+): ItemFieldErrors {
+  const errors: ItemFieldErrors = {};
+
+  // A template IS the artwork. Choosing one replaces the upload rather than
+  // adding to it, so requiring a file as well would make a finished design
+  // unsubmittable.
+  if (!design.templateId && !design.artwork.file) {
+    errors.artwork = "Upload your artwork, or start from one of our templates.";
+  }
+
+  if (!(design.quantity > 0)) {
+    errors.quantity = "Enter how many you need.";
+  }
+
+  // Every size is typed now except the yard sign, which is frozen at
+  // 18" x 24" and shows no width or height field at all.
+  if (design.needsTypedSize) {
+    if (!(design.customWidthInches > 0)) {
+      errors.width = "Enter a width.";
+    }
+
+    if (!(design.customHeightInches > 0)) {
+      errors.height = "Enter a height.";
+    }
+  }
+
+  return errors;
+}
+
+export function getSignsFieldErrors(
+  designs: SignsDesignInput[],
+  order: {
+    customer: { customerName: string; email: string };
+    production: { needBy: string };
+  }
 ): FieldErrors {
   const errors: FieldErrors = {};
 
@@ -227,58 +267,36 @@ export function getSignsFieldErrors(
     errors.customerEmail = emailError;
   }
 
-  // A template IS the artwork. Choosing one replaces the upload rather than
-  // adding to it, so requiring a file as well would make a finished design
-  // unsubmittable.
-  if (!signsQuote.templateId && !order.artwork.file) {
-    errors.artwork = "Upload your artwork, or start from one of our templates.";
-  }
-
   if (!order.production.needBy.trim()) {
     errors.needBy = "Enter the date you need this in hand.";
   }
 
-  // Stickers and apparel both check this; signs did not, and a sign quote is
-  // the one of the three with no per-design cart to catch it elsewhere.
-  //
-  // This rule used to be unreachable, and the comment here said so and
-  // treated it as fine: "NumberField snaps to a minimum of 1 on blur, so a
-  // customer typing in the box cannot get a zero past this today — clearing
-  // the field and moving on springs it back." That spring-back WAS the bug.
-  // Clearing "How many" silently sold the customer one sign, with no error,
-  // because the field corrected 0 up to 1 before this rule ever saw it.
-  // NumberField now leaves a cleared box cleared (see resolveBlurValue in
-  // lib/units.ts), so this fires for the ordinary typing customer — which is
-  // who it was always for.
-  //
-  // A sign priced at zero is not a cheap sign, it is a quote the shop has to
-  // notice is wrong before making it, and nothing downstream was going to say
-  // so.
-  if (!(signsQuote.quantity > 0)) {
-    errors.quantity = "Enter how many you need.";
-  }
+  /**
+   * Walks the designs and reports the FIRST with a problem, exactly as
+   * getOrderFieldErrors does for the sticker cart.
+   *
+   * FieldErrors is one flat map because only one builder is mounted at a
+   * time, and that still holds — what changed is that signs can now have
+   * several designs. Reporting the earliest failure keeps submit's "jump to
+   * the first thing wrong" behaviour honest in reading order; the per-design
+   * marks come from getSignsDesignFieldErrors above.
+   *
+   * The quantity rule in particular used to be unreachable, and its comment
+   * said so and treated it as fine: "NumberField snaps to a minimum of 1 on
+   * blur, so a customer typing in the box cannot get a zero past this today."
+   * That spring-back WAS the bug — clearing "How many" silently sold the
+   * customer one sign. NumberField now leaves a cleared box cleared, so this
+   * fires for the ordinary typing customer, which is who it was always for.
+   */
+  for (const design of designs) {
+    const designErrors = getSignsDesignFieldErrors(design);
 
-  // Every size is typed now except the yard sign, which is frozen at
-  // 18" x 24" and shows no width or height field at all.
-  //
-  // This rule used to be gated on `size === customSizeValue`, from back when
-  // a size DROPDOWN existed and only the "Custom size" option needed
-  // dimensions. That sentinel is now unreachable for anything priceable — the
-  // builder sets `size` to the product's first preset label and never to the
-  // sentinel — so the rule stopped firing entirely, and a banner could be
-  // submitted with no size on it. It did not price (the engine wants real
-  // dimensions), so it degraded quietly into a hand-quote request while the
-  // shop was told a preset size the customer never chose.
-  //
-  // Keyed on whether the product needs dimensions, not on a sentinel, so
-  // deleting a UI control cannot silently switch it off again.
-  if (needsTypedSize) {
-    if (!(signsQuote.customWidthInches > 0)) {
-      errors.width = "Enter a width.";
-    }
-
-    if (!(signsQuote.customHeightInches > 0)) {
-      errors.height = "Enter a height.";
+    for (const [key, message] of Object.entries(designErrors) as Array<
+      [keyof ItemFieldErrors, string]
+    >) {
+      if (!errors[key]) {
+        errors[key] = message;
+      }
     }
   }
 

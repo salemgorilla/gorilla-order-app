@@ -747,6 +747,20 @@ export function buildPrintavoQuotePlan(input: {
 
   // Signs send an itemised breakdown (product line, setup fee, add-ons). Split
   // it so Printavo shows the same lines the customer saw, instead of one lump.
+  /**
+   * The signs cart. Same hazard as the sticker one below: `product` is a
+   * synthesis of design 1 carrying the whole order's sign count, so a quote
+   * built from it alone would state design 1's size and material as fact
+   * about a banner and two yard signs.
+   *
+   * No `signs` guard, because it is declared further down and this is needed
+   * up here — the key only exists on signs payloads, so the array is the
+   * check.
+   */
+  const signsDesigns = (
+    Array.isArray(order.signsDesigns) ? order.signsDesigns : []
+  ) as AnyRecord[];
+
   const allSignsLines = Array.isArray(pricing.lines)
     ? (pricing.lines as AnyRecord[])
     : [];
@@ -760,9 +774,23 @@ export function buildPrintavoQuotePlan(input: {
     .reduce((sum, l) => sum + num(l.amount), 0);
 
   const signsLines = allSignsLines.filter((l) => num(l.amount) > 0);
-  // The first line is the product itself; everything after is a fee/add-on.
-  const signsProductLine = signsLines[0];
-  const signsFeeLines = signsLines.slice(1);
+
+  /**
+   * On a ONE-design quote the first line is the product itself and everything
+   * after is a fee or an add-on.
+   *
+   * On a cart that slicing is wrong — line 2 is design 2's product, not a fee
+   * — and it would have invoiced every design after the first as a surcharge
+   * on design 1. A cart's line items are built per design below, each
+   * carrying that design's own product cost, so the ONLY thing left to charge
+   * separately is the collapsed setup row. It is found by `kind`, not by
+   * position and not by matching its wording.
+   */
+  const signsCart = signsDesigns.length > 1;
+  const signsProductLine = signsCart ? undefined : signsLines[0];
+  const signsFeeLines = signsCart
+    ? signsLines.filter((l) => l.kind === "setup")
+    : signsLines.slice(1);
 
   // The decal unit price excludes shipping — shipping becomes its own line
   // item so the Printavo total matches the website total.
@@ -770,6 +798,9 @@ export function buildPrintavoQuotePlan(input: {
     ? // Garments only. Printing and screens are their own lines below, so
       // folding them in here would bill them twice.
       num(pricing.garmentTotal, total)
+    : signsCart
+    ? // Every design's product cost. Setup is the fee line above.
+      signsDesigns.reduce((sum, design) => sum + num(design.lineTotal), 0)
     : signsProductLine
     ? // creditTotal is negative, so this subtracts.
       Math.max(0, num(signsProductLine.amount) + creditTotal)
@@ -799,6 +830,7 @@ export function buildPrintavoQuotePlan(input: {
   );
 
   const signs = isSigns(product);
+
   const signLabel = str(product.signType, "Signs");
 
   /**
@@ -812,6 +844,7 @@ export function buildPrintavoQuotePlan(input: {
     !apparel && !signs && Array.isArray(order.items)
       ? (order.items as AnyRecord[])
       : [];
+
 
   // Flag anything the app couldn't price: unpriced signs, and apparel special
   // orders (a garment or placement outside the simple online menu).
@@ -1003,6 +1036,11 @@ export function buildPrintavoQuotePlan(input: {
     // item, which is where it belongs.
     ...(stickerItems.length > 1
       ? [`Setup: $${num(pricing.setupPrice).toFixed(2)} (see the line items for per-design pricing)`]
+      : signsCart
+      ? // One "each" across a banner and two yard signs is an average of
+        // things that do not average. Each design's own price is on its own
+        // line item, which is where it belongs.
+        ["Per design: see the line items"]
       : [`Each: $${unitPrice.toFixed(2)}`]),
     ...(shippingPrice > 0
       ? [`Shipping: $${shippingPrice.toFixed(2)}`]
@@ -1087,7 +1125,29 @@ export function buildPrintavoQuotePlan(input: {
       ...(addOnLines.length ? ["#Upsell"] : []),
     ],
     lineItems:
-      stickerItems.length > 1
+      signsDesigns.length > 1
+        ? // One row per sign. Each carries its own spec and the price the
+          // engine put on that design — never the cart total split evenly,
+          // which would invoice three different signs at one blended rate.
+          signsDesigns.map((design, index) => {
+            const designQuantity = Math.max(1, num(design.quantity, 1));
+            const lineTotal = num(design.lineTotal);
+
+            return {
+              description: `Design ${index + 1}\n${[
+                str(design.signType, "Sign"),
+                str(design.size, "size not specified"),
+                str(design.material, "material not specified"),
+                str(design.finishing, "finishing not specified"),
+                str(design.sides, "Single-sided"),
+              ].join(" / ")}`,
+              itemNumber: `GORILLA-SIGN-${index + 1}`,
+              price: Number((lineTotal / designQuantity).toFixed(4)),
+              quantity: designQuantity,
+              sizes: [{ size: "size_other", count: designQuantity }],
+            };
+          })
+        : stickerItems.length > 1
         ? // One row per design. Each carries its own spec, its own count and
           // the price the SERVER put on it (item.linePrice, written by
           // repriceStickers) — never a blended average, and never a figure

@@ -1,15 +1,38 @@
 "use client";
 
-import { getSignProduct, getSignSizeLabel, type SignsQuote } from "../../lib/signs";
+import {
+  getSignProduct,
+  getSignSizeLabel,
+  type SignsDesign,
+  type SignsQuote,
+} from "../../lib/signs";
 import { SALES_TAX, getSignsTotals } from "../../lib/tax";
-import type { SignsPricingResult } from "../../lib/signs-pricing";
+import type { SignsCartQuote } from "../../lib/signs-cart";
 import type { Production } from "../../types/order";
 
 type Props = {
   signsQuote: SignsQuote;
   production: Production;
-  pricing: SignsPricingResult;
+  pricing: SignsCartQuote;
 };
+
+/** What one design IS, as the shop would read it back. */
+function designRows(design: SignsDesign): [string, string][] {
+  const product = getSignProduct(design.productId);
+
+  return [
+    ["Product", product.label],
+    ["Quantity", design.quantity.toLocaleString()],
+    ["Size", getSignSizeLabel(design)],
+    ["Material", design.material],
+    ["Finishing", design.finishing],
+    ...(product.allowDoubleSided
+      ? ([
+          ["Sides", design.doubleSided ? "Double-sided" : "Single-sided"],
+        ] as [string, string][])
+      : []),
+  ];
+}
 
 export default function SignsSummaryCard({
   signsQuote,
@@ -19,30 +42,56 @@ export default function SignsSummaryCard({
   // One derivation, shared with the sticky estimate bar. See lib/tax.
   const signsTotals = getSignsTotals(pricing);
 
-  const product = getSignProduct(signsQuote.productId);
+  const designs = signsQuote.designs;
+  const isCart = designs.length > 1;
 
-  const rows: [string, string][] = [
-    ["Product", product.label],
-    ["Quantity", signsQuote.quantity.toLocaleString()],
-    ["Size", getSignSizeLabel(signsQuote)],
-    ["Material", signsQuote.material],
-    ["Finishing", signsQuote.finishing],
-    ...(product.allowDoubleSided
-      ? ([
-          ["Sides", signsQuote.doubleSided ? "Double-sided" : "Single-sided"],
-        ] as [string, string][])
-      : []),
-    [
-      "Delivery",
-      production.deliveryMethod === "Ship" ? "Ship" : "Local Pickup",
-    ],
+  const deliveryRow: [string, string] = [
+    "Delivery",
+    production.deliveryMethod === "Ship" ? "Ship" : "Local Pickup",
   ];
+
+  // One design reads as a flat list, exactly as it always did. Several get a
+  // heading each, because "Material: Coroplast" three times in a row with no
+  // boundary is unreadable.
+  const rows: [string, string][] = isCart
+    ? [deliveryRow]
+    : [...designRows(designs[0]), deliveryRow];
 
   return (
     <div className=" border border-[var(--rule)] bg-white p-6">
       <p className="eyebrow">
         Signs Summary
       </p>
+
+      {isCart && (
+        <div className="mt-5 space-y-5">
+          {designs.map((design, index) => (
+            <div
+              key={design.id}
+              className={
+                index === 0
+                  ? ""
+                  : "border-t border-[var(--rule-faint)] pt-5"
+              }
+            >
+              <p className="spec text-spec uppercase tracking-[0.14em] text-[var(--ink-black)]">
+                Design {String(index + 1).padStart(2, "0")}
+              </p>
+
+              <div className="mt-3 space-y-3 text-sm font-bold text-[var(--ink-muted)]">
+                {designRows(design).map(([label, value]) => (
+                  <div key={label} className="flex justify-between gap-4">
+                    <span>{label}</span>
+                    <span className="text-right text-[var(--ink-black)]">
+                      {value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="mt-5 space-y-3 text-sm font-bold text-[var(--ink-muted)]">
         {rows.map(([label, value]) => (
@@ -102,7 +151,7 @@ export default function SignsSummaryCard({
                   </span>
                 </div>
 
-                {signsQuote.quantity > 1 && (
+                {pricing.quantity > 1 && (
                   <div className="mt-1 flex justify-between gap-4">
                     <span>Estimated Each</span>
                     <span className="text-right text-[var(--ink-black)]">
@@ -120,13 +169,20 @@ export default function SignsSummaryCard({
                 a total that quietly does not match the rate card reads as an
                 error, and the customer is also owed the fact that they can
                 have the extra signs for nothing. */}
-            {pricing.pricedAtQuantity ? (
-              <p className="mt-4 text-fine leading-5 text-[var(--ink-muted)]">
-                Priced at our {pricing.pricedAtQuantity}-sign rate, because
-                that costs less than {signsQuote.quantity} at the smaller-run
-                price. Ordering {pricing.pricedAtQuantity} costs you the same.
-              </p>
-            ) : null}
+            {pricing.designs.map((entry, index) =>
+              entry.pricing.pricedAtQuantity ? (
+                <p
+                  key={entry.id}
+                  className="mt-4 text-fine leading-5 text-[var(--ink-muted)]"
+                >
+                  {isCart ? `Design ${index + 1}: p` : "P"}riced at our{" "}
+                  {entry.pricing.pricedAtQuantity}-sign rate, because that
+                  costs less than {designs[index].quantity} at the smaller-run
+                  price. Ordering {entry.pricing.pricedAtQuantity} costs you
+                  the same.
+                </p>
+              ) : null
+            )}
           </div>
 
           {(pricing.suggestions?.length ?? 0) > 0 && (

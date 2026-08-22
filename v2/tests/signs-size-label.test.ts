@@ -2,13 +2,13 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  defaultSignsQuote,
+  createSignsDesign,
   getSignDimensions,
   getSignProduct,
   getSignSizeLabel,
   getSizeOptions,
   signProducts,
-  type SignsQuote,
+  type SignsDesign,
 } from "../lib/signs";
 import { calculateSignsPricing } from "../lib/signs-pricing";
 
@@ -36,11 +36,10 @@ import { calculateSignsPricing } from "../lib/signs-pricing";
  * closest a test can get to the invoice.
  */
 
-function quoteFor(productId: string, overrides: Partial<SignsQuote> = {}) {
+function quoteFor(productId: string, overrides: Partial<SignsDesign> = {}) {
   const product = getSignProduct(productId);
 
-  return {
-    ...defaultSignsQuote,
+  return createSignsDesign({
     productId,
     // Exactly what handleSignProductSelect does when the product changes.
     size: getSizeOptions(product)[0],
@@ -50,7 +49,7 @@ function quoteFor(productId: string, overrides: Partial<SignsQuote> = {}) {
     material: product.materials[0],
     finishing: product.finishing[0],
     ...overrides,
-  } as SignsQuote;
+  });
 }
 
 /** Square feet named by a label like `25" x 37"`. */

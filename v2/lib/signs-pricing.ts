@@ -21,7 +21,16 @@ export type SignsPricingInput = {
   bannerAddOns?: string[];
 };
 
-export type SignsPricingLine = { label: string; amount: number };
+export type SignsPricingLine = {
+  label: string;
+  amount: number;
+  /**
+   * Tagged so the cart can find the setup fee without matching on its label.
+   * quoteSignsCart collapses one setup line per design into a single row, and
+   * a string match would break the moment the wording changed.
+   */
+  kind?: "product" | "setup";
+};
 
 export type SignsPricingResult = {
   /** False when we can't price the configuration (unknown size/material). */
@@ -410,7 +419,11 @@ export function calculateSignsPricing(
   // One design per signs quote, so this is charged once — see the note on
   // setupFee. There is no longer a second, size-dependent fee: a custom size
   // costs the same as a standard one on every sign type.
-  lines.push({ label: "Setup fee (per design)", amount: cfg.setupFee });
+  lines.push({
+    label: "Setup fee (per design)",
+    amount: cfg.setupFee,
+    kind: "setup",
+  });
   const total = productTotal + cfg.setupFee;
 
   return {

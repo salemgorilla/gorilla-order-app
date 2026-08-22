@@ -56,7 +56,7 @@ import {
   getYardSignSizeKey,
 } from "../lib/signs";
 import { calculateSignsPricing } from "../lib/signs-pricing";
-import { productCategories } from "../lib/products";
+import { productCategories, type ProductCategory } from "../lib/products";
 import {
   getTemplate,
   getTemplateTextErrors,
@@ -2612,12 +2612,42 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     <OrderSummary order={order} />
   );
 
+  /**
+   * Choosing a product. Extracted because the large-format band selects the
+   * same way the cards do, and the brief's own acceptance criterion is that
+   * selecting Banners produces the identical downstream state it did before.
+   * Two copies of this would be two chances for that to stop being true.
+   */
+  function selectProduct(product: ProductCategory) {
+    setSelectedProductId(product.id);
+    updateItem({ type: product.title });
+
+    // Apparel is a hand-quote request, not the configurator. Pinning
+    // specialOrder here routes it down the path that already exists for
+    // "priced by hand": no online estimate, quoteRequired on the payload,
+    // and — because that payload carries garmentType and supplier — never
+    // classified as a sticker order, which is the only flow that self-bills.
+    if (product.status === "request") {
+      setApparelQuoteState((current) => ({ ...current, specialOrder: true }));
+    }
+
+    // Errors belong to the flow that produced them. Without this, failing
+    // submit on stickers and then switching to signs carried the red marks
+    // across to a form the customer had not tried to submit yet.
+    setShowFieldErrors(false);
+  }
+
   const stepHeading = (
     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
         <p className="eyebrow">{step.label}</p>
 
-        <h2 className="mt-2 text-head font-bold tracking-display text-[var(--ink-black)]">
+        <h2
+          // Names the group that wraps all three options below. Only on the
+          // product step: this heading is shared with every other step.
+          id={currentStepId === "product" ? "product-heading" : undefined}
+          className="mt-2 text-head font-bold tracking-display text-[var(--ink-black)]"
+        >
           {currentStepId === "details"
             ? isApparelRequest
               ? "What do you need printed?"
@@ -2728,105 +2758,164 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         <section className="border border-[var(--rule)] bg-white p-5 sm:p-8">
           {stepHeading}
 
-          <div className="grid gap-4 md:grid-cols-3">
-            {productCategories.map((product) => {
-              // "request" is selectable — it just has no online price.
-              const isActive = product.status !== "coming-soon";
-              const isSelected = selectedProductId === product.id;
+          {/* All three options in one group, so the semantic set survives the
+              visual split: the band below is a different SHAPE, not a
+              different question. */}
+          <div role="group" aria-labelledby="product-heading">
+            <div className="grid gap-4 md:grid-cols-2">
+              {productCategories
+                .filter((product) => product.segment === "decorated")
+                .map((product) => {
+                  // "request" is selectable — it just has no online price.
+                  const isActive = product.status !== "coming-soon";
+                  const isSelected = selectedProductId === product.id;
 
-              return (
-                <button
-                  key={product.id}
-                  type="button"
-                  disabled={!isActive}
-                  onClick={() => {
-                    setSelectedProductId(product.id);
-                    updateItem({ type: product.title });
+                  // The one flow that returns a number AND takes the payment.
+                  // Read off the fulfilment line rather than the id, because
+                  // that string is already asserted against isStickerOrder()
+                  // in tests/product-fulfilment.test.ts — the server function
+                  // that actually decides it.
+                  const takesPayment = /pay online/i.test(product.fulfilment);
 
-                    // Apparel is a hand-quote request, not the configurator.
-                    // Pinning specialOrder here routes it down the path that
-                    // already exists for "priced by hand": no online estimate,
-                    // quoteRequired on the payload, and — because that payload
-                    // carries garmentType and supplier — never classified as a
-                    // sticker order, which is the only flow that self-bills.
-                    if (product.status === "request") {
-                      setApparelQuoteState((current) => ({
-                        ...current,
-                        specialOrder: true,
-                      }));
-                    }
-                    // Errors belong to the flow that produced them. Without
-                    // this, failing submit on stickers and then switching to
-                    // signs carried the red marks across to a form the
-                    // customer had not tried to submit yet.
-                    setShowFieldErrors(false);
-                  }}
-                  aria-pressed={isSelected}
-                  className={`border p-5 text-left transition ${
-                    isSelected
-                      ? // cursor-pointer was on the UNSELECTED variant only, so
-                        // choosing a product made its card read as disabled.
-                        "cursor-pointer border-[var(--gorilla-green)] bg-[var(--surface-ok)]"
-                      : isActive
-                      ? // Was hover:-translate-y-0.5 — a lift toward the
-                        // viewer, which is soft elevation, in a system that
-                        // committed to letterpress (radius 0, --offset 3px,
-                        // hairlines, no shadows) and presses every other
-                        // control DOWN and away. The border stepping to ink is
-                        // the house move, and unlike a 1px→2px border it
-                        // cannot shift the layout.
-                        "cursor-pointer border-[var(--rule)] bg-white hover:border-[var(--ink-black)]"
-                      : "cursor-not-allowed border-[var(--rule)] bg-[var(--shirt-blank)] opacity-70"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-lg font-bold text-[var(--ink-black)]">
-                      {product.title}
-                    </p>
+                  return (
+                    <button
+                      key={product.id}
+                      type="button"
+                      disabled={!isActive}
+                      onClick={() => selectProduct(product)}
+                      aria-pressed={isSelected}
+                      className={`border p-5 text-left transition ${
+                        isSelected
+                          ? // cursor-pointer was on the UNSELECTED variant
+                            // only, so choosing a product made its card read
+                            // as disabled.
+                            "cursor-pointer border-[var(--gorilla-green)] bg-[var(--surface-ok)]"
+                          : isActive
+                          ? // Was hover:-translate-y-0.5 — a lift toward the
+                            // viewer, which is soft elevation, in a system
+                            // that committed to letterpress (radius 0,
+                            // --offset 3px, hairlines, no shadows) and presses
+                            // every other control DOWN and away. The border
+                            // stepping to ink is the house move, and unlike a
+                            // 1px→2px border it cannot shift the layout.
+                            "cursor-pointer border-[var(--rule)] bg-white hover:border-[var(--ink-black)]"
+                          : "cursor-not-allowed border-[var(--rule)] bg-[var(--shirt-blank)] opacity-70"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-lg font-bold text-[var(--ink-black)]">
+                          {product.title}
+                        </p>
 
-                    {/* Selection was carried by border and fill colour and
-                        nothing else, which fails SC 1.4.1 and leaves a
-                        greyscale or colour-blind reader with three cards that
-                        look alike. aria-pressed above says it to assistive
-                        tech; this says it on the screen. */}
-                    {isSelected && (
-                      <span className="spec shrink-0 bg-[var(--gorilla-green)] px-2 py-1 text-spec font-bold text-white">
-                        SELECTED
-                      </span>
-                    )}
+                        {/* Selection was carried by border and fill colour and
+                            nothing else, which fails SC 1.4.1 and leaves a
+                            greyscale or colour-blind reader with cards that
+                            look alike. aria-pressed above says it to assistive
+                            tech; this says it on the screen. */}
+                        {isSelected && (
+                          <span className="spec shrink-0 bg-[var(--gorilla-green)] px-2 py-1 text-spec font-bold text-white">
+                            SELECTED
+                          </span>
+                        )}
+                      </div>
 
-                    {product.badge && (
-                      <span
-                        className={`px-3 py-1 text-xs font-bold ${
-                          isSelected
-                            ? "bg-[var(--gorilla-green)] text-white"
-                            : "bg-[var(--shirt-blank)] text-[var(--ink-muted)]"
+                      <p className="mt-3 text-sm font-bold leading-6 text-[var(--ink-muted)]">
+                        {product.description}
+                      </p>
+
+                      {/* What happens after submit, not how finished the flow
+                          is. Each option carries exactly one of these now —
+                          the "Beta" and "By request" badges said the same
+                          thing again in a second vocabulary, and on Banners
+                          one of them contradicted the other outright.
+
+                          Green on the pay-online line is deliberate and is the
+                          only place it appears unselected: that path is the
+                          one that returns a number and takes the money, and
+                          the SELECTED chip carries selection on its own. */}
+                      <p
+                        className={`mt-4 text-xs font-bold uppercase tracking-[0.16em] ${
+                          takesPayment
+                            ? "text-[var(--gorilla-green)]"
+                            : "text-[var(--ink-muted)]"
                         }`}
                       >
-                        {product.badge}
-                      </span>
-                    )}
+                        {product.status === "coming-soon"
+                          ? "Coming soon"
+                          : product.fulfilment}
+                      </p>
+                    </button>
+                  );
+                })}
+            </div>
+
+            {productCategories
+              .filter((product) => product.segment === "large-format")
+              .map((product) => {
+                const isSelected = selectedProductId === product.id;
+
+                return (
+                  <div key={product.id}>
+                    {/* A rule-label, in the system's existing
+                        hairline-as-structure vocabulary. */}
+                    <div className="mt-8 flex items-center gap-4">
+                      <p className="spec text-spec font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+                        Large format
+                      </p>
+                      <span
+                        aria-hidden="true"
+                        className="h-px flex-1 bg-[var(--rule)]"
+                      />
+                    </div>
+
+                    {/* Full width, not a smaller card. A band reads as a
+                        DIFFERENT KIND of thing; a narrower card would read as
+                        a worse one, and this is the segment that already
+                        returns a real price. */}
+                    <button
+                      type="button"
+                      onClick={() => selectProduct(product)}
+                      aria-pressed={isSelected}
+                      className={`mt-4 flex w-full min-h-[44px] cursor-pointer flex-col gap-3 border p-5 text-left transition-colors duration-[120ms] ease-linear active:translate-x-[2px] active:translate-y-[2px] ${
+                        isSelected
+                          ? "border-[var(--gorilla-green)] bg-[var(--surface-ok)]"
+                          : "border-[var(--rule)] bg-white hover:border-[var(--ink-black)]"
+                      }`}
+                    >
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                        <p className="text-lg font-bold text-[var(--ink-black)]">
+                          {product.title}
+                        </p>
+
+                        <div className="flex items-center gap-3">
+                          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+                            {product.fulfilment}
+                          </p>
+
+                          {isSelected && (
+                            <span className="spec shrink-0 bg-[var(--gorilla-green)] px-2 py-1 text-spec font-bold text-white">
+                              SELECTED
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <p className="max-w-2xl text-sm font-bold leading-6 text-[var(--ink-muted)]">
+                        {product.description}
+                      </p>
+
+                      {product.note && (
+                        // Not font-bold, deliberately. Everything on this
+                        // screen is 700, which flattens the hierarchy; this
+                        // line is where that starts being unwound.
+                        <p className="max-w-2xl text-fine text-[var(--ink-muted)]">
+                          {product.note}
+                        </p>
+                      )}
+                    </button>
                   </div>
-
-                  <p className="mt-3 text-sm font-bold leading-6 text-[var(--ink-muted)]">
-                    {product.description}
-                  </p>
-
-                  {/* What happens after submit, not how finished the flow is.
-                      Stickers and signs are both `active`, so both cards read
-                      "Available now" — and only one of them takes payment.
-
-                      Muted ink, not --gorilla-green: green means SELECTED in
-                      this UI, and the card directly above now uses it for
-                      exactly that. The words carry the difference. */}
-                  <p className="mt-4 text-xs font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
-                    {product.status === "coming-soon"
-                      ? "Coming soon"
-                      : product.fulfilment}
-                  </p>
-                </button>
-              );
-            })}
+                );
+              })}
           </div>
 
           {/* The "not sure what to choose" reassurance also sits beside the

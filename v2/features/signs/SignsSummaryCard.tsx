@@ -112,6 +112,21 @@ export default function SignsSummaryCard({
                 )}
               </div>
             </div>
+
+            {/* Yard signs price from a per-unit tier table, and at a tier
+                boundary a smaller run used to cost MORE than a larger one —
+                five signs were $127.50 while six were $93.00. The engine now
+                charges the better of the two. Saying so here is the point:
+                a total that quietly does not match the rate card reads as an
+                error, and the customer is also owed the fact that they can
+                have the extra signs for nothing. */}
+            {pricing.pricedAtQuantity ? (
+              <p className="mt-4 text-fine leading-5 text-[var(--ink-muted)]">
+                Priced at our {pricing.pricedAtQuantity}-sign rate, because
+                that costs less than {signsQuote.quantity} at the smaller-run
+                price. Ordering {pricing.pricedAtQuantity} costs you the same.
+              </p>
+            ) : null}
           </div>
 
           {(pricing.suggestions?.length ?? 0) > 0 && (

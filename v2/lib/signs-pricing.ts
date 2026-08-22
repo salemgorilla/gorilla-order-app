@@ -41,6 +41,12 @@ export type SignsPricingResult = {
   hasQuotedExtras?: boolean;
   /** Shown when a big banner should probably be reinforced. */
   suggestions?: string[];
+  /**
+   * Yard signs only. Set when the order was priced at a LARGER quantity's
+   * rate because that came out cheaper — see getYardSignPrice. Carries the
+   * quantity the price was taken from, so the UI can say so.
+   */
+  pricedAtQuantity?: number;
 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -79,6 +85,74 @@ export function getYardSignUnitPrice(
   return doubleSided ? tier.double : tier.single;
 }
 
+export type YardSignPrice = {
+  /** The per-sign rate actually applied. */
+  unitPrice: number;
+  /** The quantity that rate was taken from. Never less than what was asked. */
+  chargedQuantity: number;
+  total: number;
+};
+
+/**
+ * What a run of yard signs costs, with the never-pay-more rule applied.
+ *
+ * ── THE PROBLEM ───────────────────────────────────────────────────────────
+ * The board is a per-unit tier table, and a tier boundary makes the TOTAL go
+ * backwards. Five 18" x 24" signs were $127.50 and six were $93.00, because
+ * five pays the 2-5 rate of $25.50 and six pays the 6-9 rate of $15.50. The
+ * same happened at 9/10, 19/20 and 29/30 — someone ordering 29 signs paid
+ * $32.50 more than someone ordering 30.
+ *
+ * That is normal for a tier table and it is not a mistake in the rates. It is
+ * a bad thing to leave in front of a customer: either they notice, and the
+ * shop looks like it is charging for arithmetic nobody checked, or they do
+ * not, and they overpay for ordering the amount they actually wanted.
+ *
+ * ── THE RULE ──────────────────────────────────────────────────────────────
+ * You are never charged more than you would be charged for MORE signs. If a
+ * larger tier's minimum works out cheaper, the order is priced at that tier —
+ * the customer keeps the quantity they asked for and pays the better price.
+ *
+ * Nobody's price goes up. Five signs now cost $93.00 rather than $127.50,
+ * which is the six-sign price, and the total never decreases as quantity
+ * rises.
+ *
+ * Ties go to the customer's own quantity, so a run that is already on a tier
+ * boundary reports itself plainly rather than claiming to be a deal.
+ */
+export function getYardSignPrice(
+  sizeKey: string,
+  quantity: number,
+  doubleSided: boolean
+): YardSignPrice | null {
+  const size = signsPricingConfig.yardSigns.sizes[sizeKey];
+  if (!size) return null;
+
+  const own = getYardSignUnitPrice(sizeKey, quantity, doubleSided);
+  if (own === null) return null;
+
+  let best: YardSignPrice = {
+    unitPrice: own,
+    chargedQuantity: quantity,
+    total: own * quantity,
+  };
+
+  // Only tiers ABOVE this quantity can undercut it: to get that rate you would
+  // have to buy the tier's minimum, so that minimum is what it would cost.
+  for (const tier of size.tiers) {
+    if (tier.minQuantity <= quantity) continue;
+
+    const unitPrice = doubleSided ? tier.double : tier.single;
+    const total = unitPrice * tier.minQuantity;
+
+    if (total < best.total) {
+      best = { unitPrice, chargedQuantity: tier.minQuantity, total };
+    }
+  }
+
+  return { ...best, total: Math.round(best.total * 100) / 100 };
+}
+
 export function calculateSignsPricing(
   input: SignsPricingInput
 ): SignsPricingResult {
@@ -99,22 +173,38 @@ export function calculateSignsPricing(
 
   let productTotal = 0;
   let sqftEach = 0;
+  let pricedAtQuantity: number | undefined;
 
   if (input.method === "yard") {
     const sizeKey = input.sizeKey || "";
-    const unit = getYardSignUnitPrice(sizeKey, quantity, input.doubleSided);
+    const priced = getYardSignPrice(sizeKey, quantity, input.doubleSided);
 
-    if (unit === null) {
+    if (priced === null) {
       return empty(
         "This sign size is priced by hand — Gorilla Salem will confirm it."
       );
     }
 
-    productTotal = unit * quantity;
+    productTotal = priced.total;
+
+    const sides = input.doubleSided ? "double-sided" : "single-sided";
+    const bumped = priced.chargedQuantity > quantity;
+
+    if (bumped) pricedAtQuantity = priced.chargedQuantity;
+
     lines.push({
-      label: `${quantity} × ${sizeKey} ${
-        input.doubleSided ? "double-sided" : "single-sided"
-      } @ $${unit.toFixed(2)}`,
+      // Says what happened rather than showing a rate that does not divide
+      // into the total. KEEP THIS SHORT: lib/email.ts renders every label in
+      // a `white-space: nowrap` cell, and a long one squeezes the value to a
+      // syllable per line on a phone. That is a defect this repo has already
+      // shipped once, so the explanation lives in the summary card, where it
+      // can wrap, and the label carries only the fact.
+      label: bumped
+        ? // Shorter than the ordinary line on purpose, not longer: "sides" is
+          // already its own row above, and the label column is the one that
+          // must not grow.
+          `${quantity} × ${sizeKey}, ${priced.chargedQuantity}-sign price`
+        : `${quantity} × ${sizeKey} ${sides} @ $${priced.unitPrice.toFixed(2)}`,
       amount: round2(productTotal),
     });
 
@@ -343,5 +433,6 @@ export function calculateSignsPricing(
     note: cfg.taxNote,
     hasQuotedExtras,
     suggestions,
+    pricedAtQuantity,
   };
 }

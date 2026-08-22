@@ -7,17 +7,30 @@ next session will act on it.
 
 Read this first, then `AGENTS.md` and `DESIGN-SYSTEM.md`.
 
-## Live right now — 2026-08-22, `main` @ `338cd0c`
+## Live right now — 2026-08-22, `main` @ `63bae20`
 
 `main` is deployed to https://labs.gorillasalem.com (Vercel, production branch
 is `main`, root directory `v2`). The custom domain is wired correctly — do NOT
 touch the `@` or `www` DNS records for gorillasalem.com, those are Squarespace
 and repointing them took the main site down once already.
 
-886 tests passing, `tsc` clean, 0 lint errors (8 warnings, all the
+898 tests passing, `tsc` clean, 0 lint errors (8 warnings, all the
 deliberate `<img>` uses).
 
 Working and verified:
+
+- **Step 01 is split into decoration and large format** — 2026-08-22, per
+  `gorillalabsbannerssplit.md`. Presentation only, no pricing touched. The
+  Banners card used to say "Beta" and "Instant price · we invoice" at the same
+  time — unfinished and trustworthy in one breath, on the one card that
+  already returns a real price. Gabe confirmed the Banners pricing is real, so
+  both badges are gone (`Beta`, `By request`), the card grid is two-up, and
+  Banners is a full-width band under a LARGE FORMAT rule-label. The split is
+  stored as `segment` on ProductCategory rather than an `id === "signs"` check
+  in the view. Verified in a browser at 1180px and 390px: no horizontal
+  scroll, tab reaches all three options in reading order, and the focus ring
+  is visible on the band both unselected (2px ink on white) and selected (2px
+  green on --surface-ok).
 
 - **The shop is told the size the customer actually typed** — 2026-08-22.
   `getSignSizeLabel` returned `quote.size`, a preset LABEL left over from the

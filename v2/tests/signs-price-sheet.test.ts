@@ -1,7 +1,10 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
-import { calculateSignsPricing } from "../lib/signs-pricing";
+import {
+  calculateSignsPricing,
+  getYardSignUnitPrice,
+} from "../lib/signs-pricing";
 import { signsPricingConfig } from "../lib/signs-pricing-config";
 
 /**
@@ -68,20 +71,20 @@ yard   | 1   | 18x24   | Coroplast                 | single | Signs Only        
 yard   | 1   | 18x24   | Coroplast                 | double | Signs Only         | -                         | 60.50
 yard   | 2   | 18x24   | Coroplast                 | single | Signs Only         | -                         | 67.50
 yard   | 2   | 18x24   | Coroplast                 | double | Signs Only         | -                         | 104.50
-yard   | 5   | 18x24   | Coroplast                 | single | Signs Only         | -                         | 144.00
-yard   | 5   | 18x24   | Coroplast                 | double | Signs Only         | -                         | 236.50
+yard   | 5   | 18x24   | Coroplast                 | single | Signs Only         | -                         | 109.50
+yard   | 5   | 18x24   | Coroplast                 | double | Signs Only         | -                         | 148.50
 yard   | 6   | 18x24   | Coroplast                 | single | Signs Only         | -                         | 109.50
 yard   | 6   | 18x24   | Coroplast                 | double | Signs Only         | -                         | 148.50
-yard   | 9   | 18x24   | Coroplast                 | single | Signs Only         | -                         | 156.00
+yard   | 9   | 18x24   | Coroplast                 | single | Signs Only         | -                         | 151.50
 yard   | 9   | 18x24   | Coroplast                 | double | Signs Only         | -                         | 214.50
 yard   | 10  | 18x24   | Coroplast                 | single | Signs Only         | -                         | 151.50
 yard   | 10  | 18x24   | Coroplast                 | double | Signs Only         | -                         | 216.50
-yard   | 19  | 18x24   | Coroplast                 | single | Signs Only         | -                         | 273.00
+yard   | 19  | 18x24   | Coroplast                 | single | Signs Only         | -                         | 266.50
 yard   | 19  | 18x24   | Coroplast                 | double | Signs Only         | -                         | 396.50
 yard   | 20  | 18x24   | Coroplast                 | single | Signs Only         | -                         | 266.50
 yard   | 20  | 18x24   | Coroplast                 | double | Signs Only         | -                         | 396.50
-yard   | 29  | 18x24   | Coroplast                 | single | Signs Only         | -                         | 379.00
-yard   | 29  | 18x24   | Coroplast                 | double | Signs Only         | -                         | 567.50
+yard   | 29  | 18x24   | Coroplast                 | single | Signs Only         | -                         | 346.50
+yard   | 29  | 18x24   | Coroplast                 | double | Signs Only         | -                         | 556.50
 yard   | 30  | 18x24   | Coroplast                 | single | Signs Only         | -                         | 346.50
 yard   | 30  | 18x24   | Coroplast                 | double | Signs Only         | -                         | 556.50
 yard   | 50  | 18x24   | Coroplast                 | single | Signs Only         | -                         | 566.50
@@ -438,39 +441,172 @@ describe("the rules the sheet exists to hold still", () => {
     assert.equal(refused?.total, plain18?.total);
   });
 
-  test("ordering ONE MORE sign can cost less, at four quantities", () => {
+  test("the total never goes backwards as quantity rises", () => {
     /**
-     * Not a defect — it is what a per-unit tier table does at a boundary, and
-     * these are the shop's own board rates. Written down because it is the
-     * kind of thing that reads as a bug when a customer finds it:
+     * It used to. The board is a per-unit tier table, so at every boundary the
+     * total fell as the order grew:
      *
      *   5 signs  $144.00   ->  6 signs  $109.50
      *   9 signs  $156.00   -> 10 signs  $151.50
      *   19 signs $273.00   -> 20 signs  $266.50
      *   29 signs $379.00   -> 30 signs  $346.50
      *
-     * If the shop ever wants the total to be monotonic, this test is the
-     * inventory of where it is not.
+     * Someone ordering 29 signs paid $32.50 more than someone ordering 30.
+     * getYardSignPrice now charges the better of the two, so the curve is
+     * non-decreasing. Driven against the ENGINE across a full range rather
+     * than read off the sheet above — the sheet samples quantities, and an
+     * inversion can hide between two samples.
      */
-    const single = (quantity: number) =>
-      find({
+    for (const sizeKey of Object.keys(signsPricingConfig.yardSigns.sizes)) {
+      for (const doubleSided of [false, true]) {
+        for (const stepStakes of [false, true]) {
+          let previous = 0;
+
+          for (let quantity = 1; quantity <= 60; quantity += 1) {
+            const total = calculateSignsPricing({
+              method: "yard",
+              quantity,
+              sizeKey,
+              widthInches: 18,
+              heightInches: 24,
+              material: "Coroplast",
+              doubleSided,
+              stepStakes,
+              finishing: stepStakes ? "With Step Stakes" : "Signs Only",
+              isCustomSize: false,
+              bannerAddOns: [],
+            }).total;
+
+            assert.ok(
+              total >= previous,
+              `${sizeKey} ${doubleSided ? "double" : "single"}${
+                stepStakes ? " + stakes" : ""
+              }: ${quantity} signs cost $${total.toFixed(2)}, less than ${
+                quantity - 1
+              } at $${previous.toFixed(2)}`
+            );
+
+            previous = total;
+          }
+        }
+      }
+    }
+  });
+
+  test("and no quantity pays more than the board's own rate", () => {
+    /**
+     * The other half of the guarantee, and the one that matters to the shop:
+     * fixing the inversions must not have raised anybody's price. Checked
+     * against getYardSignUnitPrice — the untouched board lookup — so this is
+     * the rate card talking, not the new code agreeing with itself.
+     */
+    const { setupFee, yardSigns } = signsPricingConfig;
+
+    for (const sizeKey of Object.keys(yardSigns.sizes)) {
+      for (const doubleSided of [false, true]) {
+        for (let quantity = 1; quantity <= 60; quantity += 1) {
+          const boardRate = getYardSignUnitPrice(sizeKey, quantity, doubleSided);
+          assert.ok(boardRate !== null);
+
+          const board = (boardRate as number) * quantity + setupFee;
+          const charged = calculateSignsPricing({
+            method: "yard",
+            quantity,
+            sizeKey,
+            widthInches: 18,
+            heightInches: 24,
+            material: "Coroplast",
+            doubleSided,
+            stepStakes: false,
+            finishing: "Signs Only",
+            isCustomSize: false,
+            bannerAddOns: [],
+          }).total;
+
+          assert.ok(
+            charged <= board + 1e-9,
+            `${sizeKey} ${quantity} ${
+              doubleSided ? "double" : "single"
+            }: charged $${charged.toFixed(2)}, board says $${board.toFixed(2)}`
+          );
+        }
+      }
+    }
+  });
+
+  test("the six figures that moved, and only those six", () => {
+    /**
+     * The price cut itself, as literals. Every other row on the sheet above is
+     * byte-identical to what it was before the rule existed, which is how a
+     * repricing this narrow is supposed to look.
+     */
+    const WAS: Array<[number, boolean, number, number]> = [
+      // quantity, doubleSided, before, after
+      [5, false, 144, 109.5],
+      [5, true, 236.5, 148.5],
+      [9, false, 156, 151.5],
+      [19, false, 273, 266.5],
+      [29, false, 379, 346.5],
+      [29, true, 567.5, 556.5],
+    ];
+
+    for (const [quantity, doubleSided, before, after] of WAS) {
+      const row = find({
         method: "yard",
         quantity,
-        doubleSided: false,
+        doubleSided,
         finishing: "Signs Only",
-      })?.total;
+      });
 
-    for (const [fewer, more] of [
-      [5, 6],
-      [9, 10],
-      [19, 20],
-      [29, 30],
-    ]) {
-      assert.ok(
-        (single(fewer) as number) > (single(more) as number),
-        `${fewer} signs no longer costs more than ${more}`
-      );
+      assert.equal(row?.total, after, `${quantity} ${doubleSided ? "double" : "single"}`);
+      assert.ok(after < before, "every one of these was a cut, never a rise");
     }
+  });
+
+  test("a bumped order says so, in a label short enough to render", () => {
+    /**
+     * The line item has to explain a total that does not divide by the board
+     * rate, and it has to do it in a label that lib/email.ts renders inside a
+     * `white-space: nowrap` cell. A long one squeezes the value column until
+     * dollar amounts break mid-number — "$122.00" over three lines — for every
+     * row in the table, not just this one. That defect has shipped here once
+     * already, so the length is asserted rather than eyeballed.
+     */
+    const bumped = calculateSignsPricing({
+      method: "yard",
+      quantity: 5,
+      sizeKey: '18" x 24"',
+      widthInches: 18,
+      heightInches: 24,
+      material: "Coroplast",
+      doubleSided: false,
+      stepStakes: false,
+      finishing: "Signs Only",
+      isCustomSize: false,
+      bannerAddOns: [],
+    });
+
+    assert.equal(bumped.pricedAtQuantity, 6);
+    assert.equal(bumped.lines[0].label, '5 × 18" x 24", 6-sign price');
+    assert.ok(bumped.lines[0].label.length <= 35);
+
+    // An ordinary order carries no flag, so the summary card stays quiet.
+    const plain = calculateSignsPricing({
+      method: "yard",
+      quantity: 6,
+      sizeKey: '18" x 24"',
+      widthInches: 18,
+      heightInches: 24,
+      material: "Coroplast",
+      doubleSided: false,
+      stepStakes: false,
+      finishing: "Signs Only",
+      isCustomSize: false,
+      bannerAddOns: [],
+    });
+
+    assert.equal(plain.pricedAtQuantity, undefined);
+    assert.equal(plain.lines[0].label, '6 × 18" x 24" single-sided @ $15.50');
   });
 });
 

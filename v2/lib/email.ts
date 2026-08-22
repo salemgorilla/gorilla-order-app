@@ -851,14 +851,38 @@ function htmlRows(lines: string[]) {
       const idx = l.indexOf(": ");
       const label = idx >= 0 ? l.slice(0, idx) : l;
       const value = idx >= 0 ? l.slice(idx + 2) : "";
-      return `<tr><td style="padding:3px 12px 3px 0;color:${INK_MUTED};white-space:nowrap;vertical-align:top;">${escapeHtml(
+      /**
+       * WHICH CELL GETS nowrap IS THE WHOLE BUG.
+       *
+       * It used to be the LABEL. One long label then set the label column's
+       * width for the entire table and squeezed the value column to almost
+       * nothing, so on a 390px phone the dollar amounts broke one character
+       * per line — "$327.00" down six rows. Three separate changes have now
+       * shipped that symptom (the repricing note in #35, the yard-sign bumped
+       * label, and the multi-design estimate), each fixed by shortening a
+       * string, which is treating the symptom.
+       *
+       * A label wrapping onto two lines is fine. A NUMBER wrapping is never
+       * fine — it stops being a number. Dropping nowrap from the LABEL lets
+       * the browser share the width out, and the value column then has enough
+       * of it that "$327.00" stays on one line. The columns are then given
+       * explicit widths under `table-layout:fixed`, because sharing by
+       * content still left the value column narrower than the number it had
+       * to hold — "$327.0" then "0" on the next line.
+       *
+       * Not nowrap on the value instead: this same table renders email
+       * addresses and customer notes, and one unbreakable 40-character
+       * address would push the whole email into horizontal scroll — measured
+       * at 686px against a 390px screen.
+       */
+      return `<tr><td style="padding:3px 12px 3px 0;color:${INK_MUTED};vertical-align:top;width:58%;">${escapeHtml(
         label
-      )}</td><td style="padding:3px 0;color:${INK_BLACK};font-weight:600;word-break:break-word;">${escapeHtml(
+      )}</td><td style="padding:3px 0;color:${INK_BLACK};font-weight:600;overflow-wrap:break-word;vertical-align:top;width:42%;">${escapeHtml(
         value
       )}</td></tr>`;
     })
     .join("");
-  return `<table style="border-collapse:collapse;font-size:14px;width:100%;">${rows}</table>`;
+  return `<table style="border-collapse:collapse;font-size:14px;width:100%;table-layout:fixed;">${rows}</table>`;
 }
 
 function htmlSection(title: string, lines: string[]) {

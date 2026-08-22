@@ -134,9 +134,22 @@ describe("several designs are summed", () => {
     assert.ok(product.some((line) => line.label.startsWith("2 · ")));
   });
 
-  it("keeps every label short enough for the email's nowrap cell", () => {
-    // A long label widens the label column for the WHOLE table and breaks
-    // dollar amounts mid-number on a phone. Shipped here once already.
+  it("keeps every label short, for readability rather than for safety", () => {
+    /**
+     * This ceiling used to be described as what stops long labels breaking
+     * the shop email's dollar amounts. It is not, and saying so was worse
+     * than saying nothing: this assertion PASSED at 40 characters while a
+     * two-design estimate rendered "$327.00" one character per line on a
+     * phone.
+     *
+     * The email's own table is what protects the numbers now — the label cell
+     * no longer carries `white-space: nowrap`, so it wraps instead of
+     * starving the value column. See tests/email-money-wrapping.test.ts,
+     * which measures the thing itself.
+     *
+     * Short labels are still worth having; they are just not a safety
+     * mechanism.
+     */
     const cart = quoteSignsCart([
       design({ ...YARD, quantity: 29 }),
       design({ customWidthInches: 96, customHeightInches: 48 }),

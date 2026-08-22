@@ -210,8 +210,11 @@ export function getSignsFieldErrors(
     artwork: { file: unknown };
     production: { needBy: string };
   },
-  /** The sentinel meaning "the customer typed their own size". */
-  customSizeValue: string
+  /**
+   * False only for products whose size is fixed by the shop — yard signs are
+   * made at one size and show no width or height field.
+   */
+  needsTypedSize: boolean
 ): FieldErrors {
   const errors: FieldErrors = {};
 
@@ -255,9 +258,21 @@ export function getSignsFieldErrors(
     errors.quantity = "Enter how many you need.";
   }
 
-  // Only a custom size is typed — every other size resolves from the product's
-  // own table, so a blank width there is not a missing answer.
-  if (signsQuote.size === customSizeValue) {
+  // Every size is typed now except the yard sign, which is frozen at
+  // 18" x 24" and shows no width or height field at all.
+  //
+  // This rule used to be gated on `size === customSizeValue`, from back when
+  // a size DROPDOWN existed and only the "Custom size" option needed
+  // dimensions. That sentinel is now unreachable for anything priceable — the
+  // builder sets `size` to the product's first preset label and never to the
+  // sentinel — so the rule stopped firing entirely, and a banner could be
+  // submitted with no size on it. It did not price (the engine wants real
+  // dimensions), so it degraded quietly into a hand-quote request while the
+  // shop was told a preset size the customer never chose.
+  //
+  // Keyed on whether the product needs dimensions, not on a sentinel, so
+  // deleting a UI control cannot silently switch it off again.
+  if (needsTypedSize) {
     if (!(signsQuote.customWidthInches > 0)) {
       errors.width = "Enter a width.";
     }

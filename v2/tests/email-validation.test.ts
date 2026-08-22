@@ -134,11 +134,11 @@ describe("all three flows enforce it", () => {
     };
 
     assert.ok(
-      getSignsFieldErrors(signsQuote, signsOrder("dana@gmailcom"), "custom")
+      getSignsFieldErrors(signsQuote, signsOrder("dana@gmailcom"), false)
         .customerEmail
     );
     assert.equal(
-      getSignsFieldErrors(signsQuote, signsOrder("dana@example.com"), "custom")
+      getSignsFieldErrors(signsQuote, signsOrder("dana@example.com"), false)
         .customerEmail,
       undefined
     );

@@ -13,8 +13,6 @@ import { getFirstStepWithError, FIELD_STEP } from "../lib/steps";
  * in a position to notice.
  */
 
-const CUSTOM = "Custom size";
-
 function signs(overrides: Record<string, unknown> = {}) {
   return {
     templateId: null,
@@ -35,11 +33,21 @@ function order(overrides: Record<string, unknown> = {}) {
   } as Parameters<typeof getSignsFieldErrors>[1];
 }
 
+/**
+ * `needsTypedSize` defaults to false — the fixture is a yard sign, the one
+ * product whose size the shop fixes. Pass true for anything the customer types
+ * dimensions for, which is every other sign.
+ */
 function errorsFor(
   signsOverrides: Record<string, unknown> = {},
-  orderOverrides: Record<string, unknown> = {}
+  orderOverrides: Record<string, unknown> = {},
+  needsTypedSize = false
 ) {
-  return getSignsFieldErrors(signs(signsOverrides), order(orderOverrides), CUSTOM);
+  return getSignsFieldErrors(
+    signs(signsOverrides),
+    order(orderOverrides),
+    needsTypedSize
+  );
 }
 
 describe("a sign has to have a quantity", () => {
@@ -86,15 +94,35 @@ describe("the rules signs already had still hold", () => {
     );
   });
 
-  test("a custom size needs both dimensions typed", () => {
-    const errors = errorsFor({ size: CUSTOM });
+  test("a typed-size product needs both dimensions", () => {
+    /**
+     * This rule was UNREACHABLE. It used to fire only when the size equalled
+     * the "Custom size" sentinel, which was an option in a dropdown that no
+     * longer exists — the builder now sets `size` to the product's first
+     * preset label and never to the sentinel. So a banner could be submitted
+     * with no size on it: it did not price, so it degraded into a hand-quote
+     * request, and the shop was told a preset size the customer never chose.
+     */
+    const errors = errorsFor({}, {}, true);
     assert.equal(errors.width, "Enter a width.");
     assert.equal(errors.height, "Enter a height.");
   });
 
-  test("a menu size resolves from the product table, so blank dimensions are fine", () => {
-    // The custom boxes sit at 0 whenever a menu size is chosen. That is not a
-    // question the customer failed to answer.
+  test("and is satisfied once they are typed", () => {
+    const errors = errorsFor(
+      { customWidthInches: 25, customHeightInches: 37 },
+      {},
+      true
+    );
+
+    assert.equal(errors.width, undefined);
+    assert.equal(errors.height, undefined);
+  });
+
+  test("a yard sign is frozen at one size, so blank dimensions are fine", () => {
+    // Yard signs show no width or height field at all — the builder prints
+    // 18" x 24" as static text. A blank box there is not a question the
+    // customer failed to answer.
     const errors = errorsFor({ size: '18" x 24"' });
     assert.equal(errors.width, undefined);
     assert.equal(errors.height, undefined);
@@ -124,13 +152,13 @@ describe("every key signs can raise has a step that owns it", () => {
      * so a rule added later is covered without anyone remembering to.
      */
     const everythingWrong = getSignsFieldErrors(
-      signs({ quantity: 0, size: CUSTOM, templateId: null }),
+      signs({ quantity: 0, templateId: null }),
       order({
         customer: { customerName: "", email: "" },
         artwork: { file: null },
         production: { needBy: "" },
       }),
-      CUSTOM
+      true
     );
 
     assert.ok(Object.keys(everythingWrong).length >= 7, "expected a full sweep of failures");

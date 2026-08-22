@@ -47,7 +47,6 @@ import {
   allowsDoubleSided,
   allowsReinforcement,
   REINFORCEMENT_ADD_ON_KEY,
-  CUSTOM_SIZE,
   defaultSignsQuote,
   getFinishingOptions,
   getSignDimensions,
@@ -1309,7 +1308,12 @@ export default function Home() {
   // The rules themselves live in lib/validation.ts so they can be tested;
   // this binds them to the component's state. See getSignsFieldErrors there.
   function getSignsFieldErrors(): FieldErrors {
-    return getSignsFieldErrorsFor(signsQuote, order, CUSTOM_SIZE);
+    // Yard signs are frozen at one size and show no width/height field, so
+    // they are the only product that does not owe dimensions.
+    const needsTypedSize =
+      getSignProduct(signsQuote.productId).pricingMethod !== "yard";
+
+    return getSignsFieldErrorsFor(signsQuote, order, needsTypedSize);
   }
 
   function getSignsValidationErrors() {

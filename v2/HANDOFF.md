@@ -7,16 +7,28 @@ next session will act on it.
 
 Read this first, then `AGENTS.md` and `DESIGN-SYSTEM.md`.
 
-## Live right now — 2026-08-19, `main` @ `97b5bc8`
+## Live right now — 2026-08-22, `main` @ `f776787`
 
 `main` is deployed to https://labs.gorillasalem.com (Vercel, production branch
 is `main`, root directory `v2`). The custom domain is wired correctly — do NOT
 touch the `@` or `www` DNS records for gorillasalem.com, those are Squarespace
 and repointing them took the main site down once already.
 
-623 tests passing, `tsc` clean, 0 lint errors.
+863 tests passing, `tsc` clean, 0 lint errors (8 warnings, all the
+deliberate `<img>` uses).
 
 Working and verified:
+
+- **Signs have a committed price sheet now** — 2026-08-22.
+  `tests/signs-price-sheet.test.ts`, 120 literal totals across yard, banner,
+  poster and rigid, generated once from `calculateSignsPricing` and pasted.
+  Signs were formula-tested in three files and the actual dollars appeared
+  nowhere, so a repricing was not a reviewable diff — which matters on a
+  file that just moved 10%. Covers only what the builder can reach: the yard
+  table is frozen at 18" x 24" by `getSignDimensions`, so the `24" x 36"`
+  tiers in `signs-pricing-config.ts` are unreachable and are off the sheet.
+  Mutation-checked: a 2% nudge to the 18 oz rate fails 26 tests, moving the
+  setup fee inside the per-unit loop fails 74.
 
 - **The background-removal gate is testable now** — 2026-08-20. `readBorder`
   decides whether we touch a customer's artwork at all — below
@@ -403,6 +415,32 @@ to start the build after PR #2; it is kept only so nobody finds it in the
 history and re-does finished work.
 
 ### Still Gabe's call, not code
+
+- **The $22 custom size fee is unreachable, and the builder promises it**
+  — 2026-08-22. `SignsBuilder` tells a rigid-sign customer that hard stock
+  adds a $22 fee because odd sizes leave drop from a 48" x 96" sheet. No quote
+  can charge it: `app/page.tsx` passes
+  `isCustomSize: signsQuote.size === CUSTOM_SIZE`, and since the size selector
+  became typed dimensions, `size` is always a real label. The only product
+  that sets `CUSTOM_SIZE` is window graphics, which is hand-quoted and never
+  reaches the engine. The engine itself is right and is asserted to be.
+  Two ways to settle it and they are not equivalent — charge the fee on any
+  size that does not nest into the sheet (`sheetStockInches` is already in the
+  config), or drop the promise from the copy. Either moves money, so neither
+  was picked here.
+- **The yard-sign table is not monotonic.** 5 signs cost $144.00 and 6 cost
+  $109.50; same at 9/10, 19/20 and 29/30. Normal for a per-unit tier table and
+  these are the shop's own board rates, but it reads as a bug to whoever finds
+  it. The inventory of where it happens is a test now, so making it monotonic
+  is a decision rather than a discovery.
+- **The server does not reprice signs.** `repriceStickers` returns early for
+  anything that is not a sticker order, so the signs total that reaches the
+  shop email and Printavo is whatever the browser computed. Stickers are
+  repriced server-side because they self-check-out; signs are invoiced by a
+  human who sees the figure first, so this is a defensible line rather than an
+  oversight — written down so the next session does not re-derive it and
+  "fix" it speculatively. Making the server authoritative there touches the
+  money path and would need a real order reconciled against the invoice.
 
 - Apparel's full configurator is blocked on **pricing sign-off**, not the
   preview — that port is done (`e41e49a`).

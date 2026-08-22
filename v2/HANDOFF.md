@@ -7,14 +7,14 @@ next session will act on it.
 
 Read this first, then `AGENTS.md` and `DESIGN-SYSTEM.md`.
 
-## Live right now — 2026-08-22, `main` @ `63bae20`
+## Live right now — 2026-08-22, `main` @ `aab4873`
 
 `main` is deployed to https://labs.gorillasalem.com (Vercel, production branch
 is `main`, root directory `v2`). The custom domain is wired correctly — do NOT
 touch the `@` or `www` DNS records for gorillasalem.com, those are Squarespace
 and repointing them took the main site down once already.
 
-898 tests passing, `tsc` clean, 0 lint errors (8 warnings, all the
+927 tests passing, `tsc` clean, 0 lint errors (8 warnings, all the
 deliberate `<img>` uses).
 
 Working and verified:
@@ -490,15 +490,23 @@ history and re-does finished work.
 
 ### Owed on the signs repricing — 2026-08-22
 
-TWO changes landed on the signs money path today and NEITHER has been
+THREE changes landed on the signs money path today and NONE has been
 reconciled against a real Printavo invoice, which `AGENTS.md` requires and
 which cannot be done from a coding session:
 
 1. yard-sign totals made monotonic (only quantities 5, 9, 19, 29 moved);
 2. setup fee $16.50 per order + $22 size fee -> $15 per design (every signs
-   total fell $1.50).
+   total fell $1.50);
+3. a quote can now hold SEVERAL designs, so Printavo receives one line item
+   per design plus a single combined setup row.
 
-One order covers both if it is a yard-sign order at a bumped quantity.
+TWO orders are needed, not one. A yard-sign order at a bumped quantity covers
+(1) and (2); only a two-design quote exercises (3), and that is the one where
+a mistake would be structural rather than a rounding error — sending each
+design's full total instead of its subtotal would charge setup twice, once in
+the line item and once in the fee row. `lib/signs-payload.ts` sends the
+subtotal and says so, and a test pins it, but nothing has yet compared it to
+an actual invoice.
 
 `AGENTS.md` is explicit that a pricing change ends with one real order
 reconciled against the Printavo invoice, to the cent, and never with a passing
@@ -507,6 +515,10 @@ session. **One yard-sign order at a bumped quantity — 5, 9, 19 or 29 — is th
 one that matters**, because it exercises both changes at once. 5 signs,
 18" x 24", single-sided, local pickup should invoice at $93.00 + $15.00 setup
 = $108.00 before tax, $114.75 with MA 6.25%.
+
+For the two-design order, the figures to check on the invoice are: one line
+item per design at each design's own product cost, ONE setup row at $15 x the
+number of designs, and no setup buried inside the line items.
 
 Signs do not auto-bill, so a human sees the figure before money moves — which
 is why this was safe to ship ahead of the reconciliation, not a reason to skip

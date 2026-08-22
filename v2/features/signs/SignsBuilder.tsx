@@ -178,15 +178,8 @@ export default function SignsBuilder({
                 (signsQuote.customWidthInches * signsQuote.customHeightInches) /
                 144
               ).toFixed(2)}{" "}
-              sq ft each.{" "}
-              {product.pricingMethod === "banner" ||
-              product.pricingMethod === "poster"
-                ? "Any size — no extra charge, these print on roll material."
-                : `Hard stock adds a ${priceCopy(
-                    signsPricingConfig.customSizeFee
-                  )} fee, since odd sizes leave drop pieces when cut from our ${
-                    signsPricingConfig.sheetStockInches.width
-                  }″ × ${signsPricingConfig.sheetStockInches.height}″ sheets.`}
+              sq ft each. Any size — an odd size costs no more than a
+              standard one, on every sign type.
             </p>
           )}
       </div>

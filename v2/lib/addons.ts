@@ -43,7 +43,6 @@ function bannerPrice() {
     material: "13 oz Scrim Vinyl",
     doubleSided: false,
     stepStakes: false,
-    isCustomSize: false,
     bannerAddOns: [],
   });
 

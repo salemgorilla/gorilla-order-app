@@ -67,126 +67,126 @@ import { signsPricingConfig } from "../lib/signs-pricing-config";
  *          banner add-ons | total
  */
 const PRICE_SHEET = `
-yard   | 1   | 18x24   | Coroplast                 | single | Signs Only         | -                         | 47.50
-yard   | 1   | 18x24   | Coroplast                 | double | Signs Only         | -                         | 60.50
-yard   | 2   | 18x24   | Coroplast                 | single | Signs Only         | -                         | 67.50
-yard   | 2   | 18x24   | Coroplast                 | double | Signs Only         | -                         | 104.50
-yard   | 5   | 18x24   | Coroplast                 | single | Signs Only         | -                         | 109.50
-yard   | 5   | 18x24   | Coroplast                 | double | Signs Only         | -                         | 148.50
-yard   | 6   | 18x24   | Coroplast                 | single | Signs Only         | -                         | 109.50
-yard   | 6   | 18x24   | Coroplast                 | double | Signs Only         | -                         | 148.50
-yard   | 9   | 18x24   | Coroplast                 | single | Signs Only         | -                         | 151.50
-yard   | 9   | 18x24   | Coroplast                 | double | Signs Only         | -                         | 214.50
-yard   | 10  | 18x24   | Coroplast                 | single | Signs Only         | -                         | 151.50
-yard   | 10  | 18x24   | Coroplast                 | double | Signs Only         | -                         | 216.50
-yard   | 19  | 18x24   | Coroplast                 | single | Signs Only         | -                         | 266.50
-yard   | 19  | 18x24   | Coroplast                 | double | Signs Only         | -                         | 396.50
-yard   | 20  | 18x24   | Coroplast                 | single | Signs Only         | -                         | 266.50
-yard   | 20  | 18x24   | Coroplast                 | double | Signs Only         | -                         | 396.50
-yard   | 29  | 18x24   | Coroplast                 | single | Signs Only         | -                         | 346.50
-yard   | 29  | 18x24   | Coroplast                 | double | Signs Only         | -                         | 556.50
-yard   | 30  | 18x24   | Coroplast                 | single | Signs Only         | -                         | 346.50
-yard   | 30  | 18x24   | Coroplast                 | double | Signs Only         | -                         | 556.50
-yard   | 50  | 18x24   | Coroplast                 | single | Signs Only         | -                         | 566.50
-yard   | 50  | 18x24   | Coroplast                 | double | Signs Only         | -                         | 916.50
-yard   | 1   | 18x24   | Coroplast                 | single | With Step Stakes   | -                         | 50.00
-yard   | 1   | 18x24   | Coroplast                 | double | With Step Stakes   | -                         | 63.00
-yard   | 10  | 18x24   | Coroplast                 | single | With Step Stakes   | -                         | 176.50
-yard   | 10  | 18x24   | Coroplast                 | double | With Step Stakes   | -                         | 241.50
-yard   | 30  | 18x24   | Coroplast                 | single | With Step Stakes   | -                         | 421.50
-yard   | 30  | 18x24   | Coroplast                 | double | With Step Stakes   | -                         | 631.50
-banner | 1   | 48x24   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | -                         | 88.50
-banner | 5   | 48x24   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | -                         | 376.50
-banner | 1   | 72x36   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | -                         | 178.50
-banner | 5   | 72x36   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | -                         | 826.50
-banner | 1   | 96x48   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | -                         | 304.50
-banner | 5   | 96x48   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | -                         | 1456.50
-banner | 1   | 96x24   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | -                         | 160.50
-banner | 5   | 96x24   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | -                         | 736.50
-banner | 1   | 48x24   | 18 oz Heavy Duty Vinyl    | single | Hemmed + Grommets  | -                         | 116.50
-banner | 5   | 48x24   | 18 oz Heavy Duty Vinyl    | single | Hemmed + Grommets  | -                         | 516.50
-banner | 1   | 72x36   | 18 oz Heavy Duty Vinyl    | single | Hemmed + Grommets  | -                         | 241.50
-banner | 5   | 72x36   | 18 oz Heavy Duty Vinyl    | single | Hemmed + Grommets  | -                         | 1141.50
-banner | 1   | 96x48   | 18 oz Heavy Duty Vinyl    | single | Hemmed + Grommets  | -                         | 416.50
-banner | 5   | 96x48   | 18 oz Heavy Duty Vinyl    | single | Hemmed + Grommets  | -                         | 2016.50
-banner | 1   | 96x24   | 18 oz Heavy Duty Vinyl    | single | Hemmed + Grommets  | -                         | 216.50
-banner | 5   | 96x24   | 18 oz Heavy Duty Vinyl    | single | Hemmed + Grommets  | -                         | 1016.50
-banner | 1   | 48x24   | Mesh Vinyl (windy areas)  | single | Hemmed + Grommets  | -                         | 88.50
-banner | 5   | 48x24   | Mesh Vinyl (windy areas)  | single | Hemmed + Grommets  | -                         | 376.50
-banner | 1   | 72x36   | Mesh Vinyl (windy areas)  | single | Hemmed + Grommets  | -                         | 178.50
-banner | 5   | 72x36   | Mesh Vinyl (windy areas)  | single | Hemmed + Grommets  | -                         | 826.50
-banner | 1   | 96x48   | Mesh Vinyl (windy areas)  | single | Hemmed + Grommets  | -                         | 304.50
-banner | 5   | 96x48   | Mesh Vinyl (windy areas)  | single | Hemmed + Grommets  | -                         | 1456.50
-banner | 1   | 96x24   | Mesh Vinyl (windy areas)  | single | Hemmed + Grommets  | -                         | 160.50
-banner | 5   | 96x24   | Mesh Vinyl (windy areas)  | single | Hemmed + Grommets  | -                         | 736.50
-banner | 1   | 48x24   | 18 oz Heavy Duty Vinyl    | double | Hemmed + Grommets  | -                         | 180.50
-banner | 1   | 48x24   | 13 oz Scrim Vinyl         | double | Hemmed + Grommets  | -                         | 292.50
-banner | 5   | 48x24   | 18 oz Heavy Duty Vinyl    | double | Hemmed + Grommets  | -                         | 836.50
-banner | 5   | 48x24   | 13 oz Scrim Vinyl         | double | Hemmed + Grommets  | -                         | 1396.50
-banner | 1   | 72x36   | 18 oz Heavy Duty Vinyl    | double | Hemmed + Grommets  | -                         | 385.50
-banner | 1   | 72x36   | 13 oz Scrim Vinyl         | double | Hemmed + Grommets  | -                         | 538.50
-banner | 5   | 72x36   | 18 oz Heavy Duty Vinyl    | double | Hemmed + Grommets  | -                         | 1861.50
-banner | 5   | 72x36   | 13 oz Scrim Vinyl         | double | Hemmed + Grommets  | -                         | 2626.50
-banner | 1   | 96x48   | 18 oz Heavy Duty Vinyl    | double | Hemmed + Grommets  | -                         | 672.50
-banner | 1   | 96x48   | 13 oz Scrim Vinyl         | double | Hemmed + Grommets  | -                         | 856.50
-banner | 5   | 96x48   | 18 oz Heavy Duty Vinyl    | double | Hemmed + Grommets  | -                         | 3296.50
-banner | 5   | 96x48   | 13 oz Scrim Vinyl         | double | Hemmed + Grommets  | -                         | 4216.50
-banner | 1   | 96x24   | 18 oz Heavy Duty Vinyl    | double | Hemmed + Grommets  | -                         | 344.50
-banner | 1   | 96x24   | 13 oz Scrim Vinyl         | double | Hemmed + Grommets  | -                         | 524.50
-banner | 5   | 96x24   | 18 oz Heavy Duty Vinyl    | double | Hemmed + Grommets  | -                         | 1656.50
-banner | 5   | 96x24   | 13 oz Scrim Vinyl         | double | Hemmed + Grommets  | -                         | 2556.50
-banner | 1   | 48x24   | 18 oz Heavy Duty Vinyl    | single | No Hem or Grommets | -                         | 86.50
-banner | 5   | 48x24   | 18 oz Heavy Duty Vinyl    | single | No Hem or Grommets | -                         | 366.50
-banner | 1   | 72x36   | 18 oz Heavy Duty Vinyl    | single | No Hem or Grommets | -                         | 196.50
-banner | 5   | 72x36   | 18 oz Heavy Duty Vinyl    | single | No Hem or Grommets | -                         | 916.50
-banner | 1   | 96x48   | 18 oz Heavy Duty Vinyl    | single | No Hem or Grommets | -                         | 356.50
-banner | 5   | 96x48   | 18 oz Heavy Duty Vinyl    | single | No Hem or Grommets | -                         | 1716.50
-banner | 1   | 96x24   | 18 oz Heavy Duty Vinyl    | single | No Hem or Grommets | -                         | 166.50
-banner | 5   | 96x24   | 18 oz Heavy Duty Vinyl    | single | No Hem or Grommets | -                         | 766.50
-banner | 1   | 72x36   | 13 oz Scrim Vinyl         | single | Pole Pockets       | polePockets               | 193.50
-banner | 1   | 72x36   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | windSlits                 | 184.50
-banner | 1   | 72x36   | 13 oz Scrim Vinyl         | single | Pole Pockets       | polePockets+windSlits     | 199.50
-banner | 1   | 96x48   | 13 oz Scrim Vinyl         | double | Hemmed + Grommets  | reinforcedWebbing         | 1000.50
-banner | 1   | 96x48   | 18 oz Heavy Duty Vinyl    | double | Hemmed + Grommets  | reinforcedWebbing         | 672.50
-banner | 5   | 72x36   | 13 oz Scrim Vinyl         | single | Pole Pockets       | polePockets               | 901.50
-banner | 5   | 72x36   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | windSlits                 | 856.50
-banner | 5   | 72x36   | 13 oz Scrim Vinyl         | single | Pole Pockets       | polePockets+windSlits     | 931.50
-banner | 5   | 96x48   | 13 oz Scrim Vinyl         | double | Hemmed + Grommets  | reinforcedWebbing         | 4936.50
-banner | 5   | 96x48   | 18 oz Heavy Duty Vinyl    | double | Hemmed + Grommets  | reinforcedWebbing         | 3296.50
-poster | 1   | 24x18   | Indoor Poster Paper       | single | Standard           | -                         | 33.00
-poster | 5   | 24x18   | Indoor Poster Paper       | single | Standard           | -                         | 99.00
-poster | 1   | 36x24   | Indoor Poster Paper       | single | Standard           | -                         | 49.50
-poster | 5   | 36x24   | Indoor Poster Paper       | single | Standard           | -                         | 181.50
-poster | 1   | 48x36   | Indoor Poster Paper       | single | Standard           | -                         | 82.50
-poster | 5   | 48x36   | Indoor Poster Paper       | single | Standard           | -                         | 346.50
-rigid  | 1   | 24x18   | PVC 1/8"                  | single | Drilled Holes      | -                         | 43.50
-rigid  | 5   | 24x18   | PVC 1/8"                  | single | Drilled Holes      | -                         | 151.50
-rigid  | 1   | 24x18   | PVC 1/4"                  | single | Drilled Holes      | -                         | 49.50
-rigid  | 5   | 24x18   | PVC 1/4"                  | single | Drilled Holes      | -                         | 181.50
-rigid  | 1   | 24x18   | PVC 1/2"                  | single | Drilled Holes      | -                         | 57.00
-rigid  | 5   | 24x18   | PVC 1/2"                  | single | Drilled Holes      | -                         | 219.00
-rigid  | 1   | 24x18   | Dibond 1/8"               | single | Drilled Holes      | -                         | 49.50
-rigid  | 5   | 24x18   | Dibond 1/8"               | single | Drilled Holes      | -                         | 181.50
-rigid  | 1   | 24x18   | Dibond 1/4"               | single | Drilled Holes      | -                         | 57.00
-rigid  | 5   | 24x18   | Dibond 1/4"               | single | Drilled Holes      | -                         | 219.00
-rigid  | 1   | 24x18   | AlumaCorr 0.2"            | single | Drilled Holes      | -                         | 49.50
-rigid  | 5   | 24x18   | AlumaCorr 0.2"            | single | Drilled Holes      | -                         | 181.50
-rigid  | 1   | 24x18   | AlumaCorr 0.4"            | single | Drilled Holes      | -                         | 57.00
-rigid  | 5   | 24x18   | AlumaCorr 0.4"            | single | Drilled Holes      | -                         | 219.00
-rigid  | 1   | 24x18   | Aluminum 040              | single | Drilled Holes      | -                         | 49.50
-rigid  | 5   | 24x18   | Aluminum 040              | single | Drilled Holes      | -                         | 181.50
-rigid  | 1   | 24x18   | Aluminum 080              | single | Drilled Holes      | -                         | 57.00
-rigid  | 5   | 24x18   | Aluminum 080              | single | Drilled Holes      | -                         | 219.00
-rigid  | 1   | 24x18   | Corrugated 1/4"           | single | Drilled Holes      | -                         | 43.50
-rigid  | 5   | 24x18   | Corrugated 1/4"           | single | Drilled Holes      | -                         | 151.50
-rigid  | 1   | 24x18   | Corrugated 1/2"           | single | Drilled Holes      | -                         | 49.50
-rigid  | 5   | 24x18   | Corrugated 1/2"           | single | Drilled Holes      | -                         | 181.50
-rigid  | 2   | 18x12   | PVC 1/8"                  | single | Drilled Holes      | -                         | 43.50
-rigid  | 2   | 18x12   | PVC 1/8"                  | double | Drilled Holes      | -                         | 67.50
-rigid  | 2   | 36x24   | PVC 1/8"                  | single | Drilled Holes      | -                         | 124.50
-rigid  | 2   | 36x24   | PVC 1/8"                  | double | Drilled Holes      | -                         | 220.50
-rigid  | 2   | 96x48   | PVC 1/8"                  | single | Drilled Holes      | -                         | 592.50
-rigid  | 2   | 96x48   | PVC 1/8"                  | double | Drilled Holes      | -                         | 1104.50
+yard   | 1   | 18x24   | Coroplast                 | single | Signs Only         | -                         | 46.00
+yard   | 1   | 18x24   | Coroplast                 | double | Signs Only         | -                         | 59.00
+yard   | 2   | 18x24   | Coroplast                 | single | Signs Only         | -                         | 66.00
+yard   | 2   | 18x24   | Coroplast                 | double | Signs Only         | -                         | 103.00
+yard   | 5   | 18x24   | Coroplast                 | single | Signs Only         | -                         | 108.00
+yard   | 5   | 18x24   | Coroplast                 | double | Signs Only         | -                         | 147.00
+yard   | 6   | 18x24   | Coroplast                 | single | Signs Only         | -                         | 108.00
+yard   | 6   | 18x24   | Coroplast                 | double | Signs Only         | -                         | 147.00
+yard   | 9   | 18x24   | Coroplast                 | single | Signs Only         | -                         | 150.00
+yard   | 9   | 18x24   | Coroplast                 | double | Signs Only         | -                         | 213.00
+yard   | 10  | 18x24   | Coroplast                 | single | Signs Only         | -                         | 150.00
+yard   | 10  | 18x24   | Coroplast                 | double | Signs Only         | -                         | 215.00
+yard   | 19  | 18x24   | Coroplast                 | single | Signs Only         | -                         | 265.00
+yard   | 19  | 18x24   | Coroplast                 | double | Signs Only         | -                         | 395.00
+yard   | 20  | 18x24   | Coroplast                 | single | Signs Only         | -                         | 265.00
+yard   | 20  | 18x24   | Coroplast                 | double | Signs Only         | -                         | 395.00
+yard   | 29  | 18x24   | Coroplast                 | single | Signs Only         | -                         | 345.00
+yard   | 29  | 18x24   | Coroplast                 | double | Signs Only         | -                         | 555.00
+yard   | 30  | 18x24   | Coroplast                 | single | Signs Only         | -                         | 345.00
+yard   | 30  | 18x24   | Coroplast                 | double | Signs Only         | -                         | 555.00
+yard   | 50  | 18x24   | Coroplast                 | single | Signs Only         | -                         | 565.00
+yard   | 50  | 18x24   | Coroplast                 | double | Signs Only         | -                         | 915.00
+yard   | 1   | 18x24   | Coroplast                 | single | With Step Stakes   | -                         | 48.50
+yard   | 1   | 18x24   | Coroplast                 | double | With Step Stakes   | -                         | 61.50
+yard   | 10  | 18x24   | Coroplast                 | single | With Step Stakes   | -                         | 175.00
+yard   | 10  | 18x24   | Coroplast                 | double | With Step Stakes   | -                         | 240.00
+yard   | 30  | 18x24   | Coroplast                 | single | With Step Stakes   | -                         | 420.00
+yard   | 30  | 18x24   | Coroplast                 | double | With Step Stakes   | -                         | 630.00
+banner | 1   | 48x24   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | -                         | 87.00
+banner | 5   | 48x24   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | -                         | 375.00
+banner | 1   | 72x36   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | -                         | 177.00
+banner | 5   | 72x36   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | -                         | 825.00
+banner | 1   | 96x48   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | -                         | 303.00
+banner | 5   | 96x48   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | -                         | 1455.00
+banner | 1   | 96x24   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | -                         | 159.00
+banner | 5   | 96x24   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | -                         | 735.00
+banner | 1   | 48x24   | 18 oz Heavy Duty Vinyl    | single | Hemmed + Grommets  | -                         | 115.00
+banner | 5   | 48x24   | 18 oz Heavy Duty Vinyl    | single | Hemmed + Grommets  | -                         | 515.00
+banner | 1   | 72x36   | 18 oz Heavy Duty Vinyl    | single | Hemmed + Grommets  | -                         | 240.00
+banner | 5   | 72x36   | 18 oz Heavy Duty Vinyl    | single | Hemmed + Grommets  | -                         | 1140.00
+banner | 1   | 96x48   | 18 oz Heavy Duty Vinyl    | single | Hemmed + Grommets  | -                         | 415.00
+banner | 5   | 96x48   | 18 oz Heavy Duty Vinyl    | single | Hemmed + Grommets  | -                         | 2015.00
+banner | 1   | 96x24   | 18 oz Heavy Duty Vinyl    | single | Hemmed + Grommets  | -                         | 215.00
+banner | 5   | 96x24   | 18 oz Heavy Duty Vinyl    | single | Hemmed + Grommets  | -                         | 1015.00
+banner | 1   | 48x24   | Mesh Vinyl (windy areas)  | single | Hemmed + Grommets  | -                         | 87.00
+banner | 5   | 48x24   | Mesh Vinyl (windy areas)  | single | Hemmed + Grommets  | -                         | 375.00
+banner | 1   | 72x36   | Mesh Vinyl (windy areas)  | single | Hemmed + Grommets  | -                         | 177.00
+banner | 5   | 72x36   | Mesh Vinyl (windy areas)  | single | Hemmed + Grommets  | -                         | 825.00
+banner | 1   | 96x48   | Mesh Vinyl (windy areas)  | single | Hemmed + Grommets  | -                         | 303.00
+banner | 5   | 96x48   | Mesh Vinyl (windy areas)  | single | Hemmed + Grommets  | -                         | 1455.00
+banner | 1   | 96x24   | Mesh Vinyl (windy areas)  | single | Hemmed + Grommets  | -                         | 159.00
+banner | 5   | 96x24   | Mesh Vinyl (windy areas)  | single | Hemmed + Grommets  | -                         | 735.00
+banner | 1   | 48x24   | 18 oz Heavy Duty Vinyl    | double | Hemmed + Grommets  | -                         | 179.00
+banner | 1   | 48x24   | 13 oz Scrim Vinyl         | double | Hemmed + Grommets  | -                         | 291.00
+banner | 5   | 48x24   | 18 oz Heavy Duty Vinyl    | double | Hemmed + Grommets  | -                         | 835.00
+banner | 5   | 48x24   | 13 oz Scrim Vinyl         | double | Hemmed + Grommets  | -                         | 1395.00
+banner | 1   | 72x36   | 18 oz Heavy Duty Vinyl    | double | Hemmed + Grommets  | -                         | 384.00
+banner | 1   | 72x36   | 13 oz Scrim Vinyl         | double | Hemmed + Grommets  | -                         | 537.00
+banner | 5   | 72x36   | 18 oz Heavy Duty Vinyl    | double | Hemmed + Grommets  | -                         | 1860.00
+banner | 5   | 72x36   | 13 oz Scrim Vinyl         | double | Hemmed + Grommets  | -                         | 2625.00
+banner | 1   | 96x48   | 18 oz Heavy Duty Vinyl    | double | Hemmed + Grommets  | -                         | 671.00
+banner | 1   | 96x48   | 13 oz Scrim Vinyl         | double | Hemmed + Grommets  | -                         | 855.00
+banner | 5   | 96x48   | 18 oz Heavy Duty Vinyl    | double | Hemmed + Grommets  | -                         | 3295.00
+banner | 5   | 96x48   | 13 oz Scrim Vinyl         | double | Hemmed + Grommets  | -                         | 4215.00
+banner | 1   | 96x24   | 18 oz Heavy Duty Vinyl    | double | Hemmed + Grommets  | -                         | 343.00
+banner | 1   | 96x24   | 13 oz Scrim Vinyl         | double | Hemmed + Grommets  | -                         | 523.00
+banner | 5   | 96x24   | 18 oz Heavy Duty Vinyl    | double | Hemmed + Grommets  | -                         | 1655.00
+banner | 5   | 96x24   | 13 oz Scrim Vinyl         | double | Hemmed + Grommets  | -                         | 2555.00
+banner | 1   | 48x24   | 18 oz Heavy Duty Vinyl    | single | No Hem or Grommets | -                         | 85.00
+banner | 5   | 48x24   | 18 oz Heavy Duty Vinyl    | single | No Hem or Grommets | -                         | 365.00
+banner | 1   | 72x36   | 18 oz Heavy Duty Vinyl    | single | No Hem or Grommets | -                         | 195.00
+banner | 5   | 72x36   | 18 oz Heavy Duty Vinyl    | single | No Hem or Grommets | -                         | 915.00
+banner | 1   | 96x48   | 18 oz Heavy Duty Vinyl    | single | No Hem or Grommets | -                         | 355.00
+banner | 5   | 96x48   | 18 oz Heavy Duty Vinyl    | single | No Hem or Grommets | -                         | 1715.00
+banner | 1   | 96x24   | 18 oz Heavy Duty Vinyl    | single | No Hem or Grommets | -                         | 165.00
+banner | 5   | 96x24   | 18 oz Heavy Duty Vinyl    | single | No Hem or Grommets | -                         | 765.00
+banner | 1   | 72x36   | 13 oz Scrim Vinyl         | single | Pole Pockets       | polePockets               | 192.00
+banner | 1   | 72x36   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | windSlits                 | 183.00
+banner | 1   | 72x36   | 13 oz Scrim Vinyl         | single | Pole Pockets       | polePockets+windSlits     | 198.00
+banner | 1   | 96x48   | 13 oz Scrim Vinyl         | double | Hemmed + Grommets  | reinforcedWebbing         | 999.00
+banner | 1   | 96x48   | 18 oz Heavy Duty Vinyl    | double | Hemmed + Grommets  | reinforcedWebbing         | 671.00
+banner | 5   | 72x36   | 13 oz Scrim Vinyl         | single | Pole Pockets       | polePockets               | 900.00
+banner | 5   | 72x36   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | windSlits                 | 855.00
+banner | 5   | 72x36   | 13 oz Scrim Vinyl         | single | Pole Pockets       | polePockets+windSlits     | 930.00
+banner | 5   | 96x48   | 13 oz Scrim Vinyl         | double | Hemmed + Grommets  | reinforcedWebbing         | 4935.00
+banner | 5   | 96x48   | 18 oz Heavy Duty Vinyl    | double | Hemmed + Grommets  | reinforcedWebbing         | 3295.00
+poster | 1   | 24x18   | Indoor Poster Paper       | single | Standard           | -                         | 31.50
+poster | 5   | 24x18   | Indoor Poster Paper       | single | Standard           | -                         | 97.50
+poster | 1   | 36x24   | Indoor Poster Paper       | single | Standard           | -                         | 48.00
+poster | 5   | 36x24   | Indoor Poster Paper       | single | Standard           | -                         | 180.00
+poster | 1   | 48x36   | Indoor Poster Paper       | single | Standard           | -                         | 81.00
+poster | 5   | 48x36   | Indoor Poster Paper       | single | Standard           | -                         | 345.00
+rigid  | 1   | 24x18   | PVC 1/8"                  | single | Drilled Holes      | -                         | 42.00
+rigid  | 5   | 24x18   | PVC 1/8"                  | single | Drilled Holes      | -                         | 150.00
+rigid  | 1   | 24x18   | PVC 1/4"                  | single | Drilled Holes      | -                         | 48.00
+rigid  | 5   | 24x18   | PVC 1/4"                  | single | Drilled Holes      | -                         | 180.00
+rigid  | 1   | 24x18   | PVC 1/2"                  | single | Drilled Holes      | -                         | 55.50
+rigid  | 5   | 24x18   | PVC 1/2"                  | single | Drilled Holes      | -                         | 217.50
+rigid  | 1   | 24x18   | Dibond 1/8"               | single | Drilled Holes      | -                         | 48.00
+rigid  | 5   | 24x18   | Dibond 1/8"               | single | Drilled Holes      | -                         | 180.00
+rigid  | 1   | 24x18   | Dibond 1/4"               | single | Drilled Holes      | -                         | 55.50
+rigid  | 5   | 24x18   | Dibond 1/4"               | single | Drilled Holes      | -                         | 217.50
+rigid  | 1   | 24x18   | AlumaCorr 0.2"            | single | Drilled Holes      | -                         | 48.00
+rigid  | 5   | 24x18   | AlumaCorr 0.2"            | single | Drilled Holes      | -                         | 180.00
+rigid  | 1   | 24x18   | AlumaCorr 0.4"            | single | Drilled Holes      | -                         | 55.50
+rigid  | 5   | 24x18   | AlumaCorr 0.4"            | single | Drilled Holes      | -                         | 217.50
+rigid  | 1   | 24x18   | Aluminum 040              | single | Drilled Holes      | -                         | 48.00
+rigid  | 5   | 24x18   | Aluminum 040              | single | Drilled Holes      | -                         | 180.00
+rigid  | 1   | 24x18   | Aluminum 080              | single | Drilled Holes      | -                         | 55.50
+rigid  | 5   | 24x18   | Aluminum 080              | single | Drilled Holes      | -                         | 217.50
+rigid  | 1   | 24x18   | Corrugated 1/4"           | single | Drilled Holes      | -                         | 42.00
+rigid  | 5   | 24x18   | Corrugated 1/4"           | single | Drilled Holes      | -                         | 150.00
+rigid  | 1   | 24x18   | Corrugated 1/2"           | single | Drilled Holes      | -                         | 48.00
+rigid  | 5   | 24x18   | Corrugated 1/2"           | single | Drilled Holes      | -                         | 180.00
+rigid  | 2   | 18x12   | PVC 1/8"                  | single | Drilled Holes      | -                         | 42.00
+rigid  | 2   | 18x12   | PVC 1/8"                  | double | Drilled Holes      | -                         | 66.00
+rigid  | 2   | 36x24   | PVC 1/8"                  | single | Drilled Holes      | -                         | 123.00
+rigid  | 2   | 36x24   | PVC 1/8"                  | double | Drilled Holes      | -                         | 219.00
+rigid  | 2   | 96x48   | PVC 1/8"                  | single | Drilled Holes      | -                         | 591.00
+rigid  | 2   | 96x48   | PVC 1/8"                  | double | Drilled Holes      | -                         | 1103.00
 `;
 
 type Row = {
@@ -249,7 +249,6 @@ function priceOf(row: Row) {
     doubleSided: row.doubleSided,
     stepStakes: row.finishing === "With Step Stakes",
     finishing: row.finishing,
-    isCustomSize: false,
     bannerAddOns: row.addOns,
   });
 }
@@ -324,7 +323,9 @@ describe("the rules the sheet exists to hold still", () => {
     // would notice.
     for (const row of ROWS) {
       const priced = priceOf(row);
-      const setup = priced.lines.filter((line) => line.label === "Setup fee");
+      const setup = priced.lines.filter((line) =>
+        line.label.startsWith("Setup fee")
+      );
 
       assert.equal(setup.length, 1, `${row.method} ${row.quantity}`);
       assert.equal(setup[0].amount, signsPricingConfig.setupFee);
@@ -335,7 +336,7 @@ describe("the rules the sheet exists to hold still", () => {
     // The boards only print a single-sided "each" price for one sign, so
     // getYardSignUnitPrice deliberately borrows the smallest double tier
     // rather than inventing a number. $44 + $16.50 setup.
-    assert.equal(find({ method: "yard", quantity: 1, doubleSided: true })?.total, 60.5);
+    assert.equal(find({ method: "yard", quantity: 1, doubleSided: true })?.total, 59);
   });
 
   test("13 oz double-sided costs materially more than 18 oz double-sided", () => {
@@ -362,8 +363,8 @@ describe("the rules the sheet exists to hold still", () => {
       addOns: [],
     });
 
-    assert.equal(sewn?.total, 856.5);
-    assert.equal(surcharge?.total, 672.5);
+    assert.equal(sewn?.total, 855);
+    assert.equal(surcharge?.total, 671);
   });
 
   test("the no-hem credit is real money, and only on 18 oz", () => {
@@ -387,8 +388,8 @@ describe("the rules the sheet exists to hold still", () => {
       finishing: "No Hem or Grommets",
     });
 
-    assert.equal(hemmed?.total, 241.5);
-    assert.equal(bare?.total, 196.5);
+    assert.equal(hemmed?.total, 240);
+    assert.equal(bare?.total, 195);
     assert.equal((hemmed as Row).total - (bare as Row).total, 45);
 
     // 13 oz never earns it, even if a stale finishing value reaches the
@@ -399,7 +400,7 @@ describe("the rules the sheet exists to hold still", () => {
       finishing: "No Hem or Grommets",
     });
 
-    assert.equal(scrimNoHem.total, 178.5);
+    assert.equal(scrimNoHem.total, 177);
     assert.ok(
       !scrimNoHem.lines.some((line) => line.label.startsWith("No hem credit"))
     );
@@ -433,8 +434,8 @@ describe("the rules the sheet exists to hold still", () => {
       addOns: [],
     });
 
-    assert.equal(withWebbing?.total, 1000.5);
-    assert.equal((withWebbing as Row).total - 856.5, 144);
+    assert.equal(withWebbing?.total, 999);
+    assert.equal((withWebbing as Row).total - 855, 144);
 
     // The 18 oz row costs exactly what it costs without the add-on: the key
     // was carried and ignored.
@@ -473,7 +474,6 @@ describe("the rules the sheet exists to hold still", () => {
               doubleSided,
               stepStakes,
               finishing: stepStakes ? "With Step Stakes" : "Signs Only",
-              isCustomSize: false,
               bannerAddOns: [],
             }).total;
 
@@ -519,7 +519,6 @@ describe("the rules the sheet exists to hold still", () => {
             doubleSided,
             stepStakes: false,
             finishing: "Signs Only",
-            isCustomSize: false,
             bannerAddOns: [],
           }).total;
 
@@ -540,14 +539,18 @@ describe("the rules the sheet exists to hold still", () => {
      * byte-identical to what it was before the rule existed, which is how a
      * repricing this narrow is supposed to look.
      */
+    // The "after" column carries TWO changes, not one: the tier bump, and the
+    // $1.50 the setup fee dropped later the same day when it went from $16.50
+    // per order to $15 per design. Every other row on the sheet fell by that
+    // $1.50 and by nothing else.
     const WAS: Array<[number, boolean, number, number]> = [
       // quantity, doubleSided, before, after
-      [5, false, 144, 109.5],
-      [5, true, 236.5, 148.5],
-      [9, false, 156, 151.5],
-      [19, false, 273, 266.5],
-      [29, false, 379, 346.5],
-      [29, true, 567.5, 556.5],
+      [5, false, 144, 108],
+      [5, true, 236.5, 147],
+      [9, false, 156, 150],
+      [19, false, 273, 265],
+      [29, false, 379, 345],
+      [29, true, 567.5, 555],
     ];
 
     for (const [quantity, doubleSided, before, after] of WAS) {
@@ -582,7 +585,6 @@ describe("the rules the sheet exists to hold still", () => {
       doubleSided: false,
       stepStakes: false,
       finishing: "Signs Only",
-      isCustomSize: false,
       bannerAddOns: [],
     });
 
@@ -601,7 +603,6 @@ describe("the rules the sheet exists to hold still", () => {
       doubleSided: false,
       stepStakes: false,
       finishing: "Signs Only",
-      isCustomSize: false,
       bannerAddOns: [],
     });
 
@@ -610,56 +611,83 @@ describe("the rules the sheet exists to hold still", () => {
   });
 });
 
-describe("the fee that no quote can reach", () => {
-  test("the custom size fee is charged when asked for", () => {
-    // The engine is correct: hard stock at a custom size takes the fee, roll
-    // material does not.
-    const base = {
-      quantity: 1,
-      widthInches: 25,
-      heightInches: 37,
-      material: 'PVC 1/8"',
-      doubleSided: false,
-      finishing: "Drilled Holes",
-      isCustomSize: true,
-      bannerAddOns: [] as string[],
-    };
+describe("one setup fee, per design, and nothing else", () => {
+  /**
+   * ── WHAT CHANGED, 2026-08-22 ──────────────────────────────────────────────
+   * Gabe replaced a $16.50 order-level setup fee plus a $22 custom size fee
+   * with a single $15 setup fee per design, on every sign and banner order.
+   *
+   * The custom size fee could never be charged anyway — `isCustomSize` was set
+   * from a size SELECTOR that no longer exists, so the only product that ever
+   * set it was window graphics, which is hand-quoted and never reaches this
+   * engine. Meanwhile the builder was telling rigid-sign customers that hard
+   * stock adds $22. Removing it settles that disagreement in the direction
+   * the customer was already being charged.
+   *
+   * "Per design" and "per order" are the same figure today: the signs builder
+   * takes one artwork or one template per quote. Stickers are the flow with
+   * several designs, and they have their own fee in lib/pricing.ts.
+   */
+  test("every sign type charges $15, once, whatever the size", () => {
+    const SIZES: Array<[number, number]> = [
+      [24, 18], // a standard size
+      [25, 37], // an odd one that leaves drop from a 48" x 96" sheet
+    ];
 
-    const rigid = calculateSignsPricing({ ...base, method: "rigid" });
-    const banner = calculateSignsPricing({
-      ...base,
-      method: "banner",
-      material: "13 oz Scrim Vinyl",
-      finishing: "Hemmed + Grommets",
-    });
+    const CONFIGS: Array<{ method: "yard" | "banner" | "poster" | "rigid"; material: string; finishing: string }> = [
+      { method: "yard", material: "Coroplast", finishing: "Signs Only" },
+      { method: "banner", material: "13 oz Scrim Vinyl", finishing: "Hemmed + Grommets" },
+      { method: "poster", material: "Indoor Poster Paper", finishing: "Standard" },
+      { method: "rigid", material: 'PVC 1/8"', finishing: "Drilled Holes" },
+    ];
 
-    assert.ok(rigid.lines.some((line) => line.label === "Custom size fee"));
-    assert.ok(!banner.lines.some((line) => line.label === "Custom size fee"));
+    for (const config of CONFIGS) {
+      for (const [widthInches, heightInches] of SIZES) {
+        const priced = calculateSignsPricing({
+          ...config,
+          quantity: 3,
+          sizeKey: '18" x 24"',
+          widthInches,
+          heightInches,
+          doubleSided: false,
+          stepStakes: false,
+          bannerAddOns: [],
+        });
+
+        const setup = priced.lines.filter((line) =>
+          line.label.startsWith("Setup fee")
+        );
+
+        assert.equal(setup.length, 1, `${config.method} ${widthInches}x${heightInches}`);
+        assert.equal(setup[0].amount, 15);
+      }
+    }
   });
 
-  test("but nothing the builder produces sets isCustomSize on a priced sign", () => {
-    /**
-     * app/page.tsx passes `isCustomSize: signsQuote.size === CUSTOM_SIZE`, and
-     * `size` is set from getSizeOptions(product)[0] — the first real label.
-     * The size SELECTOR is gone; dimensions are typed. So the only product
-     * that ever sets CUSTOM_SIZE is the one with no sizes at all, window
-     * graphics, and that one is quoted by hand and never reaches this engine.
-     *
-     * The consequence is a copy/price disagreement, not a lost fee at random:
-     * SignsBuilder tells a rigid-sign customer that hard stock adds a
-     * ${customSizeFee} fee for odd sizes, and the estimate beside it never
-     * includes one. Left as an assertion rather than "fixed" in either
-     * direction, because which way it should go — charge the fee on any
-     * non-nesting size, or drop the promise — is the shop's call and it moves
-     * money.
-     */
-    assert.equal(signsPricingConfig.customSizeFee, 22);
-
+  test("the size-dependent fee is gone from every row on the sheet", () => {
+    // Named explicitly rather than checked by absence of a number: a fee that
+    // came back under a different label would be a price rise nobody asked
+    // for, and this is the file that is supposed to notice.
     for (const row of ROWS) {
+      const labels = priceOf(row).lines.map((line) => line.label);
+
       assert.ok(
-        !priceOf(row).lines.some((line) => line.label === "Custom size fee"),
-        `${row.method} ${row.widthInches}x${row.heightInches} charged it`
+        !labels.some((label) => /custom size/i.test(label)),
+        `${row.method} ${row.widthInches}x${row.heightInches} charged a size fee`
+      );
+      assert.equal(
+        labels.filter((label) => /setup/i.test(label)).length,
+        1,
+        `${row.method} has ${labels.filter((l) => /setup/i.test(l)).length} setup lines`
       );
     }
+  });
+
+  test("the fee is the config's, not a number typed in here twice", () => {
+    assert.equal(signsPricingConfig.setupFee, 15);
+    assert.ok(
+      !("customSizeFee" in signsPricingConfig),
+      "customSizeFee is still in the config"
+    );
   });
 });

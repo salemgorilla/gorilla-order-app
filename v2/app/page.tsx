@@ -449,7 +449,6 @@ export default function Home() {
       stepStakes: signsQuote.finishing === "With Step Stakes",
       // Banners use this for the no-hem credit.
       finishing: signsQuote.finishing,
-      isCustomSize: signsQuote.size === CUSTOM_SIZE,
       bannerAddOns: signsQuote.bannerAddOns,
     });
   }, [signsQuote]);

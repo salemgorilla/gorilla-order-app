@@ -93,13 +93,31 @@ export default function SignsSummaryCard({
         </div>
       )}
 
-      <div className="mt-5 space-y-3 text-sm font-bold text-[var(--ink-muted)]">
-        {rows.map(([label, value]) => (
-          <div key={label} className="flex justify-between gap-4">
-            <span>{label}</span>
-            <span className="text-right text-[var(--ink-black)]">{value}</span>
-          </div>
-        ))}
+      {/* On a cart these are ORDER-level rows, and they sit directly under the
+          last design's block. Without the rule and the label, "Delivery: Local
+          Pickup" reads as design 2's delivery — which is a question that has
+          no per-design answer. The whole order ships once. */}
+      <div
+        className={
+          isCart
+            ? "mt-5 border-t border-[var(--rule)] pt-5"
+            : "mt-5"
+        }
+      >
+        {isCart && (
+          <p className="spec mb-3 text-spec uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+            Whole order
+          </p>
+        )}
+
+        <div className="space-y-3 text-sm font-bold text-[var(--ink-muted)]">
+          {rows.map(([label, value]) => (
+            <div key={label} className="flex justify-between gap-4">
+              <span>{label}</span>
+              <span className="text-right text-[var(--ink-black)]">{value}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {pricing.priceable ? (

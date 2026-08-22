@@ -49,18 +49,19 @@ import {
   REINFORCEMENT_ADD_ON_KEY,
   defaultSignsQuote,
   getFinishingOptions,
-  getSignDimensions,
   getSignProduct,
   getSignSizeLabel,
   getSizeOptions,
-  getYardSignSizeKey,
+  createSignsDesign,
+  type SignsDesign,
 } from "../lib/signs";
-import { calculateSignsPricing } from "../lib/signs-pricing";
+import { quoteSignsCart } from "../lib/signs-cart";
+import { buildSignsPayloadParts } from "../lib/signs-payload";
+import { signsPricingConfig } from "../lib/signs-pricing-config";
 import { productCategories, type ProductCategory } from "../lib/products";
 import {
   getTemplate,
   getTemplateTextErrors,
-  resolveTemplateText,
 } from "../lib/templates";
 import { reviews } from "../lib/reviews";
 import { createStickerItem, defaultOrder } from "../lib/order";
@@ -79,6 +80,7 @@ import {
   getOrderFieldErrors,
   getApparelFieldErrors as getApparelFieldErrorsFor,
   getSignsFieldErrors as getSignsFieldErrorsFor,
+  getSignsDesignFieldErrors,
   getOrderValidationErrors,
   type FieldErrors,
   type ItemFieldErrors,
@@ -122,6 +124,7 @@ import ApparelBuilder from "../features/apparel/ApparelBuilder";
 import ApparelRequestBuilder from "../features/apparel/ApparelRequestBuilder";
 import ApparelSummaryCard from "../features/apparel/ApparelSummaryCard";
 import SignsBuilder from "../features/signs/SignsBuilder";
+import SignsDelivery from "../features/signs/SignsDelivery";
 import SignsSummaryCard from "../features/signs/SignsSummaryCard";
 import SignsPreviewCard from "../features/signs/SignsPreviewCard";
 import type {
@@ -220,6 +223,12 @@ export default function Home() {
   // item id. Not by index — removing a middle design would re-point every
   // later preview at the wrong artwork.
   const [itemPreviews, setItemPreviews] = useState<Record<string, string>>({});
+  // Signs are a cart now too, so their previews are per design and keyed by
+  // design id for the same reason — removing a middle design must not
+  // re-point every later preview at the wrong artwork.
+  const [signsDesignPreviews, setSignsDesignPreviews] = useState<
+    Record<string, string>
+  >({});
   const [itemAnalyses, setItemAnalyses] = useState<
     Record<string, ArtworkAnalysis | null>
   >({});
@@ -414,43 +423,13 @@ export default function Home() {
     );
   }, [selectedApparelCategory, ssProducts]);
 
-  const signsPricing = useMemo(() => {
-    const product = getSignProduct(signsQuote.productId);
-    const { widthInches, heightInches } = getSignDimensions(signsQuote);
-
-    // Some products (e.g. window/wall graphics) are always quoted by hand —
-    // they're measured to the customer's space, so there's nothing to compute.
-    if (product.pricingMethod === null) {
-      return {
-        priceable: false as const,
-        reason:
-          "We price these to your space. Send the request with your measurements or a photo and Gorilla Salem will reply with a quote.",
-        lines: [],
-        subtotal: 0,
-        total: 0,
-        unitPrice: 0,
-        sqftEach: 0,
-        note: "",
-      };
-    }
-
-    return calculateSignsPricing({
-      method: product.pricingMethod,
-      quantity: signsQuote.quantity,
-      // Derived from real dimensions, not the old preset label. Yard signs are
-      // frozen at 18x24 so this resolves to their table key; anything else
-      // misses the table and is correctly priced by hand.
-      sizeKey: getYardSignSizeKey(widthInches, heightInches),
-      widthInches,
-      heightInches,
-      material: signsQuote.material,
-      doubleSided: signsQuote.doubleSided,
-      stepStakes: signsQuote.finishing === "With Step Stakes",
-      // Banners use this for the no-hem credit.
-      finishing: signsQuote.finishing,
-      bannerAddOns: signsQuote.bannerAddOns,
-    });
-  }, [signsQuote]);
+  // One quote, however many designs are in it. The $15 setup is per design,
+  // so quoteSignsCart is a sum rather than a second pricing engine — see
+  // lib/signs-cart.ts.
+  const signsPricing = useMemo(
+    () => quoteSignsCart(signsQuote.designs),
+    [signsQuote]
+  );
 
   const apparelPricing = useMemo(() => {
     return calculateApparelPricing({
@@ -478,9 +457,14 @@ export default function Home() {
    */
   const estimateBar = useMemo(() => {
     if (isSignsSelected) {
-      const product = getSignProduct(signsQuote.productId);
+      const designs = signsQuote.designs;
+      const product = getSignProduct(designs[0].productId);
+
       return {
-        label: `${signsQuote.quantity} × ${product.label}`,
+        label:
+          designs.length > 1
+            ? `${designs.length} designs · ${signsPricing.quantity} signs`
+            : `${designs[0].quantity} × ${product.label}`,
         // Tax-inclusive. Signs carry no shipping component, so the whole
         // total is taxable — see getSignsTotals.
         total: signsPricing.priceable
@@ -488,9 +472,13 @@ export default function Home() {
           : 0,
         priceable: signsPricing.priceable,
         detail: signsPricing.priceable
-          ? `${getSignSizeLabel(signsQuote)} · $${signsPricing.unitPrice.toFixed(
-              2
-            )} each`
+          ? designs.length > 1
+            ? `Setup $${(
+                signsPricingConfig.setupFee * designs.length
+              ).toFixed(2)} across ${designs.length} designs`
+            : `${getSignSizeLabel(designs[0])} · $${signsPricing.unitPrice.toFixed(
+                2
+              )} each`
           : "Send it over and we'll price it",
       };
     }
@@ -1066,14 +1054,20 @@ export default function Home() {
 
   async function handleArtworkUpload(file: File, itemId?: string) {
     const isStickers = !isSignsSelected && !isApparelSelected;
-    /** Which design this file belongs to. */
-    const targetId = itemId ?? order.items[0]?.id;
+    /** Which design this file belongs to. Signs are a cart too now. */
+    const targetId =
+      itemId ??
+      (isSignsSelected ? signsQuote.designs[0]?.id : order.items[0]?.id);
 
     // Revoke the URL we are replacing. createObjectURL pins the blob in memory
     // until revoked, and re-uploading repeatedly used to leak every previous
     // file for the life of the page. (CART-PLAN bug 2; removal and reset
     // revoke at their own call sites.)
-    const replacing = isStickers ? itemPreviews[targetId] : artworkPreview;
+    const replacing = isStickers
+      ? itemPreviews[targetId]
+      : isSignsSelected
+      ? signsDesignPreviews[targetId]
+      : artworkPreview;
     if (replacing) {
       URL.revokeObjectURL(replacing);
     }
@@ -1093,6 +1087,8 @@ export default function Home() {
       }
       setItemKnockoutErrors(({ [targetId]: _cleared, ...rest }) => rest);
       setKnockoutWanted(({ [targetId]: _wanted, ...rest }) => rest);
+    } else if (isSignsSelected) {
+      setSignsDesignPreviews((prev) => ({ ...prev, [targetId]: previewUrl }));
     } else {
       setArtworkPreview(previewUrl);
     }
@@ -1120,6 +1116,17 @@ export default function Home() {
     // started is stale by the time it lands — anything the customer changed
     // while the file was being analysed was silently reverted. (CART-PLAN
     // bug 1.)
+    if (isSignsSelected) {
+      // Signs artwork lives on the design, not on the order — an order with
+      // three signs in it has three files. Functional form for the same
+      // reason as setOrder below: this runs after an await.
+      setSignsQuote((prev) => ({
+        designs: prev.designs.map((design) =>
+          design.id === targetId ? { ...design, artwork: { file } } : design
+        ),
+      }));
+    }
+
     setOrder((prev) => {
       if (!isStickers) {
         return { ...prev, artwork: { file } };
@@ -1217,8 +1224,31 @@ export default function Home() {
     setItemKnockouts((prev) => ({ ...prev, [itemId]: result }));
   }
 
-  function updateSignsQuote(updates: Partial<typeof signsQuote>) {
-    const next = { ...signsQuote, ...updates };
+  /**
+   * Edit one design. Defaults to the first, which is the only one on a
+   * single-design quote — the same shape updateItem uses for the sticker cart.
+   */
+  function updateSignsDesign(
+    updates: Partial<SignsDesign>,
+    designId?: string
+  ) {
+    const targetId = designId ?? signsQuote.designs[0]?.id;
+
+    setSignsQuote({
+      designs: signsQuote.designs.map((design) =>
+        design.id === targetId ? repairSignsDesign({ ...design, ...updates }) : design
+      ),
+    });
+  }
+
+  /**
+   * Keep a design internally consistent after an edit.
+   *
+   * Every rule here is a stale-value hazard: the control that offered the
+   * option disappears, and without this the value it set keeps being charged
+   * and keeps appearing on the summary, the review card and the shop email.
+   */
+  function repairSignsDesign(next: SignsDesign): SignsDesign {
 
     // Switching to a material that can't be printed double-sided (13 oz or
     // mesh) must clear the flag. The checkbox hides itself, but without this
@@ -1250,27 +1280,62 @@ export default function Home() {
       );
     }
 
-    setSignsQuote(next);
+    return next;
   }
 
-  function handleSignProductSelect(productId: string) {
+  /**
+   * Add a design. Priced immediately, so the $15 setup lands in the estimate
+   * the moment the design appears rather than surfacing at review.
+   */
+  function addSignsDesign() {
+    setSignsQuote({
+      designs: [...signsQuote.designs, createSignsDesign()],
+    });
+  }
+
+  function removeSignsDesign(designId: string) {
+    // Never remove the last one. An empty quote has no price and no way back,
+    // and the customer would be looking at a form with nothing in it.
+    if (signsQuote.designs.length <= 1) return;
+
+    const preview = signsDesignPreviews[designId];
+    if (preview) {
+      // Removing the design drops the only reference to this object URL, so
+      // without the revoke the blob is pinned for the life of the page.
+      URL.revokeObjectURL(preview);
+    }
+
+    setSignsDesignPreviews(({ [designId]: _removed, ...rest }) => rest);
+
+    setSignsQuote({
+      designs: signsQuote.designs.filter((design) => design.id !== designId),
+    });
+  }
+
+  function handleSignProductSelect(productId: string, designId?: string) {
     // Sizes/materials/finishing differ per sign type, so reset them to that
     // product's own defaults instead of keeping an invalid leftover choice.
     const product = getSignProduct(productId);
+    const targetId = designId ?? signsQuote.designs[0]?.id;
+    const current =
+      signsQuote.designs.find((design) => design.id === targetId) ??
+      signsQuote.designs[0];
 
-    setSignsQuote({
-      ...signsQuote,
-      productId,
-      size: getSizeOptions(product)[0],
-      customSize: "",
-      customWidthInches: 0,
-      customHeightInches: 0,
-      material: product.materials[0],
-      finishing: product.finishing[0],
-      doubleSided: allowsDoubleSided(product, product.materials[0])
-        ? signsQuote.doubleSided
-        : false,
-    });
+    updateSignsDesign(
+      {
+        productId,
+        size: getSizeOptions(product)[0],
+        customSize: "",
+        customWidthInches: 0,
+        customHeightInches: 0,
+        material: product.materials[0],
+        finishing: product.finishing[0],
+        doubleSided: allowsDoubleSided(product, product.materials[0])
+          ? current.doubleSided
+          : false,
+      },
+      targetId
+    );
   }
 
   /**
@@ -1294,27 +1359,60 @@ export default function Home() {
   // until after a submit attempt, so an "OPEN HOUSE" sign with no address on
   // it reported itself ready and went through. Same distinction the cart
   // already draws — marks wait for a submit, readiness never does.
-  const signsTemplateTextErrorsLive = getTemplateTextErrors(
-    signsQuote.templateId,
-    signsQuote.templateText
-  );
+  // Per design, keyed by design id: a quote with three templated signs in it
+  // has three sets of wording to fill in, and the customer has to be told
+  // WHICH one is missing an address.
+  const signsTemplateTextErrorsLive: Record<string, Record<string, string>> =
+    Object.fromEntries(
+      signsQuote.designs.map((design) => [
+        design.id,
+        getTemplateTextErrors(design.templateId, design.templateText),
+      ])
+    );
+
+  const signsHasTemplateTextErrors = Object.values(
+    signsTemplateTextErrorsLive
+  ).some((errors) => Object.keys(errors).length > 0);
 
   // MARKED — what the designer actually paints red, held back until the
   // customer has tried to submit.
-  const signsTemplateTextErrors = showFieldErrors
-    ? signsTemplateTextErrorsLive
-    : {};
+  const signsTemplateTextErrors: Record<string, Record<string, string>> =
+    showFieldErrors ? signsTemplateTextErrorsLive : {};
 
   // The rules themselves live in lib/validation.ts so they can be tested;
   // this binds them to the component's state. See getSignsFieldErrors there.
-  function getSignsFieldErrors(): FieldErrors {
-    // Yard signs are frozen at one size and show no width/height field, so
-    // they are the only product that does not owe dimensions.
-    const needsTypedSize =
-      getSignProduct(signsQuote.productId).pricingMethod !== "yard";
-
-    return getSignsFieldErrorsFor(signsQuote, order, needsTypedSize);
+  /** One design, in the shape the rules read. */
+  function signsDesignInput(design: SignsDesign) {
+    return {
+      templateId: design.templateId,
+      quantity: design.quantity,
+      customWidthInches: design.customWidthInches,
+      customHeightInches: design.customHeightInches,
+      artwork: design.artwork,
+      // Yard signs are frozen at one size and show no width/height field, so
+      // they are the only product that does not owe dimensions.
+      needsTypedSize:
+        getSignProduct(design.productId).pricingMethod !== "yard",
+    };
   }
+
+  function getSignsFieldErrors(): FieldErrors {
+    return getSignsFieldErrorsFor(
+      signsQuote.designs.map(signsDesignInput),
+      order
+    );
+  }
+
+  /** Marks for one design's own card. Empty until a submit is attempted. */
+  const signsDesignFieldErrors: Record<string, ItemFieldErrors> =
+    showFieldErrors
+      ? Object.fromEntries(
+          signsQuote.designs.map((design) => [
+            design.id,
+            getSignsDesignFieldErrors(signsDesignInput(design)),
+          ])
+        )
+      : {};
 
   function getSignsValidationErrors() {
     const fields = getSignsFieldErrors();
@@ -1332,8 +1430,20 @@ export default function Home() {
       errors.push("Enter the width and height for your custom size.");
     }
 
-    for (const message of Object.values(signsTemplateTextErrorsLive)) {
-      errors.push(message);
+    // Named by design once there is more than one, so "Enter the address"
+    // does not leave the customer guessing which sign it belongs to.
+    for (const [designId, fieldErrors] of Object.entries(
+      signsTemplateTextErrorsLive
+    )) {
+      const index = signsQuote.designs.findIndex((d) => d.id === designId);
+
+      for (const message of Object.values(fieldErrors)) {
+        errors.push(
+          signsQuote.designs.length > 1
+            ? `Design ${index + 1}: ${message}`
+            : message
+        );
+      }
     }
 
     return errors;
@@ -1428,48 +1538,12 @@ export default function Home() {
     };
 
     if (isSignsSelected) {
-      const product = getSignProduct(signsQuote.productId);
-
+      // The mapping lives in lib/signs-payload.ts so a test can drive the
+      // real one rather than rebuilding it — see the note at the top of that
+      // file, and the double-charge it caught.
       return {
         ...orderEnvelope,
-        product: {
-          type: "Banners & Signs",
-          signType: product.label,
-          quantity: signsQuote.quantity,
-          size: getSignSizeLabel(signsQuote),
-          material: signsQuote.material,
-          finishing: signsQuote.finishing,
-          sides: signsQuote.doubleSided ? "Double-sided" : "Single-sided",
-        },
-        artwork: {
-          fileName: order.artwork.file?.name || null,
-          // Template work has no uploaded file — this IS the artwork brief.
-          template: signsQuote.templateId
-            ? {
-                id: signsQuote.templateId,
-                name: getTemplate(signsQuote.templateId)?.name || signsQuote.templateId,
-                text: resolveTemplateText(
-                  signsQuote.templateId,
-                  signsQuote.templateText
-                ),
-              }
-            : null,
-        },
-        pricing: signsPricing.priceable
-          ? {
-              total: signsPricing.total,
-              unitPrice: signsPricing.unitPrice,
-              lines: signsPricing.lines,
-              quoteRequired: false,
-              note: `${signsPricing.note} Estimate — Gorilla Salem confirms artwork and add-ons before production.`,
-            }
-          : {
-              total: 0,
-              quoteRequired: true,
-              note:
-                signsPricing.reason ||
-                "Priced by hand. Gorilla Salem will reply with the price.",
-            },
+        ...buildSignsPayloadParts(signsQuote.designs, signsPricing),
       };
     }
 
@@ -1813,7 +1887,10 @@ export default function Home() {
       // dead end the field-to-step map exists to prevent.
       const firstBrokenStep =
         getFirstStepWithError(getCurrentFieldErrors()) ??
-        (isSignsSelected && Object.keys(signsTemplateTextErrorsLive).length
+        // Keyed by design id and populated for EVERY design, so counting the
+        // keys would be counting designs — always truthy, sending every
+        // failed submit to Details whatever was actually wrong.
+        (isSignsSelected && signsHasTemplateTextErrors
           ? ("details" as const)
           : null);
 
@@ -2193,7 +2270,23 @@ Suggested Ink Count: ${
 ${order.customer.notes || "No customer notes"}`;
 
     if (isSignsSubmitted) {
-      const signProduct = getSignProduct(signsQuote.productId);
+      const designBlocks = signsQuote.designs
+        .map((design, index) => {
+          const signProduct = getSignProduct(design.productId);
+          const heading =
+            signsQuote.designs.length > 1
+              ? `DESIGN ${index + 1}`
+              : "SIGNS DETAILS";
+
+          return `${heading}
+Product: ${signProduct.label}
+Quantity: ${design.quantity.toLocaleString()}
+Size: ${getSignSizeLabel(design)}
+Material: ${design.material}
+Finishing: ${design.finishing}
+Sides: ${design.doubleSided ? "Double-sided" : "Single-sided"}`;
+        })
+        .join("\n\n");
 
       return `GORILLA SALEM SIGNS QUOTE REQUEST
 
@@ -2202,13 +2295,7 @@ Submitted: ${submittedAt}
 
 ${customerSection}
 
-SIGNS DETAILS
-Product: ${signProduct.label}
-Quantity: ${signsQuote.quantity.toLocaleString()}
-Size: ${getSignSizeLabel(signsQuote)}
-Material: ${signsQuote.material}
-Finishing: ${signsQuote.finishing}
-Sides: ${signsQuote.doubleSided ? "Double-sided" : "Single-sided"}
+${designBlocks}
 
 ${timelineSection}
 
@@ -2221,7 +2308,7 @@ ${
         .join("\n")}
 Estimated ${SALES_TAX.label}: $${getSignsTotals(signsPricing).estimatedTax.toFixed(2)}
 Estimated Total: $${getSignsTotals(signsPricing).estimatedTotal.toFixed(2)}${
-        signsQuote.quantity > 1
+        signsPricing.quantity > 1
           ? `\nEstimated Each: $${signsPricing.unitPrice.toFixed(2)}`
           : ""
       }
@@ -2497,7 +2584,22 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
   // different column and duplicating the three-way flow ternary is how the
   // two copies drift apart.
   const previewCard = isSignsSelected ? (
-    <SignsPreviewCard artworkPreview={artworkPreview} signsQuote={signsQuote} />
+    // One proof per design. Showing a single frame for a three-design quote
+    // would be showing one of them and implying it was all of them.
+    <div className="space-y-6">
+      {signsQuote.designs.map((design, index) => (
+        <SignsPreviewCard
+          key={design.id}
+          design={design}
+          artworkPreview={signsDesignPreviews[design.id] || null}
+          label={
+            signsQuote.designs.length > 1
+              ? `Digital Proof · Design ${index + 1} of ${signsQuote.designs.length}`
+              : null
+          }
+        />
+      ))}
+    </div>
   ) : isApparelRequest ? (
     // ApparelPreview draws a garment mock from the S&S colour and image. On a
     // hand-quote request none of that has been chosen, so it would be drawing
@@ -2943,41 +3045,93 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               <>
               {isSignsSelected ? (
                 <>
-                  <SignsBuilder
-                    signsQuote={signsQuote}
-                    deliveryMethod={order.production.deliveryMethod}
-                    fieldErrors={fieldErrors}
-                    onUpdate={(updates) => updateSignsQuote(updates)}
-                    onSelectProduct={handleSignProductSelect}
-                    onSelectDeliveryMethod={(deliveryMethod) =>
-                      updateProduction({ deliveryMethod })
-                    }
-                  />
+                  {/* One card per design, all expanded — the same shape the
+                      sticker cart uses. DesignCard renders nothing but its
+                      children when there is only one, so a single-design quote
+                      looks exactly as it did. */}
+                  {signsQuote.designs.map((design, index) => (
+                    <DesignCard
+                      key={design.id}
+                      index={index}
+                      total={signsQuote.designs.length}
+                      onRemove={() => removeSignsDesign(design.id)}
+                    >
+                      <div className="space-y-8">
+                        <SignsBuilder
+                          design={design}
+                          fieldErrors={
+                            signsQuote.designs.length > 1
+                              ? signsDesignFieldErrors[design.id] || {}
+                              : fieldErrors
+                          }
+                          onUpdate={(updates) =>
+                            updateSignsDesign(updates, design.id)
+                          }
+                          onSelectProduct={(productId) =>
+                            handleSignProductSelect(productId, design.id)
+                          }
+                        />
 
-                  {/* Sits on the details step, with the rest of what the sign
-                      IS. The artwork step then either takes an upload or shows
-                      that the template already covers it. */}
-                  <TemplateDesigner
-                    productId={signsQuote.productId}
-                    templateId={signsQuote.templateId}
-                    values={signsQuote.templateText}
-                    errors={signsTemplateTextErrors}
-                    onSelectTemplate={(templateId) =>
-                      updateSignsQuote({
-                        templateId,
-                        // Starting a different template must not carry the
-                        // previous one's words into fields that do not exist
-                        // on it.
-                        templateText: {},
-                      })
-                    }
-                    onChangeText={(fieldId, value) =>
-                      updateSignsQuote({
-                        templateText: {
-                          ...signsQuote.templateText,
-                          [fieldId]: value,
-                        },
-                      })
+                        {/* Sits on the details step, with the rest of what the
+                            sign IS. The artwork step then either takes an
+                            upload or shows that the template already covers
+                            it. */}
+                        <TemplateDesigner
+                          productId={design.productId}
+                          templateId={design.templateId}
+                          values={design.templateText}
+                          errors={signsTemplateTextErrors[design.id] || {}}
+                          onSelectTemplate={(templateId) =>
+                            updateSignsDesign(
+                              {
+                                templateId,
+                                // Starting a different template must not carry
+                                // the previous one's words into fields that do
+                                // not exist on it.
+                                templateText: {},
+                              },
+                              design.id
+                            )
+                          }
+                          onChangeText={(fieldId, value) =>
+                            updateSignsDesign(
+                              {
+                                templateText: {
+                                  ...design.templateText,
+                                  [fieldId]: value,
+                                },
+                              },
+                              design.id
+                            )
+                          }
+                        />
+                      </div>
+                    </DesignCard>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={addSignsDesign}
+                    className={[
+                      "min-h-[44px] w-full cursor-pointer border border-dashed border-[var(--rule)]",
+                      "bg-[var(--shirt-blank)] px-4 py-3 text-fine font-bold text-[var(--ink-black)]",
+                      "transition-colors duration-[120ms] ease-linear",
+                      "hover:border-[var(--ink-black)] hover:bg-white",
+                      "active:translate-x-[2px] active:translate-y-[2px]",
+                    ].join(" ")}
+                  >
+                    + Add another sign
+                    <span className="ml-2 font-normal text-[var(--ink-muted)]">
+                      adds ${signsPricingConfig.setupFee} setup
+                    </span>
+                  </button>
+
+                  {/* Once, not per design. Three signs in a quote still ship
+                      together. */}
+                  <SignsDelivery
+                    deliveryMethod={order.production.deliveryMethod}
+                    onSelect={(deliveryMethod) =>
+                      updateProduction({ deliveryMethod })
                     }
                   />
                 </>
@@ -3120,26 +3274,57 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
               {currentStepId === "artwork" && (
               <>
-              {isSignsSelected && signsQuote.templateId ? (
-                // A template already IS the artwork, so this step has nothing
-                // to ask for. Saying so beats leaving an upload box that looks
-                // required sitting on a step the customer has already
-                // satisfied.
-                <div className="border border-[var(--rule)] border-l-4 border-l-[var(--gorilla-green)] bg-[var(--surface-ok)] p-5">
-                  <p className="eyebrow">Artwork</p>
-                  <h3 className="mt-2 text-lede font-bold text-[var(--gorilla-green-dark)]">
-                    Covered — you&rsquo;re using our{" "}
-                    {getTemplate(signsQuote.templateId)?.name.toLowerCase()}{" "}
-                    template
-                  </h3>
-                  <p className="mt-2 text-fine font-bold text-[var(--gorilla-green-dark)]">
-                    Nothing to upload. We set your wording into the artwork and
-                    send a proof before printing. Changed your mind? Go back to
-                    details and choose &ldquo;I&rsquo;ll upload my own
-                    artwork&rdquo;.
-                  </p>
+              {isSignsSelected ? (
+                // One box per design, bound to its design by closure — the
+                // same rule the sticker cart follows, and for the same reason:
+                // a `multiple` input gives an array with no reliable mapping
+                // back to a design.
+                <div className="space-y-6">
+                  {signsQuote.designs.map((design, index) => (
+                    <DesignCard
+                      key={design.id}
+                      index={index}
+                      total={signsQuote.designs.length}
+                      onRemove={() => removeSignsDesign(design.id)}
+                    >
+                      {design.templateId ? (
+                        // A template already IS the artwork, so this design has
+                        // nothing to ask for. Saying so beats leaving an upload
+                        // box that looks required on a step already satisfied.
+                        <div className="border border-[var(--rule)] border-l-4 border-l-[var(--gorilla-green)] bg-[var(--surface-ok)] p-5">
+                          <p className="eyebrow">Artwork</p>
+                          <h3 className="mt-2 text-lede font-bold text-[var(--gorilla-green-dark)]">
+                            Covered — you&rsquo;re using our{" "}
+                            {getTemplate(design.templateId)?.name.toLowerCase()}{" "}
+                            template
+                          </h3>
+                          <p className="mt-2 text-fine font-bold text-[var(--gorilla-green-dark)]">
+                            Nothing to upload. We set your wording into the
+                            artwork and send a proof before printing. Changed
+                            your mind? Go back to details and choose
+                            &ldquo;I&rsquo;ll upload my own artwork&rdquo;.
+                          </p>
+                        </div>
+                      ) : (
+                        <UploadBox
+                          onFileSelected={(file) =>
+                            handleArtworkUpload(file, design.id)
+                          }
+                          fileName={design.artwork.file?.name || null}
+                          fileSizeBytes={design.artwork.file?.size ?? null}
+                          directUploadEnabled={directUploadEnabled}
+                          previewUrl={signsDesignPreviews[design.id] || null}
+                          error={
+                            signsQuote.designs.length > 1
+                              ? signsDesignFieldErrors[design.id]?.artwork
+                              : fieldErrors.artwork
+                          }
+                        />
+                      )}
+                    </DesignCard>
+                  ))}
                 </div>
-              ) : isSignsSelected || isApparelSelected ? (
+              ) : isApparelSelected ? (
                 <UploadBox
                   onFileSelected={handleArtworkUpload}
                   // Without these the box can never show that a file arrived,

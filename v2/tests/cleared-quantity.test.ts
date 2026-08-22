@@ -101,20 +101,22 @@ describe("the validation rules can now actually fire", () => {
    */
   function signsErrors(quantity: number) {
     return getSignsFieldErrors(
-      {
-        templateId: null,
-        quantity,
-        size: '18" x 24"',
-        customWidthInches: 0,
-        customHeightInches: 0,
-      } as Parameters<typeof getSignsFieldErrors>[0],
+      [
+        {
+          templateId: null,
+          quantity,
+          customWidthInches: 0,
+          customHeightInches: 0,
+          artwork: { file: { name: "art.pdf" } },
+          // A yard sign: its size is fixed by the shop, so no dimensions are
+          // owed.
+          needsTypedSize: false,
+        },
+      ],
       {
         customer: { customerName: "Casey", email: "casey@example.com" },
-        artwork: { file: { name: "art.pdf" } },
         production: { needBy: "2026-09-01" },
-      } as Parameters<typeof getSignsFieldErrors>[1],
-      // A yard sign: its size is fixed by the shop, so no dimensions are owed.
-      false
+      }
     );
   }
 

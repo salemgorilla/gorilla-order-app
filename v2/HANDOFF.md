@@ -19,6 +19,25 @@ deliberate `<img>` uses).
 
 Working and verified:
 
+- **A signs quote can hold several designs** — 2026-08-22, Gabe's goal. Same
+  shape as the sticker cart, deliberately: a list of designs, each with its
+  own id, its own artwork and its own price. The $15 setup is PER DESIGN and
+  `calculateSignsPricing` already prices one design including its own setup,
+  so `quoteSignsCart` is a sum — there is no cart-level arithmetic to drift.
+  (The sticker cart is not like this: its setup tapers $25 then $12.50, so it
+  cannot be summed one design at a time. Different because the shop prices
+  them differently — do not "make them consistent".)
+  One design is byte-identical to before: same total, same line wording, no
+  numbering. Several get numbered lines and ONE collapsed setup row.
+  **The money trap**: each design's total includes its own setup AND the cart
+  emits a collapsed setup row, so the payload sends each design's SUBTOTAL and
+  setup goes to Printavo as a single fee line. Line items plus fees reconcile
+  to the website total, asserted in tests/signs-cart-payload.test.ts.
+  `buildSignsPayloadParts` lives in `lib/signs-payload.ts` rather than inside
+  the component, because the first version of that test rebuilt the payload
+  and therefore proved nothing — mutation showed the double-charge passing
+  every assertion.
+
 - **Step 01 is split into decoration and large format** — 2026-08-22, per
   `gorillalabsbannerssplit.md`. Presentation only, no pricing touched. The
   Banners card used to say "Beta" and "Instant price · we invoice" at the same

@@ -238,6 +238,15 @@ export function buildQuoteEmail(input: {
    * whole order has to read this instead.
    */
   const items = (Array.isArray(order.items) ? order.items : []) as AnyRecord[];
+  /**
+   * The signs cart. Same shape and same reason as `items` above: `product` is
+   * a synthesis of design 1 carrying the whole order's sign count, kept so
+   * the payload still classifies as signs, and this is where the truth lives.
+   * Absent on quotes built before signs had designs.
+   */
+  const signsDesigns = (
+    Array.isArray(order.signsDesigns) ? order.signsDesigns : []
+  ) as AnyRecord[];
 
   const submittedAt = (() => {
     const d = new Date(receivedAt);
@@ -316,6 +325,37 @@ export function buildQuoteEmail(input: {
       line("SKU", str(supplier.sku, "N/A")),
       line("Garment Price (marked up)", money(supplier.markedUpGarmentPrice))
     );
+  } else if (signs && signsDesigns.length > 1) {
+    /**
+     * A signs quote with several designs in it has no single size, material
+     * or finishing — exactly the hazard the sticker cart block below was
+     * written for. Printing design 1's spec under a combined quantity would
+     * tell the shop "12 signs, 18x24, Coroplast" for an order that is a
+     * banner and two yard signs, and the shop can act on that.
+     *
+     * `product` is still the synthesised summary the flow duck-typing needs;
+     * this reads the real list.
+     */
+    productLines.push(
+      line("Type", "Banners & Signs"),
+      line("Designs", String(signsDesigns.length)),
+      line("Total Quantity", String(quantity))
+    );
+
+    for (const [index, design] of signsDesigns.entries()) {
+      productLines.push(
+        line(
+          `Design ${index + 1}`,
+          [
+            str(design.signType, "Not selected"),
+            `${str(design.quantity, "?")} @ ${str(design.size, "size not specified")}`,
+            str(design.material, "material not specified"),
+            str(design.finishing, "finishing not specified"),
+            str(design.sides, "Single-sided"),
+          ].join(" / ")
+        )
+      );
+    }
   } else if (signs) {
     productLines.push(
       line("Type", "Banners & Signs"),
@@ -606,6 +646,40 @@ export function buildQuoteEmail(input: {
       }
 
       artworkGroups.push({ title: `Design ${index + 1}`, lines });
+    }
+  } else if (signsDesigns.length > 1) {
+    /**
+     * One block per sign, each naming its own file or its own template
+     * wording. A single "Artwork: banner.pdf" line under a three-design quote
+     * tells the shop to print one thing three times.
+     *
+     * The artwork ANALYSIS is deliberately absent here: it describes one file
+     * (the last one analysed), and attaching those dimensions to every design
+     * would state as fact something about designs it never saw. Same reason
+     * the sticker cart keeps analysis per design.
+     */
+    for (const [index, design] of signsDesigns.entries()) {
+      const designTemplate = design.template as AnyRecord | null;
+      const words = (
+        Array.isArray(designTemplate?.text) ? designTemplate?.text : []
+      ) as AnyRecord[];
+
+      artworkGroups.push({
+        title: `Design ${index + 1} — ${str(design.signType, "Sign")}`,
+        lines: designTemplate
+          ? [
+              line(
+                "Template",
+                str(designTemplate.name, str(designTemplate.id, "Unnamed"))
+              ),
+              line(
+                "What to do",
+                "No file to chase — set these words into our master artwork and send a proof."
+              ),
+              ...words.map((word) => line(str(word.label, "Line"), str(word.value))),
+            ]
+          : [line("File", str(design.fileName, "No file uploaded"))],
+      });
     }
   } else if (!template) {
     // Signs and apparel: one file, or none. Unchanged from the single-design

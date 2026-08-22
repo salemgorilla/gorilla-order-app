@@ -234,19 +234,31 @@ export default function QuoteConfirmationScreen({
               </p>
 
               {isSignsSubmitted ? (
-                <>
-                  <p className="mt-2 text-lg font-bold text-[var(--ink-black)]">
-                    {signsQuote.quantity.toLocaleString()}{" "}
-                    {getSignProduct(signsQuote.productId).label}
-                  </p>
-                  <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
-                    {getSignSizeLabel(signsQuote)} • {signsQuote.material}
-                  </p>
-                  <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
-                    {signsQuote.finishing} •{" "}
-                    {signsQuote.doubleSided ? "Double-sided" : "Single-sided"}
-                  </p>
-                </>
+                // Every design, not just the first. A customer who ordered a
+                // banner and two yard signs has to see all three back, or the
+                // confirmation is confirming something they did not send.
+                <div className="space-y-4">
+                  {signsQuote.designs.map((design, index) => (
+                    <div key={design.id}>
+                      {signsQuote.designs.length > 1 && (
+                        <p className="spec text-spec uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+                          Design {String(index + 1).padStart(2, "0")}
+                        </p>
+                      )}
+                      <p className="mt-2 text-lg font-bold text-[var(--ink-black)]">
+                        {design.quantity.toLocaleString()}{" "}
+                        {getSignProduct(design.productId).label}
+                      </p>
+                      <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+                        {getSignSizeLabel(design)} • {design.material}
+                      </p>
+                      <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+                        {design.finishing} •{" "}
+                        {design.doubleSided ? "Double-sided" : "Single-sided"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               ) : isApparelSubmitted ? (
                 <>
                   <p className="mt-2 text-lg font-bold text-[var(--ink-black)]">

@@ -214,7 +214,28 @@ export function getBannerAddOns(material: string, doubleSided: boolean) {
   );
 }
 
-export const defaultSignsQuote = {
+/**
+ * One design in a signs quote.
+ *
+ * ── WHY THIS IS A LIST NOW ────────────────────────────────────────────────
+ * A signs quote used to be exactly one sign. A real order is often not: three
+ * yard-sign layouts for the same campaign, or a banner and two rigid signs
+ * for one storefront. Sending those as three separate quotes makes the
+ * customer type their details three times and gives the shop three jobs to
+ * reconcile by hand.
+ *
+ * The sticker cart already solved this shape, so this mirrors it deliberately
+ * rather than inventing a second one: a list of designs, each with its own id
+ * and its own artwork, priced independently and summed.
+ *
+ * The $15 setup fee is charged PER DESIGN, which is what makes the sum
+ * correct without restructuring the engine — calculateSignsPricing already
+ * prices exactly one design including its own setup, so a cart is the sum of
+ * its designs. See lib/signs-cart.ts.
+ */
+export const defaultSignsDesign = {
+  /** Stable per-design key. Artwork and errors are bound to it, never to an index. */
+  id: "design-1",
   productId: "vinyl-banner",
   quantity: 1,
   size: "3' x 6'",
@@ -233,9 +254,46 @@ export const defaultSignsQuote = {
   templateId: null as string | null,
   /** Field id -> what the customer typed. */
   templateText: {} as Record<string, string>,
+  /**
+   * This design's artwork file. Signs used to keep one file on the ORDER,
+   * which cannot describe a quote with three different signs in it.
+   */
+  artwork: { file: null } as { file: File | null },
 };
 
-export type SignsQuote = typeof defaultSignsQuote;
+export type SignsDesign = typeof defaultSignsDesign;
+
+/** A signs quote: one or more designs, priced together. */
+export type SignsQuote = {
+  designs: SignsDesign[];
+};
+
+let designSequence = 0;
+
+/**
+ * A new design. Ids are generated, never derived from position — binding
+ * artwork or errors to an index is the bug the sticker cart already had
+ * (CART-PLAN §Per-item artwork), and removing design 1 renumbers everything
+ * after it.
+ */
+export function createSignsDesign(
+  overrides: Partial<SignsDesign> = {}
+): SignsDesign {
+  designSequence += 1;
+
+  return {
+    ...defaultSignsDesign,
+    id: `sign-${designSequence}-${Math.random().toString(36).slice(2, 8)}`,
+    templateText: {},
+    bannerAddOns: [],
+    artwork: { file: null },
+    ...overrides,
+  };
+}
+
+export const defaultSignsQuote: SignsQuote = {
+  designs: [createSignsDesign()],
+};
 
 /** All selectable size labels for a product, including the custom option. */
 /**
@@ -304,7 +362,7 @@ export function getSizeOptions(product: SignProduct) {
  * from, so the label and the money can no longer disagree. Yard signs are
  * frozen at 18" x 24" there, which is exactly what their label should say.
  */
-export function getSignSizeLabel(quote: SignsQuote) {
+export function getSignSizeLabel(quote: SignsDesign) {
   const { widthInches, heightInches } = getSignDimensions(quote);
 
   if (widthInches > 0 && heightInches > 0) {
@@ -319,7 +377,7 @@ export function getSignSizeLabel(quote: SignsQuote) {
 }
 
 /** Finished dimensions of one piece, in inches. */
-export function getSignDimensions(quote: SignsQuote) {
+export function getSignDimensions(quote: SignsDesign) {
   const product = getSignProduct(quote.productId);
 
   // Yard signs are frozen — the customer never types their dimensions.

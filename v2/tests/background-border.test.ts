@@ -1,11 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import {
-  HARD_TOLERANCE,
-  MIN_BORDER_UNIFORMITY,
-  readBorder,
-} from "../lib/background-removal";
+import { MIN_BORDER_UNIFORMITY, readBorder } from "../lib/background-removal";
 
 /**
  * The gate that decides whether we touch a customer's artwork at all.

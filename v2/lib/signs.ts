@@ -291,9 +291,32 @@ export function createSignsDesign(
   };
 }
 
-export const defaultSignsQuote: SignsQuote = {
-  designs: [createSignsDesign()],
-};
+/**
+ * A fresh quote — one new design, with an id nothing else has held.
+ *
+ * ── WHY THIS IS A FUNCTION ────────────────────────────────────────────────
+ * `defaultSignsQuote` below is a module CONSTANT, created once at import. Its
+ * design therefore carries one fixed id for the life of the page, and the app
+ * keys per-design artwork previews on that id. Handing it to "Start a new
+ * quote" gave the next customer a design whose id still matched an entry in
+ * the preview map, so a brand-new empty quote rendered the PREVIOUS
+ * customer's artwork — worst at the kiosk, which is one customer after
+ * another on the shop's own terminal.
+ *
+ * The sticker cart already had this exact bug and already fixes it the same
+ * way, two lines away in startNewQuote: "A fresh item, not the one baked into
+ * defaultOrder at import time — reusing it would hand every reset order the
+ * same design id." Signs missed the memo when they grew a design list.
+ */
+export function createSignsQuote(): SignsQuote {
+  return { designs: [createSignsDesign()] };
+}
+
+/**
+ * The shape a signs quote starts in. Safe as an INITIAL value; never reuse it
+ * for a reset — call createSignsQuote() so the new quote gets a new id.
+ */
+export const defaultSignsQuote: SignsQuote = createSignsQuote();
 
 /** All selectable size labels for a product, including the custom option. */
 /**

@@ -47,7 +47,7 @@ import {
   allowsDoubleSided,
   allowsReinforcement,
   REINFORCEMENT_ADD_ON_KEY,
-  defaultSignsQuote,
+  createSignsQuote,
   getFinishingOptions,
   getSignProduct,
   getSignSizeLabel,
@@ -207,7 +207,9 @@ export default function Home() {
   );
 
   const [apparelQuoteState, setApparelQuoteState] = useState(defaultApparelQuote);
-  const [signsQuote, setSignsQuote] = useState(defaultSignsQuote);
+  // Lazy, so the first quote gets its own design rather than sharing the
+  // module constant's identity with anything else on the page.
+  const [signsQuote, setSignsQuote] = useState(createSignsQuote);
   const [ssProducts, setSsProducts] = useState<SsCatalogProduct[]>([]);
   const [selectedSsProductId, setSelectedSsProductId] = useState("");
   const [selectedSsColorName, setSelectedSsColorName] = useState("");
@@ -2473,9 +2475,20 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     // A fresh item, not the one baked into defaultOrder at import time —
     // reusing it would hand every reset order the same design id, and ids are
     // what submit keys artwork parts on.
+    // Signs are a cart too now, and their previews leak on exactly the same
+    // terms — one stranded object URL per design, for the life of the tab.
+    Object.values(signsDesignPreviews).forEach((url) =>
+      URL.revokeObjectURL(url)
+    );
+    setSignsDesignPreviews({});
+
     setOrder({ ...defaultOrder, items: [createStickerItem()] });
     setApparelQuoteState(defaultApparelQuote);
-    setSignsQuote(defaultSignsQuote);
+    // A fresh design, for the same reason as the sticker item above: reusing
+    // the one baked in at import time hands every reset quote the same design
+    // id, and the preview map is keyed on it. That is how a new customer ends
+    // up looking at the last one's artwork.
+    setSignsQuote(createSignsQuote());
     setSelectedProductId("stickers");
     setSubmittedProductId("stickers");
     setArtworkPreview(null);

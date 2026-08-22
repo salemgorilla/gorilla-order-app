@@ -189,6 +189,10 @@ function buildCartLines(priced: SignsCartDesign[]): SignsPricingLine[] {
     label: `Setup (${priced.length} designs × $${signsPricingConfig.setupFee})`,
     amount: round2(setupTotal),
     kind: "setup",
+    // The same SKU a one-design quote files it under. The label says how many
+    // designs; the item number must not, or the shop cannot report on setup
+    // across orders. See the note in lib/printavo.ts.
+    code: "SETUP",
   });
 
   return lines;

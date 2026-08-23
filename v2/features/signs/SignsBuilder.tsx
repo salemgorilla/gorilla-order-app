@@ -22,14 +22,21 @@ import {
   getBannerAddOns,
   getDoubleSidedMethod,
   getFinishingOptions,
+  getSignFamilyProducts,
   getSignProduct,
-  signsCatalog,
+  type SignFamily,
   type SignsDesign,
 } from "../../lib/signs";
 import type { FieldErrors } from "../../lib/validation";
 
 type Props = {
   design: SignsDesign;
+  /**
+   * Which large-format pipeline this builder serves. Hard split: the picker
+   * lists only this family's products, so a signs quote can never grow a
+   * banner design or the other way round.
+   */
+  family: SignFamily;
   /** Only populated after a failed submit; empty until then. */
   fieldErrors?: FieldErrors;
   onUpdate: (updates: Partial<SignsDesign>) => void;
@@ -38,16 +45,22 @@ type Props = {
 
 export default function SignsBuilder({
   design,
+  family,
   fieldErrors,
   onUpdate,
   onSelectProduct,
 }: Props) {
   const product = getSignProduct(design.productId);
+  const familyProducts = getSignFamilyProducts(family);
   // Yard signs price from a per-unit table keyed on size, so they are frozen.
   const isYardSign = product.pricingMethod === "yard";
 
   return (
     <>
+      {/* One product in the family (banners today) means there is nothing to
+          pick — a picker with a single pre-selected card reads as a question
+          with one answer, so the flow goes straight to size and quantity. */}
+      {familyProducts.length > 1 && (
       <div>
         <div className="mb-3">
           <p className="eyebrow">
@@ -59,7 +72,7 @@ export default function SignsBuilder({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          {signsCatalog.products.map((item) => {
+          {familyProducts.map((item) => {
             const isSelected = item.id === design.productId;
 
             return (
@@ -89,6 +102,7 @@ export default function SignsBuilder({
           })}
         </div>
       </div>
+      )}
 
       {/* Quantity and size are typed, not picked from chips.
           YARD SIGNS ARE THE EXCEPTION: their price comes from a per-unit

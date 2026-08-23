@@ -48,12 +48,15 @@ import {
   allowsReinforcement,
   REINFORCEMENT_ADD_ON_KEY,
   createSignsQuote,
+  createSignsDesignForFamily,
   getFinishingOptions,
   getSignProduct,
   getSignSizeLabel,
   getSizeOptions,
-  createSignsDesign,
+  SIGN_FAMILIES,
+  type SignFamily,
   type SignsDesign,
+  type SignsQuote,
 } from "../lib/signs";
 import { quoteSignsCart } from "../lib/signs-cart";
 import { buildSignsPayloadParts } from "../lib/signs-payload";
@@ -211,7 +214,19 @@ export default function Home() {
   const [apparelQuoteState, setApparelQuoteState] = useState(defaultApparelQuote);
   // Lazy, so the first quote gets its own design rather than sharing the
   // module constant's identity with anything else on the page.
-  const [signsQuote, setSignsQuote] = useState(createSignsQuote);
+  /**
+   * Two large-format pipelines, two carts — the hard split (Gabe,
+   * 2026-08-23). A banner quote holds only banners and a signs quote only
+   * signs, and switching cards must not carry designs across or discard the
+   * other flow's work. `signsQuote`/`setSignsQuote` below present the ACTIVE
+   * family's cart under the names the rest of this file has always used, so
+   * every existing update site keeps working and cannot write into the
+   * inactive family.
+   */
+  const [largeFormatQuotes, setLargeFormatQuotes] = useState(() => ({
+    banners: createSignsQuote("banners"),
+    signs: createSignsQuote("signs"),
+  }));
   const [ssProducts, setSsProducts] = useState<SsCatalogProduct[]>([]);
   const [selectedSsProductId, setSelectedSsProductId] = useState("");
   const [selectedSsColorName, setSelectedSsColorName] = useState("");
@@ -298,8 +313,31 @@ export default function Home() {
     productCategories.find((product) => product.id === "apparel")?.status ===
       "request";
   const isApparelSubmitted = submittedProductId === "apparel";
-  const isSignsSelected = selectedProductId === "signs";
-  const isSignsSubmitted = submittedProductId === "signs";
+  const isBannersSelected = selectedProductId === "banners";
+  /**
+   * "The signs MACHINERY is active" — true for both large-format pipelines.
+   * Banners and signs are separate products with separate carts, but they
+   * share the design-list flow, the pricing engine and the payload shape, so
+   * everything below that branches on this flag serves both. The family is
+   * what tells them apart.
+   */
+  const isSignsSelected = selectedProductId === "signs" || isBannersSelected;
+  const signsFamily: SignFamily = isBannersSelected ? "banners" : "signs";
+
+  const signsQuote = largeFormatQuotes[signsFamily];
+
+  /** Writes go to the ACTIVE family's cart, in both call shapes. */
+  function setSignsQuote(
+    next: SignsQuote | ((previous: SignsQuote) => SignsQuote)
+  ) {
+    setLargeFormatQuotes((previous) => ({
+      ...previous,
+      [signsFamily]:
+        typeof next === "function" ? next(previous[signsFamily]) : next,
+    }));
+  }
+  const isSignsSubmitted =
+    submittedProductId === "signs" || submittedProductId === "banners";
 
   const selectedSsProduct = useMemo(() => {
     return (
@@ -467,7 +505,7 @@ export default function Home() {
       return {
         label:
           designs.length > 1
-            ? `${designs.length} designs · ${signsPricing.quantity} signs`
+            ? `${designs.length} designs · ${signsPricing.quantity} ${SIGN_FAMILIES[signsFamily].noun}`
             : `${designs[0].quantity} × ${product.label}`,
         // Tax-inclusive. Signs carry no shipping component, so the whole
         // total is taxable — see getSignsTotals.
@@ -537,6 +575,8 @@ export default function Home() {
   }, [
     isSignsSelected,
     isApparelSelected,
+    // The noun in the cart label ("2 designs · 11 banners") reads this.
+    signsFamily,
     signsQuote,
     signsPricing,
     apparelQuote,
@@ -1293,7 +1333,9 @@ export default function Home() {
    */
   function addSignsDesign() {
     setSignsQuote({
-      designs: [...signsQuote.designs, createSignsDesign()],
+      // The family's own default, never the bare one — "Add another" inside
+      // the Signs pipeline must not hand the customer a banner.
+      designs: [...signsQuote.designs, createSignsDesignForFamily(signsFamily)],
     });
   }
 
@@ -1503,7 +1545,7 @@ export default function Home() {
       // file, and the double-charge it caught.
       return {
         ...orderEnvelope,
-        ...buildSignsPayloadParts(signsQuote.designs, signsPricing),
+        ...buildSignsPayloadParts(signsQuote.designs, signsPricing, signsFamily),
       };
     }
 
@@ -2319,7 +2361,9 @@ Artwork: ${
 Each design's file is listed with that design above.`
           : artworkSection;
 
-      return `GORILLA SALEM SIGNS QUOTE REQUEST
+      return `GORILLA SALEM ${
+        submittedProductId === "banners" ? "BANNERS" : "SIGNS"
+      } QUOTE REQUEST
 
 Quote Number: ${quoteNumber}
 Submitted: ${submittedAt}
@@ -2526,7 +2570,10 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     // the one baked in at import time hands every reset quote the same design
     // id, and the preview map is keyed on it. That is how a new customer ends
     // up looking at the last one's artwork.
-    setSignsQuote(createSignsQuote());
+    setLargeFormatQuotes({
+      banners: createSignsQuote("banners"),
+      signs: createSignsQuote("signs"),
+    });
     setSelectedProductId("stickers");
     setSubmittedProductId("stickers");
     setArtworkPreview(null);
@@ -3002,6 +3049,20 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 })}
             </div>
 
+            {/* A rule-label, in the system's existing hairline-as-structure
+                vocabulary. Hoisted out of the map: the band now holds TWO
+                products — banners and signs are separate pipelines — and one
+                label heads the segment, not each card. */}
+            <div className="mt-8 flex items-center gap-4">
+              <p className="spec text-spec font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+                Large format
+              </p>
+              <span
+                aria-hidden="true"
+                className="h-px flex-1 bg-[var(--rule)]"
+              />
+            </div>
+
             {productCategories
               .filter((product) => product.segment === "large-format")
               .map((product) => {
@@ -3009,17 +3070,6 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
                 return (
                   <div key={product.id}>
-                    {/* A rule-label, in the system's existing
-                        hairline-as-structure vocabulary. */}
-                    <div className="mt-8 flex items-center gap-4">
-                      <p className="spec text-spec font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
-                        Large format
-                      </p>
-                      <span
-                        aria-hidden="true"
-                        className="h-px flex-1 bg-[var(--rule)]"
-                      />
-                    </div>
 
                     {/* Full width, not a smaller card. A band reads as a
                         DIFFERENT KIND of thing; a narrower card would read as
@@ -3110,6 +3160,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                       <div className="space-y-8">
                         <SignsBuilder
                           design={design}
+                          family={signsFamily}
                           fieldErrors={
                             signsQuote.designs.length > 1
                               ? signsDesignFieldErrors[design.id] || {}

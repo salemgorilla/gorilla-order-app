@@ -44,10 +44,30 @@ export type SignSize = {
   heightInches: number;
 };
 
+export type SignFamily = "banners" | "signs";
+
+/**
+ * The two large-format pipelines (Gabe, 2026-08-23): banners and signs are
+ * separate PRODUCTS with separate carts — a banner quote holds only banners,
+ * a signs quote only signs. They share the pricing machinery below because
+ * every design prices by its own product either way; what the family decides
+ * is which products a flow offers, what a fresh design starts as, and what
+ * the record downstream calls the order.
+ */
+export const SIGN_FAMILIES: Record<
+  SignFamily,
+  { label: string; noun: string; defaultProductId: string }
+> = {
+  banners: { label: "Vinyl Banners", noun: "banners", defaultProductId: "vinyl-banner" },
+  signs: { label: "Signs", noun: "signs", defaultProductId: "yard-sign" },
+};
+
 export type SignProduct = {
   id: string;
   label: string;
   blurb: string;
+  /** Which of the two large-format pipelines sells this. */
+  family: SignFamily;
   pricingMethod: SignPricingMethod;
   sizes: SignSize[];
   materials: string[];
@@ -59,6 +79,7 @@ export type SignProduct = {
 export const signProducts: SignProduct[] = [
   {
     id: "vinyl-banner",
+    family: "banners",
     label: "Vinyl Banner",
     blurb: "Full-color banner for events, storefronts, and fields.",
     pricingMethod: "banner",
@@ -82,6 +103,7 @@ export const signProducts: SignProduct[] = [
   },
   {
     id: "yard-sign",
+    family: "signs",
     label: "Yard Sign",
     blurb: "Coroplast lawn signs for events, real estate, and campaigns.",
     pricingMethod: "yard",
@@ -101,6 +123,7 @@ export const signProducts: SignProduct[] = [
   },
   {
     id: "rigid-sign",
+    family: "signs",
     label: "Rigid Sign",
     blurb: "Durable indoor/outdoor signage that lasts.",
     pricingMethod: "rigid",
@@ -129,6 +152,7 @@ export const signProducts: SignProduct[] = [
   },
   {
     id: "poster",
+    family: "signs",
     label: "Poster",
     blurb: "Large-format indoor posters.",
     pricingMethod: "poster",
@@ -144,6 +168,7 @@ export const signProducts: SignProduct[] = [
   },
   {
     id: "window-graphics",
+    family: "signs",
     label: "Window & Wall Graphics",
     blurb: "Adhesive window and wall graphics — quoted to your space.",
     pricingMethod: null, // quoted by hand
@@ -308,15 +333,39 @@ export function createSignsDesign(
  * defaultOrder at import time — reusing it would hand every reset order the
  * same design id." Signs missed the memo when they grew a design list.
  */
-export function createSignsQuote(): SignsQuote {
-  return { designs: [createSignsDesign()] };
+/** The products one pipeline offers. Hard split: no flow ever lists both. */
+export function getSignFamilyProducts(family: SignFamily): SignProduct[] {
+  return signProducts.filter((product) => product.family === family);
+}
+
+/**
+ * A fresh design for one pipeline, starting on that family's default product.
+ *
+ * `createSignsDesign()` bare keeps its historical vinyl-banner default (the
+ * price sheet and half the test-bed are built on it); flows must use this so
+ * "Add another" inside the Signs pipeline cannot hand the customer a banner.
+ */
+export function createSignsDesignForFamily(family: SignFamily): SignsDesign {
+  return createSignsDesign({
+    productId: SIGN_FAMILIES[family].defaultProductId,
+  });
+}
+
+export function createSignsQuote(family: SignFamily = "banners"): SignsQuote {
+  return { designs: [createSignsDesignForFamily(family)] };
+}
+
+/** Which pipeline a quote's designs belong to — read off design 1. */
+export function getSignsQuoteFamily(quote: SignsQuote): SignFamily {
+  const first = quote.designs[0];
+  return first ? getSignProduct(first.productId).family : "signs";
 }
 
 /**
  * The shape a signs quote starts in. Safe as an INITIAL value; never reuse it
  * for a reset — call createSignsQuote() so the new quote gets a new id.
  */
-export const defaultSignsQuote: SignsQuote = createSignsQuote();
+export const defaultSignsQuote: SignsQuote = createSignsQuote("banners");
 
 /** All selectable size labels for a product, including the custom option. */
 /**

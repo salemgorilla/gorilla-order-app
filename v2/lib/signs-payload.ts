@@ -1,4 +1,10 @@
-import { getSignProduct, getSignSizeLabel, type SignsDesign } from "./signs";
+import {
+  getSignProduct,
+  getSignSizeLabel,
+  SIGN_FAMILIES,
+  type SignFamily,
+  type SignsDesign,
+} from "./signs";
 import type { SignsCartQuote } from "./signs-cart";
 import { getTemplate, resolveTemplateText } from "./templates";
 
@@ -112,7 +118,15 @@ function describeMoney(pricing: SignsCartQuote["designs"][number]["pricing"] | u
 
 export function buildSignsPayloadParts(
   designs: SignsDesign[],
-  pricing: SignsCartQuote
+  pricing: SignsCartQuote,
+  /**
+   * Which large-format pipeline this quote came down. Banners and signs are
+   * separate products with separate carts (Gabe, 2026-08-23); the family is
+   * what names the order in the shop email, the Printavo nickname and the
+   * customer's record. Defaults from design 1's product so a caller that
+   * predates the split still files under the right pipeline.
+   */
+  family: SignFamily = getSignProduct(designs[0]?.productId).family
 ) {
   const first = designs[0];
   const firstProduct = getSignProduct(first.productId);
@@ -125,9 +139,16 @@ export function buildSignsPayloadParts(
      * describes for the sticker cart. It describes design 1 and carries the
      * whole order's sign count, so anything that reads the JOB off it alone
      * is wrong on a cart; both consumers read `signsDesigns` instead.
+     *
+     * `type` names the PIPELINE now — "Vinyl Banners" or "Signs", not the
+     * old combined card. Classification downstream is safe either way:
+     * isSigns() in both consumers keys on `signType` being present, and
+     * isStickerOrder() requires "sticker" in the type, so neither string can
+     * change which branch handles the quote — only what the branch calls it.
      */
     product: {
-      type: "Banners & Signs",
+      type: SIGN_FAMILIES[family].label,
+      family,
       signType: firstProduct.label,
       quantity: pricing.quantity,
       size: getSignSizeLabel(first),

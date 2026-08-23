@@ -105,6 +105,39 @@ describe("the note describes the order, not design 1", () => {
     assert.doesNotMatch(second, /13 oz Scrim Vinyl/);
   });
 
+  test("each design names its own file", () => {
+    /**
+     * The note's own "File:" line further down names ONE file — whichever the
+     * browser last analysed. On a two-file quote that answers the question for
+     * at most one design and looks like it answered it for both, so a printer
+     * reading DESIGN 2 had its size and its stock and no way to tell which
+     * attachment was its artwork.
+     *
+     * The sticker spec has carried this line since carts existed. One design
+     * needs no such line and does not get one: its "File:" line is
+     * unambiguous, and every signs quote the shop has ever taken is that
+     * shape.
+     */
+    const withFiles = [design(), design(YARD)];
+    withFiles[0].artwork = { file: { name: "banner-art.pdf" } as never };
+    withFiles[1].artwork = { file: { name: "yard-art.png" } as never };
+
+    const block = signsBlock(planFor(withFiles).customerNote);
+    const [first, second] = block.split("DESIGN 2");
+
+    assert.match(first, /Artwork file: banner-art\.pdf/);
+    assert.doesNotMatch(first, /yard-art/);
+    assert.match(second, /Artwork file: yard-art\.png/);
+  });
+
+  test("a design still waiting on artwork says so", () => {
+    // Blank would read as a rendering fault. "none uploaded" is the sticker
+    // spec's wording, so the shop reads one vocabulary.
+    const block = signsBlock(planFor([design(), design(YARD)]).customerNote);
+
+    assert.equal((block.match(/Artwork file: none uploaded/g) ?? []).length, 2);
+  });
+
   test("a template design carries its wording, per design", () => {
     // A template IS the artwork, so the words are the job. On a cart these
     // came only from design 1's `artwork.template`, which is the same

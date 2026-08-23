@@ -996,6 +996,14 @@ export function buildPrintavoQuotePlan(input: {
       `Material: ${str(spec.material, "TBD")}`,
       `Finishing: ${str(spec.finishing, "TBD")}`,
       `Sides: ${str(spec.sides, "Single-sided")}`,
+      // Ties this row to a file in the shop email — the same job the sticker
+      // spec's "Artwork file" line does, and for the same reason. Without it
+      // a printer reading DESIGN 2 in Printavo has its size and its stock and
+      // no idea which of the two attachments belongs to it. The block's own
+      // "File:" line further down names ONE file, so on a cart it answers the
+      // question for at most one design and looks like it answered it for all
+      // of them.
+      `Artwork file: ${str(spec.fileName, "none uploaded")}`,
       ...(brief
         ? [
             `*** TEMPLATE ARTWORK - NO FILE UPLOADED ***`,

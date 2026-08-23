@@ -149,10 +149,35 @@ describe("the Printavo quote adds up to the website total", () => {
   });
 
   test("every line item names which design it is", () => {
+    // The DESCRIPTION carries the position. It used to be asserted of the
+    // item number too — `GORILLA-SIGN-1` — which was wrong for the reason
+    // tests/signs-fee-skus.test.ts spells out: a one-design quote has always
+    // filed a banner under GORILLA-SIGN-VINYL-BANNER, so numbering by cart
+    // position meant the same banner landed under a different SKU purely
+    // because a second design was in the quote.
     for (const [index, item] of plan.lineItems.entries()) {
       assert.match(item.description, new RegExp(`Design ${index + 1}`));
-      assert.equal(item.itemNumber, `GORILLA-SIGN-${index + 1}`);
     }
+  });
+
+  test("the item number names the PRODUCT and holds still", () => {
+    for (const item of plan.lineItems) {
+      assert.match(item.itemNumber, /^GORILLA-SIGN-[A-Z0-9-]+$/);
+      // The specific shape of the bug: a cart position baked into the SKU.
+      assert.doesNotMatch(item.itemNumber, /^GORILLA-SIGN-\d+$/);
+    }
+
+    // ...and it is the same number a one-design quote of that sign files
+    // under, which is the whole point.
+    const { order: solo, pricing: soloPricing } = payloadFor([CART[1]]);
+    const soloPlan = buildPrintavoQuotePlan({
+      quoteNumber: "GS-2003",
+      order: solo,
+      artworkAnalysis: null,
+    } as never) as never as { lineItems: Array<{ itemNumber: string }> };
+
+    assert.ok(soloPricing.priceable);
+    assert.equal(soloPlan.lineItems[0].itemNumber, plan.lineItems[1].itemNumber);
   });
 
   test("the line items describe three different signs", () => {

@@ -78,16 +78,40 @@ describe("every card says what happens after submit", () => {
     }
   });
 
-  it("no longer leaves two products saying the same thing", () => {
-    // The actual defect: "Available now" on both the automated flow and the
-    // invoiced one.
-    const lines = productCategories.map((p) => p.fulfilment);
-
-    assert.equal(
-      new Set(lines).size,
-      lines.length,
-      `two products make the same promise: ${lines.join(" | ")}`
+  it("different fulfilment MODELS never share a line", () => {
+    /**
+     * The actual defect this guards: "Available now" on both the automated
+     * flow and the invoiced one — one sentence for two different promises.
+     *
+     * It used to assert every card's line unique, which was the same thing
+     * while every card was its own model. The large-format split ended that:
+     * banners and signs are separate products sharing one genuine model
+     * (priced online, invoiced), and making them word it differently would
+     * recreate the defect in reverse — two sentences for one promise. So the
+     * uniqueness is asserted per MODEL, and the shared line is asserted
+     * shared.
+     */
+    const payOnline = productCategories.filter((p) =>
+      /pay online/i.test(p.fulfilment)
     );
+    const handQuote = productCategories.filter((p) =>
+      /hand quote/i.test(p.fulfilment)
+    );
+    const invoiced = productCategories.filter((p) =>
+      /invoice/i.test(p.fulfilment)
+    );
+
+    // Three models, no card in two of them, no card in none.
+    assert.equal(payOnline.length, 1);
+    assert.equal(handQuote.length, 1);
+    assert.equal(invoiced.length, 2);
+    assert.equal(
+      payOnline.length + handQuote.length + invoiced.length,
+      productCategories.length
+    );
+
+    // The two invoiced pipelines make the SAME promise in the SAME words.
+    assert.equal(new Set(invoiced.map((p) => p.fulfilment)).size, 1);
   });
 
   it("drops the wording that could not tell them apart", () => {

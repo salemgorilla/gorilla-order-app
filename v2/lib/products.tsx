@@ -78,11 +78,18 @@ export const productCategories: ProductCategory[] = [
     status: "request",
     fulfilment: "Hand quote · usually same day",
   },
+  /**
+   * Two large-format pipelines, not one (Gabe, 2026-08-23). "Banners & Signs"
+   * was one card and one cart; a banner quote and a signs quote are now
+   * separate products with separate carts — the hard split. They share the
+   * pricing machinery in lib/signs.ts, which is a fact about the code, not
+   * about the offer.
+   */
   {
-    id: "signs",
-    title: "Banners & Signs",
+    id: "banners",
+    title: "Vinyl Banners",
     description:
-      "Vinyl banners, yard signs, rigid signs, posters and window graphics.",
+      "Full-color banners for events, storefronts, fences and fields.",
     segment: "large-format",
     status: "active",
     // The Beta badge is gone. It told a buyer "this returns a real price" and
@@ -90,8 +97,19 @@ export const productCategories: ProductCategory[] = [
     // does the hard thing. The pricing is real — it is confirmed and invoiced
     // rather than charged, which is what the fulfilment line says.
     note: "Real price now — we send an invoice instead of taking a card.",
-    // Priced online like stickers, but never self-billed — signs do not pass
-    // isStickerOrder(), so no payment link is ever raised for one.
+    // Priced online like stickers, but never self-billed — large format does
+    // not pass isStickerOrder(), so no payment link is ever raised.
+    fulfilment: "Instant price · we invoice",
+  },
+  {
+    id: "signs",
+    title: "Signs",
+    description:
+      "Yard signs, rigid signs, posters and window graphics.",
+    segment: "large-format",
+    status: "active",
+    // No note: the invoicing model is explained once for the segment, on the
+    // card above. The same sentence twice in adjacent cards reads as a bug.
     fulfilment: "Instant price · we invoice",
   },
 ];

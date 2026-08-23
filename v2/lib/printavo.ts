@@ -70,8 +70,13 @@ function isApparel(product: AnyRecord) {
 }
 
 function isSigns(product: AnyRecord) {
+  // Both large-format pipelines. `signType` is the load-bearing test — every
+  // payload the machinery builds carries it — and the type strings ("Vinyl
+  // Banners", "Signs", and the pre-split "Banners & Signs") are belt and
+  // braces for anything hand-fed.
   return (
     str(product.type).toLowerCase().includes("signs") ||
+    str(product.type).toLowerCase().includes("banner") ||
     Boolean(product.signType)
   );
 }
@@ -803,6 +808,18 @@ export function buildPrintavoQuotePlan(input: {
    * position and not by matching its wording.
    */
   const signsCart = signsDesigns.length > 1;
+
+  /**
+   * Which large-format pipeline this order came down. Carried on the payload
+   * since the split; read off the type string for anything older. Decides
+   * only NAMES — the nickname's noun and the note's heading — never which
+   * branch handles the quote.
+   */
+  const signsFamily =
+    str(product.family) === "banners" ||
+    str(product.type).toLowerCase().includes("banner")
+      ? "banners"
+      : "signs";
   const signsProductLine = signsCart ? undefined : signsLines[0];
 
   /**
@@ -937,7 +954,7 @@ export function buildPrintavoQuotePlan(input: {
       // the job list as eleven banners. The sticker branch below has said
       // "/ N designs" since carts existed; signs are the sibling that did not.
       `${nicknamePrefix} ${quoteNumber} - ${quantity} ${
-        signsCart ? "Signs" : signLabel
+        signsCart ? (signsFamily === "banners" ? "Banners" : "Signs") : signLabel
       }${signsCart ? ` / ${signsDesigns.length} designs` : ""}${
         productNeedsHandPricing ? " (NEEDS PRICING)" : ""
       }`
@@ -1037,7 +1054,7 @@ export function buildPrintavoQuotePlan(input: {
        * Same fix and same shape as the sticker cart directly below.
        */
       [
-        `${quantity}x signs across ${signsDesigns.length} designs`,
+        `${quantity}x ${signsFamily} across ${signsDesigns.length} designs`,
         "",
         ...signsDesigns.flatMap((design, index) => [
           `DESIGN ${index + 1}`,
@@ -1151,7 +1168,13 @@ export function buildPrintavoQuotePlan(input: {
     `Email: ${str(customer.email, "Not entered")}`,
     `Phone: ${str(customer.phone, "N/A")}`,
     "",
-    apparel ? "APPAREL" : signs ? "SIGNS" : "STICKERS",
+    apparel
+      ? "APPAREL"
+      : signs
+      ? signsFamily === "banners"
+        ? "BANNERS"
+        : "SIGNS"
+      : "STICKERS",
     description,
     "",
     "TIMELINE",

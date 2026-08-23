@@ -64,8 +64,13 @@ function isApparel(product: AnyRecord) {
 }
 
 function isSigns(product: AnyRecord) {
+  // Both large-format pipelines. `signType` is the load-bearing test — every
+  // payload the machinery builds carries it — and the type strings ("Vinyl
+  // Banners", "Signs", and the pre-split "Banners & Signs") are belt and
+  // braces for anything hand-fed.
   return (
     str(product.type).toLowerCase().includes("signs") ||
+    str(product.type).toLowerCase().includes("banner") ||
     Boolean(product.signType)
   );
 }
@@ -337,7 +342,9 @@ export function buildQuoteEmail(input: {
      * this reads the real list.
      */
     productLines.push(
-      line("Type", "Banners & Signs"),
+      // The pipeline's own name — "Vinyl Banners" or "Signs". The combined
+      // string is only ever seen on payloads from before the split.
+      line("Type", str(product.type, "Banners & Signs")),
       line("Designs", String(signsDesigns.length)),
       line("Total Quantity", String(quantity))
     );
@@ -358,7 +365,9 @@ export function buildQuoteEmail(input: {
     }
   } else if (signs) {
     productLines.push(
-      line("Type", "Banners & Signs"),
+      // The pipeline's own name — "Vinyl Banners" or "Signs". The combined
+      // string is only ever seen on payloads from before the split.
+      line("Type", str(product.type, "Banners & Signs")),
       line("Product", str(product.signType, "Not selected")),
       line("Quantity", String(quantity)),
       line("Size", str(product.size, "Not specified")),

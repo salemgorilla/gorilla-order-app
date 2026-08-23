@@ -26,7 +26,7 @@ export type AddOnOffer = {
   label: string;
   detail: string;
   /** Which product flows this offer appears in. */
-  flows: Array<"stickers" | "signs" | "apparel">;
+  flows: Array<"stickers" | "banners" | "signs" | "apparel">;
   price: () => { amount: number; quoteRequired: boolean };
 };
 
@@ -104,28 +104,28 @@ export const ADD_ON_CATALOG: AddOnOffer[] = [
     id: "stickers-100",
     label: "100 die-cut stickers, 3 inch, gloss white vinyl",
     detail: "Same artwork, cut to shape.",
-    flows: ["signs", "apparel"],
+    flows: ["banners", "signs", "apparel"],
     price: stickerPackPrice(100),
   },
   {
     id: "stickers-250",
     label: "250 die-cut stickers, 3 inch, gloss white vinyl",
     detail: "Same artwork. Better per-sticker price than 100.",
-    flows: ["signs", "apparel"],
+    flows: ["banners", "signs", "apparel"],
     price: stickerPackPrice(250),
   },
   {
     id: "window-decal",
     label: "Window or door decal",
     detail: "Hours, logo or a promo. Priced to your opening.",
-    flows: ["stickers", "signs", "apparel"],
+    flows: ["stickers", "banners", "signs", "apparel"],
     price: handQuote,
   },
   {
     id: "apparel-screenprint",
     label: "Screen printed tees or hoodies",
     detail: "Same artwork on garments. We quote these by hand.",
-    flows: ["stickers", "signs"],
+    flows: ["stickers", "banners", "signs"],
     price: handQuote,
   },
 ];

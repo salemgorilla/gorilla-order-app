@@ -90,8 +90,14 @@ describe("reset lets go of what it is replacing", () => {
     assert.match(startNewQuote, /setSignsDesignPreviews\(\{\}\)/);
   });
 
-  test("and asks for a fresh quote rather than the import-time one", () => {
-    assert.match(startNewQuote, /setSignsQuote\(createSignsQuote\(\)\)/);
-    assert.doesNotMatch(startNewQuote, /setSignsQuote\(defaultSignsQuote\)/);
+  test("and asks for fresh quotes rather than the import-time one", () => {
+    // Both pipelines since the hard split — each family's cart gets its own
+    // fresh design with an id nothing else has held, which is the whole
+    // point of createSignsQuote being a function.
+    assert.match(
+      startNewQuote,
+      /banners: createSignsQuote\("banners"\),\s*\n?\s*signs: createSignsQuote\("signs"\)/
+    );
+    assert.doesNotMatch(startNewQuote, /defaultSignsQuote/);
   });
 });

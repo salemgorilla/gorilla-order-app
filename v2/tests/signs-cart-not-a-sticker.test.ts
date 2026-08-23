@@ -1,7 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
-import { createSignsDesign, type SignsDesign } from "../lib/signs";
+import { SIGN_FAMILIES, createSignsDesign, type SignsDesign } from "../lib/signs";
 import { quoteSignsCart } from "../lib/signs-cart";
 import { buildSignsPayloadParts } from "../lib/signs-payload";
 import { isStickerOrder, POST } from "../app/api/quote/route";
@@ -85,11 +85,21 @@ describe("no signs cart can ever self-check-out", () => {
 
   test("and it is the product TYPE doing the refusing", () => {
     // Not an accident of a missing field — that was the original bug. The
-    // type says what this is, positively.
+    // type says what this is, positively. Since the pipeline split it names
+    // the FAMILY ("Vinyl Banners" or "Signs", per SIGN_FAMILIES) rather than
+    // the old combined card — either way, never anything a sticker
+    // classifier could claim, and signType rides along as the belt to that
+    // brace.
     const parts = payloadFor(CARTS[1][1]);
 
-    assert.equal(parts.product.type, "Banners & Signs");
+    assert.ok(
+      Object.values(SIGN_FAMILIES).some(
+        (family) => family.label === parts.product.type
+      ),
+      `${parts.product.type} names no pipeline`
+    );
     assert.doesNotMatch(parts.product.type, /sticker/i);
+    assert.ok(parts.product.signType);
   });
 
   test("a signs payload stripped of its designs is STILL not a sticker order", () => {

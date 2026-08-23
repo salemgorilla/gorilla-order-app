@@ -32,7 +32,27 @@ import { buildPrintavoQuotePlan } from "../lib/printavo";
  * each-price, the knockout guard and the artwork parts before them.
  */
 
+/**
+ * A SIGNS-family design. The cart fixtures here stay inside one family
+ * because the pipelines are hard-split (Gabe, 2026-08-23): a banner quote
+ * holds only banners and a signs quote only signs, so a mixed cart is a
+ * shape the UI can no longer produce. The banners pipeline gets its own
+ * describe at the bottom.
+ */
 function design(overrides: Partial<SignsDesign> = {}) {
+  return createSignsDesign({
+    productId: "rigid-sign",
+    quantity: 1,
+    customWidthInches: 36,
+    customHeightInches: 24,
+    material: 'PVC 1/8"',
+    finishing: "Drilled Holes",
+    ...overrides,
+  });
+}
+
+/** A banners-family design, for the pipeline-label tests. */
+function banner(overrides: Partial<SignsDesign> = {}) {
   return createSignsDesign({
     productId: "vinyl-banner",
     quantity: 1,
@@ -72,7 +92,10 @@ function planFor(designs: SignsDesign[]) {
 
 /** The block a printer reads. */
 function signsBlock(note: string) {
-  return note.split("SIGNS\n")[1]?.split("\n\nTIMELINE")[0] ?? "";
+  // Either pipeline's heading — the split renamed the banners one.
+  return (
+    note.split(/\n(?:BANNERS|SIGNS)\n/)[1]?.split("\n\nTIMELINE")[0] ?? ""
+  );
 }
 
 describe("the note describes the order, not design 1", () => {
@@ -80,9 +103,9 @@ describe("the note describes the order, not design 1", () => {
   const block = signsBlock(plan.customerNote);
 
   test("it does not state design 1's product under the combined count", () => {
-    // The exact line that reached Printavo. Eleven banners is a job someone
-    // could start.
-    assert.doesNotMatch(block, /^11x Vinyl Banner$/m);
+    // The exact shape that reached Printavo before the fix. Eleven rigid
+    // signs is a job someone could start.
+    assert.doesNotMatch(block, /^11x Rigid Sign$/m);
   });
 
   test("it says how the count is split", () => {
@@ -90,19 +113,19 @@ describe("the note describes the order, not design 1", () => {
   });
 
   test("every design gets its own spec", () => {
-    assert.match(block, /DESIGN 1\n1x Vinyl Banner/);
+    assert.match(block, /DESIGN 1\n1x Rigid Sign/);
     assert.match(block, /DESIGN 2\n10x Yard Sign/);
   });
 
   test("each design's material is its own", () => {
-    // Coroplast must not appear under the banner, nor scrim vinyl under the
-    // yard signs — the failure mode is a printer cutting the wrong stock.
+    // Coroplast must not appear under the rigid sign, nor PVC under the yard
+    // signs — the failure mode is a printer cutting the wrong stock.
     const [first, second] = block.split("DESIGN 2");
 
-    assert.match(first, /13 oz Scrim Vinyl/);
+    assert.match(first, /PVC 1\/8"/);
     assert.doesNotMatch(first, /Coroplast/);
     assert.match(second, /Coroplast/);
-    assert.doesNotMatch(second, /13 oz Scrim Vinyl/);
+    assert.doesNotMatch(second, /PVC/);
   });
 
   test("each design names its own file", () => {
@@ -174,6 +197,29 @@ describe("the job list label", () => {
       planFor([design(YARD)]).nickname,
       /GS-20260823-AB12C - 10 Yard Sign$/
     );
+  });
+
+  test("a banners cart is labelled Banners, not Signs", () => {
+    /**
+     * The pipeline split's whole point in one line: the shop's job list
+     * says which department the order belongs to. The family rides the
+     * payload (product.family, from buildSignsPayloadParts) and the noun in
+     * the note's count line follows it too.
+     */
+    const plan = planFor([banner(), banner({ quantity: 2 })]);
+
+    assert.match(plan.nickname, /3 Banners \/ 2 designs$/);
+    assert.match(signsBlock(plan.customerNote), /3x banners across 2 designs/);
+    assert.doesNotMatch(plan.nickname, /3 Signs/);
+  });
+
+  test("the note's heading names the pipeline", () => {
+    const banners = planFor([banner(), banner()]);
+    const signs = planFor([design(), design(YARD)]);
+
+    assert.match(banners.customerNote, /\nBANNERS\n/);
+    assert.doesNotMatch(banners.customerNote, /\nSIGNS\n/);
+    assert.match(signs.customerNote, /\nSIGNS\n/);
   });
 
   test("the quote number survives, because tracking matches on it", () => {

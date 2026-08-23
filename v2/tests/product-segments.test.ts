@@ -160,10 +160,18 @@ describe("only the pay-online path is coloured", () => {
   });
 
   test("the band explains the invoicing model once", () => {
-    const signs = productCategories.find((p) => p.id === "signs");
+    /**
+     * ONCE means once for the segment, not once per card. The band holds two
+     * pipelines since the split, both invoiced the same way — the note sits
+     * on the first card and the second stays quiet, because the same
+     * sentence twice in adjacent cards reads as a bug.
+     */
+    const noted = productCategories.filter(
+      (p) => p.segment === "large-format" && p.note
+    );
 
-    assert.ok(signs?.note);
-    assert.match(signs.note, /invoice/i);
+    assert.equal(noted.length, 1, "the segment's note appears " + noted.length + " times");
+    assert.match(noted[0].note ?? "", /invoice/i);
 
     // The cards have no room for a second line and do not get one.
     for (const product of productCategories.filter(

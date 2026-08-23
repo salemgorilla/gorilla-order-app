@@ -2390,13 +2390,20 @@ Image: ${selectedGarmentImage || "N/A"}
 ${timelineSection}
 
 ESTIMATE
-Estimated Apparel Total: $${apparelPricing.total.toFixed(2)}
+${
+        apparelQuote.specialOrder
+          ? // What the payload says. The breakdown below is printing and
+            // screens over a garment the catalogue could not price, and
+            // copying it out gave the customer a number the shop never saw.
+            "Special order — priced by hand by Gorilla Salem. We reply with your price."
+          : `Estimated Apparel Total: $${apparelPricing.total.toFixed(2)}
 Estimated Each: $${apparelPricing.unitPrice.toFixed(2)}
 Garments: $${apparelPricing.garmentTotal.toFixed(2)}
 Printing: $${apparelPricing.printTotal.toFixed(2)}
 Setup / Screens: $${apparelPricing.setupTotal.toFixed(2)}
 Locations: ${apparelQuote.printLocations.length}
-Pricing Note: Final pricing reviewed by Gorilla Salem.${addOnsSection}
+Pricing Note: Final pricing reviewed by Gorilla Salem.`
+      }${addOnsSection}
 
 ${artworkSection}
 

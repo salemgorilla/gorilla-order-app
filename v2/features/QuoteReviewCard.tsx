@@ -1,7 +1,7 @@
 "use client";
 
 import type { Order } from "../types/order";
-import { getStickerTotals } from "../lib/tax";
+import { getSignsTotals, getStickerTotals } from "../lib/tax";
 import type { ApparelQuote } from "../lib/apparel";
 import type { ApparelPricingResult } from "../lib/apparel-pricing";
 import type { SsCatalogColor } from "./types";
@@ -38,6 +38,7 @@ export default function QuoteReviewCard({
 }: Props) {
   // Shared with the summary, the confirmation screen and the sticky bar.
   const stickerTotals = getStickerTotals(order.pricing);
+  const signsTotals = signsTotal !== null ? getSignsTotals({ total: signsTotal }) : null;
 
   return (
     <div className=" border border-[var(--rule)] bg-white p-6">
@@ -86,6 +87,15 @@ export default function QuoteReviewCard({
                       "Sides",
                       design.doubleSided ? "Double-sided" : "Single-sided",
                     ],
+                    // Which file is THIS design's, on the screen where the
+                    // customer checks before sending. The shared footer row
+                    // this replaces showed whichever file was uploaded last.
+                    [
+                      "Artwork",
+                      design.templateId
+                        ? "Our template — wording supplied"
+                        : design.artwork.file?.name || "Not uploaded",
+                    ],
                   ] as [string, string][]
                 ).map(([label, value]) => (
                   <div key={label} className="flex justify-between gap-4">
@@ -98,11 +108,19 @@ export default function QuoteReviewCard({
               </div>
             ))}
 
+            {/* Tax-inclusive, like the sticker row below and for the reason
+                its comment gives: this row said $177.00 while the summary
+                beside it said $188.06 — two numbers for one quote, on the
+                screen where the customer decides to press send. */}
             <div className="flex justify-between gap-4">
-              <span>Estimate</span>
+              <span>
+                {signsTotals !== null && signsTotals.estimatedTax > 0
+                  ? "Estimated total"
+                  : "Estimate"}
+              </span>
               <span className="text-right text-[var(--gorilla-green)]">
-                {signsTotal !== null
-                  ? `$${signsTotal.toFixed(2)}`
+                {signsTotals !== null
+                  ? `$${signsTotals.estimatedTotal.toFixed(2)}`
                   : "Quoted by hand"}
               </span>
             </div>
@@ -151,35 +169,60 @@ export default function QuoteReviewCard({
               </span>
             </div>
 
+            {/* The payload for a special order says { total: 0,
+                quoteRequired: true }; the shop email files it as NEEDS A HAND
+                QUOTE. Showing the engine's figure anyway — printing and
+                screens over a garment the catalogue could not price — handed
+                the customer a number the shop never saw. Signs one branch up
+                already say "Quoted by hand". */}
             <div className="flex justify-between gap-4">
               <span>Estimate</span>
               <span className="text-right text-[var(--gorilla-green)]">
-                ${apparelPricing.total.toFixed(2)}
+                {apparelQuote.specialOrder
+                  ? "Quoted by hand"
+                  : `$${apparelPricing.total.toFixed(2)}`}
               </span>
             </div>
           </>
         ) : (
           <>
-            <div className="flex justify-between gap-4">
-              <span>Sticker</span>
-              <span className="text-right text-[var(--ink-black)]">
-                {order.items[0].size} • {order.items[0].shape}
-              </span>
-            </div>
+            {/* One block per design, exactly as the signs branch above does.
+                This used to render order.items[0] alone — so a two-design
+                cart reviewed as "Quantity 100" when the run was 200, with
+                the second design invisible on the screen whose heading says
+                "Check everything before submitting". */}
+            {order.items.map((item, index) => (
+              <div
+                key={item.id}
+                className={
+                  index === 0
+                    ? "space-y-3"
+                    : "space-y-3 border-t border-[var(--rule-faint)] pt-3"
+                }
+              >
+                {order.items.length > 1 && (
+                  <p className="spec text-spec uppercase tracking-[0.14em] text-[var(--ink-black)]">
+                    Design {String(index + 1).padStart(2, "0")}
+                  </p>
+                )}
 
-            <div className="flex justify-between gap-4">
-              <span>Quantity</span>
-              <span className="text-right text-[var(--ink-black)]">
-                {order.items[0].quantity.toLocaleString()}
-              </span>
-            </div>
-
-            <div className="flex justify-between gap-4">
-              <span>Sticker Type</span>
-              <span className="text-right text-[var(--ink-black)]">
-                {order.items[0].material}
-              </span>
-            </div>
+                {(
+                  [
+                    ["Sticker", `${item.size} • ${item.shape}`],
+                    ["Quantity", item.quantity.toLocaleString()],
+                    ["Sticker Type", item.material],
+                    ["Artwork", item.artwork.file?.name || "Not uploaded"],
+                  ] as [string, string][]
+                ).map(([label, value]) => (
+                  <div key={label} className="flex justify-between gap-4">
+                    <span>{label}</span>
+                    <span className="text-right text-[var(--ink-black)]">
+                      {value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ))}
 
             {/* Tax-inclusive, from the one derivation in lib/tax. This card
                 and the confirmation screen both showed the pre-tax figure
@@ -195,12 +238,21 @@ export default function QuoteReviewCard({
         )}
 
         <div className="border-t border-[var(--rule)] pt-3">
-          <div className="flex justify-between gap-4">
-            <span>Artwork</span>
-            <span className="text-right text-[var(--ink-black)]">
-              {order.artwork.file?.name || "Not uploaded"}
-            </span>
-          </div>
+          {/* Apparel only. This row reads order.artwork — the order-level
+              slot, which sticker uploads never write (so every sticker cart
+              reviewed as "Artwork: Not uploaded" with its files attached)
+              and signs overwrite on each upload (so a two-design quote named
+              the LAST file as the artwork for both). Those two flows now
+              name each design's file in its own rows above; apparel really
+              is single-file and keeps the slot. */}
+          {isApparelSelected && (
+            <div className="mb-3 flex justify-between gap-4">
+              <span>Artwork</span>
+              <span className="text-right text-[var(--ink-black)]">
+                {order.artwork.file?.name || "Not uploaded"}
+              </span>
+            </div>
+          )}
 
           <div className="mt-3 flex justify-between gap-4">
             <span>Needed By</span>

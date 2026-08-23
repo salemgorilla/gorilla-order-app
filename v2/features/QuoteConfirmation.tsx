@@ -334,17 +334,38 @@ export default function QuoteConfirmationScreen({
                   </>
                 )
               ) : isApparelSubmitted ? (
-                <>
-                  <p className="mt-2 text-head font-bold text-[var(--ink-black)]">
-                    ${apparelPricing.total.toFixed(2)}
-                  </p>
-                  <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
-                    ${apparelPricing.unitPrice.toFixed(2)} each estimated
-                  </p>
-                  <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
-                    Final pricing reviewed by Gorilla Salem
-                  </p>
-                </>
+                apparelQuote.specialOrder ? (
+                  /**
+                   * The payload for a special order says { total: 0,
+                   * quoteRequired: true }. This screen was showing the
+                   * engine's figure anyway — printing and screens over a
+                   * garment the catalogue could not price, $169.00 with the
+                   * garments at $0.00 on the day it was caught — so the
+                   * customer kept a "confirmation" at a number the shop never
+                   * saw and will never bill. Signs already say "Quoted by
+                   * hand" here.
+                   */
+                  <>
+                    <p className="mt-2 text-head font-bold text-[var(--ink-black)]">
+                      Quoted by hand
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+                      Gorilla Salem will reply with your price
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-2 text-head font-bold text-[var(--ink-black)]">
+                      ${apparelPricing.total.toFixed(2)}
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+                      ${apparelPricing.unitPrice.toFixed(2)} each estimated
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+                      Final pricing reviewed by Gorilla Salem
+                    </p>
+                  </>
+                )
               ) : (
                 <>
                   {/* THE figure that mattered most, and the one the tax line

@@ -1,8 +1,21 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { composeGarmentMockup } from "../../lib/garment-composite";
+import { getVerifiedGarmentZone } from "../../lib/garment-zones";
+
 type Props = {
   artworkPreview: string | null;
   garmentType: string;
   garmentColor: string;
   garmentImage?: string | null;
+  /**
+   * S&S styleID, when the catalog has loaded. Keys the placement-zone lookup
+   * in lib/garment-zones.ts — absent, unknown, or unverified all mean the
+   * side-by-side view below, automatically.
+   */
+  catalogStyle?: string | null;
   /**
    * The real colour from the S&S catalog (`color1`), when the catalog has
    * loaded. Preferred over the local map below, which only covers the seven
@@ -70,11 +83,68 @@ export default function ApparelPreview({
   garmentColor,
   garmentImage,
   garmentColorHex,
+  catalogStyle,
   printLocations,
   inkColors,
   quantity,
 }: Props) {
   const swatch = getSwatchColor(garmentColor, garmentColorHex);
+
+  /**
+   * The composited mockup, for the styles where a human has verified where
+   * the print area sits in the photograph — and ONLY those. Everything else
+   * falls through to the side-by-side view below, which is the honest
+   * default this component exists for. There is no flag to remember to
+   * flip: the absence of a verified zone IS the fallback trigger.
+   *
+   * Front wins when both locations are picked — one composite, matching the
+   * face of the shirt a customer pictures.
+   */
+  const placement = printLocations.includes("Front")
+    ? ("Front" as const)
+    : printLocations.includes("Back")
+    ? ("Back" as const)
+    : null;
+  const zone = placement ? getVerifiedGarmentZone(catalogStyle, placement) : null;
+
+  /**
+   * The mockup is stored WITH the inputs it was composed from, and rendered
+   * only when they still match. That is what makes clearing unnecessary: a
+   * stale composite simply stops matching when the garment, artwork or
+   * placement changes, so the effect never has to set state synchronously to
+   * blank it (which is also what the lint rule about cascading renders
+   * forbids).
+   */
+  const mockupKey =
+    zone && garmentImage && artworkPreview
+      ? `${garmentImage}|${artworkPreview}|${placement}`
+      : null;
+  const [mockup, setMockup] = useState<{ key: string; url: string } | null>(
+    null
+  );
+  const mockupUrl = mockup && mockup.key === mockupKey ? mockup.url : null;
+
+  useEffect(() => {
+    // Nothing to compose; whatever is stored no longer matches and will not
+    // render.
+    if (!zone || !garmentImage || !artworkPreview || !mockupKey) return;
+
+    let cancelled = false;
+
+    composeGarmentMockup({
+      garmentUrl: garmentImage,
+      artworkUrl: artworkPreview,
+      zone,
+    }).then((url) => {
+      // A failed composite resolves null (never throws), which lands us in
+      // the side-by-side view — losing the mockup must never lose the page.
+      if (!cancelled && url) setMockup({ key: mockupKey, url });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [zone, garmentImage, artworkPreview, mockupKey]);
 
   return (
     <div className="border border-[var(--rule)] bg-white p-5 sm:p-8">
@@ -111,6 +181,19 @@ export default function ApparelPreview({
             </p>
           </div>
 
+          {mockupUrl ? (
+            <figure className="mt-4 border border-[var(--rule)] bg-[var(--paper)] p-3">
+              <img
+                src={mockupUrl}
+                alt={`Your artwork placed on the ${garmentColor} ${garmentType}`}
+                className="mx-auto max-h-80 w-full object-contain"
+              />
+              <figcaption className="mt-3 border-t border-[var(--rule)] pt-2 text-spec font-bold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+                {placement} placement — approximate. Gorilla Salem confirms
+                the real proof before printing.
+              </figcaption>
+            </figure>
+          ) : (
           <div className="mt-4 grid grid-cols-2 gap-3">
             <figure className="border border-[var(--rule)] bg-[var(--paper)] p-3">
               {garmentImage ? (
@@ -165,6 +248,7 @@ export default function ApparelPreview({
               </figcaption>
             </figure>
           </div>
+          )}
 
           <div className="mt-4 grid grid-cols-3 gap-3 text-center">
             <div className="bg-white p-3">

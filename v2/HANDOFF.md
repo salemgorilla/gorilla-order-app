@@ -436,6 +436,62 @@ Only `ready`, `done` and `hold` stages email at all — see the reasoning in
 `lib/status-email.ts`. That is a promise about how often the shop writes to
 people, and it should change deliberately.
 
+### Shipped inert — the apparel composite, waiting on six measurements
+
+**2026-08-23.** `ApparelPreview` can now composite the customer's artwork onto
+the real S&S garment photograph. **It never does**, and that is the intended
+state of this commit.
+
+The machinery:
+
+- `lib/garment-zones.ts` — print areas as FRACTIONS of a style's photograph
+  (origin top-left), keyed by S&S styleID (`GorillaCatalogProduct.catalogStyle`,
+  the same id `apparelCatalogItems[].style` carries — not the manufacturer
+  model number). Seeded with the three live styles, front and back.
+  `getVerifiedGarmentZone()` returns null unless a zone is marked
+  `verified: true`.
+- `lib/garment-composite.ts` — `composeGarmentMockup()`. Contain-fits the photo
+  into the canvas, maps the zone's fractions into THAT rect (the step the
+  deleted CSS garment skipped, which is why its coordinates landed off the
+  shirt), draws art at the zone's width with height from the art's own aspect
+  ratio, scaled down if it would run past `maxHeight`. Never stretched. Same
+  contract as `sticker-proof.ts`: resolves null on any failure instead of
+  throwing, so a missing mockup cannot cost a quote.
+- `ApparelPreview` renders the composite only when a verified zone comes back,
+  and otherwise renders the side-by-side view unchanged. There is no flag to
+  remember to flip — an unverified zone simply produces no composite.
+
+**All six zones are `verified: false` with placeholder coordinates, so nothing
+customer-facing has changed.** Flipping one requires opening that style's real
+`frontImage`/`backImage`, reading the print area off the photo as fractions,
+correcting the numbers and setting `verified: true`. That is a look-at-a-picture
+job — it cannot be done from this container, which has no S&S credentials and
+cannot reach ssactivewear.com (checked, not assumed). Do them one style at a
+time and look at the result on screen before trusting the next.
+
+Two things a future session will otherwise get wrong:
+
+- **`garmentImage` is always the FRONT photo.** `selectedGarmentImage` in
+  `page.tsx` is `selectedSsColor?.frontImage`, full stop. A back composite
+  therefore takes `garmentBackImage` separately, and no back photo means no
+  back composite. Drawing back coordinates on a front photograph would look
+  exactly as placed, and be exactly as wrong, as the coordinates that got the
+  CSS garment deleted.
+- **Zones go stale silently.** If S&S recrops a style's photography the
+  fractions cannot know. There is no drift detection. Spot-check when apparel
+  photography looks different.
+
+`tests/garment-zones.test.ts` pins the gate: nothing unverified is ever handed
+back, every live catalog style has an entry, and no zone's coordinates run off
+the edge of the photo — that last one is aimed at the typo (`0.032` for `0.32`)
+that a hand-measured number invites, which would render happily and be wrong.
+The "hands back the zone once it is verified" case is vacuous today on purpose;
+it starts asserting the moment somebody measures one.
+
+Lint warnings went 8 -> 9: the composite is a ninth deliberate `<img>` (a
+`data:` URL off a canvas — `next/image` has nothing to optimise). Still zero
+errors.
+
 ### Known broken — do not re-diagnose these
 
 - **S&S catalogue returns 401.** `Style 39 failed with 401: "Authorization has
@@ -673,6 +729,16 @@ it.
    request (`status: "request"` in `lib/products.tsx`); the remaining blocker
    for the full configurator is sign-off on S&S and screen-print pricing, not
    the preview.
+
+   **Follow-up, 2026-08-23:** the composite the item above called "its own
+   job" is now built and inert — see "Shipped inert — the apparel composite"
+   above. What is left is not code: measure the Starter Tee (style `39`) FRONT
+   zone first, because it is the pre-selected default and therefore the one
+   most customers would ever see, then the other five. Only after the zones are
+   trustworthy is it worth deciding whether the composited PNG should ride
+   along on the quote email the way the sticker proof does —
+   `composeGarmentMockup` returns a canvas, so `toBlob()` into the attachment
+   path is small, and it is out of scope until then.
 2. **Sticker cart + proof attachment** — fully specced in `CART-PLAN.md`.
    Build them together; they land on the same submit path.
 

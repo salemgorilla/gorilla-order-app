@@ -2730,7 +2730,9 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       garmentType={selectedGarmentLabel}
       garmentColor={selectedSsColor?.colorName || apparelQuote.garmentColor}
       garmentImage={selectedGarmentImage}
+      garmentBackImage={selectedSsColor?.backImage}
       garmentColorHex={selectedSsColor?.colorHex}
+      catalogStyle={selectedSsProduct?.catalogStyle}
       printLocations={apparelQuote.printLocations}
       inkColors={apparelQuote.inkColors}
       quantity={apparelQuote.quantity}

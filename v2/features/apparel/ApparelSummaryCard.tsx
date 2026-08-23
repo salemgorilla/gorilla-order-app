@@ -64,19 +64,23 @@ export default function ApparelSummaryCard({
           </div>
         )}
 
-        <div className="flex justify-between gap-4">
-          <span>Estimated Each</span>
-          <span className="text-right text-[var(--ink-black)]">
-            ${apparelPricing.unitPrice.toFixed(2)}
-          </span>
-        </div>
+        {!apparelQuote.specialOrder && (
+          <>
+            <div className="flex justify-between gap-4">
+              <span>Estimated Each</span>
+              <span className="text-right text-[var(--ink-black)]">
+                ${apparelPricing.unitPrice.toFixed(2)}
+              </span>
+            </div>
 
-        <div className="flex justify-between gap-4">
-          <span>Estimated Total</span>
-          <span className="text-right text-[var(--gorilla-green)]">
-            ${apparelPricing.total.toFixed(2)}
-          </span>
-        </div>
+            <div className="flex justify-between gap-4">
+              <span>Estimated Total</span>
+              <span className="text-right text-[var(--gorilla-green)]">
+                ${apparelPricing.total.toFixed(2)}
+              </span>
+            </div>
+          </>
+        )}
 
         {artworkAnalysis?.estimatedColorCount && (
           <div className="flex justify-between gap-4">
@@ -100,6 +104,24 @@ export default function ApparelSummaryCard({
         </p>
       </div>
 
+      {/* A special order has no price to panel. The engine still returns a
+          figure, but it is printing and screens over a garment the catalogue
+          could not price — on the day this was caught, "$169.00" with
+          Garments at $0.00, for a job the payload marks quoteRequired and
+          the shop email files as SPECIAL ORDER - NEEDS A HAND QUOTE. Signs
+          already show "Priced by hand" here; apparel was the sibling that
+          did not. */}
+      {apparelQuote.specialOrder ? (
+        <div className="mt-5 bg-[var(--surface-warn)] p-4">
+          <p className="text-sm font-bold text-[var(--ink-black)]">
+            Priced by hand
+          </p>
+          <p className="mt-2 text-sm font-bold leading-6 text-[var(--ink-muted)]">
+            Special orders are quoted by Gorilla Salem — we reply with your
+            price before anything is agreed.
+          </p>
+        </div>
+      ) : (
       <div className="mt-5 bg-[var(--surface-ok)] p-4">
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--gorilla-green)]">
           Estimated Apparel Pricing
@@ -144,6 +166,7 @@ export default function ApparelSummaryCard({
           </div>
         </div>
       </div>
+      )}
 
       <div className="mt-5 bg-[var(--surface-warn)] p-4">
         <p className="text-sm font-bold leading-6 text-[var(--ink-muted)]">

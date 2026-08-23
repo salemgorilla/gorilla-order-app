@@ -1,7 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
-import { repriceStickers, isStickerOrder } from "../app/api/quote/route";
+import { repriceStickers, isStickerOrder } from "../lib/sticker-repricing";
 import { buildPrintavoQuotePlan } from "../lib/printavo";
 import { readKioskSession } from "../lib/kiosk";
 import { calculateSignsPricing } from "../lib/signs-pricing";

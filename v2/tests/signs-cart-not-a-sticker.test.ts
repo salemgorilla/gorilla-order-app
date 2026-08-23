@@ -4,7 +4,8 @@ import assert from "node:assert/strict";
 import { SIGN_FAMILIES, createSignsDesign, type SignsDesign } from "../lib/signs";
 import { quoteSignsCart } from "../lib/signs-cart";
 import { buildSignsPayloadParts } from "../lib/signs-payload";
-import { isStickerOrder, POST } from "../app/api/quote/route";
+import { POST } from "../app/api/quote/route";
+import { isStickerOrder } from "../lib/sticker-repricing";
 
 /**
  * The signs cart, held against the one invariant that costs real money.

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { productCategories } from "../lib/products";
-import { isStickerOrder } from "../app/api/quote/route";
+import { isStickerOrder } from "../lib/sticker-repricing";
 
 /**
  * What each product card promises about what happens after submit.

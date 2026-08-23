@@ -22,6 +22,37 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **Signs and banners reprice on the SERVER** — 2026-08-23 (#76), with
+  Gabe's go-ahead. Each payload design carries `spec` (its raw pricing
+  inputs); lib/signs-repricing.ts rebuilds the designs and re-synthesises
+  product, per-design money and pricing through the SAME
+  buildSignsPayloadParts + quoteSignsCart the browser used. Display
+  re-derives from the same spec as the charge. Design ids and file names
+  survive from the client; a pre-spec payload passes through; mismatches
+  reach the shop via the same describeRepricing email note stickers use.
+  No honest price moves (equivalence matrix + the untouched 120-row sheet
+  + a live no-mismatch submit at $150.00 for 10 yard signs). The owed
+  signs reconciliation below validates this change too — nothing new owed.
+
+- **Apparel mockup compositing, scaffolded and DORMANT** — 2026-08-23
+  (#77), regenerated from a sandboxed session's handoff.
+  lib/garment-zones.ts (all six zones verified:false — the fallback
+  trigger), lib/garment-composite.ts (sticker-proof's null-not-throw
+  contract), ApparelPreview composites only from a verified zone. Dormant
+  twice over: apparel is a request flow (ApparelPreview does not mount)
+  AND no zone is verified. Verifying zones is a look-at-a-picture task
+  blocked on the S&S key (Gabe's to-do). Both branches proven in a browser
+  with temporary flips, reverted before commit.
+
+- **isStickerOrder/repriceStickers moved to lib/sticker-repricing.ts** —
+  2026-08-23. Next's route typegen rejects non-handler exports from route
+  files, so `tsc --noEmit` failed whenever `next dev` had generated
+  `.next/dev/types` (which tsconfig deliberately includes) — every session
+  hit it, cleared the folder, and it came back. The functions are
+  unchanged; ten test files import them from the lib now; typegen and tsc
+  verified coexisting. AGENTS.md's isStickerOrder invariants apply to the
+  new file.
+
 - **Banners and signs are separate products with separate pipelines** —
   2026-08-23, Gabe's call, the HARD split. Two cards in the LARGE FORMAT
   band: "Vinyl Banners" (one product, so its flow shows no type picker) and

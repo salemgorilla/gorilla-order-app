@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { buildQuoteEmail } from "../lib/email";
-import { repriceStickers } from "../app/api/quote/route";
+import { repriceStickers } from "../lib/sticker-repricing";
 
 /**
  * The ESTIMATE block of the shop email, which is what the shop reconciles the

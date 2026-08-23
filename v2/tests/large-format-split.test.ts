@@ -12,7 +12,7 @@ import {
 } from "../lib/signs";
 import { quoteSignsCart } from "../lib/signs-cart";
 import { buildSignsPayloadParts } from "../lib/signs-payload";
-import { isStickerOrder } from "../app/api/quote/route";
+import { isStickerOrder } from "../lib/sticker-repricing";
 import { buildQuoteEmail } from "../lib/email";
 import { getAddOnOffers } from "../lib/addons";
 import { productCategories } from "../lib/products";

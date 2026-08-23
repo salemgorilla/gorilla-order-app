@@ -37,12 +37,31 @@ import { POST } from "../app/api/quote/route";
  * again without the customer doing work, which is why this ranks above the
  * size label that shipped the same day.
  *
- * ── THE SERVER HALF ───────────────────────────────────────────────────────
- * Sending the parts was not enough. The route ordered them by `order.items`,
- * the STICKER cart, which still holds its untouched default design even on a
- * signs order — so signs design ids matched nothing and every attachment fell
- * out of the list. A client-only fix would have posted two files and
- * enumerated neither.
+ * ── THE SERVER HALF, STATED ACCURATELY ────────────────────────────────────
+ * This comment used to claim the route ALSO dropped every signs attachment,
+ * because it ordered parts by `order.items` and a signs order's ids matched
+ * nothing — so a client-only fix "would have posted two files and enumerated
+ * neither."
+ *
+ * That is wrong, and it was written without checking. A signs payload carries
+ * no `items` at all: buildQuotePayload's signs branch returns exactly
+ * `{...orderEnvelope, ...buildSignsPayloadParts(...)}`, and neither half has
+ * one. So `orderedItems` was EMPTY, not mismatched, and the route's
+ * `orderedItems.length ? ... : artworkParts` fallback passed every part
+ * through. A client-only fix would have worked.
+ *
+ * What the server change actually buys is that the ordering and the design
+ * numbers are correct BY CONSTRUCTION rather than by luck. With an empty
+ * `orderedItems` the numbers came from this loop's index over the multipart
+ * Map — which happens to be insertion order, which happens to be cart order.
+ * That is three coincidences deep, and the numbering it produces is the
+ * file-to-design map the shop prints from. Reading `signsDesigns` makes it a
+ * rule instead of an accident, and covers the day a signs payload does carry
+ * `items`.
+ *
+ * Left as a correction rather than deleted: the overstated version was in a
+ * merged commit message and a PR body, and this file is where anyone would
+ * come to check.
  */
 
 function designs() {
@@ -164,6 +183,16 @@ describe("the server keeps them apart", () => {
       parts.signsDesigns.map((design) => design.id),
       list.map((design) => design.id)
     );
+  });
+
+  test("a signs payload carries no sticker cart to be confused by", () => {
+    // The premise the corrected comment above rests on. If a signs payload
+    // ever grows an `items` key, the route's fallback stops being reached and
+    // the ordering rule below is the only thing keeping the numbers right.
+    const list = designs();
+    const parts = buildSignsPayloadParts(list, quoteSignsCart(list));
+
+    assert.ok(!("items" in parts), "the signs payload now carries `items`");
   });
 
   test("the route orders by signsDesigns when the quote is a signs cart", () => {

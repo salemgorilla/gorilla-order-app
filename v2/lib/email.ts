@@ -657,12 +657,30 @@ export function buildQuoteEmail(input: {
      * (the last one analysed), and attaching those dimensions to every design
      * would state as fact something about designs it never saw. Same reason
      * the sticker cart keeps analysis per design.
+     *
+     * DELIVERY is not optional here, and leaving it out was a real hole. The
+     * only place a signs file's fate was written down was `attachmentInfo`,
+     * rendered by the single-design branch below — which a cart never
+     * reaches. So a two-design quote whose 42 MB banner never left the
+     * browser said, in full:
+     *
+     *     -- Design 1 — Vinyl Banner --
+     *     File: huge-banner.psd
+     *
+     * The shop reads a filename, goes looking for an attachment that is not
+     * there, and is never told to email the customer for it. Same for a file
+     * that went to blob storage: the LINK lived only in attachmentInfo, so a
+     * cart named the file and withheld the one thing needed to open it.
+     *
+     * The sticker cart has carried this line per design since it grew a cart.
+     * Signs are the sibling that did not — this repo's usual shape.
      */
     for (const [index, design] of signsDesigns.entries()) {
       const designTemplate = design.template as AnyRecord | null;
       const words = (
         Array.isArray(designTemplate?.text) ? designTemplate?.text : []
       ) as AnyRecord[];
+      const entry = deliveryById.get(str(design.id));
 
       artworkGroups.push({
         title: `Design ${index + 1} — ${str(design.signType, "Sign")}`,
@@ -678,7 +696,12 @@ export function buildQuoteEmail(input: {
               ),
               ...words.map((word) => line(str(word.label, "Line"), str(word.value))),
             ]
-          : [line("File", str(design.fileName, "No file uploaded"))],
+          : [
+              line("File", str(design.fileName, "No file uploaded")),
+              // Named "Delivery" to match the sticker block, so the shop reads
+              // one vocabulary whatever was ordered.
+              line("Delivery", entry ? entry.status : "No file uploaded"),
+            ],
       });
     }
   } else if (!template) {

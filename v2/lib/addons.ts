@@ -1,5 +1,5 @@
 import { AddOn } from "../types/order";
-import { getStickerPrice } from "./pricing";
+import { getStickerMaterialPrice, getStickerPrice } from "./pricing";
 import { calculateSignsPricing } from "./signs-pricing";
 
 /**
@@ -55,12 +55,41 @@ function bannerPrice() {
 
 /** Stickers at a fixed pack size, priced by the real sticker engine. */
 function stickerPackPrice(quantity: number) {
-  return () => ({
+  return () => {
     // Gloss white vinyl, gloss finish — the shop's default stock.
     // 3" explicitly — the add-on offer names that size in its label.
-    amount: getStickerPrice(quantity, "Gloss White Vinyl", "Gloss", '3"'),
-    quoteRequired: false,
-  });
+    const MATERIAL = "Gloss White Vinyl";
+    const SIZE = '3"';
+
+    /**
+     * THE MATERIAL, checked separately, because it is the part that can go
+     * to zero.
+     *
+     * bannerPrice above guards on `!priceable || total <= 0`. Copying that
+     * test here would be useless: getStickerPrice adds STICKER_SETUP_FEE, so
+     * a sticker offer's total can never reach zero however badly the material
+     * prices. It would simply offer 100 stickers for $25 — the setup fee on
+     * its own, which app/api/quote/route.ts names as exactly the figure that
+     * is "not a price to charge against", and which it now refuses to
+     * auto-bill for that reason.
+     *
+     * The engine reaches $0 of material whenever it cannot resolve the size:
+     * area is width x height, parseSizeNumbers finds nothing in an
+     * unrecognised label, and 0 x rate x quantity is 0 with no complaint. So
+     * the day someone renames a size the way `3"` is written, this strip
+     * would go on confidently offering a real pack of stickers for the setup
+     * fee — the guard's sibling catching it for banners and nothing catching
+     * it here.
+     */
+    if (getStickerMaterialPrice(quantity, MATERIAL, SIZE) <= 0) {
+      return handQuote();
+    }
+
+    return {
+      amount: getStickerPrice(quantity, MATERIAL, "Gloss", SIZE),
+      quoteRequired: false,
+    };
+  };
 }
 
 export const ADD_ON_CATALOG: AddOnOffer[] = [

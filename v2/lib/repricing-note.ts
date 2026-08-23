@@ -34,13 +34,22 @@
 /**
  * Short on purpose, and the direction lives in the detail rather than here.
  *
- * The shop email renders every row as a two-column table whose LABEL cell is
- * `white-space: nowrap`. A long label therefore sets the column width for the
- * whole section, and on a phone it left the value about sixty pixels to wrap
- * in — the warning came out one syllable per line, taller than the rest of the
- * email, and unreadable. Found by rendering the HTML in a browser at 390px,
- * which is how the shop reads it. The plain-text version looked fine
- * throughout, which is exactly why nothing caught it.
+ * ── WHY IT WAS SHORTENED ──────────────────────────────────────────────────
+ * The shop email's label cell used to be `white-space: nowrap`, so a long
+ * label set the column width for the whole section. On a phone that left the
+ * value about sixty pixels to wrap in, and this warning came out one syllable
+ * per line — taller than the rest of the email and unreadable. Found by
+ * rendering the HTML at 390px, which is how the shop reads it; the plain-text
+ * version looked fine throughout, which is exactly why nothing caught it.
+ *
+ * ── WHAT CHANGED SINCE ────────────────────────────────────────────────────
+ * The email no longer works that way. Labels wrap and the NUMBERS are what is
+ * protected — see tests/email-money-wrapping.test.ts — because shortening
+ * strings turned out to be treating the symptom, and the same defect shipped
+ * twice more after this one.
+ *
+ * So this label stays short because a short label is better, not because
+ * anything breaks if it grows.
  */
 const LABEL = "Price check";
 

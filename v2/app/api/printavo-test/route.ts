@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { describeBuild } from "../../../lib/build-stamp";
+
 import { getPrintavoConfig, testPrintavoConnection } from "../../../lib/printavo";
 
 // GET /api/printavo-test
@@ -18,6 +20,12 @@ export async function GET() {
   return NextResponse.json(
     {
       connected: result.ok,
+      // Which build is answering. This is the endpoint AGENTS.md points at for
+      // "what is configured", and the first question after every deploy is
+      // whether the thing you are looking at is the thing you shipped. Derived
+      // from Vercel's own commit — see lib/build-stamp.ts for why it is not a
+      // string somebody maintains.
+      build: describeBuild().label,
       configured,
       account: result.account ?? null,
       error: result.error ?? null,

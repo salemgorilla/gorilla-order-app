@@ -1,6 +1,7 @@
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
 
+import { describeBuild } from "../../../lib/build-stamp";
 import {
   isAllowedUploadPath,
   MAX_BLOB_ARTWORK_BYTES,
@@ -48,13 +49,21 @@ export async function GET() {
     .filter((key) => key.startsWith("BLOB"))
     .sort();
 
+  const stamp = describeBuild();
+
   return NextResponse.json({
     configured: hasReadWriteToken,
     // Which build is answering. Real emitted code, not a comment — a comment
     // is stripped by the minifier, so a fresh deployment produced byte
     // identical chunks and was indistinguishable from no deployment at all.
     // That cost hours of chasing a broken-deploys theory that was never true.
-    build: "2026-08-07-yardsign-material",
+    //
+    // DERIVED, not typed. This was a hand-written date string that then went
+    // two weeks without being updated, so it reported a 7 August build on a
+    // deployment minutes old — and a stale stamp is worse than none, because
+    // it gets believed. See lib/build-stamp.ts.
+    build: stamp.label,
+    buildDetail: stamp,
     detail: {
       BLOB_READ_WRITE_TOKEN: hasReadWriteToken,
       BLOB_STORE_ID: hasStoreId,

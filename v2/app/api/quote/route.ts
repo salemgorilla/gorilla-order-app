@@ -518,8 +518,27 @@ export async function POST(request: Request) {
     const artworkDelivery: ArtworkDeliveryEntry[] = [];
     let emailBytesUsed = 0;
 
-    // Design order, so the labels below match the order in the quote.
-    const orderedItems = Array.isArray(order.items)
+    /**
+     * Design order, so the labels below match the order in the quote.
+     *
+     * A SIGNS quote carries its designs in `signsDesigns`, not in `items` —
+     * `items` is the sticker cart and still holds the untouched default one
+     * even on a signs order. Ordering by it therefore matched none of the
+     * signs design ids and dropped every signs attachment from the list, so
+     * this has to ask the right cart which cart it is.
+     */
+    const signsDesignList = Array.isArray(
+      (order as Record<string, unknown>).signsDesigns
+    )
+      ? ((order as Record<string, unknown>).signsDesigns as Record<
+          string,
+          unknown
+        >[])
+      : [];
+
+    const orderedItems = signsDesignList.length
+      ? signsDesignList
+      : Array.isArray(order.items)
       ? (order.items as Record<string, unknown>[])
       : [];
 

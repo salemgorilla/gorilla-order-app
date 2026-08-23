@@ -180,11 +180,6 @@ export const signProducts: SignProduct[] = [
   },
 ];
 
-export const signsCatalog = {
-  quantities: [1, 2, 5, 10, 20, 30, 40, 50],
-  products: signProducts,
-};
-
 export function getSignProduct(productId: string): SignProduct {
   return signProducts.find((p) => p.id === productId) || signProducts[0];
 }

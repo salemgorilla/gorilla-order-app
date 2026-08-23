@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { productCategories } from "../../../lib/products";
+
 import { looksLikeEmailAddress } from "../../../lib/email-address";
 
 import { escapeEmailHtml, sendShopEmail } from "../../../lib/email";
@@ -73,6 +75,16 @@ export async function POST(request: Request) {
   const company = clean(body.company);
   const phone = clean(body.phone);
   const flow = clean(body.flow, 60) || "unknown";
+  /**
+   * The shop reads this email; the browser's flow id is not its vocabulary.
+   * "Product: banners" is a lowercase internal key — the card the customer
+   * actually clicked says "Vinyl Banners". Resolved against the real product
+   * catalogue so a renamed or added card can never drift from this email,
+   * and the raw id passes through for anything unrecognised rather than
+   * hiding it.
+   */
+  const flowTitle =
+    productCategories.find((product) => product.id === flow)?.title || flow;
   const step = clean(body.step, 60) || "unknown";
   const summary = clean(body.summary, MAX_FIELD);
 
@@ -81,7 +93,7 @@ export async function POST(request: Request) {
     ["Email", email],
     ["Phone", phone || "Not given"],
     ["Company", company || "Not given"],
-    ["Product", flow],
+    ["Product", flowTitle],
     ["Got as far as", step],
     ["What they had configured", summary || "Nothing recorded"],
   ];
@@ -127,7 +139,7 @@ export async function POST(request: Request) {
       // more often than real submissions — left in the same inbox they bury
       // the quotes that actually need working.
       to: process.env.LEAD_TO_EMAIL,
-      subject: `INCOMPLETE quote — ${name || email} (${flow})`,
+      subject: `INCOMPLETE quote — ${name || email} (${flowTitle})`,
       text,
       html,
       replyTo: email,

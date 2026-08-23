@@ -81,6 +81,7 @@ import {
   getApparelFieldErrors as getApparelFieldErrorsFor,
   getSignsFieldErrors as getSignsFieldErrorsFor,
   getSignsDesignFieldErrors,
+  getSignsValidationSummary,
   getOrderValidationErrors,
   type FieldErrors,
   type ItemFieldErrors,
@@ -1417,38 +1418,16 @@ export default function Home() {
       : {};
 
   function getSignsValidationErrors() {
-    const fields = getSignsFieldErrors();
-    const errors: string[] = [];
-
-    if (fields.customerName) errors.push(fields.customerName);
-    if (fields.customerEmail) errors.push(fields.customerEmail);
-    if (fields.artwork) errors.push("Upload your artwork.");
-    if (fields.quantity) errors.push(fields.quantity);
-    if (fields.needBy) errors.push(fields.needBy);
-
-    // One sentence for two boxes: the summary reads as prose, the fields get
-    // their own short messages.
-    if (fields.width || fields.height) {
-      errors.push("Enter the width and height for your custom size.");
-    }
-
-    // Named by design once there is more than one, so "Enter the address"
-    // does not leave the customer guessing which sign it belongs to.
-    for (const [designId, fieldErrors] of Object.entries(
-      signsTemplateTextErrorsLive
-    )) {
-      const index = signsQuote.designs.findIndex((d) => d.id === designId);
-
-      for (const message of Object.values(fieldErrors)) {
-        errors.push(
-          signsQuote.designs.length > 1
-            ? `Design ${index + 1}: ${message}`
-            : message
-        );
-      }
-    }
-
-    return errors;
+    // The sentences themselves live in lib/validation.ts, for the reason
+    // AGENTS.md gives: rules nothing can test are the ones with gaps, and
+    // this list had one.
+    return getSignsValidationSummary(
+      signsQuote.designs.map((design) => ({
+        ...signsDesignInput(design),
+        templateTextErrors: signsTemplateTextErrorsLive[design.id] || {},
+      })),
+      order
+    );
   }
 
   // The rules themselves live in lib/validation.ts so they can be tested;

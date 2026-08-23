@@ -590,6 +590,22 @@ export async function createStickerCheckout(input: {
 }
 
 /**
+ * The Printavo item number for a sign, derived from what it IS.
+ *
+ * One function so a one-design quote and a cart cannot file the same product
+ * under two different SKUs — which is precisely what happened when the cart
+ * numbered its rows by position. Printavo's records are the shop's records:
+ * "how many yard signs did we sell this quarter" is only answerable if the
+ * same sign always lands in the same place.
+ */
+function signSku(signType: string) {
+  return `GORILLA-SIGN-${signType
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")}`;
+}
+
+/**
  * One sticker spec, as production reads it.
  *
  * Takes any spec-shaped record so it serves both the synthesised `product`
@@ -916,7 +932,13 @@ export function buildPrintavoQuotePlan(input: {
         isSpecialOrder ? " (SPECIAL ORDER - NEEDS QUOTE)" : ""
       }`
     : signs
-    ? `${nicknamePrefix} ${quoteNumber} - ${quantity} ${signLabel}${
+    ? // A cart says "11 Signs / 2 designs", never "11 Vinyl Banner" — which
+      // is design 1's product wearing the whole order's count, and reads in
+      // the job list as eleven banners. The sticker branch below has said
+      // "/ N designs" since carts existed; signs are the sibling that did not.
+      `${nicknamePrefix} ${quoteNumber} - ${quantity} ${
+        signsCart ? "Signs" : signLabel
+      }${signsCart ? ` / ${signsDesigns.length} designs` : ""}${
         productNeedsHandPricing ? " (NEEDS PRICING)" : ""
       }`
     : `${nicknamePrefix} ${quoteNumber} - ${quantity} Stickers${
@@ -951,7 +973,80 @@ export function buildPrintavoQuotePlan(input: {
         .filter((line) => line.trim().length > 0)
     : [];
 
-  const description = signs
+  /**
+   * One sign's spec, as production reads it.
+   *
+   * Takes any spec-shaped record so it serves both the synthesised `product`
+   * (single design) and each entry in a cart — the same argument
+   * describeStickerSpec makes, and the same reason: written twice, the two
+   * drift, and the one nobody is looking at is the one that goes wrong.
+   */
+  const describeSignSpec = (spec: AnyRecord, count: number, label: string) => {
+    const brief = (spec.template || null) as AnyRecord | null;
+    const words = brief
+      ? (Array.isArray(brief.text) ? brief.text : [])
+          .map((entry) => entry as AnyRecord)
+          .map((entry) => `  ${str(entry.label, "Line")}: ${str(entry.value)}`)
+          .filter((entry) => entry.trim().length > 0)
+      : [];
+
+    return [
+      `${count}x ${label}`,
+      `Size: ${str(spec.size, "TBD")}`,
+      `Material: ${str(spec.material, "TBD")}`,
+      `Finishing: ${str(spec.finishing, "TBD")}`,
+      `Sides: ${str(spec.sides, "Single-sided")}`,
+      ...(brief
+        ? [
+            `*** TEMPLATE ARTWORK - NO FILE UPLOADED ***`,
+            `Set these words into our "${str(
+              brief.name,
+              str(brief.id, "Unnamed")
+            )}" master and send a proof:`,
+            ...(words.length ? words : ["  (the customer left every line blank)"]),
+          ]
+        : []),
+    ].join("\n");
+  };
+
+  const description = signsCart
+    ? /**
+       * A cart. The note has to say what the run actually IS.
+       *
+       * It used to print design 1's spec under the combined quantity, so a
+       * quote for one 72x36 banner and ten yard signs reached Printavo as:
+       *
+       *     SIGNS
+       *     11x Vinyl Banner
+       *     Size: 72" x 36"
+       *     Material: 13 oz Scrim Vinyl
+       *
+       * That is a job the shop could work — eleven big banners — and it is
+       * not the order. The shop email and the line items were both taught
+       * about the signs cart; this note, which is what a printer actually
+       * reads off the Printavo job, was not.
+       *
+       * Same fix and same shape as the sticker cart directly below.
+       */
+      [
+        `${quantity}x signs across ${signsDesigns.length} designs`,
+        "",
+        ...signsDesigns.flatMap((design, index) => [
+          `DESIGN ${index + 1}`,
+          describeSignSpec(
+            design,
+            Math.max(1, num(design.quantity, 1)),
+            str(design.signType, "Sign")
+          ),
+          "",
+        ]),
+        ...(productNeedsHandPricing
+          ? ["PRICING NEEDED — part of this quote is priced by hand."]
+          : []),
+      ]
+        .join("\n")
+        .trimEnd()
+    : signs
     ? [
         `${quantity}x ${signLabel}`,
         `Size: ${str(product.size, "TBD")}`,
@@ -1171,7 +1266,19 @@ export function buildPrintavoQuotePlan(input: {
                 str(design.finishing, "finishing not specified"),
                 str(design.sides, "Single-sided"),
               ].join(" / ")}`,
-              itemNumber: `GORILLA-SIGN-${index + 1}`,
+              // The PRODUCT, not the cart position. A one-design quote has
+              // always filed a banner under GORILLA-SIGN-VINYL-BANNER, so
+              // GORILLA-SIGN-1 meant the same banner landed under a
+              // different SKU purely because a second design was in the
+              // quote — and "how many yard signs did we sell" had no answer
+              // across carts. Exactly the shape the setup and add-on SKUs
+              // were fixed for: the description carries the story, the item
+              // number names the thing and holds still.
+              //
+              // Two designs of the same product share a number, which is
+              // fine here and was not for stickers: every signs row leads
+              // with "Design N", so no two rows are byte-identical.
+              itemNumber: signSku(str(design.signType, "NA")),
               price: Number((lineTotal / designQuantity).toFixed(4)),
               quantity: designQuantity,
               sizes: [{ size: "size_other", count: designQuantity }],
@@ -1206,7 +1313,7 @@ export function buildPrintavoQuotePlan(input: {
             {
               description,
               itemNumber: signs
-                ? `GORILLA-SIGN-${str(product.signType, "NA").toUpperCase().replace(/[^A-Z0-9]+/g, "-")}`
+                ? signSku(str(product.signType, "NA"))
                 : apparel
                 ? `GORILLA-APPAREL-${str(supplier.catalogStyle, "NA")}`
                 : "GORILLA-DECAL",

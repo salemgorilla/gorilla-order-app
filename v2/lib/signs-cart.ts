@@ -163,10 +163,16 @@ export function quoteSignsCart(designs: SignsDesign[]): SignsCartQuote {
  * One design: exactly the engine's own lines, untouched.
  *
  * Several: each design's lines prefixed with its number, and the per-design
- * setup fees collapsed into one row. Two reasons for the collapse — a quote
- * repeating "Setup fee" three times reads like a mistake, and every one of
- * these labels lands in a `white-space: nowrap` cell in the shop email, where
- * a long one squeezes the value column for the WHOLE table.
+ * setup fees collapsed into one row, because a quote repeating "Setup fee"
+ * three times reads like a mistake.
+ *
+ * This used to give a second reason — that a long label would squeeze the
+ * shop email's value column, since the label cell carried
+ * `white-space: nowrap`. It no longer does: the email now lets labels wrap and
+ * protects the NUMBERS instead (see tests/email-money-wrapping.test.ts). Left
+ * corrected rather than deleted, because "keep these labels short or the email
+ * breaks" was true for months and is the kind of thing someone would
+ * reasonably still believe.
  */
 function buildCartLines(priced: SignsCartDesign[]): SignsPricingLine[] {
   if (priced.length === 1) return priced[0].pricing.lines;

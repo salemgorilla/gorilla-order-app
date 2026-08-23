@@ -169,7 +169,15 @@ export default function SignsSummaryCard({
                   </span>
                 </div>
 
-                {pricing.quantity > 1 && (
+                {/* Only when the quote holds ONE design.
+                
+                    Across a cart it is an average of unlike things: a quote
+                    with a $162 banner and a $288 banner reported "$240.00
+                    each", which is the price of neither. The sticker summary
+                    already keys this on `order.items.length === 1` for the
+                    same reason; signs keyed it on the SIGN count, which is a
+                    different question. */}
+                {pricing.designs.length === 1 && pricing.quantity > 1 && (
                   <div className="mt-1 flex justify-between gap-4">
                     <span>Estimated Each</span>
                     <span className="text-right text-[var(--ink-black)]">

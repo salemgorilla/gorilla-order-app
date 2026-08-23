@@ -2310,7 +2310,9 @@ ${
         .join("\n")}
 Estimated ${SALES_TAX.label}: $${getSignsTotals(signsPricing).estimatedTax.toFixed(2)}
 Estimated Total: $${getSignsTotals(signsPricing).estimatedTotal.toFixed(2)}${
-        signsPricing.quantity > 1
+        // One design only — across a cart this is an average of unlike
+        // things and names a price no sign in the order actually costs.
+        signsPricing.designs.length === 1 && signsPricing.quantity > 1
           ? `\nEstimated Each: $${signsPricing.unitPrice.toFixed(2)}`
           : ""
       }

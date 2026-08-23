@@ -214,15 +214,14 @@ export function calculateSignsPricing(
 
     lines.push({
       // Says what happened rather than showing a rate that does not divide
-      // into the total. KEEP THIS SHORT: lib/email.ts renders every label in
-      // a `white-space: nowrap` cell, and a long one squeezes the value to a
-      // syllable per line on a phone. That is a defect this repo has already
-      // shipped once, so the explanation lives in the summary card, where it
-      // can wrap, and the label carries only the fact.
+      // into the total. Short because the full explanation belongs in the
+      // summary card, where there is room for a sentence — not because the
+      // email breaks if it grows. It used to: the email's label cell was
+      // `white-space: nowrap` and a long label squeezed the value column for
+      // the whole table. That is fixed at the source now.
       label: bumped
-        ? // Shorter than the ordinary line on purpose, not longer: "sides" is
-          // already its own row above, and the label column is the one that
-          // must not grow.
+        ? // Shorter than the ordinary line on purpose: "sides" is already its
+          // own row above, so repeating it here buys nothing.
           `${quantity} × ${sizeKey}, ${priced.chargedQuantity}-sign price`
         : `${quantity} × ${sizeKey} ${sides} @ $${priced.unitPrice.toFixed(2)}`,
       amount: round2(productTotal),

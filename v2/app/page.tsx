@@ -1889,12 +1889,32 @@ export default function Home() {
       // attachment and the shop asks for the file directly.
       const isStickerFlow = !isSignsSelected && !isApparelSelected;
 
-      // Every design that has a file, in cart order. Signs and apparel are
-      // single-file flows and keep the order-level slot.
+      /**
+       * Every design that has a file, in cart order.
+       *
+       * SIGNS ARE A CART TOO. This used to read "Signs and apparel are
+       * single-file flows and keep the order-level slot", which stopped being
+       * true the morning signs grew a design list — and the comment aged into
+       * a lie that cost the customer their artwork. `order.artwork.file` is
+       * still written on every signs upload, so it held whichever file was
+       * uploaded LAST, and a two-design quote posted exactly one part:
+       *
+       *     artwork:order -> design-two.png
+       *
+       * Design 1's file was dropped in the browser, while the payload went on
+       * listing both filenames. The shop got an email naming two files with
+       * one attached. Verified by driving it and reading the multipart body.
+       *
+       * Apparel really is single-file and keeps the order-level slot.
+       */
       const artworkParts = isStickerFlow
         ? order.items
             .filter((item) => item.artwork.file)
             .map((item) => ({ id: item.id, file: item.artwork.file! }))
+        : isSignsSelected
+        ? signsQuote.designs
+            .filter((design) => design.artwork.file)
+            .map((design) => ({ id: design.id, file: design.artwork.file! }))
         : order.artwork.file
         ? [{ id: "order", file: order.artwork.file }]
         : [];

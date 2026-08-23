@@ -788,8 +788,38 @@ export function buildPrintavoQuotePlan(input: {
    */
   const signsCart = signsDesigns.length > 1;
   const signsProductLine = signsCart ? undefined : signsLines[0];
+
+  /**
+   * A cart's add-ons come from the DESIGNS, not from the flat line list.
+   *
+   * The flat list prefixes each label with its design number for the estimate
+   * table, and those prefixed strings are the wrong thing to put on an
+   * invoice line. Each design carries its own add-ons in the payload, already
+   * separated from its product cost, so they are read from there and named
+   * per design here.
+   *
+   * They used to be left inside the line item on a cart — not a double
+   * charge, but it meant "Pole Pockets $30" was visible on a one-design
+   * invoice and buried in a $177 unit price on a two-design one. Same work,
+   * same money, two different invoices.
+   */
+  const signsCartAddOnLines = signsCart
+    ? signsDesigns.flatMap((design, index) =>
+        (Array.isArray(design.addOns) ? design.addOns : []).map(
+          (addOn: AnyRecord) => ({
+            label: `${str(design.label, `Design ${index + 1}`)}: ${str(
+              addOn.label,
+              "Finishing"
+            )}`,
+            amount: num(addOn.amount),
+            code: str(addOn.code, ""),
+          })
+        )
+      )
+    : [];
+
   const signsFeeLines = signsCart
-    ? signsLines.filter((l) => l.kind === "setup")
+    ? [...signsLines.filter((l) => l.kind === "setup"), ...signsCartAddOnLines]
     : signsLines.slice(1);
 
   // The decal unit price excludes shipping — shipping becomes its own line

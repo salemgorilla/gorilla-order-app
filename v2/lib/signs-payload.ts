@@ -31,15 +31,26 @@ export type SignsDesignPayload = {
   fileName: string | null;
   template: { id: string; name: string; text: unknown } | null;
   /**
-   * Product only — this design's own add-ons and credits included, its $15
-   * setup EXCLUDED.
+   * The PRODUCT, and nothing else: this design's credits included, its $15
+   * setup and its finishing add-ons both EXCLUDED.
    *
-   * Setup reaches Printavo as ONE fee line for the whole quote (the collapsed
-   * "Setup (3 designs × $15)" row). Sending the design's full total here
-   * would put those $15 in the line item as well, and the shop would invoice
-   * setup twice.
+   * Both exclusions are for the same reason. Setup reaches Printavo as one
+   * fee line for the whole quote (the collapsed "Setup (3 designs × $15)"
+   * row) and each add-on reaches it as its own fee line, so anything counted
+   * here as well would be invoiced twice.
+   *
+   * Add-ons used to be left in, which was not a double charge — they were
+   * simply absent from the fee lines instead — but it meant a cart buried
+   * "Pole Pockets $30" inside a $177 unit price while a single-design quote
+   * itemised it. Same money, two different invoices for the same work.
    */
   lineTotal: number;
+  /**
+   * This design's finishing add-ons, each its own charge. Printavo gets one
+   * fee line per entry so the shop can adjust or waive one without unpicking
+   * a lumped total — the same reason setup is its own line.
+   */
+  addOns: Array<{ label: string; amount: number; code?: string }>;
 };
 
 function describeDesign(
@@ -68,7 +79,34 @@ function describeDesign(
           text: resolveTemplateText(design.templateId, design.templateText),
         }
       : null,
-    lineTotal: priced?.pricing.priceable ? priced.pricing.subtotal : 0,
+    ...describeMoney(priced?.pricing),
+  };
+}
+
+/**
+ * Split one design's cost into the product and its add-ons.
+ *
+ * `subtotal` is everything except setup, so the add-ons are subtracted back
+ * out rather than recomputed — there is no second copy of an add-on's price
+ * anywhere, and a new add-on kind is carried by this without being taught
+ * about.
+ */
+function describeMoney(pricing: SignsCartQuote["designs"][number]["pricing"] | undefined) {
+  if (!pricing?.priceable) return { lineTotal: 0, addOns: [] };
+
+  const addOns = pricing.lines
+    .filter((line) => line.kind === "addOn" && line.amount > 0)
+    .map((line) => ({
+      label: line.label,
+      amount: line.amount,
+      code: line.code,
+    }));
+
+  const addOnTotal = addOns.reduce((sum, addOn) => sum + addOn.amount, 0);
+
+  return {
+    lineTotal: Math.round((pricing.subtotal - addOnTotal) * 100) / 100,
+    addOns,
   };
 }
 

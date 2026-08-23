@@ -142,6 +142,92 @@ describe("an add-on is the same SKU at any quantity or price", () => {
   });
 });
 
+describe("an add-on is itemised whether or not the quote has one design", () => {
+  /**
+   * A cart used to fold finishing add-ons into the per-unit line price, so
+   * "Pole Pockets $30" was a visible, adjustable line on a one-design invoice
+   * and invisible inside a $177 unit price on a two-design one. Same work,
+   * same money, two different invoices — and the shop loses the ability to
+   * waive one charge without recomputing a unit price by hand, which is the
+   * stated reason fees are separate lines at all.
+   */
+  test("one design: its own fee line", () => {
+    const { plan } = planFor([design({ bannerAddOns: ["polePockets"] })]);
+    const pockets = plan.feeLineItems.find((f) =>
+      /POLEPOCKETS/.test(f.itemNumber)
+    );
+
+    assert.ok(pockets, "pole pockets are not on the invoice");
+    assert.equal(pockets.price, 30);
+  });
+
+  test("two designs: still its own fee line, and it says which design", () => {
+    const { plan } = planFor([
+      design({ bannerAddOns: ["polePockets"] }),
+      design(),
+    ]);
+
+    const pockets = plan.feeLineItems.find((f) =>
+      /POLEPOCKETS/.test(f.itemNumber)
+    );
+
+    assert.ok(pockets, "pole pockets vanished into the line item");
+    assert.equal(pockets.price, 30);
+    assert.match(pockets.description, /Design 1/);
+  });
+
+  test("the line item carries the product only, so nothing is billed twice", () => {
+    const withAddOn = planFor([
+      design({ bannerAddOns: ["polePockets"] }),
+      design(),
+    ]);
+    const without = planFor([design(), design()]);
+
+    // Identical banners; the add-on must not have moved the line price.
+    assert.deepEqual(
+      withAddOn.plan.lineItems.map((li) => li.price),
+      without.plan.lineItems.map((li) => li.price)
+    );
+
+    // ...and the difference between the two quotes is exactly the add-on.
+    assert.equal(
+      Math.round((withAddOn.cart.total - without.cart.total) * 100) / 100,
+      30
+    );
+  });
+
+  test("each design's add-ons are named separately, not merged", () => {
+    const { plan } = planFor([
+      design({ bannerAddOns: ["polePockets", "windSlits"] }),
+      design(),
+      design({ bannerAddOns: ["windSlits"] }),
+    ]);
+
+    const slits = plan.feeLineItems.filter((f) =>
+      /WINDSLITS/.test(f.itemNumber)
+    );
+
+    // Two designs bought wind slits; merging them into one $24 row would hide
+    // which design is getting the work.
+    assert.equal(slits.length, 2);
+    assert.ok(slits.some((f) => /Design 1/.test(f.description)));
+    assert.ok(slits.some((f) => /Design 3/.test(f.description)));
+  });
+
+  test("a quoted-by-hand add-on does not become a $0 invoice line", () => {
+    // The engine emits those at amount 0 to say "quoted separately". A zero
+    // line on an invoice reads as a charge that was waived.
+    const { plan } = planFor([
+      design({ bannerAddOns: ["polePockets"] }),
+      design(),
+    ]);
+
+    for (const fee of plan.feeLineItems) {
+      assert.ok(fee.price > 0, `${fee.description} is a $0 line`);
+    }
+  });
+});
+
 describe("the SKUs changed and the money did not", () => {
   /**
    * The whole point of this change is that it is invisible on the invoice
@@ -163,6 +249,31 @@ describe("the SKUs changed and the money did not", () => {
       [design({ bannerAddOns: ["polePockets"] }), design()],
     ],
     ["a big run", copies(2, { quantity: 25 })],
+    [
+      "two designs, both with add-ons",
+      [
+        design({ bannerAddOns: ["polePockets"] }),
+        design({ bannerAddOns: ["windSlits"] }),
+      ],
+    ],
+    [
+      "three designs, add-ons on two of them",
+      [
+        design({ bannerAddOns: ["polePockets", "windSlits"] }),
+        design(),
+        design({ bannerAddOns: ["windSlits"] }),
+      ],
+    ],
+    [
+      "a cart carrying the no-hem credit, which is negative",
+      [
+        design({
+          material: "18 oz Heavy Duty Vinyl",
+          finishing: "No Hem or Grommets",
+        }),
+        design(),
+      ],
+    ],
   ];
 
   for (const [name, designs] of CASES) {

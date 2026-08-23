@@ -7,17 +7,89 @@ next session will act on it.
 
 Read this first, then `AGENTS.md` and `DESIGN-SYSTEM.md`.
 
-## Live right now — 2026-08-22, `main` @ `020ed32`
+## Live right now — 2026-08-23, `main` @ `3d40cee`
 
 `main` is deployed to https://labs.gorillasalem.com (Vercel, production branch
 is `main`, root directory `v2`). The custom domain is wired correctly — do NOT
 touch the `@` or `www` DNS records for gorillasalem.com, those are Squarespace
 and repointing them took the main site down once already.
 
-971 tests passing, `tsc` clean, 0 lint errors (8 warnings, all the
-deliberate `<img>` uses).
+1,104 tests passing, `tsc` clean, 0 lint errors (8 warnings, all the
+deliberate `<img>` uses). **Which build production is serving is no longer a
+guess**: `/api/artwork-upload` and `/api/printavo-test` report the commit
+("3d40cee (production)"), derived from Vercel's env — see the 08-23 entry on
+the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
+
+- **Banners and signs are separate products with separate pipelines** —
+  2026-08-23, Gabe's call, the HARD split. Two cards in the LARGE FORMAT
+  band: "Vinyl Banners" (one product, so its flow shows no type picker) and
+  "Signs" (yard, rigid, poster, window graphics — never a banner). One cart
+  per family (`largeFormatQuotes` in page.tsx); `signsQuote`/`setSignsQuote`
+  present the ACTIVE family's cart so the old call sites still work, and
+  switching cards keeps both carts. The machinery underneath is shared ON
+  PURPOSE — every design prices by its own product, so the 120-row signs
+  price sheet held to the cent across the split. `product.type` is the
+  family label with `product.family` beside it; classification never keyed
+  on the string (isSigns() wants `signType`, isStickerOrder() wants
+  "sticker"), so old "Banners & Signs" payloads keep working and NEITHER
+  pipeline can self-check-out — asserted against the real classifier.
+  Printavo now reads "3 Banners / 2 designs" / heading BANNERS for banner
+  orders. tests/large-format-split.test.ts pins the partition.
+
+- **The confirmation screen stopped contradicting the customer** —
+  2026-08-23, three PRs (#70–#72), all found by driving every flow end to
+  end in a browser and reading what each surface claimed.
+  1. The signs confirmation showed the PRE-TAX total ($177.00) one second
+     after review said $188.06 with a tax line. Signs are invoiced later, so
+     that screenshot would read as the shop marking the price up.
+     getSignsTotals() everywhere now.
+  2. "Copy Quote Details" / the Gmail draft named ONE file for a multi-design
+     quote (the order-level slot holds the last upload) and omitted ticked
+     add-ons entirely, in every flow. Per-design Artwork lines and an
+     ADD-ONS REQUESTED section now.
+  3. The compact review card — "Check everything before submitting" —
+     rendered order.items[0] as the whole sticker cart ("Quantity 100" on a
+     200 run) and read order.artwork for its Artwork row, WHICH STICKER
+     UPLOADS NEVER WRITE, so every sticker quote ever reviewed as "Artwork:
+     Not uploaded". Per-design blocks in all flows now; the order-level row
+     is apparel's alone.
+  4. A special-order apparel quote showed the engine's figure ($169.00, with
+     garments at $0.00 inside it because S&S was dark) on FOUR surfaces
+     while the payload said quoteRequired. All four say "Quoted by hand"
+     now; a priced quote still shows its figure, pinned.
+
+- **Signs artwork delivery + the kiosk phone hand-off reach every flow** —
+  2026-08-23 (#64, #65). The shop email now carries a per-design Delivery
+  line for signs carts (a dropped 42 MB file used to arrive as a bare
+  filename with no "go collect it"), and ArtworkHandoff — kiosk QR upload —
+  is wired into signs and apparel, per design, not just stickers. Blob
+  storage IS connected in production; the 15 Aug "ships dark" note is stale.
+
+- **Printavo describes a signs cart as the order it is** — 2026-08-23
+  (#66, #67). The note used to print design 1's spec under the combined
+  count ("11x Vinyl Banner" for a banner and ten yard signs). Per-design
+  blocks now, each naming its own artwork file; cart line items file under
+  the product SKU (GORILLA-SIGN-VINYL-BANNER), not the cart position, so
+  the same sign always lands in the same place across one- and multi-design
+  quotes.
+
+- **The build stamp is derived, never typed** — 2026-08-23 (#68). The old
+  hand-typed constant ("2026-08-07-yardsign-material") went two weeks stale
+  and was BELIEVED — it produced a confident, wrong report that the phone
+  hand-off was off in production. Now from VERCEL_GIT_COMMIT_SHA, honest
+  ("unidentified build — …") when the platform doesn't say, and reads
+  exactly three named env vars so the public endpoint can never leak a
+  token. Do not reintroduce a written version string anywhere; a test greps
+  the routes for one.
+
+- **The add-on catalogue's stated rules are enforced now** — 2026-08-23
+  (#69). lib/addons.ts names two load-bearing rules (engine-computed prices;
+  ASCII labels with no ": ") and had zero tests. The sticker-pack offer also
+  gained the guard bannerPrice already had — an unresolvable size made the
+  engine price material at $0 and the offer would have read "100 stickers,
+  $25.00": the setup fee alone. It degrades to a hand quote instead.
 
 - **Four defects the signs cart brought with it** — 2026-08-22, all found by
   rendering or driving the thing rather than reading the diff.
@@ -610,7 +682,13 @@ it.
   rotated. The one real security item.
 - **Reprint the in-shop price boards.** Signs prices rose ~11-13% and the
   printed boards still show the old rates, so anyone quoting from the board
-  undercuts the app.
+  undercuts the app. 2026-08-23: no price moved since, but if a board says
+  "Banners & Signs" as one menu it now disagrees with the site's structure —
+  banners and signs are separate products.
+- **Reconcile one real signs order and one real sticker order against
+  Printavo, to the cent** (tasks #20/#21). The signs one now arrives with a
+  BANNERS or SIGNS heading and "N Banners / M designs" nicknames — that is
+  the 08-23 split working, not a bug.
 
 ## Things worth not re-learning
 

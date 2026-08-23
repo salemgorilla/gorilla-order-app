@@ -1,9 +1,9 @@
 /**
  * Order Desk — chip button.
  *
- * The single selection affordance for the whole app. OptionSelector and
- * QuantitySelector are most of the form, so this component is where the
- * house rules for selection actually live:
+ * The single selection affordance for the whole app. OptionSelector chips
+ * are most of the form, so this component is where the house rules for
+ * selection actually live:
  *
  *   radius 0 · 1px hairline frame · ink inversion on hover (120ms linear)
  *   active = 2px translate · 44px minimum touch target · focus never removed

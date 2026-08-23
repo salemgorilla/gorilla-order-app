@@ -17,7 +17,8 @@ The app is in `v2/`. The repo root holds a dead v1 static site — ignore it.
 emails the shop and creates a live payable link the customer can pay
 immediately. Nothing between the browser and someone's card is reviewed.
 
-`isStickerOrder()` in `app/api/quote/route.ts` decides which submissions get
+`isStickerOrder()` in `lib/sticker-repricing.ts` (called from
+`app/api/quote/route.ts`) decides which submissions get
 that treatment. It used to classify by *absence* — no supplier, no garmentType,
 no signType — so any new flow that forgot a field silently became a sticker
 order and charged someone a price nobody set. It now also requires the product

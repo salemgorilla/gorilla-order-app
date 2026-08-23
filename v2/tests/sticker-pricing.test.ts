@@ -13,7 +13,7 @@ import {
   STICKER_SETUP_FEE,
   STICKER_SETUP_FEE_ADDITIONAL,
 } from "../lib/pricing";
-import { repriceStickers } from "../app/api/quote/route";
+import { repriceStickers } from "../lib/sticker-repricing";
 
 /**
  * The sticker pricing engine.

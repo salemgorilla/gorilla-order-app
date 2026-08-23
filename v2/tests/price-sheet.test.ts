@@ -1,7 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 
-import { repriceStickers } from "../app/api/quote/route";
+import { repriceStickers } from "../lib/sticker-repricing";
 
 /**
  * The price sheet. Every figure the server will quote, written down.

@@ -65,7 +65,8 @@ and open work. Do not reintroduce raw hex — add a token.
 ## The invariants. Break these and it costs real money.
 
 **1. Stickers self-check-out. Nothing else does.**
-`isStickerOrder()` in `v2/app/api/quote/route.ts` decides which submissions
+`isStickerOrder()` in `v2/lib/sticker-repricing.ts` (called from the quote
+route) decides which submissions
 auto-generate a Printavo payment link with no human in the loop. It requires
 the product type to say "sticker" *and* carry no supplier/garmentType/signType.
 Any new flow whose payload misses those markers becomes a sticker order, gets

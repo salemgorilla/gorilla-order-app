@@ -7,7 +7,7 @@ import {
   STICKER_SETUP_FEE_ADDITIONAL,
   quoteStickerCart,
 } from "../lib/pricing";
-import { repriceStickers } from "../app/api/quote/route";
+import { repriceStickers } from "../lib/sticker-repricing";
 
 /**
  * One composition of the sticker total, called by both sides.

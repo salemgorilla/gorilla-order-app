@@ -7,17 +7,38 @@ next session will act on it.
 
 Read this first, then `AGENTS.md` and `DESIGN-SYSTEM.md`.
 
-## Live right now — 2026-08-22, `main` @ `aab4873`
+## Live right now — 2026-08-22, `main` @ `020ed32`
 
 `main` is deployed to https://labs.gorillasalem.com (Vercel, production branch
 is `main`, root directory `v2`). The custom domain is wired correctly — do NOT
 touch the `@` or `www` DNS records for gorillasalem.com, those are Squarespace
 and repointing them took the main site down once already.
 
-927 tests passing, `tsc` clean, 0 lint errors (8 warnings, all the
+971 tests passing, `tsc` clean, 0 lint errors (8 warnings, all the
 deliberate `<img>` uses).
 
 Working and verified:
+
+- **Four defects the signs cart brought with it** — 2026-08-22, all found by
+  rendering or driving the thing rather than reading the diff.
+  1. **A new quote showed the last customer's artwork.** `startNewQuote`
+     reused the module constant, whose design id is fixed for the life of the
+     page, and reset never cleared the signs preview map — so the fresh
+     design's id still matched a stale entry. Worst at the kiosk. The sticker
+     cart fixes this two lines above and says so.
+  2. **The shop email broke every dollar amount** one character per line on a
+     phone. `white-space: nowrap` was on the LABEL cell, so one long label
+     starved the value column for the whole table. Third time this shipped;
+     each earlier fix shortened a string. The rule is now which cell may
+     break — a label may, a number may not.
+  3. **Printavo filed the same charge under a different SKU per order.**
+     Item numbers were derived from label text. Setup is now
+     `GORILLA-SIGN-SETUP` at any design count, add-ons `GORILLA-SIGN-ADDON-*`.
+  4. **Add-ons vanished from a multi-design invoice**, folded into the unit
+     price while a one-design quote itemised them. Each is its own fee line
+     now, named by design.
+  None of these moved a cent; (3) and (4) were checked against a ten-case
+  matrix proving Printavo still sums to the quote exactly.
 
 - **A signs quote can hold several designs** — 2026-08-22, Gabe's goal. Same
   shape as the sticker cart, deliberately: a list of designs, each with its
@@ -517,8 +538,10 @@ one that matters**, because it exercises both changes at once. 5 signs,
 = $108.00 before tax, $114.75 with MA 6.25%.
 
 For the two-design order, the figures to check on the invoice are: one line
-item per design at each design's own product cost, ONE setup row at $15 x the
-number of designs, and no setup buried inside the line items.
+item per design at each design's own PRODUCT cost, ONE setup row at $15 x the
+number of designs, and — if either design took a finishing add-on — that
+add-on as its own row named for its design. Nothing should be buried inside a
+line item: a unit price that looks high for the size is the symptom.
 
 Signs do not auto-bill, so a human sees the figure before money moves — which
 is why this was safe to ship ahead of the reconciliation, not a reason to skip

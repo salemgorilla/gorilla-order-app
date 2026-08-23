@@ -7,7 +7,7 @@ import type { Order } from "../types/order";
 import type { ApparelQuote } from "../lib/apparel";
 import type { ApparelPricingResult } from "../lib/apparel-pricing";
 import type { QuoteConfirmation, SsCatalogColor } from "./types";
-import { SALES_TAX, getStickerTotals } from "../lib/tax";
+import { SALES_TAX, getSignsTotals, getStickerTotals } from "../lib/tax";
 import { canOfferTracker, getTrackUrl } from "../lib/order-status";
 import {
   getSignProduct,
@@ -57,6 +57,21 @@ export default function QuoteConfirmationScreen({
   // sticky estimate bar. See getQuoteTotals in lib/tax — four surfaces showed
   // this figure and only one of them had tax.
   const stickerTotals = getStickerTotals(order.pricing);
+
+  /**
+   * Tax-inclusive, like every other surface — and like the sticker branch
+   * directly below, whose comment already names showing the pre-tax figure
+   * here as "the whole defect".
+   *
+   * This showed `signsTotal` raw. The estimate bar and the review card both
+   * say $188.06 with a tax line; the customer pressed Request Quote on that
+   * number and this screen immediately answered $177.00 — an $11.06 drop
+   * that reads as a discount until the invoice arrives at $188.06, at which
+   * point the confirmation they screenshotted reads as the shop marking the
+   * price up. Signs are invoiced rather than paid on the spot, so this
+   * screen is the LAST number they hold until that invoice.
+   */
+  const signsTotals = signsTotal !== null ? getSignsTotals({ total: signsTotal }) : null;
 
   /**
    * Read here rather than threaded in as a prop, so there is one way of
@@ -294,11 +309,16 @@ export default function QuoteConfirmationScreen({
               </p>
 
               {isSignsSubmitted ? (
-                signsTotal !== null ? (
+                signsTotals !== null ? (
                   <>
                     <p className="mt-2 text-head font-bold text-[var(--ink-black)]">
-                      ${signsTotal.toFixed(2)}
+                      ${signsTotals.estimatedTotal.toFixed(2)}
                     </p>
+                    {signsTotals.estimatedTax > 0 && (
+                      <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+                        Includes estimated {SALES_TAX.label}
+                      </p>
+                    )}
                     <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
                       Estimate — confirmed before production
                     </p>

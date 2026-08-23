@@ -82,6 +82,7 @@ import {
   getSignsFieldErrors as getSignsFieldErrorsFor,
   getSignsDesignFieldErrors,
   getSignsValidationSummary,
+  getApparelValidationSummary,
   getOrderValidationErrors,
   type FieldErrors,
   type ItemFieldErrors,
@@ -1437,30 +1438,8 @@ export default function Home() {
   }
 
   function getApparelValidationErrors() {
-    const fields = getApparelFieldErrors();
-    const errors: string[] = [];
-
-    // Pushed straight from the field map, as stickers and signs already do.
-    // These four used to be re-worded here into passive spec voice ("Customer
-    // name is required.") while the other two flows said "Enter your name." —
-    // one checklist panel speaking differently depending on which product the
-    // customer happened to pick. The summary is prose, and this is the voice
-    // the rest of it uses.
-    if (fields.customerName) errors.push(fields.customerName);
-    if (fields.customerEmail) errors.push(fields.customerEmail);
-    if (fields.artwork) errors.push("Upload your artwork.");
-    if (fields.needBy) errors.push(fields.needBy);
-
-    if (fields.specialOrderNotes) {
-      errors.push("Tell us what you need for your special order.");
-    }
-
-    if (fields.quantity) errors.push(fields.quantity);
-
-    if (fields.printLocations) errors.push(fields.printLocations);
-    if (fields.sizeBreakdown) errors.push("Add how many you need in each size.");
-
-    return errors;
+    // The sentences live in lib/validation.ts, like the other two flows.
+    return getApparelValidationSummary(apparelQuote, order, sizeQuantityTotal);
   }
 
   function getCurrentFieldErrors(): FieldErrors {

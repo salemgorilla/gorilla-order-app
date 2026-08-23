@@ -3299,35 +3299,62 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                           </p>
                         </div>
                       ) : (
-                        <UploadBox
-                          onFileSelected={(file) =>
-                            handleArtworkUpload(file, design.id)
-                          }
-                          fileName={design.artwork.file?.name || null}
-                          fileSizeBytes={design.artwork.file?.size ?? null}
-                          directUploadEnabled={directUploadEnabled}
-                          previewUrl={signsDesignPreviews[design.id] || null}
-                          error={
-                            signsQuote.designs.length > 1
-                              ? signsDesignFieldErrors[design.id]?.artwork
-                              : fieldErrors.artwork
-                          }
-                        />
+                        <>
+                          <UploadBox
+                            onFileSelected={(file) =>
+                              handleArtworkUpload(file, design.id)
+                            }
+                            fileName={design.artwork.file?.name || null}
+                            fileSizeBytes={design.artwork.file?.size ?? null}
+                            directUploadEnabled={directUploadEnabled}
+                            previewUrl={signsDesignPreviews[design.id] || null}
+                            error={
+                              signsQuote.designs.length > 1
+                                ? signsDesignFieldErrors[design.id]?.artwork
+                                : fieldErrors.artwork
+                            }
+                          />
+
+                          {/* The same reason it exists on the sticker cart:
+                              at the counter the artwork is on a phone the
+                              kiosk cannot reach, and nobody logs into their
+                              email on the shop's terminal. It was wired to
+                              stickers only, which is the flow LEAST likely to
+                              need it — a walk-in ordering one banner is the
+                              archetypal counter job. Bound to this design, so
+                              a two-design quote sends each file to the card
+                              the customer is standing on. */}
+                          {kiosk.enabled && !design.artwork.file && (
+                            <ArtworkHandoff
+                              onFileReceived={(file) =>
+                                handleArtworkUpload(file, design.id)
+                              }
+                            />
+                          )}
+                        </>
                       )}
                     </DesignCard>
                   ))}
                 </div>
               ) : isApparelSelected ? (
-                <UploadBox
-                  onFileSelected={handleArtworkUpload}
-                  // Without these the box can never show that a file arrived,
-                  // which made a working drop look like a failed one.
-                  fileName={order.artwork.file?.name || null}
-                  fileSizeBytes={order.artwork.file?.size ?? null}
-                  directUploadEnabled={directUploadEnabled}
-                  previewUrl={artworkPreview}
-                  error={fieldErrors.artwork}
-                />
+                <>
+                  <UploadBox
+                    onFileSelected={handleArtworkUpload}
+                    // Without these the box can never show that a file arrived,
+                    // which made a working drop look like a failed one.
+                    fileName={order.artwork.file?.name || null}
+                    fileSizeBytes={order.artwork.file?.size ?? null}
+                    directUploadEnabled={directUploadEnabled}
+                    previewUrl={artworkPreview}
+                    error={fieldErrors.artwork}
+                  />
+
+                  {/* Apparel is single-file, so no design id — the order-level
+                      slot is the target, exactly as the box above uses. */}
+                  {kiosk.enabled && !order.artwork.file && (
+                    <ArtworkHandoff onFileReceived={handleArtworkUpload} />
+                  )}
+                </>
               ) : (
                 // One box per design, and the file is bound to its design by
                 // closure. Deliberately NOT one multi-file input: `multiple`

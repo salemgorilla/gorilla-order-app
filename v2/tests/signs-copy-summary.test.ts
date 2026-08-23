@@ -45,6 +45,38 @@ describe("each design names its own file", () => {
   });
 });
 
+describe("the add-ons the customer ticked reach their own record", () => {
+  /**
+   * The shop email and the Printavo note both carry "ADD-ONS THE CUSTOMER
+   * ASKED FOR". The copy text — the record the CUSTOMER keeps and would
+   * forward to say "you forgot my banner" — mentioned them nowhere, in any
+   * flow. Verified by ticking the sticker-pack offer in a browser and
+   * reading the clipboard: "100 die-cut stickers, 3 inch, gloss white
+   * vinyl: $53.80" now appears, with the not-in-the-estimate caveat.
+   */
+  const summary = page.split("function getQuoteDetailsText")[1] ?? "";
+
+  test("the section exists and reads the order's add-ons", () => {
+    assert.match(summary, /ADD-ONS REQUESTED/);
+    assert.match(summary, /order\.addOns[\s\S]{0,20}\.map/);
+  });
+
+  test("hand-quoted offers say so instead of showing $0.00", () => {
+    assert.match(summary, /"Quote by hand"/);
+  });
+
+  test("it is stated to be outside the estimate", () => {
+    // The estimate totals above it do not include add-ons. Without this line
+    // the customer sums the page and gets a number nothing will ever bill.
+    assert.match(summary, /\(Not included in the estimate above\.\)/);
+  });
+
+  test("every flow's branch includes it", () => {
+    const uses = summary.match(/\$\{addOnsSection\}/g) ?? [];
+    assert.equal(uses.length, 3, "a flow's copy text dropped its add-ons");
+  });
+});
+
 describe("the shared ARTWORK section stops speaking for the cart", () => {
   test("a cart defers to the per-design lines", () => {
     assert.match(

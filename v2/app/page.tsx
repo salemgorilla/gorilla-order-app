@@ -2264,9 +2264,31 @@ Quantity: ${design.quantity.toLocaleString()}
 Size: ${getSignSizeLabel(design)}
 Material: ${design.material}
 Finishing: ${design.finishing}
-Sides: ${design.doubleSided ? "Double-sided" : "Single-sided"}`;
+Sides: ${design.doubleSided ? "Double-sided" : "Single-sided"}
+Artwork: ${
+            design.templateId
+              ? `Our "${getTemplate(design.templateId)?.name || design.templateId}" template — wording supplied, no file owed`
+              : design.artwork.file?.name || "No file uploaded"
+          }`;
         })
         .join("\n\n");
+
+      /**
+       * The shared ARTWORK section reads order.artwork.file, which for signs
+       * holds whichever file was uploaded LAST — so a two-design quote copied
+       * itself with one filename presented as THE artwork, and design 1's
+       * file named nowhere. The same last-writer-wins slot behind the #63
+       * artwork bug, reaching a different surface. Each design now names its
+       * own file in its block above; the analysis fields are omitted on a
+       * cart for the same reason the shop email omits them — they describe
+       * one file, and repeating them under a section headed ARTWORK states
+       * the last file's type and dimensions as fact about every design.
+       */
+      const signsArtworkSection =
+        signsQuote.designs.length > 1
+          ? `ARTWORK
+Each design's file is listed with that design above.`
+          : artworkSection;
 
       return `GORILLA SALEM SIGNS QUOTE REQUEST
 
@@ -2299,7 +2321,7 @@ ${signsPricing.note}`
       "Priced by hand. Gorilla Salem will reply with the price."
 }
 
-${artworkSection}
+${signsArtworkSection}
 
 ${notesSection}
 

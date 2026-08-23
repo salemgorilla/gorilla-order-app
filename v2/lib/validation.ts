@@ -1,4 +1,5 @@
 import { looksLikeEmailAddress } from "./email-address";
+import { orderProblemsByStep, type FieldProblem } from "./steps";
 import { Order, StickerItem } from "../types/order";
 
 /**
@@ -151,33 +152,38 @@ export function getOrderFieldErrors(order: Order): FieldErrors {
  */
 export function getOrderValidationErrors(order: Order) {
   const fields = getOrderFieldErrors(order);
-  const errors: string[] = [];
+  const problems: FieldProblem[] = [];
 
   if (fields.artwork) {
-    errors.push("Upload your artwork.");
+    problems.push({ field: "artwork", message: "Upload your artwork." });
   }
 
   if (fields.width || fields.height) {
-    errors.push("Enter the width and height of your sticker.");
+    problems.push({
+      field: "width",
+      message: "Enter the width and height of your sticker.",
+    });
   }
 
   if (fields.quantity) {
-    errors.push(fields.quantity);
+    problems.push({ field: "quantity", message: fields.quantity });
   }
 
   if (fields.needBy) {
-    errors.push(fields.needBy);
+    problems.push({ field: "needBy", message: fields.needBy });
   }
 
   if (fields.customerName) {
-    errors.push(fields.customerName);
+    problems.push({ field: "customerName", message: fields.customerName });
   }
 
   if (fields.customerEmail) {
-    errors.push(fields.customerEmail);
+    problems.push({ field: "customerEmail", message: fields.customerEmail });
   }
 
-  return errors;
+  // Sorted by the step that owns each field, so this list and the form ask in
+  // the same order. See orderProblemsByStep.
+  return orderProblemsByStep(problems);
 }
 
 export function isOrderReady(order: Order) {
@@ -329,11 +335,18 @@ export function getSignsValidationSummary(
   }
 ): string[] {
   const fields = getSignsFieldErrors(designs, order);
-  const problems: string[] = [];
+  const problems: FieldProblem[] = [];
 
-  if (fields.customerName) problems.push(fields.customerName);
-  if (fields.customerEmail) problems.push(fields.customerEmail);
-  if (fields.needBy) problems.push(fields.needBy);
+  // Order-level: one name, one address, one date, however many designs.
+  if (fields.customerName) {
+    problems.push({ field: "customerName", message: fields.customerName });
+  }
+  if (fields.customerEmail) {
+    problems.push({ field: "customerEmail", message: fields.customerEmail });
+  }
+  if (fields.needBy) {
+    problems.push({ field: "needBy", message: fields.needBy });
+  }
 
   const many = designs.length > 1;
 
@@ -341,21 +354,35 @@ export function getSignsValidationSummary(
     const own = getSignsDesignFieldErrors(design);
     const prefix = many ? `Design ${index + 1}: ` : "";
 
-    if (own.artwork) problems.push(`${prefix}Upload your artwork.`);
-    if (own.quantity) problems.push(`${prefix}${own.quantity}`);
+    if (own.artwork) {
+      problems.push({
+        field: "artwork",
+        message: `${prefix}Upload your artwork.`,
+      });
+    }
+
+    if (own.quantity) {
+      problems.push({ field: "quantity", message: `${prefix}${own.quantity}` });
+    }
 
     // One sentence for two boxes: the summary reads as prose, the fields get
     // their own short messages.
     if (own.width || own.height) {
-      problems.push(`${prefix}Enter the width and height.`);
+      problems.push({
+        field: "width",
+        message: `${prefix}Enter the width and height.`,
+      });
     }
 
     for (const message of Object.values(design.templateTextErrors || {})) {
-      problems.push(`${prefix}${message}`);
+      // No FieldKey of their own — template fields are per-template and would
+      // have to join the union for every template anyone adds. They live on
+      // the details step regardless.
+      problems.push({ step: "details", message: `${prefix}${message}` });
     }
   });
 
-  return problems;
+  return orderProblemsByStep(problems);
 }
 
 /**
@@ -371,6 +398,64 @@ export function getSignsValidationSummary(
  * it; recomputing it from the breakdown string in a second place is exactly
  * the kind of duplicate arithmetic that drifts.
  */
+/**
+ * The apparel problem list, as sentences.
+ *
+ * Lived in app/page.tsx until signs proved why that is a bad place for it:
+ * a list nothing can test is a list with a gap in it, and apparel was the
+ * last flow still assembling one there. It is also the flow with the most
+ * conditional structure, so it had the most to get wrong.
+ *
+ * Ordered by FIELD_STEP like the other two, so all three checklists ask in
+ * the same sequence the form does.
+ */
+export function getApparelValidationSummary(
+  apparelQuote: Parameters<typeof getApparelFieldErrors>[0],
+  order: Parameters<typeof getApparelFieldErrors>[1],
+  sizeQuantityTotal: number
+): string[] {
+  const fields = getApparelFieldErrors(apparelQuote, order, sizeQuantityTotal);
+  const problems: FieldProblem[] = [];
+
+  // Pushed straight from the field map, as stickers and signs already do.
+  // These used to be re-worded here into passive spec voice ("Customer name
+  // is required.") while the other two flows said "Enter your name." — one
+  // checklist panel speaking differently depending on which product the
+  // customer happened to pick.
+  if (fields.customerName) {
+    problems.push({ field: "customerName", message: fields.customerName });
+  }
+  if (fields.customerEmail) {
+    problems.push({ field: "customerEmail", message: fields.customerEmail });
+  }
+  if (fields.artwork) {
+    problems.push({ field: "artwork", message: "Upload your artwork." });
+  }
+  if (fields.needBy) {
+    problems.push({ field: "needBy", message: fields.needBy });
+  }
+  if (fields.specialOrderNotes) {
+    problems.push({
+      field: "specialOrderNotes",
+      message: "Tell us what you need for your special order.",
+    });
+  }
+  if (fields.quantity) {
+    problems.push({ field: "quantity", message: fields.quantity });
+  }
+  if (fields.printLocations) {
+    problems.push({ field: "printLocations", message: fields.printLocations });
+  }
+  if (fields.sizeBreakdown) {
+    problems.push({
+      field: "sizeBreakdown",
+      message: "Add how many you need in each size.",
+    });
+  }
+
+  return orderProblemsByStep(problems);
+}
+
 export function getApparelFieldErrors(
   apparelQuote: {
     specialOrder: boolean;

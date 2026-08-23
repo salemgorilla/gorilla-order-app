@@ -104,6 +104,58 @@ export const FIELD_STEP: Record<FieldKey, StepId> = {
   customerEmail: "contact",
 };
 
+/**
+ * A problem, tagged with where in the form it lives.
+ *
+ * `field` is the usual case and resolves through FIELD_STEP. `step` is for
+ * problems that have no FieldKey of their own — template wording, say, which
+ * is per-template and would otherwise have to join the FieldKey union for
+ * every template anyone adds.
+ */
+export type FieldProblem = {
+  message: string;
+  field?: FieldKey;
+  step?: StepId;
+};
+
+/**
+ * The problem list, in the order the form asks the questions.
+ *
+ * ── WHY THIS EXISTS ───────────────────────────────────────────────────────
+ * All three flows built this list by hand, and all three chose a different
+ * order for the same checklist panel:
+ *
+ *   stickers  artwork, size, quantity, date, name, email
+ *   signs     name, email, date, then the designs
+ *   apparel   name, email, artwork, date, notes, quantity, locations, sizes
+ *
+ * The form asks in one order — details, artwork, contact — so every one of
+ * those sent a customer reading top to bottom backwards through their own
+ * quote. It is the same class of thing as the apparel messages that once said
+ * "Customer name is required." while the other two said "Enter your name.":
+ * one panel behaving differently depending on which product was picked.
+ *
+ * Sorting by FIELD_STEP means the three cannot disagree again, and the list
+ * agrees with "jump to the first problem" by construction rather than by
+ * three people remembering. The sort is stable, so the order WITHIN a step is
+ * whatever the caller pushed — which is reading order down the form, and for
+ * signs, design 1 before design 2.
+ */
+export function orderProblemsByStep(problems: FieldProblem[]): string[] {
+  const stepOf = (problem: FieldProblem): StepId =>
+    problem.step ?? (problem.field ? FIELD_STEP[problem.field] : "details");
+
+  return problems
+    .map((problem, index) => ({ problem, index }))
+    .sort((a, b) => {
+      const byStep =
+        getStepIndex(stepOf(a.problem)) - getStepIndex(stepOf(b.problem));
+
+      return byStep !== 0 ? byStep : a.index - b.index;
+    })
+    .map(({ problem }) => problem.message);
+}
+
 export function getStepIndex(id: StepId): number {
   const index = ORDER_STEPS.findIndex((step) => step.id === id);
 

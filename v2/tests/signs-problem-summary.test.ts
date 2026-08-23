@@ -72,7 +72,14 @@ describe("several designs say WHICH", () => {
     assert.deepEqual(problems, ["Design 2: Upload your artwork."]);
   });
 
-  test("names every design that has a problem, in order", () => {
+  test("names every design that has a problem, in FORM order", () => {
+    /**
+     * Sorted by the step that owns each field, not by design. Quantity is
+     * asked on Details and artwork on Artwork, so design 3's missing count
+     * comes before design 1's missing file — which is the order the customer
+     * meets them walking through their own quote. Within a step the designs
+     * keep their order.
+     */
     const problems = getSignsValidationSummary(
       [
         ok({ artwork: { file: null } }),
@@ -83,8 +90,8 @@ describe("several designs say WHICH", () => {
     );
 
     assert.deepEqual(problems, [
-      "Design 1: Upload your artwork.",
       "Design 3: Enter how many you need.",
+      "Design 1: Upload your artwork.",
     ]);
   });
 
@@ -101,9 +108,10 @@ describe("several designs say WHICH", () => {
       ORDER
     );
 
+    // Size is a Details question, artwork an Artwork one.
     assert.deepEqual(problems, [
-      "Design 2: Upload your artwork.",
       "Design 2: Enter the width and height.",
+      "Design 2: Upload your artwork.",
     ]);
   });
 
@@ -134,10 +142,12 @@ describe("order-level problems are never named by design", () => {
       production: { needBy: "" },
     });
 
+    // The date is asked on Details, the name and address on Contact, so this
+    // is the order the form asks them in.
     assert.deepEqual(problems, [
+      "Enter the date you need this in hand.",
       "Enter your name.",
       "Enter your email.",
-      "Enter the date you need this in hand.",
     ]);
 
     for (const problem of problems) {
@@ -145,15 +155,27 @@ describe("order-level problems are never named by design", () => {
     }
   });
 
-  test("order-level problems come before the per-design ones", () => {
-    // Reading order: the things at the top of the form first.
+  test("everything is ordered by the step that asks it", () => {
+    /**
+     * Not "order-level first", which is what this used to assert. The form
+     * asks Details, then Artwork, then Contact — so the date comes first, the
+     * missing file next, and the customer's name last. A list that ran the
+     * other way sent someone reading it top to bottom backwards through their
+     * own quote.
+     */
     const problems = getSignsValidationSummary(
       [ok({ artwork: { file: null } })],
-      { customer: { customerName: "", email: "x" }, production: { needBy: "" } }
+      {
+        customer: { customerName: "", email: "dana@example.com" },
+        production: { needBy: "" },
+      }
     );
 
-    assert.equal(problems[0], "Enter your name.");
-    assert.equal(problems.at(-1), "Upload your artwork.");
+    assert.deepEqual(problems, [
+      "Enter the date you need this in hand.",
+      "Upload your artwork.",
+      "Enter your name.",
+    ]);
   });
 });
 

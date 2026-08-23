@@ -15,6 +15,7 @@ import {
 import { getDesignNumbers } from "../../../lib/attachment-plan";
 import { buildOrderConfirmation } from "../../../lib/order-confirmation";
 import { describeRepricing } from "../../../lib/repricing-note";
+import { repriceSigns } from "../../../lib/signs-repricing";
 import { getEmailError } from "../../../lib/validation";
 import { subscribeToNewsletter } from "../../../lib/newsletter";
 import { describeKioskSource, readKioskSession } from "../../../lib/kiosk";
@@ -439,6 +440,21 @@ export async function POST(request: Request) {
     const priced = repriceStickers(order);
 
     /**
+     * Signs and banners get the same treatment, one line later. They never
+     * raise a payment link, but their figures land as Printavo LINE ITEMS on
+     * the quote the shop invoices from — and "the shop reviews it by hand"
+     * reads the very numbers the browser sent, so a tampered payload does
+     * not look tampered, it looks priced. The two reprices are mutually
+     * exclusive by flow; each passes the other's orders through untouched.
+     * See lib/signs-repricing.ts for why it re-synthesises rather than
+     * patches.
+     */
+    const signsPriced = repriceSigns(priced.order);
+
+    /** Whichever flow actually recomputed this order's money. */
+    const priceCheck = signsPriced.repriced ? signsPriced : priced;
+
+    /**
      * The disagreement itself, kept rather than only logged.
      *
      * The console line below stays — it is what a deployment-wide problem
@@ -447,17 +463,17 @@ export async function POST(request: Request) {
      * price did not match the priced one. The shop reads the quote email for
      * every order, so it goes there too. See lib/repricing-note.ts.
      */
-    const repricing = describeRepricing(priced);
+    const repricing = describeRepricing(priceCheck);
 
-    if (priced.mismatch) {
+    if (priceCheck.mismatch) {
       console.error(
-        `PRICE MISMATCH on ${quoteNumber}: browser said $${priced.clientTotal}, server computed $${priced.serverTotal}. Charging the server figure.`
+        `PRICE MISMATCH on ${quoteNumber}: browser said $${priceCheck.clientTotal}, server computed $${priceCheck.serverTotal}. Charging the server figure.`
       );
     }
 
     // Everything downstream — the record, the email, Printavo, the payment
     // link — reads this, never the raw request.
-    const pricedOrder = priced.order;
+    const pricedOrder = signsPriced.order;
 
     // Null for an ordinary web quote. Non-null means the order was taken on
     // the shop's own terminal, which changes how it is paid for.

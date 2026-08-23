@@ -1,4 +1,5 @@
 import {
+  getSignDimensions,
   getSignProduct,
   getSignSizeLabel,
   SIGN_FAMILIES,
@@ -57,6 +58,29 @@ export type SignsDesignPayload = {
    * a lumped total — the same reason setup is its own line.
    */
   addOns: Array<{ label: string; amount: number; code?: string }>;
+  /**
+   * The RAW inputs this design was priced from — what the server needs to
+   * price it AGAIN. Everything above is prose for humans ("72" x 36"",
+   * "$162.00"); none of it can be fed back into the engine. This can, and
+   * lib/signs-repricing.ts does exactly that: rebuilds the designs from
+   * these fields, reprices with the same quoteSignsCart the browser used,
+   * and substitutes its own figures. A payload without it (from before this
+   * shipped) passes through unrepriced.
+   */
+  spec: SignsDesignSpec;
+};
+
+export type SignsDesignSpec = {
+  productId: string;
+  quantity: number;
+  widthInches: number;
+  heightInches: number;
+  material: string;
+  finishing: string;
+  doubleSided: boolean;
+  bannerAddOns: string[];
+  templateId: string | null;
+  templateText: Record<string, string>;
 };
 
 function describeDesign(
@@ -86,6 +110,23 @@ function describeDesign(
         }
       : null,
     ...describeMoney(priced?.pricing),
+    spec: {
+      productId: design.productId,
+      quantity: design.quantity,
+      // The dimensions the PRICE derives from, not the raw boxes — yard
+      // signs freeze at 18" x 24" whatever was typed, and the server must
+      // price the same shape the browser did.
+      ...(() => {
+        const { widthInches, heightInches } = getSignDimensions(design);
+        return { widthInches, heightInches };
+      })(),
+      material: design.material,
+      finishing: design.finishing,
+      doubleSided: design.doubleSided,
+      bannerAddOns: design.bannerAddOns ?? [],
+      templateId: design.templateId,
+      templateText: design.templateText ?? {},
+    },
   };
 }
 

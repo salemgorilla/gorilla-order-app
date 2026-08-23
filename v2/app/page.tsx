@@ -2249,6 +2249,35 @@ Suggested Ink Count: ${
     const notesSection = `NOTES
 ${order.customer.notes || "No customer notes"}`;
 
+    /**
+     * The add-ons the customer ticked, in the customer's own record.
+     *
+     * The shop email and the Printavo note both carry "ADD-ONS THE CUSTOMER
+     * ASKED FOR"; this text — the one record the CUSTOMER keeps and would
+     * forward to say "you forgot my banner" — mentioned them nowhere. Empty
+     * string when nothing was ticked, so the quotes that never touch the
+     * strip read exactly as they always have.
+     */
+    const addOnsSection =
+      order.addOns.length || order.addOnsNote
+        ? `
+
+ADD-ONS REQUESTED
+${order.addOns
+            .map(
+              (addOn) =>
+                `${addOn.label}: ${
+                  addOn.quoteRequired
+                    ? "Quote by hand"
+                    : `$${addOn.amount.toFixed(2)}`
+                }`
+            )
+            .join("\n")}${
+            order.addOnsNote ? `\nAlso asked about: ${order.addOnsNote}` : ""
+          }
+(Not included in the estimate above.)`
+        : "";
+
     if (isSignsSubmitted) {
       const designBlocks = signsQuote.designs
         .map((design, index) => {
@@ -2319,7 +2348,7 @@ Estimated Total: $${getSignsTotals(signsPricing).estimatedTotal.toFixed(2)}${
 ${signsPricing.note}`
     : signsPricing.reason ||
       "Priced by hand. Gorilla Salem will reply with the price."
-}
+}${addOnsSection}
 
 ${signsArtworkSection}
 
@@ -2367,7 +2396,7 @@ Garments: $${apparelPricing.garmentTotal.toFixed(2)}
 Printing: $${apparelPricing.printTotal.toFixed(2)}
 Setup / Screens: $${apparelPricing.setupTotal.toFixed(2)}
 Locations: ${apparelQuote.printLocations.length}
-Pricing Note: Final pricing reviewed by Gorilla Salem.
+Pricing Note: Final pricing reviewed by Gorilla Salem.${addOnsSection}
 
 ${artworkSection}
 
@@ -2426,7 +2455,7 @@ Estimated Total: $${getStickerTotals(order.pricing).estimatedTotal.toFixed(2)}${
       order.items.length === 1
         ? `\nEstimated Each: $${unitPrice.toFixed(2)} per sticker`
         : ""
-    }
+    }${addOnsSection}
 
 ${artworkSection}
 

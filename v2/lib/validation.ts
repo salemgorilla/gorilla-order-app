@@ -304,6 +304,61 @@ export function getSignsFieldErrors(
 }
 
 /**
+ * The signs problem list, as sentences.
+ *
+ * ── WHY THIS IS NOT IN THE COMPONENT ──────────────────────────────────────
+ * It was, and AGENTS.md says why that is a mistake: "the rules nothing could
+ * test were the ones with gaps." This one proved it. Template wording errors
+ * were named by design — "Design 2: Enter the address" — while artwork,
+ * quantity and size were read off the flat FieldErrors map, which reports the
+ * first design with a problem and drops which one it was.
+ *
+ * So a three-design quote missing a file on design 2 said "Upload your
+ * artwork." and nothing more. The customer looked at design 1, found a file
+ * on it, and had nowhere to go — the exact dead end the step mapping exists
+ * to prevent, arrived at from a different direction.
+ *
+ * Order-level problems stay unqualified: there is one name, one address and
+ * one date however many designs the quote holds.
+ */
+export function getSignsValidationSummary(
+  designs: Array<SignsDesignInput & { templateTextErrors?: Record<string, string> }>,
+  order: {
+    customer: { customerName: string; email: string };
+    production: { needBy: string };
+  }
+): string[] {
+  const fields = getSignsFieldErrors(designs, order);
+  const problems: string[] = [];
+
+  if (fields.customerName) problems.push(fields.customerName);
+  if (fields.customerEmail) problems.push(fields.customerEmail);
+  if (fields.needBy) problems.push(fields.needBy);
+
+  const many = designs.length > 1;
+
+  designs.forEach((design, index) => {
+    const own = getSignsDesignFieldErrors(design);
+    const prefix = many ? `Design ${index + 1}: ` : "";
+
+    if (own.artwork) problems.push(`${prefix}Upload your artwork.`);
+    if (own.quantity) problems.push(`${prefix}${own.quantity}`);
+
+    // One sentence for two boxes: the summary reads as prose, the fields get
+    // their own short messages.
+    if (own.width || own.height) {
+      problems.push(`${prefix}Enter the width and height.`);
+    }
+
+    for (const message of Object.values(design.templateTextErrors || {})) {
+      problems.push(`${prefix}${message}`);
+    }
+  });
+
+  return problems;
+}
+
+/**
  * Apparel failures.
  *
  * Extracted from app/page.tsx for the same reason as the sign rules above: as

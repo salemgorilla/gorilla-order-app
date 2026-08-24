@@ -61,6 +61,10 @@ import {
 import { quoteSignsCart } from "../lib/signs-cart";
 import { buildSignsPayloadParts } from "../lib/signs-payload";
 import { signsPricingConfig } from "../lib/signs-pricing-config";
+import {
+  getReferenceStickerPrice,
+  REFERENCE_STICKER,
+} from "../lib/reference-quote";
 import { productCategories, type ProductCategory } from "../lib/products";
 import {
   getTemplate,
@@ -2903,6 +2907,35 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             Choose your details, upload your artwork, and get a live estimate or
             quote request before sending it to Gorilla Salem.
           </p>
+
+          {/* The price anchor — the step-01 brief's highest-leverage item.
+              Five steps of effort were being asked for against an invisible
+              payoff; this answers "$60 or $600?" before the first click. The
+              figure comes from the SAME engine that bills the invoice (see
+              lib/reference-quote.ts for the brief's non-negotiable), and it
+              shows only on step 1: from step 2 the sticky estimate bar
+              carries the customer's OWN number, and two prices on one screen
+              is how a customer reads the wrong one. */}
+          {currentStepId === "product" && (
+            <div className="mt-6 border border-[var(--rule)] bg-white px-5 py-4 sm:inline-block">
+              <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                <p className="text-sm font-bold text-[var(--ink-black)]">
+                  {REFERENCE_STICKER.label}
+                </p>
+                <p className="flex items-baseline gap-2">
+                  <span className="spec text-spec uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+                    from
+                  </span>
+                  <span className="text-price font-bold leading-[0.85] text-[var(--gorilla-green)]">
+                    ${getReferenceStickerPrice().toFixed(2)}
+                  </span>
+                </p>
+              </div>
+              <p className="mt-2 text-fine font-bold text-[var(--ink-muted)]">
+                Setup included &middot; no art fees &middot; proof before print
+              </p>
+            </div>
+          )}
 
           {/* Bordered, and in muted ink rather than green.
               These were the only unbordered boxes in a system where every

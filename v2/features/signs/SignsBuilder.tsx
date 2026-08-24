@@ -89,7 +89,7 @@ export default function SignsBuilder({
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-bold text-[var(--ink-black)]">{item.label}</p>
                   {item.pricingMethod === null && (
-                    <span className="shrink-0 bg-white px-2 py-1 text-spec font-bold uppercase tracking-[0.1em] text-[var(--ink-muted)]">
+                    <span className="shrink-0 bg-white px-2 py-1 text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
                       Quote
                     </span>
                   )}

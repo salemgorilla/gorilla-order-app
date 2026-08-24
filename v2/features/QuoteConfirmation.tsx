@@ -119,7 +119,7 @@ export default function QuoteConfirmationScreen({
               ✓
             </div>
 
-            <p className="mt-8 text-fine font-bold uppercase tracking-[0.2em] text-[var(--rush-red)]">
+            <p className="mt-8 text-fine font-bold uppercase tracking-eyebrow text-[var(--rush-red)]">
               {canPayNow ? "Ready to pay" : "Quote Received"}
             </p>
 
@@ -163,7 +163,7 @@ export default function QuoteConfirmationScreen({
           )}
 
           <div className="mt-8 bg-[var(--shirt-blank)] p-6 text-center">
-            <p className="text-spec font-bold uppercase tracking-[0.2em] text-[var(--ink-muted)]">
+            <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
               Quote Number
             </p>
 
@@ -220,7 +220,7 @@ export default function QuoteConfirmationScreen({
 
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             <div className=" border border-[var(--rule)] p-5">
-              <p className="text-spec font-bold uppercase tracking-[0.16em] text-[var(--rush-red)]">
+              <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--rush-red)]">
                 Customer
               </p>
 
@@ -240,7 +240,7 @@ export default function QuoteConfirmationScreen({
             </div>
 
             <div className=" border border-[var(--rule)] p-5">
-              <p className="text-spec font-bold uppercase tracking-[0.16em] text-[var(--rush-red)]">
+              <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--rush-red)]">
                 {isApparelSubmitted
                   ? "Apparel Details"
                   : isSignsSubmitted
@@ -256,7 +256,7 @@ export default function QuoteConfirmationScreen({
                   {signsQuote.designs.map((design, index) => (
                     <div key={design.id}>
                       {signsQuote.designs.length > 1 && (
-                        <p className="spec text-spec uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+                        <p className="spec text-spec uppercase tracking-eyebrow text-[var(--ink-muted)]">
                           Design {String(index + 1).padStart(2, "0")}
                         </p>
                       )}
@@ -304,7 +304,7 @@ export default function QuoteConfirmationScreen({
             </div>
 
             <div className=" border border-[var(--rule)] p-5">
-              <p className="text-spec font-bold uppercase tracking-[0.16em] text-[var(--rush-red)]">
+              <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--rush-red)]">
                 Estimate
               </p>
 

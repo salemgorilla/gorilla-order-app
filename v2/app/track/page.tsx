@@ -181,7 +181,7 @@ function StatusCard({ status }: { status: Status }) {
           : "border-[var(--rule)] border-l-4 border-l-[var(--gorilla-green)]"
       }`}
     >
-      <p className="spec text-fine uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+      <p className="spec text-fine uppercase tracking-eyebrow text-[var(--ink-muted)]">
         {status.quoteNumber}
       </p>
 

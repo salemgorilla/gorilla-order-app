@@ -42,7 +42,7 @@ export default function KioskChrome({
     >
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-5 py-3">
         <div className="mr-auto">
-          <p className="spec text-fine uppercase tracking-[0.14em] opacity-70">
+          <p className="spec text-fine uppercase tracking-eyebrow opacity-70">
             Gorilla Salem — order desk
           </p>
           <p className="text-fine font-bold">

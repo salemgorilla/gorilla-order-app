@@ -102,7 +102,7 @@ function Swatch({
 }) {
   return (
     <figure>
-      <figcaption className="mb-1 text-fine font-bold uppercase tracking-[0.08em] text-[var(--ink-muted)]">
+      <figcaption className="mb-1 text-fine font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
         {label}
       </figcaption>
       <div

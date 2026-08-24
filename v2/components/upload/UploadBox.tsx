@@ -137,7 +137,7 @@ export default function UploadBox({
           )}
         </div>
 
-        <h3 className="text-head font-bold tracking-[-0.03em] text-[var(--ink-black)]">
+        <h3 className="text-head font-bold tracking-display text-[var(--ink-black)]">
           {isDragging
             ? "Drop It Here"
             : fileName

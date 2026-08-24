@@ -31,7 +31,7 @@ export default function DesignCard({
       className="border border-[var(--rule)] bg-[var(--paper)] p-4 sm:p-5"
     >
       <div className="mb-4 flex items-center justify-between gap-3 border-b border-[var(--rule)] pb-3">
-        <p className="spec text-spec uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+        <p className="spec text-spec uppercase tracking-eyebrow text-[var(--ink-muted)]">
           Design {String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
         </p>
 

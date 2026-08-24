@@ -53,7 +53,7 @@ export default function QuoteReviewCard({
           </p>
         </div>
 
-        <span className=" bg-[var(--shirt-blank)] px-4 py-2 text-spec font-bold uppercase tracking-[0.12em] text-[var(--gorilla-green)]">
+        <span className=" bg-[var(--shirt-blank)] px-4 py-2 text-spec font-bold uppercase tracking-eyebrow text-[var(--gorilla-green)]">
           {isApparelSelected ? "Apparel" : isSignsSelected ? "Signs" : "Stickers"}
         </span>
       </div>
@@ -71,7 +71,7 @@ export default function QuoteReviewCard({
                 }
               >
                 {signsQuote.designs.length > 1 && (
-                  <p className="spec text-spec uppercase tracking-[0.14em] text-[var(--ink-black)]">
+                  <p className="spec text-spec uppercase tracking-eyebrow text-[var(--ink-black)]">
                     Design {String(index + 1).padStart(2, "0")}
                   </p>
                 )}
@@ -201,7 +201,7 @@ export default function QuoteReviewCard({
                 }
               >
                 {order.items.length > 1 && (
-                  <p className="spec text-spec uppercase tracking-[0.14em] text-[var(--ink-black)]">
+                  <p className="spec text-spec uppercase tracking-eyebrow text-[var(--ink-black)]">
                     Design {String(index + 1).padStart(2, "0")}
                   </p>
                 )}

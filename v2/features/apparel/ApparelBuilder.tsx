@@ -143,11 +143,11 @@ export default function ApparelBuilder({
           <div className="space-y-5">
             <div>
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-spec font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+                <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
                   Garment Style
                 </p>
 
-                <p className="text-spec font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+                <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
                   {filteredSsProducts.length} shown
                 </p>
               </div>
@@ -200,7 +200,7 @@ export default function ApparelBuilder({
                               className="h-full w-full object-contain p-2"
                             />
                           ) : (
-                            <span className="px-2 text-center text-spec font-bold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+                            <span className="px-2 text-center text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
                               No Image
                             </span>
                           )}
@@ -221,7 +221,7 @@ export default function ApparelBuilder({
                               </p>
                             </div>
 
-                            <span className=" bg-[var(--shirt-blank)] px-3 py-1 text-spec font-bold uppercase tracking-[0.12em] text-[var(--gorilla-green)]">
+                            <span className=" bg-[var(--shirt-blank)] px-3 py-1 text-spec font-bold uppercase tracking-eyebrow text-[var(--gorilla-green)]">
                               {product.colors.length} colors
                             </span>
                           </div>
@@ -241,7 +241,7 @@ export default function ApparelBuilder({
 
             {selectedSsProduct && (
               <div>
-                <p className="mb-3 text-spec font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+                <p className="mb-3 text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
                   Garment Color
                 </p>
 
@@ -300,7 +300,7 @@ export default function ApparelBuilder({
 
             {selectedSsColor && (
               <div>
-                <p className="mb-3 text-spec font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+                <p className="mb-3 text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
                   Sample Size / Garment Price
                 </p>
 
@@ -512,7 +512,7 @@ export default function ApparelBuilder({
 
           <div className="mt-3 grid gap-3 text-fine font-bold text-[var(--ink-muted)] sm:grid-cols-3">
             <div className=" bg-white p-3">
-              <p className="text-spec uppercase tracking-[0.12em]">
+              <p className="text-spec uppercase tracking-eyebrow">
                 Artwork
               </p>
               <p className="mt-1 text-value font-bold text-[var(--ink-black)]">
@@ -521,7 +521,7 @@ export default function ApparelBuilder({
             </div>
 
             <div className=" bg-white p-3">
-              <p className="text-spec uppercase tracking-[0.12em]">
+              <p className="text-spec uppercase tracking-eyebrow">
                 Underbase
               </p>
               <p className="mt-1 text-value font-bold text-[var(--ink-black)]">
@@ -532,7 +532,7 @@ export default function ApparelBuilder({
             </div>
 
             <div className=" bg-white p-3">
-              <p className="text-spec uppercase tracking-[0.12em]">
+              <p className="text-spec uppercase tracking-eyebrow">
                 Suggested
               </p>
               <p className="mt-1 text-value font-bold text-[var(--ink-black)]">
@@ -606,7 +606,7 @@ export default function ApparelBuilder({
                       {sizeName}
                     </p>
 
-                    <p className="mt-1 text-spec font-bold uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+                    <p className="mt-1 text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
                       {isAvailable ? "Available" : "Out of stock"}
                     </p>
                   </div>
@@ -650,7 +650,7 @@ export default function ApparelBuilder({
         </div>
 
         <div className="mt-4 bg-white p-4">
-          <p className="text-spec font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+          <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
             Current Breakdown
           </p>
 
@@ -681,7 +681,7 @@ export default function ApparelBuilder({
             <button
               type="button"
               onClick={onResetSizeBreakdown}
-              className="mt-3 bg-[var(--shirt-blank)] px-4 py-2 text-spec font-bold uppercase tracking-[0.12em] text-[var(--ink-muted)] transition hover:bg-[var(--shirt-blank)]"
+              className="mt-3 bg-[var(--shirt-blank)] px-4 py-2 text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)] transition hover:bg-[var(--shirt-blank)]"
             >
               Reset Sizes
             </button>

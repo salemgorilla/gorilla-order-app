@@ -2749,7 +2749,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       {order.items.map((item, index) => (
         <div key={item.id}>
           {order.items.length > 1 && (
-            <p className="spec mb-2 text-spec uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+            <p className="spec mb-2 text-spec uppercase tracking-eyebrow text-[var(--ink-muted)]">
               Design {String(index + 1).padStart(2, "0")} /{" "}
               {String(order.items.length).padStart(2, "0")}
             </p>
@@ -3068,7 +3068,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                           one that returns a number and takes the money, and
                           the SELECTED chip carries selection on its own. */}
                       <p
-                        className={`mt-4 text-spec font-bold uppercase tracking-[0.16em] ${
+                        className={`mt-4 text-spec font-bold uppercase tracking-eyebrow ${
                           takesPayment
                             ? "text-[var(--gorilla-green)]"
                             : "text-[var(--ink-muted)]"
@@ -3088,7 +3088,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 products — banners and signs are separate pipelines — and one
                 label heads the segment, not each card. */}
             <div className="mt-8 flex items-center gap-4">
-              <p className="spec text-spec font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+              <p className="spec text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
                 Large format
               </p>
               <span
@@ -3125,7 +3125,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                         </p>
 
                         <div className="flex items-center gap-3">
-                          <p className="text-spec font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+                          <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
                             {product.fulfilment}
                           </p>
 
@@ -3802,7 +3802,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     </span>
                     {/* Named, because an unsourced quote is marketing and a
                         sourced one is evidence. */}
-                    <span className="spec mt-1 block text-spec uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+                    <span className="spec mt-1 block text-spec uppercase tracking-eyebrow text-[var(--ink-muted)]">
                       via {review.source}
                     </span>
                   </figcaption>

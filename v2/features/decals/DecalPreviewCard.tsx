@@ -103,7 +103,7 @@ export default function DecalPreviewCard({
       />
 
       <div className="mt-4 bg-[var(--shirt-blank)] p-4">
-        <p className="text-spec font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+        <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
           Adjust Art Placement
         </p>
 

@@ -138,7 +138,7 @@ function Placeholder({ rounded }: { rounded: string }) {
     >
       <div>
         <p className="text-5xl font-bold tracking-[-0.08em]">GS</p>
-        <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.2em]">
+        <p className="mt-2 text-[10px] font-bold uppercase tracking-eyebrow">
           Upload Art
         </p>
       </div>

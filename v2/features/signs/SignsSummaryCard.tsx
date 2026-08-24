@@ -74,7 +74,7 @@ export default function SignsSummaryCard({
                   : "border-t border-[var(--rule-faint)] pt-5"
               }
             >
-              <p className="spec text-spec uppercase tracking-[0.14em] text-[var(--ink-black)]">
+              <p className="spec text-spec uppercase tracking-eyebrow text-[var(--ink-black)]">
                 Design {String(index + 1).padStart(2, "0")}
               </p>
 
@@ -105,7 +105,7 @@ export default function SignsSummaryCard({
         }
       >
         {isCart && (
-          <p className="spec mb-3 text-spec uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+          <p className="spec mb-3 text-spec uppercase tracking-eyebrow text-[var(--ink-muted)]">
             Whole order
           </p>
         )}
@@ -123,7 +123,7 @@ export default function SignsSummaryCard({
       {pricing.priceable ? (
         <>
           <div className="mt-5 bg-[var(--surface-ok)] p-4">
-            <p className="text-spec font-bold uppercase tracking-[0.16em] text-[var(--gorilla-green)]">
+            <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--gorilla-green)]">
               Estimated Pricing
             </p>
 

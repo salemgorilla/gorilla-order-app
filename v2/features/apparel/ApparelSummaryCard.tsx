@@ -96,7 +96,7 @@ export default function ApparelSummaryCard({
       </div>
 
       <div className="mt-5 bg-[var(--shirt-blank)] p-4">
-        <p className="text-spec font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+        <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
           Size Breakdown
         </p>
         <p className="mt-2 text-fine font-bold text-[var(--ink-black)]">
@@ -123,7 +123,7 @@ export default function ApparelSummaryCard({
         </div>
       ) : (
       <div className="mt-5 bg-[var(--surface-ok)] p-4">
-        <p className="text-spec font-bold uppercase tracking-[0.16em] text-[var(--gorilla-green)]">
+        <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--gorilla-green)]">
           Estimated Apparel Pricing
         </p>
 

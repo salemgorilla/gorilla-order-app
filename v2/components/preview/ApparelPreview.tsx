@@ -188,7 +188,7 @@ export default function ApparelPreview({
                 alt={`Your artwork placed on the ${garmentColor} ${garmentType}`}
                 className="mx-auto max-h-80 w-full object-contain"
               />
-              <figcaption className="mt-3 border-t border-[var(--rule)] pt-2 text-spec font-bold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+              <figcaption className="mt-3 border-t border-[var(--rule)] pt-2 text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
                 {placement} placement — approximate. Gorilla Salem confirms
                 the real proof before printing.
               </figcaption>
@@ -218,7 +218,7 @@ export default function ApparelPreview({
                 </div>
               )}
 
-              <figcaption className="mt-3 border-t border-[var(--rule)] pt-2 text-spec font-bold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+              <figcaption className="mt-3 border-t border-[var(--rule)] pt-2 text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
                 The garment
               </figcaption>
             </figure>
@@ -243,7 +243,7 @@ export default function ApparelPreview({
                 </div>
               )}
 
-              <figcaption className="mt-3 border-t border-[var(--rule)] pt-2 text-spec font-bold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+              <figcaption className="mt-3 border-t border-[var(--rule)] pt-2 text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
                 Your artwork
               </figcaption>
             </figure>
@@ -252,7 +252,7 @@ export default function ApparelPreview({
 
           <div className="mt-4 grid grid-cols-3 gap-3 text-center">
             <div className="bg-white p-3">
-              <p className="text-spec font-bold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+              <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
                 Garment
               </p>
               <p className="mt-1 text-fine font-bold text-[var(--ink-black)]">
@@ -261,7 +261,7 @@ export default function ApparelPreview({
             </div>
 
             <div className="bg-white p-3">
-              <p className="text-spec font-bold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+              <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
                 Colour
               </p>
               <p className="mt-1 flex items-center justify-center gap-2 text-fine font-bold text-[var(--ink-black)]">
@@ -277,7 +277,7 @@ export default function ApparelPreview({
             </div>
 
             <div className="bg-white p-3">
-              <p className="text-spec font-bold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+              <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
                 Ink
               </p>
               <p className="mt-1 text-fine font-bold text-[var(--ink-black)]">
@@ -289,7 +289,7 @@ export default function ApparelPreview({
           {/* The locations are the thing the composite would have shown. Said
               as text, they are accurate; drawn on a photo, they were not. */}
           <div className="mt-3 bg-white p-3 text-center">
-            <p className="text-spec font-bold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+            <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
               Print Locations
             </p>
             <p className="mt-1 text-fine font-bold text-[var(--ink-black)]">

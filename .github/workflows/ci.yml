@@ -1,0 +1,69 @@
+# The gate this repo has been running by hand.
+#
+# Every merge to date was verified because a session remembered to run the
+# suite — AGENTS.md's "npm test and npx tsc --noEmit before opening the PR"
+# is a working rule, not an enforced one, and nothing stops a future session
+# (or a direct edit) from merging red. Vercel builds on deploy, which is
+# AFTER merge, and runs no tests at all.
+#
+# What runs is exactly what AGENTS.md asks for, in the order a failure is
+# cheapest to read: the 1,100+ node:test suite, the TypeScript check, lint
+# (errors fail the job; the handful of deliberate <img> warnings do not),
+# and the production build — so a Next-level breakage is caught here rather
+# than on the deploy that follows the merge.
+#
+# What CI can NEVER replace, in this repo's own words: "any change touching
+# pricing or checkout ends with one real order reconciled against the
+# Printavo invoice, to the cent. Never with a passing test."
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        # The app lives in v2/; the repo root is the dead v1 site.
+        working-directory: v2
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: v2/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Tests
+        run: npm test
+
+      - name: Types
+        run: npx tsc --noEmit
+
+      - name: Lint
+        # Default behaviour is the right gate: exit 1 on any error, exit 0
+        # on warnings — the deliberate <img> warnings stay visible without
+        # blocking, and a real error blocks.
+        run: npx eslint .
+
+      - name: Build
+        # No secrets on purpose. The app treats every credential as optional
+        # at build time (features report themselves unconfigured at runtime
+        # instead), so the build must pass with none — and a change that
+        # makes a credential REQUIRED to build would break Vercel previews
+        # the same way. This step failing on a missing env var is a real
+        # finding, not a CI problem.
+        run: npm run build

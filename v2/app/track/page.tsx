@@ -93,7 +93,7 @@ function TrackForm() {
 
       <div className="mx-auto max-w-2xl px-4 py-10 sm:px-8 sm:py-16">
         <p className="eyebrow">Order tracker</p>
-        <h1 className="mt-2 text-display font-bold tracking-[-0.06em] text-[var(--ink-black)]">
+        <h1 className="mt-2 text-hero font-bold tracking-display text-[var(--ink-black)]">
           Where&rsquo;s my order?
         </h1>
         <p className="mt-3 text-lede text-[var(--ink-muted)]">

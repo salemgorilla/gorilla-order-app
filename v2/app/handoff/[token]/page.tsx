@@ -78,7 +78,7 @@ export default function HandoffPage({
         <div className="grid h-16 w-16 place-items-center bg-[var(--gorilla-green)] text-display text-[var(--paper)]">
           ✓
         </div>
-        <h1 className="mt-6 text-display font-bold tracking-[-0.04em] text-[var(--ink-black)]">
+        <h1 className="mt-6 text-hero font-bold tracking-display text-[var(--ink-black)]">
           Sent
         </h1>
         <p className="mt-2 text-lede text-[var(--ink-muted)]">
@@ -103,7 +103,7 @@ export default function HandoffPage({
   return (
     <Shell>
       <p className="eyebrow">Gorilla Salem</p>
-      <h1 className="mt-2 text-display font-bold tracking-[-0.04em] text-[var(--ink-black)]">
+      <h1 className="mt-2 text-hero font-bold tracking-display text-[var(--ink-black)]">
         Send us your artwork
       </h1>
       <p className="mt-3 text-lede text-[var(--ink-muted)]">

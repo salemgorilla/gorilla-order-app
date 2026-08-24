@@ -2895,11 +2895,11 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
           {/* Same rule as .eyebrow above it in the cascade: this is a hand-
               rolled eyebrow and was the one bit of alarm ink on an otherwise
               monochrome hero. A location is not a warning. */}
-          <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--ink-muted)]">
+          <p className="eyebrow">
             Printed Locally in Salem, MA
           </p>
 
-          <h1 className="mt-3 max-w-4xl text-display font-bold tracking-display text-[var(--ink-black)] sm:text-display lg:text-display">
+          <h1 className="mt-3 max-w-4xl text-hero font-bold tracking-display text-[var(--ink-black)]">
             Custom print quotes made simple.
           </h1>
 

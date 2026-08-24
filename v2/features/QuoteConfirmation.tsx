@@ -123,7 +123,7 @@ export default function QuoteConfirmationScreen({
               {canPayNow ? "Ready to pay" : "Quote Received"}
             </p>
 
-            <h1 className="mt-3 text-display font-bold tracking-[-0.06em] text-[var(--ink-black)] sm:text-display">
+            <h1 className="mt-3 text-hero font-bold tracking-display text-[var(--ink-black)]">
               {canPayNow
                 ? "Your quote is priced and ready."
                 : "Your request was sent to Gorilla Salem."}
@@ -167,7 +167,7 @@ export default function QuoteConfirmationScreen({
               Quote Number
             </p>
 
-            <p className="mt-2 text-head font-bold tracking-display text-[var(--gorilla-green)] sm:text-display">
+            <p className="mt-2 text-section font-bold tracking-display text-[var(--gorilla-green)]">
               {quoteConfirmation?.quoteNumber || "Pending"}
             </p>
 

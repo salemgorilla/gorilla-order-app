@@ -96,7 +96,11 @@ printing it anywhere.
 ## Working rules
 
 - Branch off `main`, PR back to `main`.
-- `npm test` and `npx tsc --noEmit` before opening the PR.
+- `npm test` and `npx tsc --noEmit` before opening the PR. Since 23 Aug,
+  CI enforces both plus lint and the production build on every PR and push
+  to `main` (`.github/workflows/ci.yml`) — a backstop for the session that
+  forgets, not a substitute for running them yourself, and never a
+  substitute for the Printavo reconciliation above.
 - `npm run build` fails in restricted sandboxes on the Google Fonts fetch —
   that's egress, not your code. Say which you actually ran.
 - Don't leave finished work sitting on a branch. Merging is part of the task.

@@ -121,7 +121,7 @@ export default function KioskPickupCard({
               <p className="mt-5 text-fine text-[var(--ink-muted)]">
                 Check progress at
               </p>
-              <p className="spec mt-1 break-all text-sm font-bold text-[var(--ink-black)]">
+              <p className="spec mt-1 break-all text-fine font-bold text-[var(--ink-black)]">
                 {trackUrl}
               </p>
             </>

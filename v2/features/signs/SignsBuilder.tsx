@@ -66,7 +66,7 @@ export default function SignsBuilder({
           <p className="eyebrow">
             Sign Type
           </p>
-          <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+          <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
             Pick what you need and we&apos;ll price it as you build.
           </p>
         </div>
@@ -94,7 +94,7 @@ export default function SignsBuilder({
                     </span>
                   )}
                 </div>
-                <p className="mt-1 text-sm font-bold leading-5 text-[var(--ink-muted)]">
+                <p className="mt-1 text-fine font-bold leading-5 text-[var(--ink-muted)]">
                   {item.blurb}
                 </p>
               </button>
@@ -111,7 +111,7 @@ export default function SignsBuilder({
           yard sign into hand-pricing. */}
       <div className="border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
         <h3 className="text-lede font-bold">Size and quantity</h3>
-        <p className="mt-1 text-sm text-[var(--ink-muted)]">
+        <p className="mt-1 text-fine text-[var(--ink-muted)]">
           {isYardSign
             ? 'Yard signs are made at 18" x 24". Tell us how many.'
             : "Any size. Enter the exact width and height you need."}
@@ -218,7 +218,7 @@ export default function SignsBuilder({
             <p className="eyebrow">
               Banner Add-Ons
             </p>
-            <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+            <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
               Hems and grommets are already included. These are extras.
             </p>
           </div>
@@ -254,14 +254,14 @@ export default function SignsBuilder({
                     className="mt-1 h-5 w-5 shrink-0 accent-[var(--gorilla-green)]"
                   />
                   <span>
-                    <span className="block text-sm font-bold text-[var(--ink-black)]">
+                    <span className="block text-fine font-bold text-[var(--ink-black)]">
                       {addOn.label}
                     </span>
-                    <span className="mt-1 block text-sm font-bold leading-5 text-[var(--ink-muted)]">
+                    <span className="mt-1 block text-fine font-bold leading-5 text-[var(--ink-muted)]">
                       {addOn.detail}
                     </span>
                     {checked && conflicts && (
-                      <span className="mt-2 block text-xs font-bold leading-5 text-[var(--ink-warn)]">
+                      <span className="mt-2 block text-spec font-bold leading-5 text-[var(--ink-warn)]">
                         Pole pockets and grommets can&apos;t share an edge — we&apos;ll
                         confirm the layout with you.
                       </span>
@@ -286,10 +286,10 @@ export default function SignsBuilder({
               className="mt-1 h-5 w-5 shrink-0 accent-[var(--gorilla-green)]"
             />
             <span>
-              <span className="block text-sm font-bold text-[var(--ink-black)]">
+              <span className="block text-fine font-bold text-[var(--ink-black)]">
                 Print both sides
               </span>
-              <span className="mt-1 block text-sm font-bold leading-5 text-[var(--ink-muted)]">
+              <span className="mt-1 block text-fine font-bold leading-5 text-[var(--ink-muted)]">
                 {product.pricingMethod === "yard"
                   ? "Double-sided pricing is built into the quantity price."
                   : getDoubleSidedMethod(product, design.material) === "sewn"

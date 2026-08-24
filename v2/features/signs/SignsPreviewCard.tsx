@@ -33,7 +33,7 @@ export default function SignsPreviewCard({
           </h3>
         </div>
 
-        <div className=" bg-[var(--gorilla-green)] px-4 py-2 text-sm font-bold text-white">
+        <div className=" bg-[var(--gorilla-green)] px-4 py-2 text-fine font-bold text-white">
           {getSignSizeLabel(design)}
         </div>
       </div>
@@ -43,7 +43,7 @@ export default function SignsPreviewCard({
           <p className="eyebrow">
             {product.label} Proof
           </p>
-          <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+          <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
             Preview only — final proof reviewed by Gorilla Salem
           </p>
 
@@ -86,7 +86,7 @@ export default function SignsPreviewCard({
                 <p className="text-spec font-bold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
                   {label}
                 </p>
-                <p className="mt-1 text-sm font-bold text-[var(--ink-black)]">{value}</p>
+                <p className="mt-1 text-fine font-bold text-[var(--ink-black)]">{value}</p>
               </div>
             ))}
           </div>

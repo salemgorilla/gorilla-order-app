@@ -78,7 +78,7 @@ export default function SignsSummaryCard({
                 Design {String(index + 1).padStart(2, "0")}
               </p>
 
-              <div className="mt-3 space-y-3 text-sm font-bold text-[var(--ink-muted)]">
+              <div className="mt-3 space-y-3 text-fine font-bold text-[var(--ink-muted)]">
                 {designRows(design).map(([label, value]) => (
                   <div key={label} className="flex justify-between gap-4">
                     <span>{label}</span>
@@ -110,7 +110,7 @@ export default function SignsSummaryCard({
           </p>
         )}
 
-        <div className="space-y-3 text-sm font-bold text-[var(--ink-muted)]">
+        <div className="space-y-3 text-fine font-bold text-[var(--ink-muted)]">
           {rows.map(([label, value]) => (
             <div key={label} className="flex justify-between gap-4">
               <span>{label}</span>
@@ -123,11 +123,11 @@ export default function SignsSummaryCard({
       {pricing.priceable ? (
         <>
           <div className="mt-5 bg-[var(--surface-ok)] p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--gorilla-green)]">
+            <p className="text-spec font-bold uppercase tracking-[0.16em] text-[var(--gorilla-green)]">
               Estimated Pricing
             </p>
 
-            <div className="mt-4 space-y-2 text-sm font-bold text-[var(--ink-muted)]">
+            <div className="mt-4 space-y-2 text-fine font-bold text-[var(--ink-muted)]">
               {pricing.lines
                 .filter((l) => l.amount !== 0)
                 .map((l) => (
@@ -216,7 +216,7 @@ export default function SignsSummaryCard({
               {pricing.suggestions?.map((s) => (
                 <p
                   key={s}
-                  className="text-sm font-bold leading-6 text-[var(--ink-black)]"
+                  className="text-fine font-bold leading-6 text-[var(--ink-black)]"
                 >
                   {s}
                 </p>
@@ -225,7 +225,7 @@ export default function SignsSummaryCard({
           )}
 
           <div className="mt-5 bg-[var(--surface-warn)] p-4">
-            <p className="text-sm font-bold leading-6 text-[var(--ink-muted)]">
+            <p className="text-fine font-bold leading-6 text-[var(--ink-muted)]">
               {pricing.hasQuotedExtras
                 ? "Some finishing you picked is quoted by hand, so this total is a starting point. "
                 : ""}
@@ -236,10 +236,10 @@ export default function SignsSummaryCard({
         </>
       ) : (
         <div className="mt-5 bg-[var(--surface-warn)] p-4">
-          <p className="text-sm font-bold text-[var(--ink-black)]">
+          <p className="text-fine font-bold text-[var(--ink-black)]">
             Priced by hand
           </p>
-          <p className="mt-2 text-sm font-bold leading-6 text-[var(--ink-muted)]">
+          <p className="mt-2 text-fine font-bold leading-6 text-[var(--ink-muted)]">
             {pricing.reason ||
               "Gorilla Salem will price this and reply with your quote."}
           </p>

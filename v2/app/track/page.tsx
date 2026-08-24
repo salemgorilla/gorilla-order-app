@@ -106,7 +106,7 @@ function TrackForm() {
         >
           <label
             htmlFor="track-number"
-            className="block text-sm font-bold text-[var(--ink-black)]"
+            className="block text-fine font-bold text-[var(--ink-black)]"
           >
             Order number
           </label>
@@ -124,7 +124,7 @@ function TrackForm() {
 
           <label
             htmlFor="track-email"
-            className="mt-4 block text-sm font-bold text-[var(--ink-black)]"
+            className="mt-4 block text-fine font-bold text-[var(--ink-black)]"
           >
             Email on the order
           </label>
@@ -141,7 +141,7 @@ function TrackForm() {
           <button
             type="submit"
             disabled={busy}
-            className="mt-5 min-h-[44px] w-full cursor-pointer border-2 border-[var(--gorilla-green)] bg-[var(--gorilla-green)] px-6 py-3 text-base font-bold text-[var(--paper)] transition-colors duration-[120ms] ease-linear hover:bg-[var(--gorilla-green-dark)] active:translate-x-[2px] active:translate-y-[2px] disabled:opacity-60"
+            className="mt-5 min-h-[44px] w-full cursor-pointer border-2 border-[var(--gorilla-green)] bg-[var(--gorilla-green)] px-6 py-3 text-body font-bold text-[var(--paper)] transition-colors duration-[120ms] ease-linear hover:bg-[var(--gorilla-green-dark)] active:translate-x-[2px] active:translate-y-[2px] disabled:opacity-60"
           >
             {busy ? "Checking…" : "Check my order"}
           </button>
@@ -149,7 +149,7 @@ function TrackForm() {
           {error && (
             <p
               role="alert"
-              className="mt-4 bg-[var(--surface-warn)] p-3 text-sm font-bold leading-5 text-[var(--ink-warn)]"
+              className="mt-4 bg-[var(--surface-warn)] p-3 text-fine font-bold leading-5 text-[var(--ink-warn)]"
             >
               {error}
             </p>
@@ -158,7 +158,7 @@ function TrackForm() {
 
         {status && <StatusCard status={status} />}
 
-        <p className="mt-8 text-sm text-[var(--ink-muted)]">
+        <p className="mt-8 text-fine text-[var(--ink-muted)]">
           Can&rsquo;t find your number? It&rsquo;s at the top of your
           confirmation email. Reply to that email and we&rsquo;ll look it up.
         </p>
@@ -188,7 +188,7 @@ function StatusCard({ status }: { status: Status }) {
       <h2 className="mt-2 text-lede font-bold text-[var(--ink-black)]">
         {status.label}
       </h2>
-      <p className="mt-2 text-sm leading-6 text-[var(--ink-muted)]">
+      <p className="mt-2 text-fine leading-6 text-[var(--ink-muted)]">
         {status.detail}
       </p>
 
@@ -228,7 +228,7 @@ function StatusCard({ status }: { status: Status }) {
       )}
 
       {status.complete && (
-        <p className="mt-6 border-t border-[var(--rule)] pt-4 text-sm font-bold text-[var(--gorilla-green-dark)]">
+        <p className="mt-6 border-t border-[var(--rule)] pt-4 text-fine font-bold text-[var(--gorilla-green-dark)]">
           This order is finished. Need the same again? Start a new quote and
           mention the order number — we keep your artwork on file.
         </p>

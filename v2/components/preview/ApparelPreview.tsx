@@ -156,7 +156,7 @@ export default function ApparelPreview({
           </h3>
         </div>
 
-        <div className="shrink-0 bg-[var(--gorilla-green)] px-4 py-2 text-sm font-bold text-white">
+        <div className="shrink-0 bg-[var(--gorilla-green)] px-4 py-2 text-fine font-bold text-white">
           {garmentType}
         </div>
       </div>
@@ -170,7 +170,7 @@ export default function ApparelPreview({
               {/* Says exactly what this is. The previous caption implied a
                   placed proof while showing artwork at coordinates that did
                   not correspond to the photograph. */}
-              <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+              <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
                 Preview only — shown side by side, not to final size or
                 position. Gorilla Salem reviews the real proof before printing.
               </p>
@@ -255,7 +255,7 @@ export default function ApparelPreview({
               <p className="text-spec font-bold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
                 Garment
               </p>
-              <p className="mt-1 text-sm font-bold text-[var(--ink-black)]">
+              <p className="mt-1 text-fine font-bold text-[var(--ink-black)]">
                 {garmentType}
               </p>
             </div>
@@ -264,7 +264,7 @@ export default function ApparelPreview({
               <p className="text-spec font-bold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
                 Colour
               </p>
-              <p className="mt-1 flex items-center justify-center gap-2 text-sm font-bold text-[var(--ink-black)]">
+              <p className="mt-1 flex items-center justify-center gap-2 text-fine font-bold text-[var(--ink-black)]">
                 {/* Hairline framed, or a white blank vanishes into the cell.
                     The name carries the meaning; the swatch confirms it. */}
                 <span
@@ -280,7 +280,7 @@ export default function ApparelPreview({
               <p className="text-spec font-bold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
                 Ink
               </p>
-              <p className="mt-1 text-sm font-bold text-[var(--ink-black)]">
+              <p className="mt-1 text-fine font-bold text-[var(--ink-black)]">
                 {inkColors}
               </p>
             </div>
@@ -292,7 +292,7 @@ export default function ApparelPreview({
             <p className="text-spec font-bold uppercase tracking-[0.14em] text-[var(--ink-muted)]">
               Print Locations
             </p>
-            <p className="mt-1 text-sm font-bold text-[var(--ink-black)]">
+            <p className="mt-1 text-fine font-bold text-[var(--ink-black)]">
               {printLocations.length > 0
                 ? printLocations.join(" • ")
                 : "None selected"}

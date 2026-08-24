@@ -24,7 +24,7 @@ export default function SignsDelivery({
         <p className="eyebrow">
           Delivery
         </p>
-        <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+        <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
           Pick it up free in Salem, or we can ship it to you.
         </p>
       </div>
@@ -67,7 +67,7 @@ export default function SignsDelivery({
               <div className="flex items-center justify-between gap-3">
                 <p className="font-bold text-[var(--ink-black)]">{option.label}</p>
                 <span
-                  className={` px-3 py-1 text-xs font-bold ${
+                  className={` px-3 py-1 text-spec font-bold ${
                     isSelected
                       ? "bg-[var(--gorilla-green)] text-white"
                       : "bg-white text-[var(--gorilla-green)]"
@@ -76,7 +76,7 @@ export default function SignsDelivery({
                   {option.price}
                 </span>
               </div>
-              <p className="mt-2 text-sm font-bold text-[var(--ink-muted)]">
+              <p className="mt-2 text-fine font-bold text-[var(--ink-muted)]">
                 {option.detail}
               </p>
             </button>

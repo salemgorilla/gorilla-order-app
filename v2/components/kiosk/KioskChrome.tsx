@@ -45,7 +45,7 @@ export default function KioskChrome({
           <p className="spec text-fine uppercase tracking-[0.14em] opacity-70">
             Gorilla Salem — order desk
           </p>
-          <p className="text-sm font-bold">
+          <p className="text-fine font-bold">
             {staff ? (
               <>Writing up an order{staffName ? ` — ${staffName}` : ""}</>
             ) : (
@@ -59,7 +59,7 @@ export default function KioskChrome({
         <button
           type="button"
           onClick={onStartNew}
-          className="min-h-[56px] cursor-pointer border-2 border-[var(--gorilla-green)] bg-[var(--gorilla-green)] px-6 text-base font-bold text-[var(--paper)] transition-colors duration-[120ms] ease-linear hover:bg-[var(--gorilla-green-dark)] active:translate-x-[2px] active:translate-y-[2px]"
+          className="min-h-[56px] cursor-pointer border-2 border-[var(--gorilla-green)] bg-[var(--gorilla-green)] px-6 text-body font-bold text-[var(--paper)] transition-colors duration-[120ms] ease-linear hover:bg-[var(--gorilla-green-dark)] active:translate-x-[2px] active:translate-y-[2px]"
         >
           Start a new quote
         </button>
@@ -68,7 +68,7 @@ export default function KioskChrome({
           <button
             type="button"
             onClick={onSignOutStaff}
-            className="min-h-[56px] cursor-pointer border border-current px-5 text-sm font-bold transition-colors duration-[120ms] ease-linear hover:bg-[var(--paper)] hover:text-[var(--ink-black)]"
+            className="min-h-[56px] cursor-pointer border border-current px-5 text-fine font-bold transition-colors duration-[120ms] ease-linear hover:bg-[var(--paper)] hover:text-[var(--ink-black)]"
           >
             Hand back to customers
           </button>
@@ -76,7 +76,7 @@ export default function KioskChrome({
           <button
             type="button"
             onClick={onOpenStaffGate}
-            className="min-h-[56px] cursor-pointer border border-[var(--rule)] px-5 text-sm font-bold transition-colors duration-[120ms] ease-linear hover:border-[var(--ink-black)]"
+            className="min-h-[56px] cursor-pointer border border-[var(--rule)] px-5 text-fine font-bold transition-colors duration-[120ms] ease-linear hover:border-[var(--ink-black)]"
           >
             Staff
           </button>

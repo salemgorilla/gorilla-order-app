@@ -45,7 +45,7 @@ export default function ApparelRequestBuilder({
       <div className="border border-[var(--rule)] bg-[var(--shirt-blank)] p-6">
         <h3 className="text-lede font-bold">What are we printing on?</h3>
 
-        <p className="mt-2 text-sm text-[var(--ink-muted)]">
+        <p className="mt-2 text-fine text-[var(--ink-muted)]">
           Pick the closest. You can describe anything else further down.
         </p>
 
@@ -64,7 +64,7 @@ export default function ApparelRequestBuilder({
       <div className="border border-[var(--rule)] bg-[var(--shirt-blank)] p-6">
         <h3 className="text-lede font-bold">Roughly how many?</h3>
 
-        <p className="mt-2 text-sm text-[var(--ink-muted)]">
+        <p className="mt-2 text-fine text-[var(--ink-muted)]">
           An estimate is fine — screen printing gets cheaper per piece the more
           you order, so the count changes the price more than anything else.
         </p>
@@ -98,7 +98,7 @@ export default function ApparelRequestBuilder({
           </span>
         </label>
 
-        <p className="mt-2 text-sm text-[var(--ink-muted)]">
+        <p className="mt-2 text-fine text-[var(--ink-muted)]">
           Colours, where the print goes, sizes, deadline — whatever you know.
           If you are not sure, say that instead and we will work it out.
         </p>

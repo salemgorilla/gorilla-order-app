@@ -53,12 +53,12 @@ export default function QuoteReviewCard({
           </p>
         </div>
 
-        <span className=" bg-[var(--shirt-blank)] px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--gorilla-green)]">
+        <span className=" bg-[var(--shirt-blank)] px-4 py-2 text-spec font-bold uppercase tracking-[0.12em] text-[var(--gorilla-green)]">
           {isApparelSelected ? "Apparel" : isSignsSelected ? "Signs" : "Stickers"}
         </span>
       </div>
 
-      <div className="mt-5 space-y-3 text-sm font-bold text-[var(--ink-muted)]">
+      <div className="mt-5 space-y-3 text-fine font-bold text-[var(--ink-muted)]">
         {isSignsSelected ? (
           <>
             {signsQuote.designs.map((design, index) => (
@@ -292,11 +292,11 @@ export default function QuoteReviewCard({
       </div>
 
       {isReady ? (
-        <p className="mt-5 bg-[var(--surface-ok)] p-4 text-sm font-bold text-[var(--gorilla-green)]">
+        <p className="mt-5 bg-[var(--surface-ok)] p-4 text-fine font-bold text-[var(--gorilla-green)]">
           Everything required is complete. This quote is ready to submit.
         </p>
       ) : (
-        <p className="mt-5 bg-[var(--surface-warn)] p-4 text-sm font-bold leading-6 text-[var(--ink-muted)]">
+        <p className="mt-5 bg-[var(--surface-warn)] p-4 text-fine font-bold leading-6 text-[var(--ink-muted)]">
           Complete the required info below before submitting.
         </p>
       )}

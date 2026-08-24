@@ -24,7 +24,7 @@ export default function ApparelSummaryCard({
         Apparel Summary
       </p>
 
-      <div className="mt-5 space-y-3 text-sm font-bold text-[var(--ink-muted)]">
+      <div className="mt-5 space-y-3 text-fine font-bold text-[var(--ink-muted)]">
         <div className="flex justify-between gap-4">
           <span>Product</span>
           <span className="text-right text-[var(--ink-black)]">{apparelQuote.garmentType}</span>
@@ -96,10 +96,10 @@ export default function ApparelSummaryCard({
       </div>
 
       <div className="mt-5 bg-[var(--shirt-blank)] p-4">
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+        <p className="text-spec font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
           Size Breakdown
         </p>
-        <p className="mt-2 text-sm font-bold text-[var(--ink-black)]">
+        <p className="mt-2 text-fine font-bold text-[var(--ink-black)]">
           {apparelQuote.sizeBreakdown || "Not entered yet"}
         </p>
       </div>
@@ -113,21 +113,21 @@ export default function ApparelSummaryCard({
           did not. */}
       {apparelQuote.specialOrder ? (
         <div className="mt-5 bg-[var(--surface-warn)] p-4">
-          <p className="text-sm font-bold text-[var(--ink-black)]">
+          <p className="text-fine font-bold text-[var(--ink-black)]">
             Priced by hand
           </p>
-          <p className="mt-2 text-sm font-bold leading-6 text-[var(--ink-muted)]">
+          <p className="mt-2 text-fine font-bold leading-6 text-[var(--ink-muted)]">
             Special orders are quoted by Gorilla Salem — we reply with your
             price before anything is agreed.
           </p>
         </div>
       ) : (
       <div className="mt-5 bg-[var(--surface-ok)] p-4">
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--gorilla-green)]">
+        <p className="text-spec font-bold uppercase tracking-[0.16em] text-[var(--gorilla-green)]">
           Estimated Apparel Pricing
         </p>
 
-        <div className="mt-4 space-y-2 text-sm font-bold text-[var(--ink-muted)]">
+        <div className="mt-4 space-y-2 text-fine font-bold text-[var(--ink-muted)]">
           <div className="flex justify-between gap-4">
             <span>Garments</span>
             <span className="text-right text-[var(--ink-black)]">
@@ -169,7 +169,7 @@ export default function ApparelSummaryCard({
       )}
 
       <div className="mt-5 bg-[var(--surface-warn)] p-4">
-        <p className="text-sm font-bold leading-6 text-[var(--ink-muted)]">
+        <p className="text-fine font-bold leading-6 text-[var(--ink-muted)]">
           Apparel pricing is an estimate. Gorilla Salem will review
           garment availability, artwork, print method, and timeline
           before confirming the final price.

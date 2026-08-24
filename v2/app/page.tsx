@@ -2952,7 +2952,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             ].map((claim) => (
               <span
                 key={claim}
-                className="border border-[var(--rule)] bg-white px-4 py-2 text-sm font-semibold text-[var(--ink-muted)]"
+                className="border border-[var(--rule)] bg-white px-4 py-2 text-fine font-semibold text-[var(--ink-muted)]"
               >
                 {claim}
               </span>
@@ -3037,7 +3037,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                       }`}
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <p className="text-lg font-bold text-[var(--ink-black)]">
+                        <p className="text-value font-bold text-[var(--ink-black)]">
                           {product.title}
                         </p>
 
@@ -3053,7 +3053,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                         )}
                       </div>
 
-                      <p className="mt-3 text-sm font-bold leading-6 text-[var(--ink-muted)]">
+                      <p className="mt-3 text-fine font-bold leading-6 text-[var(--ink-muted)]">
                         {product.description}
                       </p>
 
@@ -3068,7 +3068,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                           one that returns a number and takes the money, and
                           the SELECTED chip carries selection on its own. */}
                       <p
-                        className={`mt-4 text-xs font-bold uppercase tracking-[0.16em] ${
+                        className={`mt-4 text-spec font-bold uppercase tracking-[0.16em] ${
                           takesPayment
                             ? "text-[var(--gorilla-green)]"
                             : "text-[var(--ink-muted)]"
@@ -3120,12 +3120,12 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                       }`}
                     >
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-                        <p className="text-lg font-bold text-[var(--ink-black)]">
+                        <p className="text-value font-bold text-[var(--ink-black)]">
                           {product.title}
                         </p>
 
                         <div className="flex items-center gap-3">
-                          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+                          <p className="text-spec font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
                             {product.fulfilment}
                           </p>
 
@@ -3137,7 +3137,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                         </div>
                       </div>
 
-                      <p className="max-w-2xl text-sm font-bold leading-6 text-[var(--ink-muted)]">
+                      <p className="max-w-2xl text-fine font-bold leading-6 text-[var(--ink-muted)]">
                         {product.description}
                       </p>
 
@@ -3605,7 +3605,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
           <aside className="space-y-6 lg:col-span-5">
             {previewCard}
 
-            <div className=" border border-[var(--rule)] bg-white p-5 text-sm font-bold leading-6 text-[var(--ink-muted)] sm:p-6">
+            <div className=" border border-[var(--rule)] bg-white p-5 text-fine font-bold leading-6 text-[var(--ink-muted)] sm:p-6">
               Not sure what to choose? Send the quote anyway. Gorilla Salem will
               review the artwork and help confirm the best setup before anything
               goes to print.
@@ -3669,13 +3669,13 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 </p>
 
                 {currentValidationErrors.length === 0 ? (
-                  <p className="mt-4 bg-[var(--surface-ok)] p-4 text-sm font-bold text-[var(--gorilla-green)]">
+                  <p className="mt-4 bg-[var(--surface-ok)] p-4 text-fine font-bold text-[var(--gorilla-green)]">
                     {isSignsSelected
                       ? "Signs quote is ready to submit."
                       : "Apparel quote is ready to submit."}
                   </p>
                 ) : (
-                  <ul className="mt-4 space-y-2 text-sm font-bold text-[var(--ink-muted)]">
+                  <ul className="mt-4 space-y-2 text-fine font-bold text-[var(--ink-muted)]">
                     {currentValidationErrors.map((error) => (
                       <li key={error}>• {error}</li>
                     ))}
@@ -3692,7 +3692,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   // Announced, not just seen — the field marks are up the page
                   // and a screen-reader user is standing at the button.
                   role="alert"
-                  className="mb-3 bg-[var(--surface-rush)] p-4 text-sm font-bold leading-6 text-[var(--rush-red)]"
+                  className="mb-3 bg-[var(--surface-rush)] p-4 text-fine font-bold leading-6 text-[var(--rush-red)]"
                 >
                   {submitError}
                 </p>
@@ -3816,7 +3816,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
           <p className="eyebrow">
             Gorilla Salem
           </p>
-          <p className="mt-2 text-lg font-bold text-[var(--ink-black)]">
+          <p className="mt-2 text-value font-bold text-[var(--ink-black)]">
             {/* Footer copy, shown on every step in every flow — including step
                 one, where nothing has been ordered, quoted or paid for. Says
                 "every job" rather than naming a transaction stage it cannot
@@ -3824,7 +3824,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 the work. */}
             Custom printing, local service, real people reviewing every job.
           </p>
-          <p className="mt-2 text-sm font-bold text-[var(--ink-muted)]">
+          <p className="mt-2 text-fine font-bold text-[var(--ink-muted)]">
             Salem, Massachusetts •{" "}
             <a
               className="underline decoration-1 underline-offset-2 transition-colors duration-[120ms] ease-linear hover:text-[var(--gorilla-green)]"

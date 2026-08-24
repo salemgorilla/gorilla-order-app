@@ -35,7 +35,7 @@ export default function BackgroundRemovalControl({
 }: Props) {
   return (
     <div className="mt-3 border border-[var(--rule)] border-l-4 border-l-[var(--ink-warn)] bg-[var(--surface-warn)] p-4">
-      <p className="text-sm font-bold leading-5 text-[var(--ink-warn)]">
+      <p className="text-fine font-bold leading-5 text-[var(--ink-warn)]">
         This file has a solid background, so a die cut would follow the edge of
         the image — a rectangle, not the shape of your design.
       </p>
@@ -49,10 +49,10 @@ export default function BackgroundRemovalControl({
           className="mt-1 h-5 w-5 shrink-0 accent-[var(--gorilla-green)]"
         />
         <span>
-          <span className="block text-sm font-bold text-[var(--ink-black)]">
+          <span className="block text-fine font-bold text-[var(--ink-black)]">
             Remove the background for me
           </span>
-          <span className="mt-1 block text-sm font-bold leading-5 text-[var(--ink-muted)]">
+          <span className="mt-1 block text-fine font-bold leading-5 text-[var(--ink-muted)]">
             We&rsquo;ll cut the background away so the sticker follows the shape
             of your design. Check the result below — Gorilla Salem reviews it
             and sends a proof before anything prints either way.
@@ -61,7 +61,7 @@ export default function BackgroundRemovalControl({
       </label>
 
       {busy && (
-        <p className="mt-3 text-sm font-bold text-[var(--ink-muted)]">
+        <p className="mt-3 text-fine font-bold text-[var(--ink-muted)]">
           Removing the background…
         </p>
       )}
@@ -70,7 +70,7 @@ export default function BackgroundRemovalControl({
           with nothing to do; "your background isn't one flat colour" tells
           them their photo was never going to work here. */}
       {error && (
-        <p className="mt-3 bg-[var(--paper)] p-3 text-sm font-bold leading-5 text-[var(--ink-warn)]">
+        <p className="mt-3 bg-[var(--paper)] p-3 text-fine font-bold leading-5 text-[var(--ink-warn)]">
           {error}
         </p>
       )}

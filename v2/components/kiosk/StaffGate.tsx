@@ -75,14 +75,14 @@ export default function StaffGate({ onCancel, onSignedIn }: Props) {
         >
           Write up an order for a customer
         </h2>
-        <p className="mt-1 text-sm text-[var(--ink-muted)]">
+        <p className="mt-1 text-fine text-[var(--ink-muted)]">
           The order records who took it, and nothing is charged automatically —
           you take payment at the counter as usual.
         </p>
 
         <label
           htmlFor="staff-name"
-          className="mt-5 block text-sm font-bold text-[var(--ink-black)]"
+          className="mt-5 block text-fine font-bold text-[var(--ink-black)]"
         >
           Your name
         </label>
@@ -97,7 +97,7 @@ export default function StaffGate({ onCancel, onSignedIn }: Props) {
 
         <label
           htmlFor="staff-pin"
-          className="mt-4 block text-sm font-bold text-[var(--ink-black)]"
+          className="mt-4 block text-fine font-bold text-[var(--ink-black)]"
         >
           Staff PIN
         </label>
@@ -116,7 +116,7 @@ export default function StaffGate({ onCancel, onSignedIn }: Props) {
         {error && (
           <p
             role="alert"
-            className="mt-3 bg-[var(--surface-warn)] p-3 text-sm font-bold text-[var(--ink-warn)]"
+            className="mt-3 bg-[var(--surface-warn)] p-3 text-fine font-bold text-[var(--ink-warn)]"
           >
             {error}
           </p>
@@ -126,14 +126,14 @@ export default function StaffGate({ onCancel, onSignedIn }: Props) {
           <button
             type="submit"
             disabled={busy}
-            className="min-h-[56px] flex-1 cursor-pointer border-2 border-[var(--gorilla-green)] bg-[var(--gorilla-green)] px-6 text-base font-bold text-[var(--paper)] transition-colors duration-[120ms] ease-linear hover:bg-[var(--gorilla-green-dark)] disabled:opacity-60"
+            className="min-h-[56px] flex-1 cursor-pointer border-2 border-[var(--gorilla-green)] bg-[var(--gorilla-green)] px-6 text-body font-bold text-[var(--paper)] transition-colors duration-[120ms] ease-linear hover:bg-[var(--gorilla-green-dark)] disabled:opacity-60"
           >
             {busy ? "Checking…" : "Start writing up"}
           </button>
           <button
             type="button"
             onClick={onCancel}
-            className="min-h-[56px] cursor-pointer border border-[var(--rule)] px-5 text-sm font-bold text-[var(--ink-black)] transition-colors duration-[120ms] ease-linear hover:border-[var(--ink-black)]"
+            className="min-h-[56px] cursor-pointer border border-[var(--rule)] px-5 text-fine font-bold text-[var(--ink-black)] transition-colors duration-[120ms] ease-linear hover:border-[var(--ink-black)]"
           >
             Cancel
           </button>

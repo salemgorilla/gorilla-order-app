@@ -89,7 +89,7 @@ export default function CustomerForm({
     <div className="border border-[var(--rule)] bg-[var(--shirt-blank)] p-6">
       <h3 className="text-lede font-bold">Customer Information</h3>
 
-      <p className="spec mt-1 text-xs text-[var(--ink-muted)]">
+      <p className="spec mt-1 text-spec text-[var(--ink-muted)]">
         REQUIRED FIELDS MARKED
       </p>
 
@@ -172,7 +172,7 @@ export default function CustomerForm({
             Multi-select because someone can be sent by a friend and still
             check the Google listing before calling. */}
         <fieldset className="sm:col-span-2">
-          <legend className="text-sm font-bold text-[var(--ink-black)]">
+          <legend className="text-fine font-bold text-[var(--ink-black)]">
             How did you hear about us?{" "}
             <span className="font-normal text-[var(--ink-muted)]">
               (optional — tick any that apply)
@@ -191,7 +191,7 @@ export default function CustomerForm({
                   key={option}
                   className={[
                     "flex min-h-[44px] cursor-pointer items-center gap-3",
-                    "border bg-[var(--paper)] px-4 py-2 text-sm font-bold",
+                    "border bg-[var(--paper)] px-4 py-2 text-fine font-bold",
                     "transition-colors duration-[120ms] ease-linear",
                     // Selected carries a heavier border as well as the tick,
                     // so the state survives greyscale.
@@ -239,7 +239,7 @@ export default function CustomerForm({
           />
 
           <span>
-            <span className="block text-sm font-bold text-[var(--ink-black)]">
+            <span className="block text-fine font-bold text-[var(--ink-black)]">
               Email me occasional Gorilla Salem news and offers
             </span>
             {/* Says what it actually is. "Untick to opt out" is stated
@@ -256,7 +256,7 @@ export default function CustomerForm({
         <div>
           <label
             htmlFor="customer-notes"
-            className="block text-sm font-bold text-[var(--ink-black)]"
+            className="block text-fine font-bold text-[var(--ink-black)]"
           >
             Special instructions{" "}
             <span className="font-normal text-[var(--ink-muted)]">
@@ -308,7 +308,7 @@ function Field({
     <div data-invalid={error ? "true" : undefined}>
       <label
         htmlFor={id}
-        className="block text-sm font-bold text-[var(--ink-black)]"
+        className="block text-fine font-bold text-[var(--ink-black)]"
       >
         {label}{" "}
         {required ? (

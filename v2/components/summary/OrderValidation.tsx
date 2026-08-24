@@ -22,7 +22,7 @@ export default function OrderValidation({ order }: Props) {
           Ready to submit
         </p>
 
-        <p className="mt-2 text-sm text-[var(--ink-black)]">
+        <p className="mt-2 text-fine text-[var(--ink-black)]">
           Everything required has been completed.
         </p>
       </div>
@@ -35,11 +35,11 @@ export default function OrderValidation({ order }: Props) {
         Missing information
       </p>
 
-      <p className="spec mt-1 text-xs text-[var(--ink-warn)]">
+      <p className="spec mt-1 text-spec text-[var(--ink-warn)]">
         {errors.length} item{errors.length === 1 ? "" : "s"} left
       </p>
 
-      <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-[var(--ink-black)]">
+      <ul className="mt-3 list-disc space-y-1 pl-5 text-fine text-[var(--ink-black)]">
         {errors.map((error) => (
           <li key={error}>{error}</li>
         ))}

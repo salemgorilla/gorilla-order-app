@@ -119,7 +119,7 @@ export default function QuoteConfirmationScreen({
               ✓
             </div>
 
-            <p className="mt-8 text-sm font-bold uppercase tracking-[0.2em] text-[var(--rush-red)]">
+            <p className="mt-8 text-fine font-bold uppercase tracking-[0.2em] text-[var(--rush-red)]">
               {canPayNow ? "Ready to pay" : "Quote Received"}
             </p>
 
@@ -129,7 +129,7 @@ export default function QuoteConfirmationScreen({
                 : "Your request was sent to Gorilla Salem."}
             </h1>
 
-            <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-[var(--ink-muted)]">
+            <p className="mx-auto mt-5 max-w-2xl text-lede leading-8 text-[var(--ink-muted)]">
               {canPayNow
                 ? "Sticker pricing is set, so there's nothing to wait for. Pay below and we'll send a proof before anything goes to print."
                 : "We received your quote request. Gorilla Salem will review your artwork, timeline, and details before production."}
@@ -163,7 +163,7 @@ export default function QuoteConfirmationScreen({
           )}
 
           <div className="mt-8 bg-[var(--shirt-blank)] p-6 text-center">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--ink-muted)]">
+            <p className="text-spec font-bold uppercase tracking-[0.2em] text-[var(--ink-muted)]">
               Quote Number
             </p>
 
@@ -171,7 +171,7 @@ export default function QuoteConfirmationScreen({
               {quoteConfirmation?.quoteNumber || "Pending"}
             </p>
 
-            <p className="mt-2 text-sm font-bold text-[var(--ink-muted)]">
+            <p className="mt-2 text-fine font-bold text-[var(--ink-muted)]">
               Submitted{" "}
               {quoteConfirmation?.receivedAt
                 ? new Date(quoteConfirmation.receivedAt).toLocaleString()
@@ -188,7 +188,7 @@ export default function QuoteConfirmationScreen({
                 Not shown at the kiosk: KioskPickupCard says all of this
                 already, in a form built to be read across a counter. */}
             {!kiosk.enabled && showTracker && (
-              <p className="mt-5 text-sm font-bold leading-6 text-[var(--ink-muted)]">
+              <p className="mt-5 text-fine font-bold leading-6 text-[var(--ink-muted)]">
                 <a
                   className="underline decoration-1 underline-offset-2 transition-colors duration-[120ms] ease-linear hover:text-[var(--gorilla-green)]"
                   href={getTrackUrl(quoteConfirmation?.quoteNumber)}
@@ -220,27 +220,27 @@ export default function QuoteConfirmationScreen({
 
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             <div className=" border border-[var(--rule)] p-5">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--rush-red)]">
+              <p className="text-spec font-bold uppercase tracking-[0.16em] text-[var(--rush-red)]">
                 Customer
               </p>
 
-              <p className="mt-2 text-lg font-bold text-[var(--ink-black)]">
+              <p className="mt-2 text-value font-bold text-[var(--ink-black)]">
                 {order.customer.customerName}
               </p>
 
-              <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+              <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
                 {order.customer.email}
               </p>
 
               {order.customer.company && (
-                <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+                <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
                   {order.customer.company}
                 </p>
               )}
             </div>
 
             <div className=" border border-[var(--rule)] p-5">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--rush-red)]">
+              <p className="text-spec font-bold uppercase tracking-[0.16em] text-[var(--rush-red)]">
                 {isApparelSubmitted
                   ? "Apparel Details"
                   : isSignsSubmitted
@@ -260,14 +260,14 @@ export default function QuoteConfirmationScreen({
                           Design {String(index + 1).padStart(2, "0")}
                         </p>
                       )}
-                      <p className="mt-2 text-lg font-bold text-[var(--ink-black)]">
+                      <p className="mt-2 text-value font-bold text-[var(--ink-black)]">
                         {design.quantity.toLocaleString()}{" "}
                         {getSignProduct(design.productId).label}
                       </p>
-                      <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+                      <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
                         {getSignSizeLabel(design)} • {design.material}
                       </p>
-                      <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+                      <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
                         {design.finishing} •{" "}
                         {design.doubleSided ? "Double-sided" : "Single-sided"}
                       </p>
@@ -276,27 +276,27 @@ export default function QuoteConfirmationScreen({
                 </div>
               ) : isApparelSubmitted ? (
                 <>
-                  <p className="mt-2 text-lg font-bold text-[var(--ink-black)]">
+                  <p className="mt-2 text-value font-bold text-[var(--ink-black)]">
                     {apparelQuote.quantity.toLocaleString()}{" "}
                     {selectedGarmentLabel}
                   </p>
-                  <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+                  <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
                     {selectedSsColor?.colorName || apparelQuote.garmentColor} •{" "}
                     {apparelQuote.inkColors}
                   </p>
-                  <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+                  <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
                     {apparelQuote.printLocations.join(", ")}
                   </p>
                 </>
               ) : (
                 <>
-                  <p className="mt-2 text-lg font-bold text-[var(--ink-black)]">
+                  <p className="mt-2 text-value font-bold text-[var(--ink-black)]">
                     {order.items[0].quantity.toLocaleString()} stickers
                   </p>
-                  <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+                  <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
                     {order.items[0].size} • {order.items[0].shape}
                   </p>
-                  <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+                  <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
                     {order.items[0].material}
                   </p>
                 </>
@@ -304,7 +304,7 @@ export default function QuoteConfirmationScreen({
             </div>
 
             <div className=" border border-[var(--rule)] p-5">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--rush-red)]">
+              <p className="text-spec font-bold uppercase tracking-[0.16em] text-[var(--rush-red)]">
                 Estimate
               </p>
 
@@ -315,11 +315,11 @@ export default function QuoteConfirmationScreen({
                       ${signsTotals.estimatedTotal.toFixed(2)}
                     </p>
                     {signsTotals.estimatedTax > 0 && (
-                      <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+                      <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
                         Includes estimated {SALES_TAX.label}
                       </p>
                     )}
-                    <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+                    <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
                       Estimate — confirmed before production
                     </p>
                   </>
@@ -328,7 +328,7 @@ export default function QuoteConfirmationScreen({
                     <p className="mt-2 text-head font-bold text-[var(--ink-black)]">
                       Quoted by hand
                     </p>
-                    <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+                    <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
                       Gorilla Salem will reply with your price
                     </p>
                   </>
@@ -349,7 +349,7 @@ export default function QuoteConfirmationScreen({
                     <p className="mt-2 text-head font-bold text-[var(--ink-black)]">
                       Quoted by hand
                     </p>
-                    <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+                    <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
                       Gorilla Salem will reply with your price
                     </p>
                   </>
@@ -358,10 +358,10 @@ export default function QuoteConfirmationScreen({
                     <p className="mt-2 text-head font-bold text-[var(--ink-black)]">
                       ${apparelPricing.total.toFixed(2)}
                     </p>
-                    <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+                    <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
                       ${apparelPricing.unitPrice.toFixed(2)} each estimated
                     </p>
-                    <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+                    <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
                       Final pricing reviewed by Gorilla Salem
                     </p>
                   </>
@@ -377,31 +377,31 @@ export default function QuoteConfirmationScreen({
                   <p className="mt-2 text-head font-bold text-[var(--ink-black)]">
                     ${stickerTotals.estimatedTotal.toFixed(2)}
                   </p>
-                  <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+                  <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
                     ${unitPrice.toFixed(2)} each
                   </p>
                   {stickerTotals.estimatedTax > 0 && (
-                    <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+                    <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
                       Includes estimated {SALES_TAX.label}
                     </p>
                   )}
                 </>
               )}
 
-              <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+              <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
                 Needed: {order.production.needBy || "Not entered"}
               </p>
             </div>
           </div>
 
           <div className="mt-6 bg-[var(--surface-warn)] p-5">
-            <p className="text-sm font-bold leading-6 text-[var(--ink-muted)]">
+            <p className="text-fine font-bold leading-6 text-[var(--ink-muted)]">
               This is an estimate, not a final invoice. Gorilla Salem will
               confirm pricing, timeline, and artwork readiness before
               production starts.
             </p>
 
-            <p className="mt-3 text-sm font-bold leading-6 text-[var(--ink-muted)]">
+            <p className="mt-3 text-fine font-bold leading-6 text-[var(--ink-muted)]">
               Use Copy Quote Details as a backup, or click Open Gmail Draft to
               open a pre-filled Gmail compose window addressed to Gorilla Salem.
             </p>
@@ -435,12 +435,12 @@ export default function QuoteConfirmationScreen({
           </div>
 
           {copyStatus === "copied" && (
-            <p className="mt-3 text-center text-sm font-bold text-[var(--gorilla-green)]">
+            <p className="mt-3 text-center text-fine font-bold text-[var(--gorilla-green)]">
               Quote details copied to your clipboard.
             </p>
           )}
           {copyStatus === "error" && (
-            <p className="mt-3 text-center text-sm font-bold text-[var(--rush-red)]">
+            <p className="mt-3 text-center text-fine font-bold text-[var(--rush-red)]">
               Couldn&apos;t copy automatically — use Open Gmail Draft instead.
             </p>
           )}

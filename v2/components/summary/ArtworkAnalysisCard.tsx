@@ -12,7 +12,7 @@ export default function ArtworkAnalysisCard({ analysis }: Props) {
           Artwork Check
         </p>
 
-        <p className="mt-4 text-sm font-bold leading-6 text-[var(--ink-muted)]">
+        <p className="mt-4 text-fine font-bold leading-6 text-[var(--ink-muted)]">
           Upload artwork to check file details, image size, and estimated color
           count.
         </p>
@@ -26,7 +26,7 @@ export default function ArtworkAnalysisCard({ analysis }: Props) {
         Artwork Check
       </p>
 
-      <div className="mt-5 space-y-3 text-sm font-bold text-[var(--ink-muted)]">
+      <div className="mt-5 space-y-3 text-fine font-bold text-[var(--ink-muted)]">
         <div className="flex justify-between gap-4">
           <span>File</span>
           <span className="text-right text-[var(--ink-black)]">{analysis.fileName}</span>
@@ -61,7 +61,7 @@ export default function ArtworkAnalysisCard({ analysis }: Props) {
 
       {analysis.palette.length > 0 && (
         <div className="mt-5">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+          <p className="text-spec font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
             Detected Palette
           </p>
 
@@ -80,11 +80,11 @@ export default function ArtworkAnalysisCard({ analysis }: Props) {
 
       {analysis.notes.length > 0 && (
         <div className="mt-5 bg-[var(--shirt-blank)] p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
+          <p className="text-spec font-bold uppercase tracking-[0.16em] text-[var(--ink-muted)]">
             Notes
           </p>
 
-          <ul className="mt-2 space-y-1 text-xs font-bold leading-5 text-[var(--ink-muted)]">
+          <ul className="mt-2 space-y-1 text-spec font-bold leading-5 text-[var(--ink-muted)]">
             {analysis.notes.map((note) => (
               <li key={note}>• {note}</li>
             ))}

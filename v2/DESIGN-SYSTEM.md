@@ -196,7 +196,6 @@ following override the taste rules and are not negotiable:
   (labels 500/600, values and headings 700), not removing bold; it touches
   ~340 sites and has not been done. Space Grotesk carries 300–700, so the
   range is there.
-- No ticket grammar in the UI yet (`GP-[SCR|EMB|DTF|TBD]-[YY]-[RUN]`).
 - 39 eyebrows now share `tracking-eyebrow`, but most still hand-roll
   `text-spec font-bold uppercase` instead of the `.eyebrow` class, because
   `.eyebrow` hard-sets `color: var(--ink-muted)` and several of them are
@@ -210,3 +209,46 @@ following override the taste rules and are not negotiable:
   particular while calling itself a proof. Placement has to be derived from
   the photograph; until it is, garment and artwork are shown side by side and
   the caption promises nothing about position.
+
+---
+
+## 7. Decided against
+
+### A `GP-[SCR|EMB|DTF|TBD]-[YY]-[RUN]` ticket grammar
+
+§6 carried this as an open item. It should not be built, and the reason is
+worth keeping so it does not get built later.
+
+**The app already has a ticket grammar, and it is a real one.** Three layers,
+each pointing at something that exists:
+
+| Layer | Where it is made | Where the customer meets it |
+|---|---|---|
+| `GS-YYYYMMDD-XXXXX` | `generateQuoteNumber()`, quote route | Confirmation screen, both emails, and `/track` — the tracker keys on it |
+| `DESIGN 01 / 02` | `DesignCard`, from cart position | The builder, whenever there is more than one design |
+| `GORILLA-DECAL-1` · `-SETUP` · `GORILLA-APPAREL-{style}` · `GORILLA-SIGN-…` · `GORILLA-SHIPPING` | `lib/printavo.ts` | Every line of the Printavo invoice |
+
+The middle and bottom rows are the same number: `GORILLA-DECAL-2` is
+`DESIGN 02`, and both are the cart position that also names the
+`design-2-*.png` attachment.
+
+A fourth scheme would be a second name for a job that already has one, and
+`[RUN]` is a run number nothing in this codebase generates or stores, on a
+flow (stickers) that has no print method to put in `[SCR|EMB|DTF]`. The house
+rule on spec furniture is that it has to point at a real value — a real SKU,
+timestamp or count — and that invented furniture is costume. This would be
+costume.
+
+The SKU vocabulary above is also not decorative: it was rebuilt once because
+sign setup fees derived their item number from the label text, so the same
+charge filed under `GORILLA-FEE-SETUP-2-DESIGNS-15`,
+`GORILLA-FEE-SETUP-FEE-PER-DESIGN` and others, and "how much setup did we bill
+this quarter" had no answer. Adding a parallel numbering system is the same
+mistake with better typography.
+
+**What is genuinely missing** is nothing in the naming — it is that a job has
+no identity at all until it is submitted, because `GS-` is minted server-side
+in the quote route. Moving that earlier would put a number on screen from step
+one, but it would also make the browser the source of a value Printavo keys
+on, burn numbers on abandoned quotes, and touch the checkout path — which
+means a Printavo reconciliation. Not worth it for furniture.

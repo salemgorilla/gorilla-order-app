@@ -7,20 +7,39 @@ next session will act on it.
 
 Read this first, then `AGENTS.md` and `DESIGN-SYSTEM.md`.
 
-## Live right now — 2026-08-25, `main` @ `0d8b4aa`
+## Live right now — 2026-08-25 evening, `main` @ `954686e`
 
 `main` is deployed to https://labs.gorillasalem.com (Vercel, production branch
 is `main`, root directory `v2`). The custom domain is wired correctly — do NOT
 touch the `@` or `www` DNS records for gorillasalem.com, those are Squarespace
 and repointing them took the main site down once already.
 
-1,152 tests passing, `tsc` clean, 0 lint errors (11 warnings, all the
+1,171 tests passing, `tsc` clean, 0 lint errors (11 warnings, all the
 deliberate `<img>` uses). **Which build production is serving is no longer a
 guess**: `/api/artwork-upload` and `/api/printavo-test` report the commit
 ("0d8b4aa (production)"), derived from Vercel's env — see the 08-23 entry on
 the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
+
+- **The live catalog no longer answers questions the request flow never
+  asked** — 2026-08-25 evening (#86, #87). The key going live was itself a
+  breaking change: selectedSs* pin the first catalog product/colour/size for
+  the CONFIGURATOR, and the moment they stopped being null, every
+  request-mode surface reading them said "Starter Tee · White" for a
+  customer who picked Hats — review card, confirmation, the payload's
+  supplier SKU, and the catalog-load effect even wrote the pinned name into
+  quote state. chosenSs* (null in request mode) now feed every non-builder
+  surface; the request branch of review/confirmation shows garment, count
+  and the notes verbatim; the copy text finally carries "Your Request:"
+  (the customer's notes had reached the shop email but never their own
+  record); and the payload sends colour/locations/ink EMPTY in request mode
+  so the shop email says "Not specified" and the Printavo note says TBD
+  instead of presenting form defaults as answers. Found and verified by
+  driving the flow in Chromium against the production catalog JSON;
+  mutation-tested via tests/apparel-request-truth.test.ts. THE RULE THIS
+  LEAVES BEHIND: a fallback chain that ends in customer words must never
+  gain an earlier link that a config change can light up.
 
 - **The S&S catalog is LIVE in production** — 2026-08-25. Gabe rotated the
   key; /api/ss-catalog serves 3 styles / 191 colors and the apparel card

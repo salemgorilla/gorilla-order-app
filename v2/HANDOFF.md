@@ -7,20 +7,55 @@ next session will act on it.
 
 Read this first, then `AGENTS.md` and `DESIGN-SYSTEM.md`.
 
-## Live right now — 2026-08-23, `main` @ `3d40cee`
+## Live right now — 2026-08-25, `main` @ `0d8b4aa`
 
 `main` is deployed to https://labs.gorillasalem.com (Vercel, production branch
 is `main`, root directory `v2`). The custom domain is wired correctly — do NOT
 touch the `@` or `www` DNS records for gorillasalem.com, those are Squarespace
 and repointing them took the main site down once already.
 
-1,104 tests passing, `tsc` clean, 0 lint errors (8 warnings, all the
+1,152 tests passing, `tsc` clean, 0 lint errors (11 warnings, all the
 deliberate `<img>` uses). **Which build production is serving is no longer a
 guess**: `/api/artwork-upload` and `/api/printavo-test` report the commit
-("3d40cee (production)"), derived from Vercel's env — see the 08-23 entry on
+("0d8b4aa (production)"), derived from Vercel's env — see the 08-23 entry on
 the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
+
+- **The S&S catalog is LIVE in production** — 2026-08-25. Gabe rotated the
+  key; /api/ss-catalog serves 3 styles / 191 colors and the apparel card
+  shows real garments. The 60-error/44-user 401 cluster is closed. The
+  catalog's photo hosts (www./cdn.ssactivewear.com — those two only, or the
+  optimizer becomes an open image proxy) are allowed through /_next/image
+  (#81), which is both the incremental next/image path for the bare <img>s
+  and the canvas-safe (same-origin, untainted) source the compositor needs.
+
+- **/calibrate — the garment-zone tape measure** — 2026-08-25 (#83).
+  Kiosk-PIN-locked staff page (nothing links to it): pick style/side/colour,
+  drag a box over the print area on the REAL photo, watch the composite
+  re-render through the production composeGarmentMockup, copy the
+  paste-ready garmentZones block. The zones stay placeholders until Gabe
+  runs it — the page is a tape measure, not a control panel; numbers still
+  land in a reviewed commit. Arithmetic pinned in tests/zone-calibration.
+  When the first zone flips verified, ApparelPreview must ALSO switch its
+  garmentImage to the same-origin /_next/image URL or toDataURL taints.
+
+- **The type system has a real hierarchy** — 2026-08-25 (#82, a four-patch
+  series authored in a sandboxed design session, applied via git am).
+  --text-hero/--text-section/--text-wordmark exist; 230 raw Tailwind text
+  sizes moved onto the semantic tokens (deliberate exceptions documented in
+  place: Chip, StaffGate, StickerShape); 39 hand-rolled eyebrows share
+  tracking-eyebrow. Measured with real fonts: h1 84px/48px, wordmark
+  30px/22px, and the price anchor still outweighs the hero. DESIGN-SYSTEM
+  §6 records the weight problem as known and NOT fixed; §7 records the
+  ticket-grammar idea as decided against.
+
+- **The entry screen says what stickers cost** — 2026-08-24 (#80). A
+  step-1-only price anchor: "100 die-cut 3" stickers from $53.80", computed
+  by getReferenceStickerPrice() through the SAME engine that bills — never
+  a typed-in figure (lib/reference-quote.ts). From step 2 the sticky bar's
+  own estimate takes over; two prices on one screen is how the wrong one
+  gets read.
 
 - **Signs and banners reprice on the SERVER** — 2026-08-23 (#76), with
   Gabe's go-ahead. Each payload design carries `spec` (its raw pricing
@@ -40,9 +75,10 @@ Working and verified:
   trigger), lib/garment-composite.ts (sticker-proof's null-not-throw
   contract), ApparelPreview composites only from a verified zone. Dormant
   twice over: apparel is a request flow (ApparelPreview does not mount)
-  AND no zone is verified. Verifying zones is a look-at-a-picture task
-  blocked on the S&S key (Gabe's to-do). Both branches proven in a browser
-  with temporary flips, reverted before commit.
+  AND no zone is verified. Both branches proven in a browser with
+  temporary flips, reverted before commit. **2026-08-25 update:** the key
+  works and /calibrate (#83, above) is the verification tool — the zones
+  now wait on Gabe's calibration pass, not on infrastructure.
 
 - **isStickerOrder/repriceStickers moved to lib/sticker-repricing.ts** —
   2026-08-23. Next's route typegen rejects non-handler exports from route

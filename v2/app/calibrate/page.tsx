@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { apparelCatalogStyles } from "../../lib/apparel-catalog";
 import { composeGarmentMockup } from "../../lib/garment-composite";
+import { sameOriginGarmentPhotoUrl } from "../../lib/garment-photo";
 import { garmentZones } from "../../lib/garment-zones";
 import {
   clampZone,
@@ -72,19 +73,6 @@ function drawTestArt(aspect: number): string | null {
   ctx.fillText("TEST ART", w / 2, h / 2);
 
   return canvas.toDataURL("image/png");
-}
-
-/**
- * Load the photo through OUR origin, not S&S's. Two reasons, one of them
- * hard: the compositor draws the photo to a canvas and exports it, and a
- * cross-origin image without CORS headers taints the canvas — toDataURL then
- * throws no matter how right the zone is. S&S does not promise CORS headers;
- * /_next/image (allowed for exactly these hosts in next.config.ts) re-serves
- * the photo same-origin, which can never taint. It also means the page
- * measures the SAME bytes the optimizer will hand customers.
- */
-function sameOriginPhotoUrl(raw: string): string {
-  return `/_next/image?url=${encodeURIComponent(raw)}&w=1080&q=75`;
 }
 
 const startingZone = (style: string, side: Side): CalibrationZone => {
@@ -174,7 +162,8 @@ export default function CalibratePage() {
       ? color.frontImage
       : color.backImage
     : null;
-  const photoUrl = rawPhotoUrl ? sameOriginPhotoUrl(rawPhotoUrl) : null;
+  // Same-origin, or the compositor's canvas taints — see lib/garment-photo.
+  const photoUrl = sameOriginGarmentPhotoUrl(rawPhotoUrl);
 
   const testArt = useMemo(
     () => drawTestArt(artAspect === "wide" ? 3 : 3 / 4),

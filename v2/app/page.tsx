@@ -82,6 +82,7 @@ import {
 } from "../lib/pricing";
 import { calculateApparelPricing } from "../lib/apparel-pricing";
 import { apparelCatalogStyles } from "../lib/apparel-catalog";
+import { sameOriginGarmentPhotoUrl } from "../lib/garment-photo";
 import {
   getItemFieldErrors,
   getOrderFieldErrors,
@@ -372,6 +373,14 @@ export default function Home() {
 
   const selectedGarmentPrice = selectedSsSize?.markedUpPrice || 0;
   const selectedGarmentImage = selectedSsColor?.frontImage || null;
+  /**
+   * What the SCREEN shows and the compositor draws — the same photo through
+   * our own /_next/image, because a cross-origin canvas source without CORS
+   * headers taints and the mockup silently dies (lib/garment-photo.ts).
+   * The payload and the quote-details text keep the RAW S&S URL above: a
+   * relative optimizer path is meaningless in an email or a Printavo note.
+   */
+  const selectedGarmentPhotoSrc = sameOriginGarmentPhotoUrl(selectedGarmentImage);
   const selectedGarmentIsOutOfStock = selectedSsColor?.outOfStock || false;
   const selectedGarmentLabel =
     selectedSsProduct?.customerLabel ||
@@ -2733,7 +2742,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       artworkPreview={artworkPreview}
       garmentType={selectedGarmentLabel}
       garmentColor={selectedSsColor?.colorName || apparelQuote.garmentColor}
-      garmentImage={selectedGarmentImage}
+      garmentImage={selectedGarmentPhotoSrc}
       garmentColorHex={selectedSsColor?.colorHex}
       catalogStyle={selectedSsProduct?.catalogStyle}
       printLocations={apparelQuote.printLocations}

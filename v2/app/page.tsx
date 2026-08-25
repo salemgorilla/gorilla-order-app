@@ -1597,9 +1597,15 @@ export default function Home() {
           type: "T-Shirts & Apparel",
           garmentType: apparelQuote.garmentType,
           quantity: apparelQuote.quantity,
-          garmentColor: apparelQuote.garmentColor,
-          printLocations: apparelQuote.printLocations,
-          inkColors: apparelQuote.inkColors,
+          // Empty in request mode, deliberately: colour, locations and ink
+          // are form DEFAULTS there — the flow never asked. Sent as values,
+          // the shop email printed "Color: White · Front · 1 color" above
+          // notes saying "black hats, embroidery", and the shop had to
+          // guess which one the customer meant. Empty renders as
+          // "Not specified" / "TBD" downstream, which is the truth.
+          garmentColor: isApparelRequest ? "" : apparelQuote.garmentColor,
+          printLocations: isApparelRequest ? [] : apparelQuote.printLocations,
+          inkColors: isApparelRequest ? "" : apparelQuote.inkColors,
           sizeBreakdown: apparelQuote.sizeBreakdown,
           specialOrder: apparelQuote.specialOrder,
           specialOrderNotes: apparelQuote.specialOrderNotes,

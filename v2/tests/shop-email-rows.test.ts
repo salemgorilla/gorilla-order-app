@@ -92,7 +92,10 @@ describe("no row renders blank", () => {
       pricing: { total: 0 },
     });
 
-    assert.match(body, /Ink Colors: Not selected/);
+    // "Not specified" since the request-flow truth fix: the empty comes
+    // from a form that never asked the question, and the wording now says
+    // to look at the notes rather than implying an unmade selection.
+    assert.match(body, /Ink Colors: Not specified/);
   });
 
   it("leaves a populated value alone", () => {

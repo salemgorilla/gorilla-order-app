@@ -13,6 +13,12 @@ import {
 
 type Props = {
   isApparelSelected: boolean;
+  /**
+   * The request flow asks three questions — garment, rough count, notes —
+   * so its review shows those three answers and nothing invented. The full
+   * row set below belongs to the configurator, which actually asks them.
+   */
+  isApparelRequest: boolean;
   isSignsSelected: boolean;
   order: Order;
   apparelQuote: ApparelQuote;
@@ -26,6 +32,7 @@ type Props = {
 
 export default function QuoteReviewCard({
   isApparelSelected,
+  isApparelRequest,
   isSignsSelected,
   order,
   apparelQuote,
@@ -122,6 +129,43 @@ export default function QuoteReviewCard({
                 {signsTotals !== null
                   ? `$${signsTotals.estimatedTotal.toFixed(2)}`
                   : "Quoted by hand"}
+              </span>
+            </div>
+          </>
+        ) : isApparelRequest ? (
+          <>
+            {/* The three questions the request flow actually asked, and the
+                notes verbatim. The configurator's rows below — Color, Sizes,
+                Print Locations, Ink — are form DEFAULTS in this flow, and on
+                the screen that says "check everything" a default reads as a
+                recorded answer: a customer who typed "black hats, embroidery"
+                was shown Color White · Front · 1 color and left to wonder
+                which of the two the shop believed. */}
+            <div className="flex justify-between gap-4">
+              <span>Garment</span>
+              <span className="text-right text-[var(--ink-black)]">
+                {apparelQuote.garmentType}
+              </span>
+            </div>
+
+            <div className="flex justify-between gap-4">
+              <span>Quantity</span>
+              <span className="text-right text-[var(--ink-black)]">
+                {apparelQuote.quantity.toLocaleString()}
+              </span>
+            </div>
+
+            <div className="flex justify-between gap-4">
+              <span className="shrink-0">Your request</span>
+              <span className="text-right text-[var(--ink-black)]">
+                {apparelQuote.specialOrderNotes.trim() || "Not entered"}
+              </span>
+            </div>
+
+            <div className="flex justify-between gap-4">
+              <span>Estimate</span>
+              <span className="text-right text-[var(--gorilla-green)]">
+                Quoted by hand
               </span>
             </div>
           </>

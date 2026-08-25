@@ -19,6 +19,9 @@ type Props = {
   quoteConfirmation: QuoteConfirmation | null;
   order: Order;
   isApparelSubmitted: boolean;
+  /** Request-flow submissions confirm the three questions asked, not the
+      configurator fields the flow never showed. */
+  isApparelRequest: boolean;
   isSignsSubmitted: boolean;
   signsQuote: SignsQuote;
   /** Null when the signs job could not be priced online. */
@@ -39,6 +42,7 @@ export default function QuoteConfirmationScreen({
   quoteConfirmation,
   order,
   isApparelSubmitted,
+  isApparelRequest,
   isSignsSubmitted,
   signsQuote,
   signsTotal,
@@ -274,6 +278,22 @@ export default function QuoteConfirmationScreen({
                     </div>
                   ))}
                 </div>
+              ) : isApparelSubmitted && isApparelRequest ? (
+                <>
+                  {/* The request flow asked for a garment, a count and a
+                      description — so the confirmation repeats those, not the
+                      colour/ink/location DEFAULTS the flow never asked about.
+                      A customer whose notes said "black hats, embroidery"
+                      was being confirmed as "White • 1 color • Front". */}
+                  <p className="mt-2 text-value font-bold text-[var(--ink-black)]">
+                    {apparelQuote.quantity.toLocaleString()}{" "}
+                    {apparelQuote.garmentType}
+                  </p>
+                  <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
+                    {apparelQuote.specialOrderNotes.trim() ||
+                      "Details to be confirmed with Gorilla Salem"}
+                  </p>
+                </>
               ) : isApparelSubmitted ? (
                 <>
                   <p className="mt-2 text-value font-bold text-[var(--ink-black)]">

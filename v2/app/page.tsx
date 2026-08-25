@@ -313,10 +313,10 @@ export default function Home() {
   // Apparel currently ships as a hand-quote request rather than the
   // configurator. Kept as its own flag so the day the configurator is signed
   // off, flipping products.tsx back to "active" is the whole change.
-  const isApparelRequest =
-    isApparelSelected &&
+  const apparelIsRequestFlow =
     productCategories.find((product) => product.id === "apparel")?.status ===
-      "request";
+    "request";
+  const isApparelRequest = isApparelSelected && apparelIsRequestFlow;
   const isApparelSubmitted = submittedProductId === "apparel";
   const isBannersSelected = selectedProductId === "banners";
   /**
@@ -371,8 +371,26 @@ export default function Home() {
     );
   }, [selectedSsColor, selectedSsSizeName]);
 
-  const selectedGarmentPrice = selectedSsSize?.markedUpPrice || 0;
-  const selectedGarmentImage = selectedSsColor?.frontImage || null;
+  /**
+   * What the CUSTOMER actually chose, as opposed to what the catalog pins.
+   *
+   * selectedSs* above deliberately fall back to the first product, colour
+   * and size so the CONFIGURATOR always has a live selection. The REQUEST
+   * flow never asks any of those questions — so in request mode the pinned
+   * defaults are nobody's choice. While the catalog was dark the difference
+   * was invisible (selectedSs* were null and everything fell through to the
+   * customer's own words); the day the key went live, every request-mode
+   * surface reading them started claiming "Starter Tee · White" for a
+   * customer who asked for hats. The review card, the confirmation, the
+   * payload's supplier block and the quote-details text all read THESE;
+   * ApparelBuilder keeps the raw values because pinning is its job.
+   */
+  const chosenSsProduct = apparelIsRequestFlow ? null : selectedSsProduct;
+  const chosenSsColor = apparelIsRequestFlow ? null : selectedSsColor;
+  const chosenSsSize = apparelIsRequestFlow ? null : selectedSsSize;
+
+  const selectedGarmentPrice = chosenSsSize?.markedUpPrice || 0;
+  const selectedGarmentImage = chosenSsColor?.frontImage || null;
   /**
    * What the SCREEN shows and the compositor draws — the same photo through
    * our own /_next/image, because a cross-origin canvas source without CORS
@@ -381,10 +399,10 @@ export default function Home() {
    * relative optimizer path is meaningless in an email or a Printavo note.
    */
   const selectedGarmentPhotoSrc = sameOriginGarmentPhotoUrl(selectedGarmentImage);
-  const selectedGarmentIsOutOfStock = selectedSsColor?.outOfStock || false;
+  const selectedGarmentIsOutOfStock = chosenSsColor?.outOfStock || false;
   const selectedGarmentLabel =
-    selectedSsProduct?.customerLabel ||
-    selectedSsProduct?.displayName ||
+    chosenSsProduct?.customerLabel ||
+    chosenSsProduct?.displayName ||
     apparelQuoteState.garmentType;
 
   const sizeOptionsForBreakdown = useMemo(() => {
@@ -655,7 +673,14 @@ export default function Home() {
           setSelectedSsSizeName(firstSize.sizeName);
         }
 
-        if (firstProduct || firstColor) {
+        // Sync the quote state's garment fields with the pinned default —
+        // for the CONFIGURATOR, whose display and payload must agree with
+        // the selection. The REQUEST flow asks its own garment question, so
+        // this write would rename whatever the customer picks to the first
+        // catalog product and hand them a colour nobody chose. (Invisible
+        // while the catalog was dark; the day the key worked, every request
+        // quote became a "Starter Tee".)
+        if (!apparelIsRequestFlow && (firstProduct || firstColor)) {
           setApparelQuoteState((current) => ({
             ...current,
             garmentType:
@@ -675,7 +700,10 @@ export default function Home() {
     }
 
     loadSsCatalog();
-  }, []);
+    // apparelIsRequestFlow derives from the module-level product table, so
+    // it can never change at runtime — the dependency satisfies the lint
+    // rule without ever re-firing the fetch.
+  }, [apparelIsRequestFlow]);
 
   function handleSsProductSelect(product: SsCatalogProduct) {
     const firstColor =
@@ -1575,14 +1603,18 @@ export default function Home() {
           sizeBreakdown: apparelQuote.sizeBreakdown,
           specialOrder: apparelQuote.specialOrder,
           specialOrderNotes: apparelQuote.specialOrderNotes,
+          // chosenSs*, not selectedSs*: a request-mode payload must say
+          // "Not selected" — as it always did while the catalog was dark —
+          // rather than name the pinned default product, colour and SKU the
+          // customer never chose. The shop reads this block to order blanks.
           supplier: {
             source: "S&S Activewear",
             productName: selectedGarmentLabel || "Not selected",
-            supplierProductName: selectedSsProduct?.displayName || "Not selected",
-            catalogStyle: selectedSsProduct?.catalogStyle || "Not selected",
-            colorName: selectedSsColor?.colorName || "Not selected",
-            sampleSize: selectedSsSize?.sizeName || "Not selected",
-            sku: selectedSsSize?.sku || "Not selected",
+            supplierProductName: chosenSsProduct?.displayName || "Not selected",
+            catalogStyle: chosenSsProduct?.catalogStyle || "Not selected",
+            colorName: chosenSsColor?.colorName || "Not selected",
+            sampleSize: chosenSsSize?.sizeName || "Not selected",
+            sku: chosenSsSize?.sku || "Not selected",
             markedUpGarmentPrice: selectedGarmentPrice,
             image: selectedGarmentImage,
             outOfStock: selectedGarmentIsOutOfStock,
@@ -2425,7 +2457,16 @@ ${customerSection}
 APPAREL DETAILS
 Product: T-Shirts & Apparel
 Garment Type: ${apparelQuote.garmentType}
-Quantity: ${apparelQuote.quantity.toLocaleString()}
+Quantity: ${apparelQuote.quantity.toLocaleString()}${
+        // The request flow asks three questions: garment, count, and a free
+        // notes box. Colour, locations and ink are form DEFAULTS there —
+        // nobody answered them — and the notes are the request itself, so
+        // this record carries the notes and not the defaults. The
+        // configurator's copy still prints every field it actually asked.
+        isApparelRequest
+          ? `
+Your Request: ${apparelQuote.specialOrderNotes.trim() || "Not provided"}`
+          : `
 Garment Color: ${apparelQuote.garmentColor}
 Print Locations: ${apparelQuote.printLocations.join(", ")}
 Ink Colors: ${apparelQuote.inkColors}
@@ -2433,16 +2474,17 @@ Size Breakdown: ${apparelQuote.sizeBreakdown}
 
 S&S CATALOG DETAILS
 Customer-Facing Product: ${selectedGarmentLabel || "Not selected"}
-S&S Product: ${selectedSsProduct?.displayName || "Not selected"}
-S&S Style: ${selectedSsProduct?.catalogStyle || "Not selected"}
-Color: ${selectedSsColor?.colorName || "Not selected"}
-Sample Size: ${selectedSsSize?.sizeName || "Not selected"}
-SKU: ${selectedSsSize?.sku || "Not selected"}
+S&S Product: ${chosenSsProduct?.displayName || "Not selected"}
+S&S Style: ${chosenSsProduct?.catalogStyle || "Not selected"}
+Color: ${chosenSsColor?.colorName || "Not selected"}
+Sample Size: ${chosenSsSize?.sizeName || "Not selected"}
+SKU: ${chosenSsSize?.sku || "Not selected"}
 Marked-Up Garment Price: ${
-        selectedGarmentPrice ? `$${selectedGarmentPrice.toFixed(2)}` : "N/A"
-      }
+              selectedGarmentPrice ? `$${selectedGarmentPrice.toFixed(2)}` : "N/A"
+            }
 Availability: ${selectedGarmentIsOutOfStock ? "Out of stock" : "Available"}
-Image: ${selectedGarmentImage || "N/A"}
+Image: ${selectedGarmentImage || "N/A"}`
+      }
 
 ${timelineSection}
 
@@ -2672,6 +2714,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         quoteConfirmation={quoteConfirmation}
         order={order}
         isApparelSubmitted={isApparelSubmitted}
+        isApparelRequest={apparelIsRequestFlow}
         isSignsSubmitted={isSignsSubmitted}
         signsQuote={signsQuote}
         signsTotal={signsPricing.priceable ? signsPricing.total : null}
@@ -3659,6 +3702,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
             <QuoteReviewCard
               isApparelSelected={isApparelSelected}
+              isApparelRequest={isApparelRequest}
               isSignsSelected={isSignsSelected}
               order={order}
               apparelQuote={apparelQuote}

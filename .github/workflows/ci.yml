@@ -67,3 +67,19 @@ jobs:
         # the same way. This step failing on a missing env var is a real
         # finding, not a CI problem.
         run: npm run build
+
+      - name: Browser smoke
+        # The suite above proves functions; this proves the WIRING. Every
+        # sweep in this repo's history found its defects by driving the real
+        # page in a real browser — review cards reading the wrong state,
+        # flows renamed by a catalog default — and none of those broke a
+        # unit test. tests/e2e/smoke.mjs drives all three flows to review
+        # against the build that just passed, submits one apparel request,
+        # and asserts the payload — with every backend stubbed at the
+        # network layer, so CI never depends on S&S and never creates a
+        # real quote.
+        run: |
+          npx playwright install --with-deps chromium
+          npx next start -p 3100 &
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://localhost:3100 && break; sleep 1; done
+          npm run test:e2e

@@ -618,6 +618,21 @@ export default function Home() {
   ]);
 
   useEffect(() => {
+    /**
+     * Fetch the catalog when apparel is SELECTED, not on mount.
+     *
+     * This used to run for every visitor, and with apparel shipping as a
+     * request flow, nothing in production ever rendered a byte of the
+     * response — sticker and signs customers paid ~30KB of wire and a JSON
+     * parse of three garment lines and 191 colours for a panel that never
+     * mounts. It also made every page load depend on S&S being up, which is
+     * how their week-long 401 reached 44 visitors who never asked about
+     * shirts. The status guard makes this one-shot: "idle" is the only
+     * state that fetches, so re-selecting apparel neither refetches nor
+     * retries a failure — exactly the behaviour the mount fetch had.
+     */
+    if (!isApparelSelected || ssCatalogStatus !== "idle") return;
+
     async function loadSsCatalog() {
       setSsCatalogStatus("loading");
 
@@ -701,9 +716,9 @@ export default function Home() {
 
     loadSsCatalog();
     // apparelIsRequestFlow derives from the module-level product table, so
-    // it can never change at runtime — the dependency satisfies the lint
-    // rule without ever re-firing the fetch.
-  }, [apparelIsRequestFlow]);
+    // it can never change at runtime; the status guard above is what makes
+    // the other two safe to depend on without re-firing the fetch.
+  }, [apparelIsRequestFlow, isApparelSelected, ssCatalogStatus]);
 
   function handleSsProductSelect(product: SsCatalogProduct) {
     const firstColor =

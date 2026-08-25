@@ -44,7 +44,7 @@ export default function AddOnsCard({
       <p className="eyebrow">
         Add to this quote
       </p>
-      <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+      <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
         Same artwork, same due date — one quote, one pickup.
       </p>
 
@@ -66,22 +66,22 @@ export default function AddOnsCard({
               />
               <span className="flex-1">
                 <span className="flex items-baseline justify-between gap-3">
-                  <span className="block text-sm font-bold text-[var(--ink-black)]">
+                  <span className="block text-fine font-bold text-[var(--ink-black)]">
                     {offer.label}
                   </span>
                   {/* Never a "from $X" — the app already distinguishes a real
                       price from one the shop has to work out. */}
                   {quoteRequired ? (
-                    <span className="shrink-0 text-sm font-bold text-[var(--ink-muted)]">
+                    <span className="shrink-0 text-fine font-bold text-[var(--ink-muted)]">
                       We&apos;ll price this
                     </span>
                   ) : (
-                    <span className="spec shrink-0 text-sm font-bold text-[var(--gorilla-green)]">
+                    <span className="spec shrink-0 text-fine font-bold text-[var(--gorilla-green)]">
                       {money(amount)}
                     </span>
                   )}
                 </span>
-                <span className="mt-1 block text-sm font-bold leading-5 text-[var(--ink-muted)]">
+                <span className="mt-1 block text-fine font-bold leading-5 text-[var(--ink-muted)]">
                   {offer.detail}
                 </span>
               </span>
@@ -93,7 +93,7 @@ export default function AddOnsCard({
       <div className="mt-4">
         <label
           htmlFor="addons-note"
-          className="block text-sm font-bold text-[var(--ink-black)]"
+          className="block text-fine font-bold text-[var(--ink-black)]"
         >
           Something else?{" "}
           <span className="font-normal text-[var(--ink-muted)]">(optional)</span>
@@ -110,7 +110,7 @@ export default function AddOnsCard({
       </div>
 
       {(addOns.length > 0 || note.trim()) && (
-        <p className="spec mt-4 border-t border-[var(--rule)] pt-3 text-xs font-bold text-[var(--ink-black)]">
+        <p className="spec mt-4 border-t border-[var(--rule)] pt-3 text-spec font-bold text-[var(--ink-black)]">
           {/* Two figures, never merged — a single total would look like it
               covered the unpriced items too. */}
           ADDED TO THIS QUOTE:{" "}
@@ -121,7 +121,7 @@ export default function AddOnsCard({
         </p>
       )}
 
-      <p className="mt-3 text-xs font-bold leading-5 text-[var(--ink-muted)]">
+      <p className="mt-3 text-spec font-bold leading-5 text-[var(--ink-muted)]">
         These are added to the quote Gorilla Salem sends back. Your estimate
         above doesn&apos;t change, and nothing here is charged now.
       </p>

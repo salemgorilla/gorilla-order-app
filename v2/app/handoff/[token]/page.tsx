@@ -78,7 +78,7 @@ export default function HandoffPage({
         <div className="grid h-16 w-16 place-items-center bg-[var(--gorilla-green)] text-display text-[var(--paper)]">
           ✓
         </div>
-        <h1 className="mt-6 text-display font-bold tracking-[-0.04em] text-[var(--ink-black)]">
+        <h1 className="mt-6 text-hero font-bold tracking-display text-[var(--ink-black)]">
           Sent
         </h1>
         <p className="mt-2 text-lede text-[var(--ink-muted)]">
@@ -88,7 +88,7 @@ export default function HandoffPage({
 
         {/* Somebody who sent the wrong photo needs a way back without
             rescanning, and it is the first thing they will look for. */}
-        <label className="mt-8 inline-block min-h-[56px] cursor-pointer border border-[var(--rule)] px-6 py-4 text-base font-bold text-[var(--ink-black)]">
+        <label className="mt-8 inline-block min-h-[56px] cursor-pointer border border-[var(--rule)] px-6 py-4 text-body font-bold text-[var(--ink-black)]">
           Send a different file
           <input
             type="file"
@@ -103,7 +103,7 @@ export default function HandoffPage({
   return (
     <Shell>
       <p className="eyebrow">Gorilla Salem</p>
-      <h1 className="mt-2 text-display font-bold tracking-[-0.04em] text-[var(--ink-black)]">
+      <h1 className="mt-2 text-hero font-bold tracking-display text-[var(--ink-black)]">
         Send us your artwork
       </h1>
       <p className="mt-3 text-lede text-[var(--ink-muted)]">
@@ -112,7 +112,7 @@ export default function HandoffPage({
       </p>
 
       <label
-        className={`mt-8 block min-h-[64px] cursor-pointer border-2 border-[var(--gorilla-green)] bg-[var(--gorilla-green)] px-6 py-5 text-center text-lg font-bold text-[var(--paper)] ${
+        className={`mt-8 block min-h-[64px] cursor-pointer border-2 border-[var(--gorilla-green)] bg-[var(--gorilla-green)] px-6 py-5 text-center text-value font-bold text-[var(--paper)] ${
           state === "sending" ? "opacity-60" : ""
         }`}
       >
@@ -128,14 +128,14 @@ export default function HandoffPage({
       {state === "error" && (
         <p
           role="alert"
-          className="mt-4 bg-[var(--surface-warn)] p-4 text-sm font-bold leading-5 text-[var(--ink-warn)]"
+          className="mt-4 bg-[var(--surface-warn)] p-4 text-fine font-bold leading-5 text-[var(--ink-warn)]"
         >
           {error} Try again, or hand your phone to the person serving you and
           we&rsquo;ll sort it out.
         </p>
       )}
 
-      <p className="mt-6 text-sm text-[var(--ink-muted)]">
+      <p className="mt-6 text-fine text-[var(--ink-muted)]">
         Up to {formatBytes(MAX_BLOB_ARTWORK_BYTES)}. PNG, JPG, PDF, AI, EPS or
         SVG — if you&rsquo;re not sure, send what you have and we&rsquo;ll tell
         you whether it will print.

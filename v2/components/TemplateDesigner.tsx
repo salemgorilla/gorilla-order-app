@@ -46,7 +46,7 @@ export default function TemplateDesigner({
         <h3 className="mt-2 text-lede font-bold">
           Use one of ours, or upload your own artwork
         </h3>
-        <p className="mt-1 text-sm text-[var(--ink-muted)]">
+        <p className="mt-1 text-fine text-[var(--ink-muted)]">
           Pick a layout and type your wording. We set it into the finished
           artwork and send you a proof.
         </p>
@@ -103,7 +103,7 @@ export default function TemplateDesigner({
                 >
                   <label
                     htmlFor={`template-${field.id}`}
-                    className="block text-sm font-bold text-[var(--ink-black)]"
+                    className="block text-fine font-bold text-[var(--ink-black)]"
                   >
                     {field.label}{" "}
                     {field.required ? (

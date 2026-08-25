@@ -107,12 +107,35 @@
   --text-fine--line-height: 1.5;
   --text-body: 1rem;
   --text-body--line-height: 1.6;
+  /* The answer in a spec row — the bolded value under a small label. It was
+     `text-lg` at 17 sites, which is Tailwind's default ramp rather than this
+     scale, so the one size that carries every quantity, size and price in the
+     builder had no name and could not be tuned from here. */
+  --text-value: 1.125rem;
+  --text-value--line-height: 1.3;
   --text-lede: 1.25rem;
   --text-lede--line-height: 1.35;
   --text-head: 1.75rem;
   --text-head--line-height: 1.1;
   --text-display: 2.75rem;
   --text-display--line-height: 0.95;
+
+  /* Headline steps. Separate from --text-display on purpose: that token is
+     ALSO the glyph size inside the fixed 4rem/5rem badge squares in
+     UploadBox, QuoteConfirmation and the handoff page, so scaling it to the
+     4-10x the register asks for would overflow three boxes. Headlines get
+     their own fluid steps; badges keep theirs.
+
+     --text-hero is 3.0x body at 375px and 5.25x at 1440px, which puts the
+     page headline inside the register's band. It was 2.75x flat, and the
+     wordmark was set at the same step — so the logo and the headline were
+     the same size and neither led. --text-wordmark ends that tie. */
+  --text-hero: clamp(3rem, 7vw, 5.25rem);
+  --text-hero--line-height: 0.9;
+  --text-section: clamp(1.75rem, 3.4vw, 2.5rem);
+  --text-section--line-height: 1.05;
+  --text-wordmark: clamp(1.375rem, 2.6vw, 1.875rem);
+  --text-wordmark--line-height: 1;
   --text-price: clamp(4rem, 6vw, 5.5rem);
   --text-price--line-height: 0.85;
 

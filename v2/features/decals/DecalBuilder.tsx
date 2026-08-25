@@ -73,7 +73,7 @@ export default function DecalBuilder({
           a customer who wanted 2x6 or 137 to fight the form. */}
       <div className="border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
         <h3 className="text-lede font-bold">Size and quantity</h3>
-        <p className="mt-1 text-sm text-[var(--ink-muted)]">
+        <p className="mt-1 text-fine text-[var(--ink-muted)]">
           Any size, any amount. Enter the exact width and height you need.
         </p>
 
@@ -174,7 +174,7 @@ export default function DecalBuilder({
             className="mt-1 h-5 w-5 shrink-0 accent-[var(--cut-line)]"
           />
           <span>
-            <span className="flex items-center gap-2 text-sm font-bold text-[var(--ink-black)]">
+            <span className="flex items-center gap-2 text-fine font-bold text-[var(--ink-black)]">
               <span
                 className="inline-block h-3 w-3"
                 // The legend swatch must be the exact colour the copy below
@@ -183,7 +183,7 @@ export default function DecalBuilder({
               />
               My artwork includes a magenta cut line
             </span>
-            <span className="mt-1 block text-sm font-bold leading-5 text-[var(--ink-muted)]">
+            <span className="mt-1 block text-fine font-bold leading-5 text-[var(--ink-muted)]">
               Check this if your file has a{" "}
               <span className="font-bold text-[var(--cut-line)]">100% magenta</span>{" "}
               (RGB 255, 0, 255) line marking exactly where you want it cut —
@@ -202,7 +202,7 @@ export default function DecalBuilder({
         {hasArtwork &&
           product.shape === "Die Cut" &&
           hasTransparentEdges === false && (
-            <p className="mt-3 bg-[var(--surface-warn)] p-3 text-xs font-bold leading-5 text-[var(--ink-warn)]">
+            <p className="mt-3 bg-[var(--surface-warn)] p-3 text-spec font-bold leading-5 text-[var(--ink-warn)]">
               Your file has a solid background, so a die cut would follow the
               edge of the image — a rectangle, not the shape of your design.
               Send a PNG with a transparent background for a contour cut, or
@@ -212,14 +212,14 @@ export default function DecalBuilder({
           )}
 
         {hasArtwork && magentaDetected && (
-          <p className="mt-3 bg-[var(--surface-ok)] p-3 text-xs font-bold leading-5 text-[var(--gorilla-green)]">
+          <p className="mt-3 bg-[var(--surface-ok)] p-3 text-spec font-bold leading-5 text-[var(--gorilla-green)]">
             ✓ We spotted a magenta cut line in your file and checked the box for
             you.
           </p>
         )}
 
         {hasArtwork && product.magentaCutLine && !magentaDetected && (
-          <p className="mt-3 bg-[var(--surface-warn)] p-3 text-xs font-bold leading-5 text-[var(--ink-warn)]">
+          <p className="mt-3 bg-[var(--surface-warn)] p-3 text-spec font-bold leading-5 text-[var(--ink-warn)]">
             We couldn&apos;t spot a magenta line in your file. Make sure it&apos;s
             a <span className="font-bold text-[var(--cut-line)]">100% magenta</span> (255,
             0, 255) stroke — otherwise Gorilla Salem will confirm the cut with
@@ -228,7 +228,7 @@ export default function DecalBuilder({
         )}
 
         {product.magentaCutLine && (
-          <p className="mt-3 bg-white p-3 text-xs font-bold leading-5 text-[var(--ink-muted)]">
+          <p className="mt-3 bg-white p-3 text-spec font-bold leading-5 text-[var(--ink-muted)]">
             Put the magenta line on its own layer as a thin stroke (no fill). It
             marks the cut only —{" "}
             <span className="font-bold">it won&apos;t be printed</span>. Vector
@@ -245,7 +245,7 @@ export default function DecalBuilder({
           <p className="eyebrow">
             Delivery
           </p>
-          <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+          <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
             Pick them up free in Salem, or we can ship them to you.
           </p>
         </div>
@@ -269,7 +269,7 @@ export default function DecalBuilder({
                   <p className="font-bold text-[var(--ink-black)]">{option.label}</p>
 
                   <span
-                    className={` px-3 py-1 text-xs font-bold ${
+                    className={` px-3 py-1 text-spec font-bold ${
                       isSelected
                         ? "bg-[var(--gorilla-green)] text-white"
                         : "bg-white text-[var(--gorilla-green)]"
@@ -279,7 +279,7 @@ export default function DecalBuilder({
                   </span>
                 </div>
 
-                <p className="mt-2 text-sm font-bold text-[var(--ink-muted)]">
+                <p className="mt-2 text-fine font-bold text-[var(--ink-muted)]">
                   {option.detail}
                 </p>
               </button>

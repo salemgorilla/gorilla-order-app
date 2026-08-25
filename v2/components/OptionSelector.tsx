@@ -15,7 +15,7 @@ export default function OptionSelector({
 }: Props) {
   return (
     <div>
-      <h3 className="mb-3 text-lg font-bold">{title}</h3>
+      <h3 className="mb-3 text-value font-bold">{title}</h3>
 
       <div className="grid grid-cols-2 gap-3">
         {options.map((option) => (

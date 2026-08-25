@@ -46,6 +46,27 @@ Use `.spec` for things that are **real values**: quantities, ticket numbers,
 timestamps, sizes, counts. Mono is a signal that a number means something.
 Never decorative.
 
+### The scale is the only scale
+
+Ten steps, all in `@theme` in `globals.css`: `spec · fine · body · value ·
+lede · head · section · display · hero · price`.
+
+**Do not reach for Tailwind's default ramp.** `text-sm`, `text-xs`, `text-base`
+and `text-lg` were exact shadows of `fine`, `spec`, `body` and `value`, and
+232 sites used them — so the scale governed about a quarter of the app and
+editing a token moved almost nothing. Three sites stay on the raw ramp on
+purpose and say why in place (two mono controls sized by their touch target,
+and the GS mark inside the drawn sticker, which is product art).
+
+`--text-display` and `--text-hero` are not the same job. `display` is also the
+glyph size inside the fixed 4rem/5rem badge squares in `UploadBox`,
+`QuoteConfirmation` and the handoff page; `hero` is the page headline and is
+fluid. Scaling `display` overflows three boxes.
+
+Letterfit is a token too: `tracking-display` for headings, `tracking-eyebrow`
+for section markers. 39 eyebrows had once been hand-rolled across six
+different tracking values.
+
 > Historical note: the app rendered in **Arial** for its entire life. Geist was
 > loaded in `layout.tsx` and thrown away by a `font-family: Arial` line in
 > `globals.css` on the very next file. Do not put a `font-family` on `body`.
@@ -167,9 +188,19 @@ following override the taste rules and are not negotiable:
 
 ## 6. Still open
 
-- Type scale is still fairly flat — display is ~2.25x body where the system
-  asks for 4–10x. Headings are uniformly `font-black`.
-- No ticket grammar in the UI yet (`GP-[SCR|EMB|DTF|TBD]-[YY]-[RUN]`).
+- **Weight carries no hierarchy.** On the sticker builder step the rendered
+  page is 85 elements at 700, 64 at 400 and 15 at 600 — more than half the
+  visible text is bold, which means bold has stopped meaning anything. Labels,
+  values and headings are all at 700, so in an accessibility-critical form the
+  question and the answer are typographically identical. The fix is a step
+  (labels 500/600, values and headings 700), not removing bold; it touches
+  ~340 sites and has not been done. Space Grotesk carries 300–700, so the
+  range is there.
+- 39 eyebrows now share `tracking-eyebrow`, but most still hand-roll
+  `text-spec font-bold uppercase` instead of the `.eyebrow` class, because
+  `.eyebrow` hard-sets `color: var(--ink-muted)` and several of them are
+  deliberately `--rush-red` or `--gorilla-green`. Consolidating needs a colour
+  variant decided first.
 - No KPI strip or status flow chips from the reference build. The step bar
   landed — see §4.
 - A composite apparel proof — artwork placed on the garment photograph — is
@@ -178,3 +209,46 @@ following override the taste rules and are not negotiable:
   particular while calling itself a proof. Placement has to be derived from
   the photograph; until it is, garment and artwork are shown side by side and
   the caption promises nothing about position.
+
+---
+
+## 7. Decided against
+
+### A `GP-[SCR|EMB|DTF|TBD]-[YY]-[RUN]` ticket grammar
+
+§6 carried this as an open item. It should not be built, and the reason is
+worth keeping so it does not get built later.
+
+**The app already has a ticket grammar, and it is a real one.** Three layers,
+each pointing at something that exists:
+
+| Layer | Where it is made | Where the customer meets it |
+|---|---|---|
+| `GS-YYYYMMDD-XXXXX` | `generateQuoteNumber()`, quote route | Confirmation screen, both emails, and `/track` — the tracker keys on it |
+| `DESIGN 01 / 02` | `DesignCard`, from cart position | The builder, whenever there is more than one design |
+| `GORILLA-DECAL-1` · `-SETUP` · `GORILLA-APPAREL-{style}` · `GORILLA-SIGN-…` · `GORILLA-SHIPPING` | `lib/printavo.ts` | Every line of the Printavo invoice |
+
+The middle and bottom rows are the same number: `GORILLA-DECAL-2` is
+`DESIGN 02`, and both are the cart position that also names the
+`design-2-*.png` attachment.
+
+A fourth scheme would be a second name for a job that already has one, and
+`[RUN]` is a run number nothing in this codebase generates or stores, on a
+flow (stickers) that has no print method to put in `[SCR|EMB|DTF]`. The house
+rule on spec furniture is that it has to point at a real value — a real SKU,
+timestamp or count — and that invented furniture is costume. This would be
+costume.
+
+The SKU vocabulary above is also not decorative: it was rebuilt once because
+sign setup fees derived their item number from the label text, so the same
+charge filed under `GORILLA-FEE-SETUP-2-DESIGNS-15`,
+`GORILLA-FEE-SETUP-FEE-PER-DESIGN` and others, and "how much setup did we bill
+this quarter" had no answer. Adding a parallel numbering system is the same
+mistake with better typography.
+
+**What is genuinely missing** is nothing in the naming — it is that a job has
+no identity at all until it is submitted, because `GS-` is minted server-side
+in the quote route. Moving that earlier would put a number on screen from step
+one, but it would also make the browser the source of a value Printavo keys
+on, burn numbers on abandoned quotes, and touch the checkout path — which
+means a Printavo reconciliation. Not worth it for furniture.

@@ -92,7 +92,7 @@ export default function IdleReset({ idleMs, finished, onReset }: Props) {
           <p className="text-lede font-bold text-[var(--ink-black)]">
             Still there?
           </p>
-          <p className="mt-1 text-sm font-bold text-[var(--ink-muted)]">
+          <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
             {finished
               ? "Clearing the screen for the next customer"
               : "This quote will be cleared"}{" "}
@@ -104,7 +104,7 @@ export default function IdleReset({ idleMs, finished, onReset }: Props) {
         <button
           type="button"
           onClick={restart}
-          className="min-h-[56px] cursor-pointer border-2 border-[var(--gorilla-green)] bg-[var(--gorilla-green)] px-6 text-base font-bold text-[var(--paper)] transition-colors duration-[120ms] ease-linear hover:bg-[var(--gorilla-green-dark)]"
+          className="min-h-[56px] cursor-pointer border-2 border-[var(--gorilla-green)] bg-[var(--gorilla-green)] px-6 text-body font-bold text-[var(--paper)] transition-colors duration-[120ms] ease-linear hover:bg-[var(--gorilla-green-dark)]"
         >
           I&rsquo;m still here
         </button>
@@ -112,7 +112,7 @@ export default function IdleReset({ idleMs, finished, onReset }: Props) {
         <button
           type="button"
           onClick={onReset}
-          className="min-h-[56px] cursor-pointer border border-[var(--rule)] px-5 text-sm font-bold text-[var(--ink-black)] transition-colors duration-[120ms] ease-linear hover:border-[var(--ink-black)]"
+          className="min-h-[56px] cursor-pointer border border-[var(--rule)] px-5 text-fine font-bold text-[var(--ink-black)] transition-colors duration-[120ms] ease-linear hover:border-[var(--ink-black)]"
         >
           Clear it now
         </button>

@@ -137,7 +137,7 @@ export default function UploadBox({
           )}
         </div>
 
-        <h3 className="text-head font-bold tracking-[-0.03em] text-[var(--ink-black)]">
+        <h3 className="text-head font-bold tracking-display text-[var(--ink-black)]">
           {isDragging
             ? "Drop It Here"
             : fileName
@@ -178,7 +178,7 @@ export default function UploadBox({
           </p>
         )}
 
-        <div className="mt-6 bg-white px-6 py-3 text-sm font-bold">
+        <div className="mt-6 bg-white px-6 py-3 text-fine font-bold">
           AI • EPS • PDF • SVG • PNG • JPG
         </div>
 
@@ -201,7 +201,7 @@ export default function UploadBox({
         {/* This once said 100 MB while the platform rejected anything over
             ~4.4 MB, which is why large print files failed silently. The number
             shown now tracks what the deployment can actually accept. */}
-        <p className="mt-4 text-sm text-[var(--ink-muted)]">
+        <p className="mt-4 text-fine text-[var(--ink-muted)]">
           {directUploadEnabled ? (
             <>Maximum file size: {ceilingLabel}</>
           ) : (

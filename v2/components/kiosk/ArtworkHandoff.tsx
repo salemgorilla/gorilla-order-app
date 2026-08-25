@@ -134,14 +134,14 @@ export default function ArtworkHandoff({ onFileReceived }: Props) {
 
       {status === "idle" && (
         <>
-          <p className="mt-1 text-sm text-[var(--ink-muted)]">
+          <p className="mt-1 text-fine text-[var(--ink-muted)]">
             We&rsquo;ll show a code. Point your phone camera at it, and send the
             file from there — nothing to install, nothing to log into.
           </p>
           <button
             type="button"
             onClick={start}
-            className="mt-4 min-h-[56px] cursor-pointer border-2 border-[var(--gorilla-green)] bg-[var(--gorilla-green)] px-6 text-base font-bold text-[var(--paper)] transition-colors duration-[120ms] ease-linear hover:bg-[var(--gorilla-green-dark)]"
+            className="mt-4 min-h-[56px] cursor-pointer border-2 border-[var(--gorilla-green)] bg-[var(--gorilla-green)] px-6 text-body font-bold text-[var(--paper)] transition-colors duration-[120ms] ease-linear hover:bg-[var(--gorilla-green-dark)]"
           >
             Show me the code
           </button>
@@ -159,19 +159,19 @@ export default function ArtworkHandoff({ onFileReceived }: Props) {
           />
 
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-[var(--ink-black)]">
+            <p className="text-fine font-bold text-[var(--ink-black)]">
               {status === "fetching"
                 ? "Got it — bringing it across…"
                 : "Waiting for your phone…"}
             </p>
-            <p className="mt-1 text-sm text-[var(--ink-muted)]">
+            <p className="mt-1 text-fine text-[var(--ink-muted)]">
               Open the camera app and hold it up to the code. Tap the link that
               appears.
             </p>
             <button
               type="button"
               onClick={() => setStatus("idle")}
-              className="mt-4 min-h-[44px] cursor-pointer border border-[var(--rule)] px-4 text-sm font-bold text-[var(--ink-black)] transition-colors duration-[120ms] ease-linear hover:border-[var(--ink-black)]"
+              className="mt-4 min-h-[44px] cursor-pointer border border-[var(--rule)] px-4 text-fine font-bold text-[var(--ink-black)] transition-colors duration-[120ms] ease-linear hover:border-[var(--ink-black)]"
             >
               Never mind
             </button>
@@ -180,7 +180,7 @@ export default function ArtworkHandoff({ onFileReceived }: Props) {
       )}
 
       {status === "done" && (
-        <p className="mt-3 bg-[var(--surface-ok)] p-3 text-sm font-bold text-[var(--gorilla-green-dark)]">
+        <p className="mt-3 bg-[var(--surface-ok)] p-3 text-fine font-bold text-[var(--gorilla-green-dark)]">
           ✓ Your file came through and is on this screen now.
         </p>
       )}
@@ -188,7 +188,7 @@ export default function ArtworkHandoff({ onFileReceived }: Props) {
       {status === "off" && (
         // Says which thing is not set up, so a member of staff can report
         // something useful rather than "the QR thing is broken".
-        <p className="mt-3 bg-[var(--surface-warn)] p-3 text-sm font-bold leading-5 text-[var(--ink-warn)]">
+        <p className="mt-3 bg-[var(--surface-warn)] p-3 text-fine font-bold leading-5 text-[var(--ink-warn)]">
           Phone hand-off isn&rsquo;t switched on for this deployment (blob
           storage is not connected). Use the upload box above, or email the file
           in.
@@ -197,13 +197,13 @@ export default function ArtworkHandoff({ onFileReceived }: Props) {
 
       {status === "error" && (
         <div className="mt-3">
-          <p className="bg-[var(--surface-warn)] p-3 text-sm font-bold text-[var(--ink-warn)]">
+          <p className="bg-[var(--surface-warn)] p-3 text-fine font-bold text-[var(--ink-warn)]">
             {error}
           </p>
           <button
             type="button"
             onClick={start}
-            className="mt-3 min-h-[44px] cursor-pointer border border-[var(--rule)] px-4 text-sm font-bold text-[var(--ink-black)] hover:border-[var(--ink-black)]"
+            className="mt-3 min-h-[44px] cursor-pointer border border-[var(--rule)] px-4 text-fine font-bold text-[var(--ink-black)] hover:border-[var(--ink-black)]"
           >
             Show a new code
           </button>

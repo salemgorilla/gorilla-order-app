@@ -1101,7 +1101,9 @@ export function buildPrintavoQuotePlan(input: {
         `${quantity}x ${garmentLabel}`,
         `Color: ${str(product.garmentColor || supplier.colorName, "TBD")}`,
         `Print locations: ${
-          Array.isArray(product.printLocations)
+          // An empty array is a request-mode payload saying "never asked" —
+          // that's TBD, not a blank after the colon.
+          Array.isArray(product.printLocations) && product.printLocations.length > 0
             ? (product.printLocations as string[]).join(", ")
             : str(product.printLocations, "TBD")
         }`,

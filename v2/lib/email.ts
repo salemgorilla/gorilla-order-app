@@ -310,14 +310,20 @@ export function buildQuoteEmail(input: {
       line("Type", "T-Shirts & Apparel"),
       line("Garment", str(supplier.productName || product.garmentType, "Not selected")),
       line("Quantity", String(quantity)),
-      line("Color", str(product.garmentColor || supplier.colorName, "Not selected")),
+      // "Not specified", not blank: a request-mode payload sends these empty
+      // because its form never asked (the answers are in the notes below).
+      // A blank after the label reads as a rendering fault; the words say
+      // the shop should look at the notes. Configurator payloads — and every
+      // payload from before the change — carry real values and print as
+      // they always did.
+      line("Color", str(product.garmentColor || supplier.colorName, "Not specified")),
       line(
         "Print Locations",
-        Array.isArray(product.printLocations)
+        Array.isArray(product.printLocations) && product.printLocations.length > 0
           ? (product.printLocations as string[]).join(", ")
-          : str(product.printLocations)
+          : str(product.printLocations, "Not specified")
       ),
-      line("Ink Colors", str(product.inkColors, "Not selected")),
+      line("Ink Colors", str(product.inkColors, "Not specified")),
       line("Size Breakdown", str(product.sizeBreakdown, "Not entered")),
       ...(product.specialOrder
         ? [

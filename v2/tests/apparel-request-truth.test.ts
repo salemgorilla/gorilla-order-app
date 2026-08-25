@@ -2,6 +2,9 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+import { buildQuoteEmail } from "../lib/email";
+import { buildPrintavoQuotePlan } from "../lib/printavo";
+
 /**
  * The apparel REQUEST flow, the day the catalog came alive.
  *
@@ -105,6 +108,106 @@ describe("the confirmation repeats the request, not the defaults", () => {
     assert.match(branch, /apparelQuote\.garmentType/);
     assert.match(branch, /apparelQuote\.specialOrderNotes/);
     assert.doesNotMatch(branch, /printLocations|inkColors|selectedSsColor/);
+  });
+});
+
+/**
+ * A request-mode payload as the browser now sends it: garmentType chosen,
+ * count typed, notes written — colour, locations and ink EMPTY, because the
+ * form never asked. The shop's two records must render those empties as
+ * "not specified", never as a blank after a colon and never by resurrecting
+ * a default.
+ */
+const hatsRequest = {
+  customer: { customerName: "Dana", email: "dana@example.com" },
+  production: { deliveryMethod: "Pickup", needBy: "2026-09-15" },
+  product: {
+    type: "T-Shirts & Apparel",
+    garmentType: "Hats",
+    quantity: 25,
+    garmentColor: "",
+    printLocations: [],
+    inkColors: "",
+    sizeBreakdown: "",
+    specialOrder: true,
+    specialOrderNotes: "25 black hats, front logo embroidery",
+    supplier: {
+      source: "S&S Activewear",
+      productName: "Hats",
+      supplierProductName: "Not selected",
+      catalogStyle: "Not selected",
+      colorName: "Not selected",
+      sampleSize: "Not selected",
+      sku: "Not selected",
+      markedUpGarmentPrice: 0,
+      image: null,
+      outOfStock: false,
+    },
+  },
+  pricing: { total: 0, quoteRequired: true },
+};
+
+describe("the shop email says 'not specified', not 'White · Front · 1 color'", () => {
+  const email = buildQuoteEmail({
+    quoteNumber: "GS-1042",
+    receivedAt: new Date("2026-08-25T12:00:00Z").toISOString(),
+    order: hatsRequest as never,
+    artworkAnalysis: null,
+  }).text;
+
+  test("the unanswered questions read as unanswered", () => {
+    // Colour falls through to the supplier block, whose request-mode value
+    // is the literal "Not selected" — different words, same honesty.
+    assert.match(email, /Color: Not selected/);
+    assert.match(email, /Print Locations: Not specified/);
+    assert.match(email, /Ink Colors: Not specified/);
+  });
+
+  test("no label is left with a blank after the colon", () => {
+    assert.doesNotMatch(email, /^(Color|Print Locations|Ink Colors): *$/m);
+  });
+
+  test("the customer's own words are the spec", () => {
+    assert.match(email, /What they need: 25 black hats, front logo embroidery/);
+  });
+
+  test("a configurator payload still prints its real answers", () => {
+    const configured = buildQuoteEmail({
+      quoteNumber: "GS-1043",
+      receivedAt: new Date("2026-08-25T12:00:00Z").toISOString(),
+      order: {
+        ...hatsRequest,
+        product: {
+          ...hatsRequest.product,
+          garmentType: "T-Shirts",
+          garmentColor: "Navy",
+          printLocations: ["Front", "Back"],
+          inkColors: "2 colors",
+          specialOrder: false,
+          specialOrderNotes: "",
+        },
+        pricing: { total: 250, unitPrice: 10 },
+      } as never,
+      artworkAnalysis: null,
+    }).text;
+
+    assert.match(configured, /Color: Navy/);
+    assert.match(configured, /Print Locations: Front, Back/);
+    assert.match(configured, /Ink Colors: 2 colors/);
+  });
+});
+
+describe("the Printavo note marks the unasked questions TBD", () => {
+  const plan = buildPrintavoQuotePlan({
+    quoteNumber: "GS-1042",
+    order: hatsRequest,
+    artworkAnalysis: null,
+  } as never) as never as { customerNote: string };
+
+  test("an empty locations array is TBD, not a blank line", () => {
+    assert.match(plan.customerNote, /Print locations: TBD/);
+    assert.match(plan.customerNote, /Color: Not selected/);
+    assert.match(plan.customerNote, /Ink: TBD/);
   });
 });
 

@@ -2919,7 +2919,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
           {currentStepId === "product" && (
             <div className="mt-6 border border-[var(--rule)] bg-white px-5 py-4 sm:inline-block">
               <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                <p className="text-sm font-bold text-[var(--ink-black)]">
+                <p className="text-fine font-bold text-[var(--ink-black)]">
                   {REFERENCE_STICKER.label}
                 </p>
                 <p className="flex items-baseline gap-2">

@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "tsx --test tests/*.test.ts",
-    "test:e2e": "node tests/e2e/smoke.mjs"
+    "test:e2e": "tsx tests/e2e/smoke.mjs"
   },
   "dependencies": {
     "@types/nodemailer": "^8.0.1",

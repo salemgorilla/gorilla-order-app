@@ -2932,7 +2932,14 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               : isApparelSelected
               ? "Build your apparel quote"
               : isSignsSelected
-              ? "Build your signs quote"
+              ? // Familied since the hard split: a customer on the Vinyl
+                // Banners card was still headed "Build your signs quote" —
+                // the one surface the split missed, found on the mobile
+                // sweep. The pipelines share this machinery on purpose; the
+                // words must not admit it.
+                signsFamily === "banners"
+                ? "Build your banner quote"
+                : "Build your signs quote"
               : "Choose your sticker details"
             : step.title}
         </h2>

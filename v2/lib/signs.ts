@@ -341,8 +341,33 @@ export function getSignFamilyProducts(family: SignFamily): SignProduct[] {
  * "Add another" inside the Signs pipeline cannot hand the customer a banner.
  */
 export function createSignsDesignForFamily(family: SignFamily): SignsDesign {
+  const productId = SIGN_FAMILIES[family].defaultProductId;
+
+  // The base defaults ARE the banner defaults, byte for byte — keep them,
+  // including the historical 3' x 6' the entry price is quoted at.
+  if (productId === defaultSignsDesign.productId) {
+    return createSignsDesign();
+  }
+
+  /**
+   * Any other product must bring its OWN spec, exactly as
+   * handleSignProductSelect resets it when a customer switches products.
+   * Overriding only productId shipped the Signs pipeline's default as a
+   * yard sign in "13 oz Scrim Vinyl" with "Hemmed + Grommets" — banner
+   * leftovers no yard sign offers. The price never moved (yard pricing
+   * keys on size alone) and any click on the product picker corrected it,
+   * so it survived five days: only a customer who accepted every default
+   * sent the shop a build sheet asking for a hemmed coroplast lawn sign,
+   * with neither Finishing chip readable as selected on screen.
+   */
+  const product = getSignProduct(productId);
+
   return createSignsDesign({
-    productId: SIGN_FAMILIES[family].defaultProductId,
+    productId,
+    size: product.sizes[0]?.label ?? CUSTOM_SIZE,
+    material: product.materials[0],
+    finishing: product.finishing[0],
+    doubleSided: false,
   });
 }
 

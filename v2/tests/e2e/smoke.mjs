@@ -125,7 +125,7 @@ const browser = await chromium.launch({
 });
 
 /** Fresh page per flow, with the stubs and capture wired. */
-async function openPage(state) {
+async function openPage(state, path = "/") {
   const page = await browser.newPage({ viewport: { width: 1300, height: 1600 } });
 
   await page.route("**/api/ss-catalog*", (route) => {
@@ -142,7 +142,7 @@ async function openPage(state) {
   await page.route("**/api/artwork-upload", (route) => route.abort());
   await page.route("**blob.vercel-storage.com/**", (route) => route.abort());
 
-  await page.goto(BASE, { waitUntil: "networkidle" });
+  await page.goto(BASE + path, { waitUntil: "networkidle" });
   return page;
 }
 
@@ -288,6 +288,58 @@ try {
         "apparel: THE invariant, inverted — a hand quote must never auto-bill",
         !isStickerOrder(order)
       );
+    }
+    await page.close();
+  }
+
+  // ── Flow 4: KIOSK self-service — the consent and no-payment-link path ─
+  // The kiosk breaks every one-browser-one-person assumption at once, so
+  // its invariants are their own class: the newsletter box must arrive
+  // unticked (consent typed by staff is nobody's consent), and the payload
+  // must carry the kiosk marker the SERVER reads to withhold the payment
+  // link. Both were verified by hand once; this keeps them verified.
+  {
+    const state = { catalogRequests: 0, quoteRaw: null };
+    const page = await openPage(state, "/kiosk");
+
+    await page.click("text=Custom Stickers");
+    await page.click('button:has-text("02")');
+    await page.locator("input[type=date]").first().fill("2026-12-15");
+    await page.click('button:has-text("03")');
+    await page.locator('input[type="file"]').first().setInputFiles({
+      name: "kiosk-art.png",
+      mimeType: "image/png",
+      buffer: await makePng(page),
+    });
+    await page.waitForTimeout(900);
+    await page.click('button:has-text("04")');
+
+    const newsletterTicked = await page.evaluate(() =>
+      [...document.querySelectorAll("input[type=checkbox]")].some(
+        (box) =>
+          box.checked &&
+          /news|offer|newsletter/i.test(box.closest("label")?.textContent || "")
+      )
+    );
+    check("kiosk: the newsletter box arrives unticked", !newsletterTicked);
+
+    await page.locator("input[id*=ame], input[name*=ame]").first().fill("Walk-in Customer");
+    await page.locator("input[type=email]").first().fill("walkin@example.com");
+    await page.click('button:has-text("05")');
+    await page.waitForTimeout(400);
+    await page.click('button:has-text("Request Quote")');
+    await page.waitForTimeout(1500);
+
+    const order = JSON.parse(formField(state.quoteRaw || "", "order") || "null");
+    check("kiosk: payload captured", Boolean(order));
+    if (order) {
+      check(
+        "kiosk: the payload carries the marker the server withholds the payment link on",
+        order.kiosk?.mode === "self",
+        JSON.stringify(order.kiosk)
+      );
+      check("kiosk: consent was not invented", order.customer?.newsletterOptIn === false);
+      check("kiosk: still classifies as a sticker order", isStickerOrder(order));
     }
     await page.close();
   }

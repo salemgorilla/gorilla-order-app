@@ -1823,6 +1823,16 @@ export default function Home() {
       behavior: reduceMotion ? "auto" : "smooth",
       block: "start",
     });
+
+    // Focus follows the step, not just the viewport. Without this, pressing
+    // "Continue" dropped focus to <body>: a keyboard user re-tabbed through
+    // the header and step nav on every one of the five steps, and a screen
+    // reader heard nothing about the change. Landing on the heading reads
+    // the new step's title aloud and puts the next Tab inside the step.
+    // preventScroll, or the focus would fight the smooth scroll above.
+    document
+      .querySelector<HTMLElement>("[data-step-heading]")
+      ?.focus({ preventScroll: true });
   }, [stepScrollToken]);
 
   /**
@@ -2924,6 +2934,10 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
           // Names the group that wraps all three options below. Only on the
           // product step: this heading is shared with every other step.
           id={currentStepId === "product" ? "product-heading" : undefined}
+          // Focus target for step changes (the effect on stepScrollToken).
+          // tabIndex -1: programmatically focusable, never in the tab order.
+          data-step-heading
+          tabIndex={-1}
           className="mt-2 text-head font-bold tracking-display text-[var(--ink-black)]"
         >
           {currentStepId === "details"

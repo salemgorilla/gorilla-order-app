@@ -116,7 +116,11 @@ describe("the validation rules can now actually fire", () => {
       {
         customer: { customerName: "Casey", email: "casey@example.com" },
         production: { needBy: "2026-09-01" },
-      }
+      },
+      // Lane and a pinned "today": this test is about the quantity rule, so
+      // the turnaround floor (lib/turnaround.ts) must never trip its fixture.
+      "slow",
+      "2026-08-03"
     );
   }
 

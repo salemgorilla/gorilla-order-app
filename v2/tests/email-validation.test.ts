@@ -94,6 +94,10 @@ describe("getEmailError", () => {
   });
 });
 
+// Pinned "today" so the turnaround floor (lib/turnaround.ts) never
+// trips the early-September fixture dates — this file tests other rules.
+const TODAY = "2026-08-03";
+
 /** Minimal orders that are valid apart from the address under test. */
 function stickerOrder(email: string) {
   return {
@@ -137,11 +141,11 @@ describe("all three flows enforce it", () => {
     ];
 
     assert.ok(
-      getSignsFieldErrors(signsDesigns, signsOrder("dana@gmailcom"))
+      getSignsFieldErrors(signsDesigns, signsOrder("dana@gmailcom"), "slow", TODAY)
         .customerEmail
     );
     assert.equal(
-      getSignsFieldErrors(signsDesigns, signsOrder("dana@example.com"))
+      getSignsFieldErrors(signsDesigns, signsOrder("dana@example.com"), "slow", TODAY)
         .customerEmail,
       undefined
     );
@@ -156,11 +160,11 @@ describe("all three flows enforce it", () => {
     };
 
     assert.ok(
-      getApparelFieldErrors(apparelQuote, signsOrder("dana@gmailcom"), 24)
+      getApparelFieldErrors(apparelQuote, signsOrder("dana@gmailcom"), 24, TODAY)
         .customerEmail
     );
     assert.equal(
-      getApparelFieldErrors(apparelQuote, signsOrder("dana@example.com"), 24)
+      getApparelFieldErrors(apparelQuote, signsOrder("dana@example.com"), 24, TODAY)
         .customerEmail,
       undefined
     );

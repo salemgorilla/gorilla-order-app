@@ -46,7 +46,11 @@ function errorsFor(
 ) {
   return getSignsFieldErrors(
     [signs({ needsTypedSize, ...signsOverrides })],
-    order(orderOverrides)
+    order(orderOverrides),
+    // Lane + pinned "today": this file tests the sign rules themselves, so
+    // the turnaround floor (lib/turnaround.ts) must never trip the fixture.
+    "slow",
+    "2026-08-03"
   );
 }
 
@@ -168,7 +172,9 @@ describe("every key signs can raise has a step that owns it", () => {
       order({
         customer: { customerName: "", email: "" },
         production: { needBy: "" },
-      })
+      }),
+      "slow",
+      "2026-08-03"
     );
 
     assert.ok(Object.keys(everythingWrong).length >= 7, "expected a full sweep of failures");

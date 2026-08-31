@@ -82,6 +82,11 @@ import {
 } from "../lib/pricing";
 import { calculateApparelPricing } from "../lib/apparel-pricing";
 import { pruneSizeQuantities } from "../lib/size-quantities";
+import {
+  earliestNeedBy,
+  turnaroundLaneFor,
+  turnaroundNote,
+} from "../lib/turnaround";
 import { apparelCatalogStyles } from "../lib/apparel-catalog";
 import { sameOriginGarmentPhotoUrl } from "../lib/garment-photo";
 import {
@@ -330,6 +335,15 @@ export default function Home() {
    */
   const isSignsSelected = selectedProductId === "signs" || isBannersSelected;
   const signsFamily: SignFamily = isBannersSelected ? "banners" : "signs";
+
+  // Which turnaround floor this flow's need-by date sits on: stickers and
+  // banners next business day, apparel and the signs pipeline 14 business
+  // days. The lanes and the day counts live in lib/turnaround.ts.
+  const turnaroundLane = turnaroundLaneFor({
+    isApparel: isApparelSelected,
+    isSigns: isSignsSelected,
+    signsFamily,
+  });
 
   const signsQuote = largeFormatQuotes[signsFamily];
 
@@ -1531,7 +1545,8 @@ export default function Home() {
   function getSignsFieldErrors(): FieldErrors {
     return getSignsFieldErrorsFor(
       signsQuote.designs.map(signsDesignInput),
-      order
+      order,
+      turnaroundLane
     );
   }
 
@@ -1555,7 +1570,8 @@ export default function Home() {
         ...signsDesignInput(design),
         templateTextErrors: signsTemplateTextErrorsLive[design.id] || {},
       })),
-      order
+      order,
+      turnaroundLane
     );
   }
 
@@ -3577,6 +3593,8 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   })
                 }
                 error={fieldErrors.needBy}
+                minDate={earliestNeedBy(turnaroundLane)}
+                turnaroundNote={turnaroundNote(turnaroundLane)}
               />
               </>
               )}

@@ -15,6 +15,12 @@ export type QuoteConfirmation = {
   quoteNumber: string;
   receivedAt: string;
   message: string;
+  /**
+   * Files that did not travel with the quote — too big for the inline path
+   * after the direct upload failed. The customer must be told on screen:
+   * for signs and apparel this screen is the ONLY channel they have.
+   */
+  droppedArtwork?: { id: string; name: string; size: number }[];
   checkout?: StickerCheckout | null;
   /**
    * What happened to the customer's Printavo record. Shown at the counter

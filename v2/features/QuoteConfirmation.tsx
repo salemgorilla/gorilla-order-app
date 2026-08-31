@@ -8,6 +8,7 @@ import type { ApparelQuote } from "../lib/apparel";
 import type { ApparelPricingResult } from "../lib/apparel-pricing";
 import type { QuoteConfirmation, SsCatalogColor } from "./types";
 import { SALES_TAX, getSignsTotals, getStickerTotals } from "../lib/tax";
+import { formatBytes } from "../lib/upload-limits";
 import { canOfferTracker, getTrackUrl } from "../lib/order-status";
 import {
   getSignProduct,
@@ -162,6 +163,53 @@ export default function QuoteConfirmationScreen({
 
               <p className="spec mt-2 text-spec text-[var(--ink-muted)]">
                 Payment link also emailed to you
+              </p>
+            </div>
+          )}
+
+          {/* Artwork that did NOT travel with this quote. Above everything
+              else that is merely informational, because on 25 Aug a customer
+              walked away from this exact screen believing his 10.6 MB file
+              had been sent — it had been silently dropped, the recovery note
+              went only to the shop, and the job was lost to the deadline.
+              For signs and apparel this screen is the customer's ONLY
+              channel; there is no email to repeat it in.
+
+              The copy does three things on purpose: names the file so they
+              know which one, gives the fix in one action, and says the rest
+              arrived so they do not resubmit the whole order. */}
+          {(quoteConfirmation?.droppedArtwork?.length ?? 0) > 0 && (
+            <div
+              role="alert"
+              className="mt-8 border-l-4 border-[var(--rush-red)] bg-[var(--surface-warn)] p-6"
+            >
+              <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--rush-red)]">
+                One more step — your artwork
+              </p>
+
+              {quoteConfirmation!.droppedArtwork!.map((file) => (
+                <p
+                  key={file.id}
+                  className="mt-3 text-body font-bold leading-7 text-[var(--ink-black)]"
+                >
+                  We couldn&rsquo;t bring{" "}
+                  <span className="spec">{file.name}</span>
+                  {" along with the quote — it’s "}
+                  {formatBytes(file.size)}, more than this form can carry.
+                </p>
+              ))}
+
+              <p className="mt-3 text-fine font-bold leading-6 text-[var(--ink-black)]">
+                Email the file to{" "}
+                <a
+                  className="underline decoration-1 underline-offset-2"
+                  href="mailto:quote@gorillasalem.com"
+                >
+                  quote@gorillasalem.com
+                </a>{" "}
+                with your quote number &mdash; the Open Gmail Draft button
+                below starts that message for you. Everything else arrived:
+                don&rsquo;t resubmit the order.
               </p>
             </div>
           )}

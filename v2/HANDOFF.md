@@ -22,7 +22,31 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
-- **The live catalog no longer answers questions the request flow never
+- **A dropped artwork file is loud now, everywhere** — 2026-08-31, from the
+  Kurt Sletten handoff (25 Aug: a 10.6 MB apparel file silently dropped, the
+  customer never told, the month's one lost job). THE DIAGNOSIS, so nobody
+  re-litigates it: the apparel flow HAS used the direct-to-blob path since
+  6 Aug; isAllowedUploadPath accepts quote-artwork/<file> and the real route
+  minted a token for exactly that pathname when bench-driven; and
+  vercel.com/api/blob answers CORS with allow-origin * including every
+  multipart header (probed from CI). The failing leg was browser→blob-API in
+  the customer's own environment, unattributable six days later because
+  nothing recorded the reason anywhere — the silence was the defect. Now:
+  the fallback names its failure and the reason rides with the quote
+  (artworkUploadFailures → server log + shop email); the customer is told on
+  the confirmation screen (role=alert, names the file, one action, "nothing
+  else is missing"), in their copied record, and in a confirmation email
+  that now SENDS even when Printavo's payment email went (which never
+  mentions the file); and a progress-keyed stall guard bounds the SDK's
+  retry storm at 30s — it must count only NEW bytes, because the SDK fires
+  a 0% event at the start of every retry and a naive guard is re-armed by
+  the storm it exists to end (found by running the black-hole case). All
+  three paths driven in Chromium with a real 10.4 MB PNG: happy multipart
+  (create/upload×2/complete, blob URL in payload), dead API (instant loud
+  fallback), black hole (fallback at exactly 30s). Other affected quotes:
+  the pre-#64 42 MB signs file; earlier ones unknowable — logs expired,
+  which is precisely what the server-side failure log fixes. STILL OWED:
+  one real >8 MB upload against production (task #19 covers it).
   asked** — 2026-08-25 evening (#86, #87). The key going live was itself a
   breaking change: selectedSs* pin the first catalog product/colour/size for
   the CONFIGURATOR, and the moment they stopped being null, every

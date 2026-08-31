@@ -43,7 +43,7 @@ export default function StickerPreview({
             <p className="eyebrow">
               {proofType}
             </p>
-            <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
+            <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
               Preview only — final proof reviewed by Gorilla Salem
             </p>
           </div>
@@ -80,21 +80,21 @@ export default function StickerPreview({
 
         <div className="mt-4 grid grid-cols-3 gap-3 text-center">
           <div className=" bg-white p-3">
-            <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
+            <p className="text-spec font-medium uppercase tracking-eyebrow text-[var(--ink-muted)]">
               Shape
             </p>
             <p className="mt-1 text-fine font-bold text-[var(--ink-black)]">{shape}</p>
           </div>
 
           <div className=" bg-white p-3">
-            <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
+            <p className="text-spec font-medium uppercase tracking-eyebrow text-[var(--ink-muted)]">
               Material
             </p>
             <p className="mt-1 text-fine font-bold text-[var(--ink-black)]">{material}</p>
           </div>
 
           <div className=" bg-white p-3">
-            <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
+            <p className="text-spec font-medium uppercase tracking-eyebrow text-[var(--ink-muted)]">
               Finish
             </p>
             <p className="mt-1 text-fine font-bold text-[var(--ink-black)]">{finish}</p>

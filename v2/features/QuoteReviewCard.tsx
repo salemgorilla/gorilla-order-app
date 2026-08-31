@@ -65,7 +65,7 @@ export default function QuoteReviewCard({
         </span>
       </div>
 
-      <div className="mt-5 space-y-3 text-fine font-bold text-[var(--ink-muted)]">
+      <div className="mt-5 space-y-3 text-fine font-medium text-[var(--ink-muted)]">
         {isSignsSelected ? (
           <>
             {signsQuote.designs.map((design, index) => (
@@ -78,7 +78,7 @@ export default function QuoteReviewCard({
                 }
               >
                 {signsQuote.designs.length > 1 && (
-                  <p className="spec text-spec uppercase tracking-eyebrow text-[var(--ink-black)]">
+                  <p className="spec text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-black)]">
                     Design {String(index + 1).padStart(2, "0")}
                   </p>
                 )}
@@ -107,7 +107,7 @@ export default function QuoteReviewCard({
                 ).map(([label, value]) => (
                   <div key={label} className="flex justify-between gap-4">
                     <span>{label}</span>
-                    <span className="text-right text-[var(--ink-black)]">
+                    <span className="text-right font-bold text-[var(--ink-black)]">
                       {value}
                     </span>
                   </div>
@@ -125,7 +125,7 @@ export default function QuoteReviewCard({
                   ? "Estimated total"
                   : "Estimate"}
               </span>
-              <span className="text-right text-[var(--gorilla-green)]">
+              <span className="text-right font-bold text-[var(--gorilla-green)]">
                 {signsTotals !== null
                   ? `$${signsTotals.estimatedTotal.toFixed(2)}`
                   : "Quoted by hand"}
@@ -143,28 +143,28 @@ export default function QuoteReviewCard({
                 which of the two the shop believed. */}
             <div className="flex justify-between gap-4">
               <span>Garment</span>
-              <span className="text-right text-[var(--ink-black)]">
+              <span className="text-right font-bold text-[var(--ink-black)]">
                 {apparelQuote.garmentType}
               </span>
             </div>
 
             <div className="flex justify-between gap-4">
               <span>Quantity</span>
-              <span className="text-right text-[var(--ink-black)]">
+              <span className="text-right font-bold text-[var(--ink-black)]">
                 {apparelQuote.quantity.toLocaleString()}
               </span>
             </div>
 
             <div className="flex justify-between gap-4">
               <span className="shrink-0">Your request</span>
-              <span className="text-right text-[var(--ink-black)]">
+              <span className="text-right font-bold text-[var(--ink-black)]">
                 {apparelQuote.specialOrderNotes.trim() || "Not entered"}
               </span>
             </div>
 
             <div className="flex justify-between gap-4">
               <span>Estimate</span>
-              <span className="text-right text-[var(--gorilla-green)]">
+              <span className="text-right font-bold text-[var(--gorilla-green)]">
                 Quoted by hand
               </span>
             </div>
@@ -173,42 +173,42 @@ export default function QuoteReviewCard({
           <>
             <div className="flex justify-between gap-4">
               <span>Garment</span>
-              <span className="text-right text-[var(--ink-black)]">
+              <span className="text-right font-bold text-[var(--ink-black)]">
                 {selectedGarmentLabel}
               </span>
             </div>
 
             <div className="flex justify-between gap-4">
               <span>Color</span>
-              <span className="text-right text-[var(--ink-black)]">
+              <span className="text-right font-bold text-[var(--ink-black)]">
                 {selectedSsColor?.colorName || apparelQuote.garmentColor}
               </span>
             </div>
 
             <div className="flex justify-between gap-4">
               <span>Quantity</span>
-              <span className="text-right text-[var(--ink-black)]">
+              <span className="text-right font-bold text-[var(--ink-black)]">
                 {apparelQuote.quantity.toLocaleString()}
               </span>
             </div>
 
             <div className="flex justify-between gap-4">
               <span>Sizes</span>
-              <span className="text-right text-[var(--ink-black)]">
+              <span className="text-right font-bold text-[var(--ink-black)]">
                 {apparelQuote.sizeBreakdown || "Not complete"}
               </span>
             </div>
 
             <div className="flex justify-between gap-4">
               <span>Print Locations</span>
-              <span className="text-right text-[var(--ink-black)]">
+              <span className="text-right font-bold text-[var(--ink-black)]">
                 {apparelQuote.printLocations.join(", ") || "Not selected"}
               </span>
             </div>
 
             <div className="flex justify-between gap-4">
               <span>Ink Colors</span>
-              <span className="text-right text-[var(--ink-black)]">
+              <span className="text-right font-bold text-[var(--ink-black)]">
                 {apparelQuote.inkColors}
               </span>
             </div>
@@ -221,7 +221,7 @@ export default function QuoteReviewCard({
                 already say "Quoted by hand". */}
             <div className="flex justify-between gap-4">
               <span>Estimate</span>
-              <span className="text-right text-[var(--gorilla-green)]">
+              <span className="text-right font-bold text-[var(--gorilla-green)]">
                 {apparelQuote.specialOrder
                   ? "Quoted by hand"
                   : `$${apparelPricing.total.toFixed(2)}`}
@@ -245,7 +245,7 @@ export default function QuoteReviewCard({
                 }
               >
                 {order.items.length > 1 && (
-                  <p className="spec text-spec uppercase tracking-eyebrow text-[var(--ink-black)]">
+                  <p className="spec text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-black)]">
                     Design {String(index + 1).padStart(2, "0")}
                   </p>
                 )}
@@ -260,7 +260,7 @@ export default function QuoteReviewCard({
                 ).map(([label, value]) => (
                   <div key={label} className="flex justify-between gap-4">
                     <span>{label}</span>
-                    <span className="text-right text-[var(--ink-black)]">
+                    <span className="text-right font-bold text-[var(--ink-black)]">
                       {value}
                     </span>
                   </div>
@@ -274,7 +274,7 @@ export default function QuoteReviewCard({
                 surfaces, two numbers, on the screen before a payable link. */}
             <div className="flex justify-between gap-4">
               <span>{stickerTotals.estimatedTax > 0 ? "Estimated total" : "Estimate"}</span>
-              <span className="text-right text-[var(--gorilla-green)]">
+              <span className="text-right font-bold text-[var(--gorilla-green)]">
                 ${stickerTotals.estimatedTotal.toFixed(2)}
               </span>
             </div>
@@ -292,7 +292,7 @@ export default function QuoteReviewCard({
           {isApparelSelected && (
             <div className="mb-3 flex justify-between gap-4">
               <span>Artwork</span>
-              <span className="text-right text-[var(--ink-black)]">
+              <span className="text-right font-bold text-[var(--ink-black)]">
                 {order.artwork.file?.name || "Not uploaded"}
               </span>
             </div>
@@ -300,21 +300,21 @@ export default function QuoteReviewCard({
 
           <div className="mt-3 flex justify-between gap-4">
             <span>Needed By</span>
-            <span className="text-right text-[var(--ink-black)]">
+            <span className="text-right font-bold text-[var(--ink-black)]">
               {order.production.needBy || "Not entered"}
             </span>
           </div>
 
           <div className="mt-3 flex justify-between gap-4">
             <span>Customer</span>
-            <span className="text-right text-[var(--ink-black)]">
+            <span className="text-right font-bold text-[var(--ink-black)]">
               {order.customer.customerName || "Not entered"}
             </span>
           </div>
 
           <div className="mt-3 flex justify-between gap-4">
             <span>Email</span>
-            <span className="text-right text-[var(--ink-black)]">
+            <span className="text-right font-bold text-[var(--ink-black)]">
               {order.customer.email || "Not entered"}
             </span>
           </div>
@@ -324,7 +324,7 @@ export default function QuoteReviewCard({
           {(order.addOns.length > 0 || order.addOnsNote.trim()) && (
             <div className="mt-3 flex justify-between gap-4">
               <span>Also asking about</span>
-              <span className="text-right text-[var(--ink-black)]">
+              <span className="text-right font-bold text-[var(--ink-black)]">
                 {[
                   ...order.addOns.map((a) => a.label),
                   ...(order.addOnsNote.trim() ? [order.addOnsNote.trim()] : []),

@@ -90,7 +90,7 @@ export default function ApparelRequestBuilder({
         data-invalid={fieldErrors?.specialOrderNotes ? "true" : undefined}
       >
         <label htmlFor="apparel-request-notes" className="block">
-          <span className="text-lede font-bold text-[var(--ink-black)]">
+          <span className="text-lede font-semibold text-[var(--ink-black)]">
             Tell us what you need{" "}
             <span className="text-fine font-normal text-[var(--rush-red)]">
               (required)

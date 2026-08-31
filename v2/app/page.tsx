@@ -2855,7 +2855,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
           className="mt-5 max-h-64 w-full border border-[var(--rule)] bg-[var(--shirt-blank)] object-contain p-4"
         />
       ) : (
-        <p className="mt-5 border border-[var(--rule)] border-l-4 border-l-[var(--rule)] bg-[var(--shirt-blank)] p-4 text-fine font-bold text-[var(--ink-muted)]">
+        <p className="mt-5 border border-[var(--rule)] border-l-4 border-l-[var(--rule)] bg-[var(--shirt-blank)] p-4 text-fine font-medium text-[var(--ink-muted)]">
           No artwork yet — that is fine for apparel. Send the request and we
           will sort the file out together.
         </p>
@@ -2914,21 +2914,21 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
       <dl className="mt-4 space-y-3 text-fine">
         <div className="flex justify-between gap-4 border-b border-[var(--rule)] pb-3">
-          <dt className="font-bold text-[var(--ink-muted)]">Garment</dt>
+          <dt className="font-medium text-[var(--ink-muted)]">Garment</dt>
           <dd className="font-bold text-[var(--ink-black)]">
             {apparelQuote.garmentType}
           </dd>
         </div>
 
         <div className="flex justify-between gap-4 border-b border-[var(--rule)] pb-3">
-          <dt className="font-bold text-[var(--ink-muted)]">Roughly</dt>
+          <dt className="font-medium text-[var(--ink-muted)]">Roughly</dt>
           <dd className="spec font-bold text-[var(--ink-black)]">
             {apparelQuote.quantity > 0 ? apparelQuote.quantity : "—"}
           </dd>
         </div>
 
         <div className="flex justify-between gap-4">
-          <dt className="font-bold text-[var(--ink-muted)]">Price</dt>
+          <dt className="font-medium text-[var(--ink-muted)]">Price</dt>
           <dd className="font-bold text-[var(--ink-black)]">Quoted by hand</dd>
         </div>
       </dl>
@@ -3063,7 +3063,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
           {currentStepId === "product" && (
             <div className="mt-6 border border-[var(--rule)] bg-white px-5 py-4 sm:inline-block">
               <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                <p className="text-fine font-bold text-[var(--ink-black)]">
+                <p className="text-fine font-semibold text-[var(--ink-black)]">
                   {REFERENCE_STICKER.label}
                 </p>
                 <p className="flex items-baseline gap-2">
@@ -3075,7 +3075,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   </span>
                 </p>
               </div>
-              <p className="mt-2 text-fine font-bold text-[var(--ink-muted)]">
+              <p className="mt-2 text-fine font-medium text-[var(--ink-muted)]">
                 Setup included &middot; no art fees &middot; proof before print
               </p>
             </div>
@@ -3197,7 +3197,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                         )}
                       </div>
 
-                      <p className="mt-3 text-fine font-bold leading-6 text-[var(--ink-muted)]">
+                      <p className="mt-3 text-fine font-medium leading-6 text-[var(--ink-muted)]">
                         {product.description}
                       </p>
 
@@ -3281,7 +3281,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                         </div>
                       </div>
 
-                      <p className="max-w-2xl text-fine font-bold leading-6 text-[var(--ink-muted)]">
+                      <p className="max-w-2xl text-fine font-medium leading-6 text-[var(--ink-muted)]">
                         {product.description}
                       </p>
 
@@ -3749,7 +3749,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
           <aside className="space-y-6 lg:col-span-5">
             {previewCard}
 
-            <div className=" border border-[var(--rule)] bg-white p-5 text-fine font-bold leading-6 text-[var(--ink-muted)] sm:p-6">
+            <div className=" border border-[var(--rule)] bg-white p-5 text-fine font-medium leading-6 text-[var(--ink-muted)] sm:p-6">
               Not sure what to choose? Send the quote anyway. Gorilla Salem will
               review the artwork and help confirm the best setup before anything
               goes to print.
@@ -3820,7 +3820,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                       : "Apparel quote is ready to submit."}
                   </p>
                 ) : (
-                  <ul className="mt-4 space-y-2 text-fine font-bold text-[var(--ink-muted)]">
+                  <ul className="mt-4 space-y-2 text-fine font-medium text-[var(--ink-muted)]">
                     {currentValidationErrors.map((error) => (
                       <li key={error}>• {error}</li>
                     ))}
@@ -3969,7 +3969,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 the work. */}
             Custom printing, local service, real people reviewing every job.
           </p>
-          <p className="mt-2 text-fine font-bold text-[var(--ink-muted)]">
+          <p className="mt-2 text-fine font-medium text-[var(--ink-muted)]">
             Salem, Massachusetts •{" "}
             <a
               className="underline decoration-1 underline-offset-2 transition-colors duration-[120ms] ease-linear hover:text-[var(--gorilla-green)]"

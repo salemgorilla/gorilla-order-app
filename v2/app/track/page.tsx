@@ -106,7 +106,7 @@ function TrackForm() {
         >
           <label
             htmlFor="track-number"
-            className="block text-fine font-bold text-[var(--ink-black)]"
+            className="block text-fine font-semibold text-[var(--ink-black)]"
           >
             Order number
           </label>
@@ -124,7 +124,7 @@ function TrackForm() {
 
           <label
             htmlFor="track-email"
-            className="mt-4 block text-fine font-bold text-[var(--ink-black)]"
+            className="mt-4 block text-fine font-semibold text-[var(--ink-black)]"
           >
             Email on the order
           </label>

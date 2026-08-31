@@ -39,7 +39,7 @@ export default function NeedByDate({
       <div className="mt-5" data-invalid={error ? "true" : undefined}>
         <label
           htmlFor="need-by-date"
-          className="block text-fine font-bold text-[var(--ink-black)]"
+          className="block text-fine font-semibold text-[var(--ink-black)]"
         >
           Date needed in hand{" "}
           <span className="font-normal text-[var(--rush-red)]">(required)</span>
@@ -79,7 +79,7 @@ export default function NeedByDate({
           time — these are buttons, so no fieldset legend names them. */}
       <p
         id="deadline-type-label"
-        className="mt-5 text-fine font-bold text-[var(--ink-black)]"
+        className="mt-5 text-fine font-semibold text-[var(--ink-black)]"
       >
         How firm is that date?
       </p>

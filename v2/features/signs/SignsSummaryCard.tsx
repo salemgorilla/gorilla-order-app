@@ -78,11 +78,11 @@ export default function SignsSummaryCard({
                 Design {String(index + 1).padStart(2, "0")}
               </p>
 
-              <div className="mt-3 space-y-3 text-fine font-bold text-[var(--ink-muted)]">
+              <div className="mt-3 space-y-3 text-fine font-medium text-[var(--ink-muted)]">
                 {designRows(design).map(([label, value]) => (
                   <div key={label} className="flex justify-between gap-4">
                     <span>{label}</span>
-                    <span className="text-right text-[var(--ink-black)]">
+                    <span className="text-right font-bold text-[var(--ink-black)]">
                       {value}
                     </span>
                   </div>
@@ -110,11 +110,11 @@ export default function SignsSummaryCard({
           </p>
         )}
 
-        <div className="space-y-3 text-fine font-bold text-[var(--ink-muted)]">
+        <div className="space-y-3 text-fine font-medium text-[var(--ink-muted)]">
           {rows.map(([label, value]) => (
             <div key={label} className="flex justify-between gap-4">
               <span>{label}</span>
-              <span className="text-right text-[var(--ink-black)]">{value}</span>
+              <span className="text-right font-bold text-[var(--ink-black)]">{value}</span>
             </div>
           ))}
         </div>
@@ -127,7 +127,7 @@ export default function SignsSummaryCard({
               Estimated Pricing
             </p>
 
-            <div className="mt-4 space-y-2 text-fine font-bold text-[var(--ink-muted)]">
+            <div className="mt-4 space-y-2 text-fine font-medium text-[var(--ink-muted)]">
               {pricing.lines
                 .filter((l) => l.amount !== 0)
                 .map((l) => (
@@ -135,7 +135,7 @@ export default function SignsSummaryCard({
                     <span>{l.label}</span>
                     {/* Credits are negative, so the sign goes before the
                         dollar: -$36.00, not $-36.00. */}
-                    <span className="text-right text-[var(--ink-black)]">
+                    <span className="text-right font-bold text-[var(--ink-black)]">
                       {l.amount < 0 ? "-" : ""}$
                       {Math.abs(l.amount).toFixed(2)}
                     </span>
@@ -151,7 +151,7 @@ export default function SignsSummaryCard({
                 {signsTotals.estimatedTax > 0 && (
                   <div className="mb-1 flex justify-between gap-4">
                     <span>Estimated {SALES_TAX.label}</span>
-                    <span className="text-right text-[var(--ink-black)]">
+                    <span className="text-right font-bold text-[var(--ink-black)]">
                       ${signsTotals.estimatedTax.toFixed(2)}
                     </span>
                   </div>
@@ -180,7 +180,7 @@ export default function SignsSummaryCard({
                 {pricing.designs.length === 1 && pricing.quantity > 1 && (
                   <div className="mt-1 flex justify-between gap-4">
                     <span>Estimated Each</span>
-                    <span className="text-right text-[var(--ink-black)]">
+                    <span className="text-right font-bold text-[var(--ink-black)]">
                       ${pricing.unitPrice.toFixed(2)}
                     </span>
                   </div>
@@ -225,7 +225,7 @@ export default function SignsSummaryCard({
           )}
 
           <div className="mt-5 bg-[var(--surface-warn)] p-4">
-            <p className="text-fine font-bold leading-6 text-[var(--ink-muted)]">
+            <p className="text-fine font-medium leading-6 text-[var(--ink-muted)]">
               {pricing.hasQuotedExtras
                 ? "Some finishing you picked is quoted by hand, so this total is a starting point. "
                 : ""}
@@ -239,7 +239,7 @@ export default function SignsSummaryCard({
           <p className="text-fine font-bold text-[var(--ink-black)]">
             Priced by hand
           </p>
-          <p className="mt-2 text-fine font-bold leading-6 text-[var(--ink-muted)]">
+          <p className="mt-2 text-fine font-medium leading-6 text-[var(--ink-muted)]">
             {pricing.reason ||
               "Gorilla Salem will price this and reply with your quote."}
           </p>

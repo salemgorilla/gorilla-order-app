@@ -82,7 +82,7 @@ export default function StaffGate({ onCancel, onSignedIn }: Props) {
 
         <label
           htmlFor="staff-name"
-          className="mt-5 block text-fine font-bold text-[var(--ink-black)]"
+          className="mt-5 block text-fine font-semibold text-[var(--ink-black)]"
         >
           Your name
         </label>
@@ -97,7 +97,7 @@ export default function StaffGate({ onCancel, onSignedIn }: Props) {
 
         <label
           htmlFor="staff-pin"
-          className="mt-4 block text-fine font-bold text-[var(--ink-black)]"
+          className="mt-4 block text-fine font-semibold text-[var(--ink-black)]"
         >
           Staff PIN
         </label>

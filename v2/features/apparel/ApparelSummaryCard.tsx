@@ -75,7 +75,7 @@ export default function ApparelSummaryCard({
 
             <div className="flex justify-between gap-4">
               <span>Estimated Total</span>
-              <span className="text-right text-[var(--gorilla-green)]">
+              <span className="text-right font-bold text-[var(--gorilla-green)]">
                 ${apparelPricing.total.toFixed(2)}
               </span>
             </div>

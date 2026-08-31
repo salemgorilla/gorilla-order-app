@@ -81,6 +81,7 @@ import {
   STICKER_SETUP_FEE_ADDITIONAL,
 } from "../lib/pricing";
 import { calculateApparelPricing } from "../lib/apparel-pricing";
+import { pruneSizeQuantities } from "../lib/size-quantities";
 import { apparelCatalogStyles } from "../lib/apparel-catalog";
 import { sameOriginGarmentPhotoUrl } from "../lib/garment-photo";
 import {
@@ -721,6 +722,32 @@ export default function Home() {
     // the other two safe to depend on without re-firing the fetch.
   }, [apparelIsRequestFlow, isApparelSelected, ssCatalogStatus]);
 
+  /**
+   * The size grid's rows come from the selected COLOR's size run, but the
+   * typed counts live in their own state — so a colour change must prune
+   * counts for sizes the new colour does not offer, or they keep totalling
+   * invisibly (M-12, L-12 "24 shirts" on a colour S&S stocks only in
+   * XS/3XL/4XL, with no row left on screen to see or zero them). Sizes
+   * that carry over survive, so comparing colours keeps the breakdown.
+   * The why and the found-by live with pruneSizeQuantities.
+   */
+  function pruneSizeQuantitiesToColor(color: SsCatalogColor | undefined) {
+    if (!color) return;
+    const available = color.sizes.map((size) => size.sizeName);
+
+    setSizeQuantities((current) => {
+      const { quantities, breakdown } = pruneSizeQuantities(current, available);
+
+      setApparelQuoteState((quote) =>
+        quote.sizeBreakdown === breakdown
+          ? quote
+          : { ...quote, sizeBreakdown: breakdown }
+      );
+
+      return quantities;
+    });
+  }
+
   function handleSsProductSelect(product: SsCatalogProduct) {
     const firstColor =
       product.colors.find((color) => color.isAvailable) || product.colors[0];
@@ -730,6 +757,7 @@ export default function Home() {
     setSelectedSsProductId(product.id);
     setSelectedSsColorName(firstColor?.colorName || "");
     setSelectedSsSizeName(firstSize?.sizeName || "");
+    pruneSizeQuantitiesToColor(firstColor);
 
     setApparelQuoteState((current) => ({
       ...current,
@@ -824,6 +852,7 @@ export default function Home() {
 
     setSelectedSsColorName(color.colorName);
     setSelectedSsSizeName(firstSize?.sizeName || "");
+    pruneSizeQuantitiesToColor(color);
 
     setApparelQuoteState((current) => ({
       ...current,

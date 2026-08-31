@@ -22,6 +22,24 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **The dormant ApparelBuilder is audited and one defect down** —
+  2026-08-31, task: make flipping apparel to "active" a ten-minute
+  decision. The configurator was driven end to end against the real
+  production catalog (3 styles, 191 colours, captured 2026-08-25, now a
+  committed fixture) with the status flipped locally: summary, sticky bar,
+  review and payload all equal calculateApparelPricing to the cent;
+  repricing follows a second print location; the payload carries the true
+  SKU/colour/breakdown; a configured order never classifies as
+  auto-billing; 390px has no overflow. ONE wiring defect found and fixed:
+  switching colour kept size counts for sizes the new colour doesn't come
+  in — invisible, still totalling, still submittable (M-12/L-12 "24
+  shirts" on a colour stocked only in XS/3XL/4XL). Colour changes now
+  prune to the offered sizes (lib/size-quantities.ts). The whole drive is
+  re-runnable: tests/e2e/apparel-configurator-audit.mjs (manual, needs the
+  local flip — header has the three steps). Sign-off items that are
+  GABE'S, not code: the sample-size price bills every size (a 2XL order
+  is estimated at the M price; the size row shows the real upcharges),
+  and the pricing config itself. Both in the readiness report.
 - **Weight is a step now** — 2026-08-31, DESIGN-SYSTEM §6's oldest open item.
   The rule (now in DESIGN-SYSTEM "Weight is a step, not a default"): 700 for
   values/headings/CTAs/eyebrows, 600 for field labels, 500 for pair

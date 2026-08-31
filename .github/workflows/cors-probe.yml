@@ -1,0 +1,26 @@
+# TEMPORARY diagnostic — never merge. Probes the CORS surface of the blob
+# API host the browser SDK talks to, from a vantage with open egress.
+name: cors-probe
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Preflight probes against vercel.com/api/blob
+        run: |
+          echo "=== MULTIPART create preflight (what a >8MB upload sends first) ==="
+          curl -sS -X OPTIONS "https://vercel.com/api/blob/mpu?pathname=quote-artwork%2Ftest.png" \
+            -H "Origin: https://labs.gorillasalem.com" \
+            -H "Access-Control-Request-Method: POST" \
+            -H "Access-Control-Request-Headers: authorization,x-mpu-action,x-api-version,content-type" \
+            -D - -o /dev/null --max-time 20 || true
+          echo "=== SINGLE PUT preflight (what a small upload sends first) ==="
+          curl -sS -X OPTIONS "https://vercel.com/api/blob/quote-artwork%2Ftest.png" \
+            -H "Origin: https://labs.gorillasalem.com" \
+            -H "Access-Control-Request-Method: PUT" \
+            -H "Access-Control-Request-Headers: authorization,x-api-version,x-content-length" \
+            -D - -o /dev/null --max-time 20 || true
+          echo "=== bare GET, for the host's general disposition ==="
+          curl -sS "https://vercel.com/api/blob" -H "Origin: https://labs.gorillasalem.com" -D - -o /dev/null --max-time 20 | head -30 || true

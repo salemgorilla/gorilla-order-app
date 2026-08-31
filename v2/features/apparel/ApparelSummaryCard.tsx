@@ -24,32 +24,32 @@ export default function ApparelSummaryCard({
         Apparel Summary
       </p>
 
-      <div className="mt-5 space-y-3 text-fine font-bold text-[var(--ink-muted)]">
+      <div className="mt-5 space-y-3 text-fine font-medium text-[var(--ink-muted)]">
         <div className="flex justify-between gap-4">
           <span>Product</span>
-          <span className="text-right text-[var(--ink-black)]">{apparelQuote.garmentType}</span>
+          <span className="text-right font-bold text-[var(--ink-black)]">{apparelQuote.garmentType}</span>
         </div>
         <div className="flex justify-between gap-4">
           <span>Quantity</span>
-          <span className="text-right text-[var(--ink-black)]">{apparelQuote.quantity}</span>
+          <span className="text-right font-bold text-[var(--ink-black)]">{apparelQuote.quantity}</span>
         </div>
         <div className="flex justify-between gap-4">
           <span>Color</span>
-          <span className="text-right text-[var(--ink-black)]">{apparelQuote.garmentColor}</span>
+          <span className="text-right font-bold text-[var(--ink-black)]">{apparelQuote.garmentColor}</span>
         </div>
         <div className="flex justify-between gap-4">
           <span>Locations</span>
-          <span className="text-right text-[var(--ink-black)]">{apparelQuote.printLocations.join(", ")}</span>
+          <span className="text-right font-bold text-[var(--ink-black)]">{apparelQuote.printLocations.join(", ")}</span>
         </div>
         <div className="flex justify-between gap-4">
           <span>Ink</span>
-          <span className="text-right text-[var(--ink-black)]">{apparelQuote.inkColors}</span>
+          <span className="text-right font-bold text-[var(--ink-black)]">{apparelQuote.inkColors}</span>
         </div>
 
         {selectedSsSize && (
           <div className="flex justify-between gap-4">
             <span>Garment Price</span>
-            <span className="text-right text-[var(--ink-black)]">
+            <span className="text-right font-bold text-[var(--ink-black)]">
               ${selectedSsSize.markedUpPrice.toFixed(2)}
             </span>
           </div>
@@ -58,7 +58,7 @@ export default function ApparelSummaryCard({
         {selectedSsSize && (
           <div className="flex justify-between gap-4">
             <span>SKU</span>
-            <span className="text-right text-[var(--ink-black)]">
+            <span className="text-right font-bold text-[var(--ink-black)]">
               {selectedSsSize.sku}
             </span>
           </div>
@@ -68,7 +68,7 @@ export default function ApparelSummaryCard({
           <>
             <div className="flex justify-between gap-4">
               <span>Estimated Each</span>
-              <span className="text-right text-[var(--ink-black)]">
+              <span className="text-right font-bold text-[var(--ink-black)]">
                 ${apparelPricing.unitPrice.toFixed(2)}
               </span>
             </div>
@@ -85,7 +85,7 @@ export default function ApparelSummaryCard({
         {artworkAnalysis?.estimatedColorCount && (
           <div className="flex justify-between gap-4">
             <span>Auto Count</span>
-            <span className="text-right text-[var(--ink-black)]">
+            <span className="text-right font-bold text-[var(--ink-black)]">
               {artworkAnalysis.estimatedColorCount}
               {apparelQuote.garmentColor === "White"
                 ? ""
@@ -116,7 +116,7 @@ export default function ApparelSummaryCard({
           <p className="text-fine font-bold text-[var(--ink-black)]">
             Priced by hand
           </p>
-          <p className="mt-2 text-fine font-bold leading-6 text-[var(--ink-muted)]">
+          <p className="mt-2 text-fine font-medium leading-6 text-[var(--ink-muted)]">
             Special orders are quoted by Gorilla Salem — we reply with your
             price before anything is agreed.
           </p>
@@ -127,24 +127,24 @@ export default function ApparelSummaryCard({
           Estimated Apparel Pricing
         </p>
 
-        <div className="mt-4 space-y-2 text-fine font-bold text-[var(--ink-muted)]">
+        <div className="mt-4 space-y-2 text-fine font-medium text-[var(--ink-muted)]">
           <div className="flex justify-between gap-4">
             <span>Garments</span>
-            <span className="text-right text-[var(--ink-black)]">
+            <span className="text-right font-bold text-[var(--ink-black)]">
               ${apparelPricing.garmentTotal.toFixed(2)}
             </span>
           </div>
 
           <div className="flex justify-between gap-4">
             <span>Printing</span>
-            <span className="text-right text-[var(--ink-black)]">
+            <span className="text-right font-bold text-[var(--ink-black)]">
               ${apparelPricing.printTotal.toFixed(2)}
             </span>
           </div>
 
           <div className="flex justify-between gap-4">
             <span>Setup / Screens</span>
-            <span className="text-right text-[var(--ink-black)]">
+            <span className="text-right font-bold text-[var(--ink-black)]">
               ${apparelPricing.setupTotal.toFixed(2)}
             </span>
           </div>
@@ -159,7 +159,7 @@ export default function ApparelSummaryCard({
 
             <div className="mt-1 flex justify-between gap-4">
               <span>Estimated Each</span>
-              <span className="text-right text-[var(--ink-black)]">
+              <span className="text-right font-bold text-[var(--ink-black)]">
                 ${apparelPricing.unitPrice.toFixed(2)}
               </span>
             </div>
@@ -169,7 +169,7 @@ export default function ApparelSummaryCard({
       )}
 
       <div className="mt-5 bg-[var(--surface-warn)] p-4">
-        <p className="text-fine font-bold leading-6 text-[var(--ink-muted)]">
+        <p className="text-fine font-medium leading-6 text-[var(--ink-muted)]">
           Apparel pricing is an estimate. Gorilla Salem will review
           garment availability, artwork, print method, and timeline
           before confirming the final price.

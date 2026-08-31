@@ -183,7 +183,7 @@ export default function DecalBuilder({
               />
               My artwork includes a magenta cut line
             </span>
-            <span className="mt-1 block text-fine font-bold leading-5 text-[var(--ink-muted)]">
+            <span className="mt-1 block text-fine font-medium leading-5 text-[var(--ink-muted)]">
               Check this if your file has a{" "}
               <span className="font-bold text-[var(--cut-line)]">100% magenta</span>{" "}
               (RGB 255, 0, 255) line marking exactly where you want it cut —
@@ -228,7 +228,7 @@ export default function DecalBuilder({
         )}
 
         {product.magentaCutLine && (
-          <p className="mt-3 bg-white p-3 text-spec font-bold leading-5 text-[var(--ink-muted)]">
+          <p className="mt-3 bg-white p-3 text-spec font-medium leading-5 text-[var(--ink-muted)]">
             Put the magenta line on its own layer as a thin stroke (no fill). It
             marks the cut only —{" "}
             <span className="font-bold">it won&apos;t be printed</span>. Vector
@@ -245,7 +245,7 @@ export default function DecalBuilder({
           <p className="eyebrow">
             Delivery
           </p>
-          <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
+          <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
             Pick them up free in Salem, or we can ship them to you.
           </p>
         </div>
@@ -279,7 +279,7 @@ export default function DecalBuilder({
                   </span>
                 </div>
 
-                <p className="mt-2 text-fine font-bold text-[var(--ink-muted)]">
+                <p className="mt-2 text-fine font-medium text-[var(--ink-muted)]">
                   {option.detail}
                 </p>
               </button>

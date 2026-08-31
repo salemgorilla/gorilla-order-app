@@ -91,7 +91,7 @@ export default function ApparelBuilder({
             <p className="eyebrow">
               Live S&S Catalog
             </p>
-            <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
+            <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
               Products, colors, sizes, pricing, availability, and images
               are pulled from S&S.
             </p>
@@ -212,11 +212,11 @@ export default function ApparelBuilder({
                               <p className="font-bold text-[var(--ink-black)]">
                                 {product.customerLabel || product.displayName}
                               </p>
-                              <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
+                              <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
                                 {product.customerCategory} • Style{" "}
                                 {product.catalogStyle}
                               </p>
-                              <p className="mt-1 text-spec font-bold text-[var(--ink-muted)]">
+                              <p className="mt-1 text-spec font-medium text-[var(--ink-muted)]">
                                 S&S: {product.displayName}
                               </p>
                             </div>
@@ -227,7 +227,7 @@ export default function ApparelBuilder({
                           </div>
 
                           {thumbnailColor?.colorName && (
-                            <p className="mt-3 text-spec font-bold text-[var(--ink-muted)]">
+                            <p className="mt-3 text-spec font-medium text-[var(--ink-muted)]">
                               Preview shown in {thumbnailColor.colorName}
                             </p>
                           )}
@@ -288,7 +288,7 @@ export default function ApparelBuilder({
                           </span>
                         </div>
 
-                        <p className="mt-2 text-spec font-bold text-[var(--ink-muted)]">
+                        <p className="mt-2 text-spec font-medium text-[var(--ink-muted)]">
                           {color.outOfStock ? "Out of stock" : "Available"}
                         </p>
                       </button>
@@ -336,7 +336,7 @@ export default function ApparelBuilder({
                   })}
                 </div>
 
-                <p className="mt-3 text-spec font-bold leading-5 text-[var(--ink-muted)]">
+                <p className="mt-3 text-spec font-medium leading-5 text-[var(--ink-muted)]">
                   This garment price includes the 40% markup over S&S
                   customer pricing. Print/decorating costs are added later.
                 </p>
@@ -369,7 +369,7 @@ export default function ApparelBuilder({
           <p className="eyebrow">
             Print Locations
           </p>
-          <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
+          <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
             Choose all that apply.
           </p>
         </div>
@@ -446,7 +446,7 @@ export default function ApparelBuilder({
             <span className="block text-fine font-bold text-[var(--ink-black)]">
               I need something not listed here
             </span>
-            <span className="mt-1 block text-fine font-bold leading-5 text-[var(--ink-muted)]">
+            <span className="mt-1 block text-fine font-medium leading-5 text-[var(--ink-muted)]">
               Different garment (crewneck, long sleeve, youth, hats), another
               print location (left chest, sleeve, tag), embroidery, or anything
               custom. We&apos;ll quote it by hand.
@@ -460,7 +460,7 @@ export default function ApparelBuilder({
             data-invalid={fieldErrors?.specialOrderNotes ? "true" : undefined}
           >
             <label className="block">
-              <span className="text-fine font-bold text-[var(--ink-black)]">
+              <span className="text-fine font-semibold text-[var(--ink-black)]">
                 Tell us what you need
               </span>
               <textarea
@@ -561,7 +561,7 @@ export default function ApparelBuilder({
             <p className="eyebrow">
               Size Breakdown
             </p>
-            <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
+            <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
               Use the buttons to make the total match the quantity.
             </p>
           </div>

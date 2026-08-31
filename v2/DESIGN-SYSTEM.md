@@ -71,6 +71,31 @@ different tracking values.
 > loaded in `layout.tsx` and thrown away by a `font-family: Arial` line in
 > `globals.css` on the very next file. Do not put a `font-family` on `body`.
 
+### Weight is a step, not a default
+
+Space Grotesk carries 300–700, and the app uses four of those as roles:
+
+| Weight | Role |
+|---|---|
+| **700** `font-bold` | The answer: values (the right side of label/value pairs, option and product names, prices, filenames), headings, CTAs, eyebrows and uppercase section markers, warn/ok/alert panels, the wordmark |
+| **600** `font-semibold` | The question: form field labels and legends |
+| **500** `font-medium` | Furniture: muted pair micro-labels (Shape / Material / Each…), hint and caption sentences, secondary metadata |
+| **400** | Running prose |
+
+The test is on the rendered page, not the class list: in a label/value pair
+the value must be heavier than its label, or bold has stopped meaning
+anything. Before this rule the sticker details step rendered 90 elements at
+700 against 15 at 600 and none at 500 — question and answer typographically
+identical on an accessibility-critical form. After: 69 / 19 / 17, with 700
+left to things that are genuinely the point.
+
+Two deliberate exceptions. Eyebrows and uppercase section markers keep 700
+even when muted — they are headings, and dropping them to 500 would collide
+with the pair micro-labels that share their `text-spec uppercase
+tracking-eyebrow` costume; the muted colour already separates them. And
+inside parent blocks that set `font-medium` for the label column, values
+re-add `font-bold` per span rather than relying on inheritance.
+
 ### Structure
 
 Radius `0`. Borders, not shadows — a hard offset `3px 3px 0` is permitted,
@@ -188,14 +213,6 @@ following override the taste rules and are not negotiable:
 
 ## 6. Still open
 
-- **Weight carries no hierarchy.** On the sticker builder step the rendered
-  page is 85 elements at 700, 64 at 400 and 15 at 600 — more than half the
-  visible text is bold, which means bold has stopped meaning anything. Labels,
-  values and headings are all at 700, so in an accessibility-critical form the
-  question and the answer are typographically identical. The fix is a step
-  (labels 500/600, values and headings 700), not removing bold; it touches
-  ~340 sites and has not been done. Space Grotesk carries 300–700, so the
-  range is there.
 - 39 eyebrows now share `tracking-eyebrow`, but most still hand-roll
   `text-spec font-bold uppercase` instead of the `.eyebrow` class, because
   `.eyebrow` hard-sets `color: var(--ink-muted)` and several of them are

@@ -22,6 +22,14 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **Weight is a step now** — 2026-08-31, DESIGN-SYSTEM §6's oldest open item.
+  The rule (now in DESIGN-SYSTEM "Weight is a step, not a default"): 700 for
+  values/headings/CTAs/eyebrows, 600 for field labels, 500 for pair
+  micro-labels and muted captions. ~24 files. Measured on the rendered
+  sticker details step: 90×700/15×600/0×500 before, 69/19/17 after — labels
+  and values are no longer typographically identical. Eyebrows deliberately
+  keep 700 (see the doc for why). Verified by rendered-page measurement
+  (computed font-weight census), not by grepping classes.
 - **A dropped artwork file is loud now, everywhere** — 2026-08-31, from the
   Kurt Sletten handoff (25 Aug: a 10.6 MB apparel file silently dropped, the
   customer never told, the month's one lost job). THE DIAGNOSIS, so nobody

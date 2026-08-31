@@ -286,7 +286,7 @@ export default function CalibratePage() {
             PIN required — same one as the kiosk.
           </p>
 
-          <label htmlFor="calibrate-pin" className="mt-5 block text-fine font-bold text-[var(--ink-black)]">
+          <label htmlFor="calibrate-pin" className="mt-5 block text-fine font-semibold text-[var(--ink-black)]">
             Staff PIN
           </label>
           <input
@@ -337,7 +337,7 @@ export default function CalibratePage() {
       )}
 
       <div className="mt-5 flex flex-wrap items-end gap-4">
-        <label className="block text-fine font-bold text-[var(--ink-black)]">
+        <label className="block text-fine font-semibold text-[var(--ink-black)]">
           Style
           <select
             value={styleId}
@@ -353,7 +353,7 @@ export default function CalibratePage() {
           </select>
         </label>
 
-        <label className="block text-fine font-bold text-[var(--ink-black)]">
+        <label className="block text-fine font-semibold text-[var(--ink-black)]">
           Side
           <select
             value={side}
@@ -365,7 +365,7 @@ export default function CalibratePage() {
           </select>
         </label>
 
-        <label className="block text-fine font-bold text-[var(--ink-black)]">
+        <label className="block text-fine font-semibold text-[var(--ink-black)]">
           Colour (contrast helps)
           <select
             value={colorIndex}
@@ -380,7 +380,7 @@ export default function CalibratePage() {
           </select>
         </label>
 
-        <label className="block text-fine font-bold text-[var(--ink-black)]">
+        <label className="block text-fine font-semibold text-[var(--ink-black)]">
           Test art
           <select
             value={artAspect}
@@ -462,7 +462,7 @@ export default function CalibratePage() {
             ["maxHeight", zone.maxHeight],
           ] as [keyof CalibrationZone, number][]
         ).map(([field, value]) => (
-          <label key={field} className="block text-fine font-bold text-[var(--ink-black)]">
+          <label key={field} className="block text-fine font-semibold text-[var(--ink-black)]">
             <span className="spec">{field}</span>
             <input
               type="number"

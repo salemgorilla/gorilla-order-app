@@ -52,7 +52,7 @@ export default function BackgroundRemovalControl({
           <span className="block text-fine font-bold text-[var(--ink-black)]">
             Remove the background for me
           </span>
-          <span className="mt-1 block text-fine font-bold leading-5 text-[var(--ink-muted)]">
+          <span className="mt-1 block text-fine font-medium leading-5 text-[var(--ink-muted)]">
             We&rsquo;ll cut the background away so the sticker follows the shape
             of your design. Check the result below — Gorilla Salem reviews it
             and sends a proof before anything prints either way.
@@ -61,7 +61,7 @@ export default function BackgroundRemovalControl({
       </label>
 
       {busy && (
-        <p className="mt-3 text-fine font-bold text-[var(--ink-muted)]">
+        <p className="mt-3 text-fine font-medium text-[var(--ink-muted)]">
           Removing the background…
         </p>
       )}

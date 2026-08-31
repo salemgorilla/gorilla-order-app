@@ -108,10 +108,10 @@ export default function DecalPreviewCard({
         </p>
 
         <label className="mt-3 block">
-          <span className="flex items-center justify-between text-fine font-bold text-[var(--ink-black)]">
+          <span className="flex items-center justify-between text-fine font-semibold text-[var(--ink-black)]">
             <span>Art Size</span>
             {/* Inches, not percent — "80%" means nothing on a 3" sticker. */}
-            <span className="spec text-[var(--gorilla-green)]">
+            <span className="spec font-bold text-[var(--gorilla-green)]">
               {geometry.artInches > 0
                 ? inchLabel(geometry.artInches)
                 : `${product.artScale}%`}
@@ -183,9 +183,9 @@ export default function DecalPreviewCard({
         )}
 
         <label className="mt-3 block">
-          <span className="flex items-center justify-between text-fine font-bold text-[var(--ink-black)]">
+          <span className="flex items-center justify-between text-fine font-semibold text-[var(--ink-black)]">
             <span>{isDieCut ? "Cut Border" : "Margin"}</span>
-            <span className="spec text-[var(--gorilla-green)]">
+            <span className="spec font-bold text-[var(--gorilla-green)]">
               {inchLabel(geometry.borderInches)}
             </span>
           </span>
@@ -202,7 +202,7 @@ export default function DecalPreviewCard({
           />
         </label>
 
-        <p className="mt-2 text-spec font-bold leading-5 text-[var(--ink-muted)]">
+        <p className="mt-2 text-spec font-medium leading-5 text-[var(--ink-muted)]">
           {isDieCut
             ? "Die-cut follows your artwork's outline. Cut Border sets the white edge around it."
             : "Art auto-centers on the sticker. Margin sets the space to the edge."}
@@ -211,21 +211,21 @@ export default function DecalPreviewCard({
 
       <div className="mt-4 grid grid-cols-2 gap-3 text-center sm:grid-cols-3">
         <div className=" bg-[var(--shirt-blank)] p-4">
-          <p className="text-spec font-bold uppercase text-[var(--ink-muted)]">
+          <p className="text-spec font-medium uppercase text-[var(--ink-muted)]">
             Size
           </p>
           <p className="mt-1 font-bold">{product.size}</p>
         </div>
 
         <div className=" bg-[var(--shirt-blank)] p-4">
-          <p className="text-spec font-bold uppercase text-[var(--ink-muted)]">
+          <p className="text-spec font-medium uppercase text-[var(--ink-muted)]">
             Shape
           </p>
           <p className="mt-1 font-bold">{product.shape}</p>
         </div>
 
         <div className=" bg-[var(--shirt-blank)] p-4">
-          <p className="text-spec font-bold uppercase text-[var(--ink-muted)]">
+          <p className="text-spec font-medium uppercase text-[var(--ink-muted)]">
             Each
           </p>
           <p className="mt-1 font-bold">${unitPrice.toFixed(2)}</p>
@@ -233,7 +233,7 @@ export default function DecalPreviewCard({
       </div>
 
       <div className="mt-3 bg-[var(--shirt-blank)] p-4 text-center">
-        <p className="text-spec font-bold uppercase text-[var(--ink-muted)]">
+        <p className="text-spec font-medium uppercase text-[var(--ink-muted)]">
           Needed In Hand
         </p>
 
@@ -241,7 +241,7 @@ export default function DecalPreviewCard({
           {production.needBy || "Not entered yet"}
         </p>
 
-        <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
+        <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
           {production.deadlineType} deadline
         </p>
       </div>

@@ -12,7 +12,7 @@ export default function ArtworkAnalysisCard({ analysis }: Props) {
           Artwork Check
         </p>
 
-        <p className="mt-4 text-fine font-bold leading-6 text-[var(--ink-muted)]">
+        <p className="mt-4 text-fine font-medium leading-6 text-[var(--ink-muted)]">
           Upload artwork to check file details, image size, and estimated color
           count.
         </p>
@@ -26,32 +26,32 @@ export default function ArtworkAnalysisCard({ analysis }: Props) {
         Artwork Check
       </p>
 
-      <div className="mt-5 space-y-3 text-fine font-bold text-[var(--ink-muted)]">
+      <div className="mt-5 space-y-3 text-fine font-medium text-[var(--ink-muted)]">
         <div className="flex justify-between gap-4">
           <span>File</span>
-          <span className="text-right text-[var(--ink-black)]">{analysis.fileName}</span>
+          <span className="text-right font-bold text-[var(--ink-black)]">{analysis.fileName}</span>
         </div>
 
         <div className="flex justify-between gap-4">
           <span>Type</span>
-          <span className="text-right text-[var(--ink-black)]">{analysis.fileType}</span>
+          <span className="text-right font-bold text-[var(--ink-black)]">{analysis.fileType}</span>
         </div>
 
         <div className="flex justify-between gap-4">
           <span>Size</span>
-          <span className="text-right text-[var(--ink-black)]">{analysis.fileSize}</span>
+          <span className="text-right font-bold text-[var(--ink-black)]">{analysis.fileSize}</span>
         </div>
 
         <div className="flex justify-between gap-4">
           <span>Dimensions</span>
-          <span className="text-right text-[var(--ink-black)]">
+          <span className="text-right font-bold text-[var(--ink-black)]">
             {analysis.dimensions}
           </span>
         </div>
 
         <div className="flex justify-between gap-4">
           <span>Estimated Colors</span>
-          <span className="text-right text-[var(--ink-black)]">
+          <span className="text-right font-bold text-[var(--ink-black)]">
             {analysis.estimatedColorCount
               ? `${analysis.estimatedColorCount} colors`
               : "N/A"}

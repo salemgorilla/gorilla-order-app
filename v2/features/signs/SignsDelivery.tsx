@@ -24,7 +24,7 @@ export default function SignsDelivery({
         <p className="eyebrow">
           Delivery
         </p>
-        <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
+        <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
           Pick it up free in Salem, or we can ship it to you.
         </p>
       </div>
@@ -76,7 +76,7 @@ export default function SignsDelivery({
                   {option.price}
                 </span>
               </div>
-              <p className="mt-2 text-fine font-bold text-[var(--ink-muted)]">
+              <p className="mt-2 text-fine font-medium text-[var(--ink-muted)]">
                 {option.detail}
               </p>
             </button>

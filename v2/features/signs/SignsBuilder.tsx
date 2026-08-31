@@ -66,7 +66,7 @@ export default function SignsBuilder({
           <p className="eyebrow">
             Sign Type
           </p>
-          <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
+          <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
             Pick what you need and we&apos;ll price it as you build.
           </p>
         </div>
@@ -94,7 +94,7 @@ export default function SignsBuilder({
                     </span>
                   )}
                 </div>
-                <p className="mt-1 text-fine font-bold leading-5 text-[var(--ink-muted)]">
+                <p className="mt-1 text-fine font-medium leading-5 text-[var(--ink-muted)]">
                   {item.blurb}
                 </p>
               </button>
@@ -120,7 +120,7 @@ export default function SignsBuilder({
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
           {isYardSign ? (
             <div className="col-span-2">
-              <span className="block text-fine font-bold text-[var(--ink-black)]">
+              <span className="block text-fine font-semibold text-[var(--ink-black)]">
                 Size
               </span>
               <p className="spec mt-1 flex min-h-[44px] items-center border border-[var(--rule)] bg-[var(--paper)] p-3 text-lede text-[var(--ink-black)]">
@@ -218,7 +218,7 @@ export default function SignsBuilder({
             <p className="eyebrow">
               Banner Add-Ons
             </p>
-            <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
+            <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
               Hems and grommets are already included. These are extras.
             </p>
           </div>
@@ -254,10 +254,10 @@ export default function SignsBuilder({
                     className="mt-1 h-5 w-5 shrink-0 accent-[var(--gorilla-green)]"
                   />
                   <span>
-                    <span className="block text-fine font-bold text-[var(--ink-black)]">
+                    <span className="block text-fine font-semibold text-[var(--ink-black)]">
                       {addOn.label}
                     </span>
-                    <span className="mt-1 block text-fine font-bold leading-5 text-[var(--ink-muted)]">
+                    <span className="mt-1 block text-fine font-medium leading-5 text-[var(--ink-muted)]">
                       {addOn.detail}
                     </span>
                     {checked && conflicts && (
@@ -286,10 +286,10 @@ export default function SignsBuilder({
               className="mt-1 h-5 w-5 shrink-0 accent-[var(--gorilla-green)]"
             />
             <span>
-              <span className="block text-fine font-bold text-[var(--ink-black)]">
+              <span className="block text-fine font-semibold text-[var(--ink-black)]">
                 Print both sides
               </span>
-              <span className="mt-1 block text-fine font-bold leading-5 text-[var(--ink-muted)]">
+              <span className="mt-1 block text-fine font-medium leading-5 text-[var(--ink-muted)]">
                 {product.pricingMethod === "yard"
                   ? "Double-sided pricing is built into the quantity price."
                   : getDoubleSidedMethod(product, design.material) === "sewn"

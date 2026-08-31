@@ -43,7 +43,7 @@ export default function SignsPreviewCard({
           <p className="eyebrow">
             {product.label} Proof
           </p>
-          <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
+          <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
             Preview only — final proof reviewed by Gorilla Salem
           </p>
 
@@ -83,7 +83,7 @@ export default function SignsPreviewCard({
               ["Sides", design.doubleSided ? "Double" : "Single"],
             ].map(([label, value]) => (
               <div key={label} className=" bg-white p-3">
-                <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
+                <p className="text-spec font-medium uppercase tracking-eyebrow text-[var(--ink-muted)]">
                   {label}
                 </p>
                 <p className="mt-1 text-fine font-bold text-[var(--ink-black)]">{value}</p>

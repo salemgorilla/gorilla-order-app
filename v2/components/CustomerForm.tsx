@@ -172,7 +172,7 @@ export default function CustomerForm({
             Multi-select because someone can be sent by a friend and still
             check the Google listing before calling. */}
         <fieldset className="sm:col-span-2">
-          <legend className="text-fine font-bold text-[var(--ink-black)]">
+          <legend className="text-fine font-semibold text-[var(--ink-black)]">
             How did you hear about us?{" "}
             <span className="font-normal text-[var(--ink-muted)]">
               (optional — tick any that apply)
@@ -239,7 +239,7 @@ export default function CustomerForm({
           />
 
           <span>
-            <span className="block text-fine font-bold text-[var(--ink-black)]">
+            <span className="block text-fine font-semibold text-[var(--ink-black)]">
               Email me occasional Gorilla Salem news and offers
             </span>
             {/* Says what it actually is. "Untick to opt out" is stated
@@ -256,7 +256,7 @@ export default function CustomerForm({
         <div>
           <label
             htmlFor="customer-notes"
-            className="block text-fine font-bold text-[var(--ink-black)]"
+            className="block text-fine font-semibold text-[var(--ink-black)]"
           >
             Special instructions{" "}
             <span className="font-normal text-[var(--ink-muted)]">
@@ -308,7 +308,7 @@ function Field({
     <div data-invalid={error ? "true" : undefined}>
       <label
         htmlFor={id}
-        className="block text-fine font-bold text-[var(--ink-black)]"
+        className="block text-fine font-semibold text-[var(--ink-black)]"
       >
         {label}{" "}
         {required ? (

@@ -170,7 +170,7 @@ export default function ApparelPreview({
               {/* Says exactly what this is. The previous caption implied a
                   placed proof while showing artwork at coordinates that did
                   not correspond to the photograph. */}
-              <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
+              <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
                 Preview only — shown side by side, not to final size or
                 position. Gorilla Salem reviews the real proof before printing.
               </p>
@@ -208,10 +208,10 @@ export default function ApparelPreview({
                 // hat instead — which was the same fiction in a different hat.
                 <div className="grid h-40 place-items-center border border-dashed border-[var(--rule)] bg-[var(--shirt-blank)] p-3 text-center">
                   <div>
-                    <p className="spec text-spec uppercase text-[var(--ink-muted)]">
+                    <p className="spec text-spec font-medium uppercase text-[var(--ink-muted)]">
                       No photo
                     </p>
-                    <p className="mt-2 text-fine font-bold text-[var(--ink-muted)]">
+                    <p className="mt-2 text-fine font-medium text-[var(--ink-muted)]">
                       We&rsquo;ll send a mockup with your quote.
                     </p>
                   </div>
@@ -233,10 +233,10 @@ export default function ApparelPreview({
               ) : (
                 <div className="grid h-40 place-items-center border border-dashed border-[var(--rule)] bg-[var(--shirt-blank)] p-3 text-center">
                   <div>
-                    <p className="spec text-spec uppercase text-[var(--ink-muted)]">
+                    <p className="spec text-spec font-medium uppercase text-[var(--ink-muted)]">
                       No artwork
                     </p>
-                    <p className="mt-2 text-fine font-bold text-[var(--ink-muted)]">
+                    <p className="mt-2 text-fine font-medium text-[var(--ink-muted)]">
                       Add it on the artwork step.
                     </p>
                   </div>
@@ -252,7 +252,7 @@ export default function ApparelPreview({
 
           <div className="mt-4 grid grid-cols-3 gap-3 text-center">
             <div className="bg-white p-3">
-              <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
+              <p className="text-spec font-medium uppercase tracking-eyebrow text-[var(--ink-muted)]">
                 Garment
               </p>
               <p className="mt-1 text-fine font-bold text-[var(--ink-black)]">
@@ -261,7 +261,7 @@ export default function ApparelPreview({
             </div>
 
             <div className="bg-white p-3">
-              <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
+              <p className="text-spec font-medium uppercase tracking-eyebrow text-[var(--ink-muted)]">
                 Colour
               </p>
               <p className="mt-1 flex items-center justify-center gap-2 text-fine font-bold text-[var(--ink-black)]">
@@ -277,7 +277,7 @@ export default function ApparelPreview({
             </div>
 
             <div className="bg-white p-3">
-              <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
+              <p className="text-spec font-medium uppercase tracking-eyebrow text-[var(--ink-muted)]">
                 Ink
               </p>
               <p className="mt-1 text-fine font-bold text-[var(--ink-black)]">
@@ -289,7 +289,7 @@ export default function ApparelPreview({
           {/* The locations are the thing the composite would have shown. Said
               as text, they are accurate; drawn on a photo, they were not. */}
           <div className="mt-3 bg-white p-3 text-center">
-            <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
+            <p className="text-spec font-medium uppercase tracking-eyebrow text-[var(--ink-muted)]">
               Print Locations
             </p>
             <p className="mt-1 text-fine font-bold text-[var(--ink-black)]">

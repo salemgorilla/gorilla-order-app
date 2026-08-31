@@ -92,7 +92,7 @@ export default function IdleReset({ idleMs, finished, onReset }: Props) {
           <p className="text-lede font-bold text-[var(--ink-black)]">
             Still there?
           </p>
-          <p className="mt-1 text-fine font-bold text-[var(--ink-muted)]">
+          <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
             {finished
               ? "Clearing the screen for the next customer"
               : "This quote will be cleared"}{" "}

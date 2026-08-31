@@ -22,6 +22,18 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **The need-by date has turnaround floors now** — 2026-08-31, Gabe's
+  numbers, set in this session: stickers and vinyl banners can promise the
+  NEXT BUSINESS DAY; apparel, yard signs and rigid signs 14 business days.
+  Before this there was no floor at all — every flow accepted TODAY, and
+  stickers auto-bill, so an impossible date could be paid for unseen. THE
+  SPEC IS DATA in lib/turnaround.ts (the reference-quote pattern — change
+  the day counts there, nowhere else); the lanes key on the banners/signs
+  hard split's families. Enforcement is block-with-an-out: the picker's
+  min, the validator (all three flows, lane REQUIRED on the signs one so a
+  default can't pick the wrong family's promise), and copy offering phone/
+  email rush. Verified in Chromium on all four flows, floors landing on
+  Tue Sep 1 / Fri Sep 18 from a Monday.
 - **The dormant ApparelBuilder is audited and one defect down** —
   2026-08-31, task: make flipping apparel to "active" a ten-minute
   decision. The configurator was driven end to end against the real

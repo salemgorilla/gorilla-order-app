@@ -129,7 +129,10 @@ describe("all three flows ask in the same sequence", () => {
           needsTypedSize: true,
         },
       ],
-      EMPTY_CONTACT
+      EMPTY_CONTACT,
+      // Lane is irrelevant to step ordering; the fixture's date is empty so
+      // the turnaround floor cannot fire either way.
+      "slow"
     );
 
     assert.deepEqual(stepsOf(problems), ["details", "artwork", "contact"]);
@@ -166,7 +169,8 @@ describe("all three flows ask in the same sequence", () => {
           needsTypedSize: true,
         },
       ],
-      EMPTY_CONTACT
+      EMPTY_CONTACT,
+      "slow"
     );
 
     assert.doesNotMatch(signs[0], /name|email/i);

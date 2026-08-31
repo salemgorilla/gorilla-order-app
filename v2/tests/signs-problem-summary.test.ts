@@ -32,6 +32,12 @@ const ORDER = {
   production: { needBy: "2026-09-15" },
 };
 
+// Lane + pinned "today" for every call: this file tests the problem list's
+// wording and ordering, so the turnaround floor (lib/turnaround.ts) must
+// never trip the mid-September fixture date.
+const LANE = "slow" as const;
+const TODAY = "2026-08-03";
+
 /** A design with nothing wrong with it. */
 function ok(overrides: Record<string, unknown> = {}) {
   return {
@@ -49,14 +55,16 @@ describe("one design says it plainly", () => {
   test("no design number when there is only one", () => {
     const problems = getSignsValidationSummary(
       [ok({ artwork: { file: null } })],
-      ORDER
+      ORDER,
+      LANE,
+      TODAY
     );
 
     assert.deepEqual(problems, ["Upload your artwork."]);
   });
 
   test("a complete quote reports nothing at all", () => {
-    assert.deepEqual(getSignsValidationSummary([ok()], ORDER), []);
+    assert.deepEqual(getSignsValidationSummary([ok()], ORDER, LANE, TODAY), []);
   });
 });
 
@@ -66,7 +74,9 @@ describe("several designs say WHICH", () => {
     // fine, only 2 is missing artwork.
     const problems = getSignsValidationSummary(
       [ok(), ok({ artwork: { file: null } }), ok()],
-      ORDER
+      ORDER,
+      LANE,
+      TODAY
     );
 
     assert.deepEqual(problems, ["Design 2: Upload your artwork."]);
@@ -86,7 +96,9 @@ describe("several designs say WHICH", () => {
         ok(),
         ok({ quantity: 0 }),
       ],
-      ORDER
+      ORDER,
+      LANE,
+      TODAY
     );
 
     assert.deepEqual(problems, [
@@ -105,7 +117,9 @@ describe("several designs say WHICH", () => {
           customHeightInches: 0,
         }),
       ],
-      ORDER
+      ORDER,
+      LANE,
+      TODAY
     );
 
     // Size is a Details question, artwork an Artwork one.
@@ -127,7 +141,9 @@ describe("several designs say WHICH", () => {
           templateTextErrors: { address: "Enter the address." },
         }),
       ],
-      ORDER
+      ORDER,
+      LANE,
+      TODAY
     );
 
     // A template IS the artwork, so no upload is owed — only the wording.
@@ -137,10 +153,15 @@ describe("several designs say WHICH", () => {
 
 describe("order-level problems are never named by design", () => {
   test("one name, one address, one date, however many designs", () => {
-    const problems = getSignsValidationSummary([ok(), ok(), ok()], {
-      customer: { customerName: "", email: "" },
-      production: { needBy: "" },
-    });
+    const problems = getSignsValidationSummary(
+      [ok(), ok(), ok()],
+      {
+        customer: { customerName: "", email: "" },
+        production: { needBy: "" },
+      },
+      LANE,
+      TODAY
+    );
 
     // The date is asked on Details, the name and address on Contact, so this
     // is the order the form asks them in.
@@ -168,7 +189,9 @@ describe("order-level problems are never named by design", () => {
       {
         customer: { customerName: "", email: "dana@example.com" },
         production: { needBy: "" },
-      }
+      },
+      LANE,
+      TODAY
     );
 
     assert.deepEqual(problems, [
@@ -189,7 +212,9 @@ describe("a yard sign owes no dimensions", () => {
           customHeightInches: 0,
         }),
       ],
-      ORDER
+      ORDER,
+      LANE,
+      TODAY
     );
 
     assert.deepEqual(problems, []);

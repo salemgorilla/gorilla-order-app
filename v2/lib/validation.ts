@@ -1,4 +1,10 @@
 import { looksLikeEmailAddress } from "./email-address";
+import {
+  isNeedByTooSoon,
+  needByTooSoonError,
+  todayIso,
+  type TurnaroundLane,
+} from "./turnaround";
 import { orderProblemsByStep, type FieldProblem } from "./steps";
 import { Order, StickerItem } from "../types/order";
 
@@ -104,7 +110,11 @@ export type FieldErrors = Partial<Record<FieldKey, string>>;
  * under a labelled box, so repeating the label in the message is noise.
  * Sentence case, never mono — mono is spec furniture, not prose.
  */
-export function getOrderFieldErrors(order: Order): FieldErrors {
+export function getOrderFieldErrors(
+  order: Order,
+  /** Injectable so tests do not depend on the day they run. */
+  today: string = todayIso()
+): FieldErrors {
   const errors: FieldErrors = {};
 
   // Walks the cart and reports the FIRST design with a problem.
@@ -125,6 +135,12 @@ export function getOrderFieldErrors(order: Order): FieldErrors {
 
   if (!order.production.needBy) {
     errors.needBy = "Enter the date you need this in hand.";
+  } else if (isNeedByTooSoon(order.production.needBy, "fast", today)) {
+    // Stickers ride the fast lane (lib/turnaround.ts) — and of the three
+    // flows this is the one where the floor really matters: stickers
+    // auto-bill, so an impossible in-hand date could be PAID for before
+    // anyone at the shop reads it.
+    errors.needBy = needByTooSoonError("fast", today);
   }
 
   if (!order.customer.customerName.trim()) {
@@ -260,7 +276,16 @@ export function getSignsFieldErrors(
   order: {
     customer: { customerName: string; email: string };
     production: { needBy: string };
-  }
+  },
+  /**
+   * Required, not defaulted: this validator serves both halves of the
+   * banners/signs hard split, and they sit in different turnaround lanes —
+   * banners next-business-day with stickers, yard and rigid signs on
+   * apparel's 14-business-day floor. A default would silently pick one
+   * family's promise for the other.
+   */
+  lane: TurnaroundLane,
+  today: string = todayIso()
 ): FieldErrors {
   const errors: FieldErrors = {};
 
@@ -275,6 +300,8 @@ export function getSignsFieldErrors(
 
   if (!order.production.needBy.trim()) {
     errors.needBy = "Enter the date you need this in hand.";
+  } else if (isNeedByTooSoon(order.production.needBy, lane, today)) {
+    errors.needBy = needByTooSoonError(lane, today);
   }
 
   /**
@@ -332,9 +359,11 @@ export function getSignsValidationSummary(
   order: {
     customer: { customerName: string; email: string };
     production: { needBy: string };
-  }
+  },
+  lane: TurnaroundLane,
+  today: string = todayIso()
 ): string[] {
-  const fields = getSignsFieldErrors(designs, order);
+  const fields = getSignsFieldErrors(designs, order, lane, today);
   const problems: FieldProblem[] = [];
 
   // Order-level: one name, one address, one date, however many designs.
@@ -412,9 +441,10 @@ export function getSignsValidationSummary(
 export function getApparelValidationSummary(
   apparelQuote: Parameters<typeof getApparelFieldErrors>[0],
   order: Parameters<typeof getApparelFieldErrors>[1],
-  sizeQuantityTotal: number
+  sizeQuantityTotal: number,
+  today: string = todayIso()
 ): string[] {
-  const fields = getApparelFieldErrors(apparelQuote, order, sizeQuantityTotal);
+  const fields = getApparelFieldErrors(apparelQuote, order, sizeQuantityTotal, today);
   const problems: FieldProblem[] = [];
 
   // Pushed straight from the field map, as stickers and signs already do.
@@ -469,7 +499,8 @@ export function getApparelFieldErrors(
     production: { needBy: string };
   },
   /** Total across the size grid. Quantity IS this sum, so the two cannot disagree. */
-  sizeQuantityTotal: number
+  sizeQuantityTotal: number,
+  today: string = todayIso()
 ): FieldErrors {
   const errors: FieldErrors = {};
 
@@ -484,6 +515,11 @@ export function getApparelFieldErrors(
 
   if (!order.production.needBy.trim()) {
     errors.needBy = "Enter the date you need this in hand.";
+  } else if (isNeedByTooSoon(order.production.needBy, "slow", today)) {
+    // Apparel always rides the slow lane: blanks ordered in, screens
+    // burned. The rule applies to special orders too — a hand quote can
+    // still not beat the calendar.
+    errors.needBy = needByTooSoonError("slow", today);
   }
 
   // A special order is priced by hand, so the strict menu rules (print

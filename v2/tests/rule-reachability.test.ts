@@ -163,7 +163,10 @@ describe("the flows that share a rule all enforce it", () => {
             needsTypedSize: false,
           },
         ],
-        emptyOrderPart
+        emptyOrderPart,
+        // Lane is irrelevant here — the fixture has no date for the
+        // turnaround floor to judge.
+        "slow"
       ).quantity,
       "signs"
     );

@@ -43,7 +43,11 @@ function errorsFor(
   return getApparelFieldErrors(
     apparel(apparelOverrides),
     order(orderOverrides),
-    sizeQuantityTotal
+    sizeQuantityTotal,
+    // Pinned "today": this file tests the apparel rules themselves, so the
+    // 14-business-day turnaround floor (lib/turnaround.ts) must never trip
+    // the early-September fixture date. The floor has its own tests.
+    "2026-08-03"
   );
 }
 

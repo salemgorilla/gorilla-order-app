@@ -7,6 +7,15 @@ type Props = {
   onDeadlineTypeChange: (value: string) => void;
   /** Short message shown under the date, once submit has been attempted. */
   error?: string;
+  /**
+   * The earliest date this flow may promise (lib/turnaround.ts) — stickers
+   * and banners next business day, apparel and signs 14 business days. The
+   * picker refuses earlier dates; the validator backs it up for anything
+   * typed past the picker.
+   */
+  minDate: string;
+  /** The flow's turnaround promise plus the rush out, under the field. */
+  turnaroundNote: string;
 };
 
 /**
@@ -22,10 +31,9 @@ export default function NeedByDate({
   onNeedByChange,
   onDeadlineTypeChange,
   error,
+  minDate,
+  turnaroundNote,
 }: Props) {
-  // A date in the past is never valid input.
-  const today = new Date().toISOString().slice(0, 10);
-
   return (
     <div className="border border-[var(--rule)] bg-[var(--paper)] p-6">
       <h3 className="text-lede font-bold">When do you need these in hand?</h3>
@@ -49,7 +57,7 @@ export default function NeedByDate({
           id="need-by-date"
           type="date"
           required
-          min={today}
+          min={minDate}
           value={needBy}
           onChange={(event) => onNeedByChange(event.target.value)}
           aria-invalid={error ? true : undefined}
@@ -60,6 +68,13 @@ export default function NeedByDate({
               : "border border-[var(--rule)] hover:border-[var(--ink-black)]"
           }`}
         />
+
+        {/* The floor blocks silently in the picker, so the WHY has to be
+            said out loud — a customer scrolling for tomorrow and not finding
+            it needs the promise and the out, not a mute calendar. */}
+        <p className="mt-2 text-fine font-medium leading-5 text-[var(--ink-muted)]">
+          {turnaroundNote}
+        </p>
 
         {error && (
           <p

@@ -54,6 +54,8 @@ type ArtworkPart = {
   file: File | null;
   blob: { url: string; name: string; size: number } | null;
   dropped: { name: string; size: number } | null;
+  /** Why the browser's direct-to-blob upload failed, when it did. */
+  uploadFailure: string | null;
 };
 
 type ParsedQuoteRequest = {
@@ -119,6 +121,32 @@ async function parseQuoteRequest(request: Request): Promise<ParsedQuoteRequest> 
       }
     }
 
+    // Why the browser's direct-to-blob upload failed, when it did. Logged
+    // HERE because the client's own record of it dies with the tab: the
+    // 25 Aug drop (a 10.6 MB apparel file, quote submitted, customer never
+    // told) was unattributable by the time anyone looked, since the only
+    // trace was a console.warn in a closed browser. A server log line makes
+    // the next one a fact instead of a theory — and countable.
+    let uploadFailures: { id: string; name: string; reason: string }[] = [];
+    const failuresRaw = form.get("artworkUploadFailures");
+
+    if (typeof failuresRaw === "string") {
+      try {
+        const parsed = JSON.parse(failuresRaw);
+        if (Array.isArray(parsed)) uploadFailures = parsed.slice(0, 20);
+      } catch {
+        // Same rule as above.
+      }
+    }
+
+    for (const failure of uploadFailures) {
+      console.error(
+        `ARTWORK DIRECT UPLOAD FAILED in the customer's browser: "${String(
+          failure.name
+        ).slice(0, 120)}" — ${String(failure.reason).slice(0, 300)}`
+      );
+    }
+
     const ids = new Set<string>([
       ...inlineFiles.keys(),
       ...blobUrls.keys(),
@@ -144,6 +172,8 @@ async function parseQuoteRequest(request: Request): Promise<ParsedQuoteRequest> 
         dropped: droppedEntry
           ? { name: droppedEntry.name, size: droppedEntry.size }
           : null,
+        uploadFailure:
+          uploadFailures.find((failure) => failure.id === id)?.reason ?? null,
       };
     });
 
@@ -464,7 +494,11 @@ export async function POST(request: Request) {
       if (part.dropped) {
         // Never left the customer's browser, because sending it would have
         // killed the whole request at the edge and lost the order. The shop
-        // still has to know it exists and go and collect it.
+        // still has to know it exists and go and collect it — and since the
+        // direct-to-storage path exists precisely for files this size, the
+        // email now also says WHY that path failed, so a pattern (an outage,
+        // a broken deploy, one customer's network) is visible from the
+        // inbox instead of needing logs that expire.
         artworkDelivery.push({
           designId: part.id,
           label,
@@ -472,7 +506,11 @@ export async function POST(request: Request) {
             part.dropped.size
           )} MB, over the ${mb(
             MAX_ATTACHED_ARTWORK_BYTES
-          )} MB form limit. Email the customer to collect it.`,
+          )} MB form limit. The customer was told on their confirmation screen to email it in; if it doesn't arrive, chase it.${
+            part.uploadFailure
+              ? ` (Direct upload failed first: ${part.uploadFailure})`
+              : ""
+          }`,
         });
         continue;
       }
@@ -862,6 +900,12 @@ export async function POST(request: Request) {
       paymentEmailSent: Boolean(checkout?.ready),
       printavoCreated: Boolean(printavo.created),
       kiosk: Boolean(kioskSession),
+      droppedArtwork: artworkParts
+        .filter((part) => part.dropped)
+        .map((part) => ({
+          name: String(part.dropped?.name || "your artwork file"),
+          size: Number(part.dropped?.size) || 0,
+        })),
     });
 
     if (confirmation.send) {

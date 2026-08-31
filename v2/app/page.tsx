@@ -107,6 +107,7 @@ import {
   planKnockouts,
 } from "../lib/attachment-plan";
 import {
+  formatBytes,
   isArtworkTooLargeToAttach,
   MAX_ATTACHED_ARTWORK_LABEL,
   MAX_INLINE_ARTWORK_TOTAL_BYTES,
@@ -2047,15 +2048,27 @@ export default function Home() {
       // later file with the wrong design (CART-PLAN §Per-item artwork).
       let inlineBytesUsed = 0;
       const droppedArtwork: { id: string; name: string; size: number }[] = [];
+      // Why each direct upload failed, when one did. Rides with the quote so
+      // the shop email and the server log carry the reason — the 25 Aug drop
+      // was unattributable because nothing recorded this anywhere.
+      const uploadFailures: { id: string; name: string; reason: string }[] = [];
 
       for (const part of artworkParts) {
-        const blobUrl = await uploadArtworkToBlob(part.file, setUploadProgress);
+        const uploaded = await uploadArtworkToBlob(part.file, setUploadProgress);
 
-        if (blobUrl) {
-          formData.append(`artworkUrl:${part.id}`, blobUrl);
+        if (uploaded.url) {
+          formData.append(`artworkUrl:${part.id}`, uploaded.url);
           formData.append(`artworkName:${part.id}`, part.file.name);
           formData.append(`artworkSize:${part.id}`, String(part.file.size));
           continue;
+        }
+
+        if (uploaded.failure) {
+          uploadFailures.push({
+            id: part.id,
+            name: part.file.name,
+            reason: uploaded.failure,
+          });
         }
 
         // No blob store. The file has to ride in the request body, which the
@@ -2123,6 +2136,10 @@ export default function Home() {
       // file to chase, and the customer's quote still goes through.
       if (droppedArtwork.length) {
         formData.append("artworkDropped", JSON.stringify(droppedArtwork));
+      }
+
+      if (uploadFailures.length) {
+        formData.append("artworkUploadFailures", JSON.stringify(uploadFailures));
       }
 
       setUploadProgress(null);
@@ -2254,6 +2271,12 @@ export default function Home() {
         quoteNumber: result.quoteNumber,
         receivedAt: result.receivedAt,
         message: result.message,
+        // Files that did NOT travel with this quote. The confirmation screen
+        // is the one surface the customer is guaranteed to see (signs and
+        // apparel customers get no email), so this is where they learn their
+        // artwork needs to be sent separately — instead of walking away
+        // believing it was sent, which is what happened on 25 Aug.
+        droppedArtwork,
         // Stickers only, and null whenever Printavo was unreachable.
         checkout: result.checkout ?? null,
         /**
@@ -2349,8 +2372,17 @@ Delivery: ${
       apparelQuote.garmentColor
     );
 
+    // A dropped file must not be listed as "Uploaded" three lines under the
+    // section saying it still needs to be sent — one record, one story.
+    const orderFileWasDropped = Boolean(
+      order.artwork.file &&
+        quoteConfirmation?.droppedArtwork?.some(
+          (file) => file.name === order.artwork.file?.name
+        )
+    );
+
     const artworkSection = `ARTWORK
-File Uploaded: ${order.artwork.file ? order.artwork.file.name : "No file uploaded"}
+File ${orderFileWasDropped ? "Chosen (NOT sent — see above)" : "Uploaded"}: ${order.artwork.file ? order.artwork.file.name : "No file uploaded"}
 File Type: ${artworkAnalysis?.fileType || "N/A"}
 File Size: ${artworkAnalysis?.fileSize || "N/A"}
 Image Dimensions: ${artworkAnalysis?.dimensions || "N/A"}
@@ -2376,6 +2408,24 @@ ${order.customer.notes || "No customer notes"}`;
      * string when nothing was ticked, so the quotes that never touch the
      * strip read exactly as they always have.
      */
+    /**
+     * Artwork that did not travel with the quote — in the customer's own
+     * record, whatever the flow. The record they copy or email is the thing
+     * they consult later; a record that reads complete while a file was
+     * dropped re-creates 25 Aug on paper.
+     */
+    const artworkGapSection = quoteConfirmation?.droppedArtwork?.length
+      ? `
+
+STILL NEEDED — YOUR ARTWORK
+${quoteConfirmation.droppedArtwork
+  .map(
+    (file) =>
+      `${file.name} (${formatBytes(file.size)}) did not travel with this quote — email it to quote@gorillasalem.com with the quote number. Nothing else is missing.`
+  )
+  .join("\n")}`
+      : "";
+
     const addOnsSection =
       order.addOns.length || order.addOnsNote
         ? `
@@ -2468,7 +2518,7 @@ Estimated Total: $${getSignsTotals(signsPricing).estimatedTotal.toFixed(2)}${
 ${signsPricing.note}`
     : signsPricing.reason ||
       "Priced by hand. Gorilla Salem will reply with the price."
-}${addOnsSection}
+}${addOnsSection}${artworkGapSection}
 
 ${signsArtworkSection}
 
@@ -2533,7 +2583,7 @@ Printing: $${apparelPricing.printTotal.toFixed(2)}
 Setup / Screens: $${apparelPricing.setupTotal.toFixed(2)}
 Locations: ${apparelQuote.printLocations.length}
 Pricing Note: Final pricing reviewed by Gorilla Salem.`
-      }${addOnsSection}
+      }${addOnsSection}${artworkGapSection}
 
 ${artworkSection}
 
@@ -2592,7 +2642,7 @@ Estimated Total: $${getStickerTotals(order.pricing).estimatedTotal.toFixed(2)}${
       order.items.length === 1
         ? `\nEstimated Each: $${unitPrice.toFixed(2)} per sticker`
         : ""
-    }${addOnsSection}
+    }${addOnsSection}${artworkGapSection}
 
 ${artworkSection}
 

@@ -1,5 +1,6 @@
 import { escapeEmailHtml, looksLikeEmailAddress } from "./email";
 import { canOfferTracker, getTrackUrl } from "./order-status";
+import { formatBytes } from "./upload-limits";
 
 /**
  * "We've got it" — the receipt for every order that Printavo will not email.
@@ -65,18 +66,33 @@ export function buildOrderConfirmation(input: {
    * server suppresses the payment request for kiosk sessions.
    */
   kiosk: boolean;
+  /**
+   * Files that did not travel with the quote. When present, this email is
+   * the recovery channel: it names the file, gives the one action, and says
+   * nothing else is missing — because on 25 Aug a customer walked away from
+   * a clean-looking confirmation while his artwork sat on his phone, and
+   * the only note about it went to the shop.
+   */
+  droppedArtwork?: { name: string; size: number }[];
 }): OrderConfirmationDecision {
   const quoteNumber = String(input.quoteNumber || "").trim();
+  const dropped = input.droppedArtwork ?? [];
 
   if (!quoteNumber) {
     return { send: false, reason: "No order number." };
   }
 
   if (input.kiosk) {
+    // The dropped-artwork notice still reaches a kiosk customer: the
+    // confirmation SCREEN carries it, and that is the surface they are
+    // standing in front of.
     return { send: false, reason: "Kiosk order — the customer is at the counter." };
   }
 
-  if (input.paymentEmailSent) {
+  if (input.paymentEmailSent && dropped.length === 0) {
+    // Printavo's payment email says nothing about a missing file, so when
+    // one was dropped this stops being a duplicate and starts being the
+    // only written record the customer gets.
     return {
       send: false,
       reason: "Printavo emailed the payment request, which already carries the number.",
@@ -97,12 +113,26 @@ export function buildOrderConfirmation(input: {
     printavoCreated: input.printavoCreated,
   });
 
-  const subject = `We've got your request — ${quoteNumber}`;
+  const subject =
+    dropped.length > 0
+      ? `We've got your request — ${quoteNumber} — one file still needed`
+      : `We've got your request — ${quoteNumber}`;
+
+  // Names the file, gives the fix in one action, and says nothing else is
+  // missing — so the customer knows exactly which file, knows what to do,
+  // and does not resubmit the whole order.
+  const droppedLines = dropped.map(
+    (file) =>
+      `We couldn't accept ${file.name} — it's ${formatBytes(
+        file.size
+      )}, more than the form can carry. Reply to this email with the file and we'll add it to your quote. Nothing else is missing.`
+  );
 
   const text = [
     greeting,
     "",
     "Thanks — your quote request is in. We'll be in touch shortly with your price and a proof before anything goes on a machine.",
+    ...(droppedLines.length ? ["", ...droppedLines] : []),
     "",
     `Quote number: ${quoteNumber}`,
     // Withheld when Printavo never accepted the quote — canOfferTracker
@@ -119,6 +149,9 @@ export function buildOrderConfirmation(input: {
   const html = [
     `<p>${escapeEmailHtml(greeting)}</p>`,
     `<p>Thanks &mdash; your quote request is in. We&rsquo;ll be in touch shortly with your price and a proof before anything goes on a machine.</p>`,
+    ...droppedLines.map(
+      (line) => `<p style="margin-top:20px"><strong>${escapeEmailHtml(line)}</strong></p>`
+    ),
     `<p style="margin-top:20px">Quote number: <strong>${escapeEmailHtml(quoteNumber)}</strong>`,
     showTracker
       ? `<br><a href="${escapeEmailHtml(getTrackUrl(quoteNumber))}">Check on it any time</a></p>`

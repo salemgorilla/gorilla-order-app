@@ -22,6 +22,14 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **Apparel has a price sheet** — 2026-09-01, the second line for the new
+  engine, exactly as tests/price-sheet.test.ts is for stickers: 318 rows
+  of LITERAL figures (all 191 catalog colours' blended units, a 120-cell
+  engine grid pinning every quantity-tier boundary from both sides, and
+  the session's browser-verified anchors — Stacey $352/$276/$359.40,
+  Kurt $64.60, the audit's $252.76/$337.76). Any edit that moves an
+  apparel price is now a readable diff. Regenerate deliberately and say
+  why in the commit; never fix a row to make it pass.
 - **Apparel has a number** — 2026-08-31, the "give apparel a number"
   handoff, built after its Task 1 probe reported in writing (verdict:
   wiring plus one model change; the priced configurator behind

@@ -97,7 +97,6 @@ export type FieldKey =
   | "height"
   | "quantity"
   | "printLocations"
-  | "sizeBreakdown"
   | "specialOrderNotes";
 
 /** Field key -> the short message shown under that field. */
@@ -476,12 +475,8 @@ export function getApparelValidationSummary(
   if (fields.printLocations) {
     problems.push({ field: "printLocations", message: fields.printLocations });
   }
-  if (fields.sizeBreakdown) {
-    problems.push({
-      field: "sizeBreakdown",
-      message: "Add how many you need in each size.",
-    });
-  }
+  // No sizeBreakdown rule any more: sizes are optional at estimate time —
+  // the blend covers them and the quantity rule above owns the count.
 
   return orderProblemsByStep(problems);
 }
@@ -551,10 +546,17 @@ export function getApparelFieldErrors(
     errors.printLocations = "Choose at least one print location.";
   }
 
-  // The reconciliation error is gone: quantity IS the grid total, so the two
-  // cannot disagree. All that remains is asking for at least one shirt.
-  if (sizeQuantityTotal < 1) {
-    errors.sizeBreakdown = "Add at least one size.";
+  /**
+   * Sizes are OPTIONAL at estimate time now — the blend (lib/apparel-
+   * blend.ts) prices an assumed mix, states it on screen, and every real
+   * apparel quote in the four-week readout submitted without sizes anyway.
+   * What is required is a count: the rough quantity, or the grid total once
+   * sizes exist (the grid wins — apparelQuote.quantity is already whichever
+   * applies, see the memo in page.tsx). Apparel is hand-confirmed before
+   * anything is charged, so the shop chases sizes exactly as it always has.
+   */
+  if (!(apparelQuote.quantity > 0)) {
+    errors.quantity = "Enter roughly how many you need.";
   }
 
   return errors;

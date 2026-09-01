@@ -70,14 +70,25 @@ describe("a menu apparel order", () => {
     );
   });
 
-  test("an empty size grid is refused", () => {
-    // Quantity IS the grid total, so the two cannot disagree. All that is left
-    // to ask is for at least one shirt.
-    assert.equal(errorsFor({}, {}, 0).sizeBreakdown, "Add at least one size.");
+  test("sizes are optional at estimate time; a count is not", () => {
+    // The blend (lib/apparel-blend.ts) prices an assumed mix until sizes
+    // exist, so an empty grid no longer blocks — but a zero count does.
+    // apparelQuote.quantity is already the grid total or the rough count,
+    // whichever applies (grid wins), so the rule reads quantity alone.
+    assert.equal(
+      errorsFor({ quantity: 0 }, {}, 0).quantity,
+      "Enter roughly how many you need."
+    );
+    assert.ok(!("sizeBreakdown" in errorsFor({ quantity: 0 }, {}, 0)));
+  });
+
+  test("a rough count with no sizes is a real order", () => {
+    assert.equal(errorsFor({ quantity: 24 }, {}, 0).quantity, undefined);
+    assert.ok(!("sizeBreakdown" in errorsFor({ quantity: 24 }, {}, 0)));
   });
 
   test("one shirt is a real order", () => {
-    assert.equal(errorsFor({}, {}, 1).sizeBreakdown, undefined);
+    assert.equal(errorsFor({ quantity: 1 }, {}, 1).quantity, undefined);
   });
 });
 
@@ -109,7 +120,7 @@ describe("a special order is priced by hand, so the menu rules lift", () => {
     );
 
     assert.equal(errors.printLocations, undefined);
-    assert.equal(errors.sizeBreakdown, undefined);
+    assert.ok(!("sizeBreakdown" in errors));
   });
 
   test("but it must say what they actually want", () => {

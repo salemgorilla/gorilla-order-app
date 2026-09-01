@@ -2,6 +2,14 @@ import { apparelPricingConfig } from "./apparel-pricing-config";
 
 export type ApparelPricingInput = {
   quantity: number;
+  /**
+   * Always a clean 2dp per-shirt figure — the blended price before sizes
+   * exist, or the size-mix figure quantized by garmentUnitPriceFromSizes
+   * (lib/apparel-blend.ts) once they do. Printavo stores a unit price and
+   * multiplies, so the garment component must ALWAYS be unit × quantity of
+   * a 2dp unit: any raw division here re-opens the 4dp drift this file's
+   * Printavo counterpart documents ($0.02 over, growing with quantity).
+   */
   garmentUnitPrice: number;
   printLocations: string[];
   inkColors: string;

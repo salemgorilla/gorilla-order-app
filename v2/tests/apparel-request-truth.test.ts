@@ -218,11 +218,17 @@ describe("the customer's own record carries the request", () => {
     assert.match(apparelText, /Your Request: \$\{apparelQuote\.specialOrderNotes/);
   });
 
-  test("the fabricated fields and the S&S block are configurator-only", () => {
-    // In request mode nothing asked for colour, locations or ink — and the
-    // S&S CATALOG DETAILS block would print the pinned defaults as if the
-    // customer had picked a SKU.
+  test("the fabricated fields are configurator-only, and the vendor block is GONE", () => {
+    // In request mode nothing asked for colour, locations or ink. And since
+    // the pricing build (31 Aug), NO branch of the customer's own record
+    // sources the garment: the copy text used to print "S&S CATALOG
+    // DETAILS", the style, the SKU and a line literally labelled
+    // "Marked-Up Garment Price" — into text built to be copied and
+    // forwarded. Ordering details ride the supplier block into the
+    // Printavo internal note, nowhere customer-reachable.
     assert.match(apparelText, /isApparelRequest\s*\n?\s*\? `\nYour Request:/);
-    assert.match(apparelText, /S&S Product: \$\{chosenSsProduct\?\.displayName/);
+    assert.doesNotMatch(apparelText, /S&S CATALOG DETAILS/);
+    assert.doesNotMatch(apparelText, /Marked-Up|marked.up/i);
+    assert.doesNotMatch(apparelText, /SKU:/);
   });
 });

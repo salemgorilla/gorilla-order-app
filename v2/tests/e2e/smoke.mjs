@@ -34,6 +34,18 @@ import { isStickerOrder } from "../../lib/sticker-repricing";
 
 const BASE = process.env.SMOKE_URL || "http://localhost:3100";
 
+/**
+ * A need-by date that is always legal. The turnaround floors (PR #97)
+ * refuse dates inside each flow's minimum, so a HARDCODED date here is a
+ * time bomb: "2026-12-15" passes today and starts failing every CI run in
+ * late November with no code change to blame. Ninety days clears the
+ * 14-business-day slow-lane floor with room to spare, forever.
+ */
+const NEED_BY = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
+  .toISOString()
+  .slice(0, 10);
+
+
 const CATALOG = {
   products: [
     {
@@ -176,7 +188,7 @@ try {
 
     await page.click("text=Custom Stickers");
     await page.click('button:has-text("02")');
-    await page.locator("input[type=date]").first().fill("2026-12-15");
+    await page.locator("input[type=date]").first().fill(NEED_BY);
     await page.click('button:has-text("03")');
     await page.locator('input[type="file"]').first().setInputFiles({
       name: "smoke-art.png",
@@ -249,7 +261,7 @@ try {
     await page.click('button:has-text("Hats")');
     await page.fill("#apparel-request-quantity", "25");
     await page.fill("#apparel-request-notes", "25 black hats, front logo embroidery");
-    await page.locator("input[type=date]").first().fill("2026-12-15");
+    await page.locator("input[type=date]").first().fill(NEED_BY);
     await page.click('button:has-text("04")');
     await page.locator("input[id*=ame], input[name*=ame]").first().fill("Smoke Test");
     await page.locator("input[type=email]").first().fill("smoke@example.com");
@@ -304,7 +316,7 @@ try {
 
     await page.click("text=Custom Stickers");
     await page.click('button:has-text("02")');
-    await page.locator("input[type=date]").first().fill("2026-12-15");
+    await page.locator("input[type=date]").first().fill(NEED_BY);
     await page.click('button:has-text("03")');
     await page.locator('input[type="file"]').first().setInputFiles({
       name: "kiosk-art.png",

@@ -1,0 +1,71 @@
+# The morning bell — a daily pulse-check on PRODUCTION.
+#
+# Why it exists: the S&S key expired and served a 401 to every apparel
+# visitor for a WEEK before anyone noticed — 44 visitors met an error
+# nobody knew was happening, because nothing watched the live site between
+# deploys. CI only runs when code changes; credentials rot on their own
+# schedule. This runs every morning regardless, and a red run emails the
+# repo owner the same day, not the week after.
+#
+# Read-only on purpose: it never submits a quote, never touches Printavo,
+# never creates anything. Three GETs against public endpoints:
+#   1. the homepage renders and still carries the price anchor
+#   2. /api/printavo-test says the shop's Printavo credentials still work
+#   3. /api/ss-catalog still serves real garments (the check that would
+#      have caught the 401 in one day instead of seven)
+name: Production canary
+
+on:
+  schedule:
+    # 10:00 UTC — 6am Eastern, so a failure is in the inbox before the
+    # shop opens either way the clocks sit.
+    - cron: "0 10 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Homepage renders with the price anchor
+        run: |
+          body=$(curl -sS --max-time 30 https://labs.gorillasalem.com/)
+          echo "$body" | grep -Eq 'from[^$]*\$[0-9]+' || {
+            echo "::error::Homepage answered but the price anchor is missing — the page may be rendering an error shell."
+            exit 1
+          }
+
+      - name: Printavo credentials still work
+        run: |
+          json=$(curl -sS --max-time 30 https://labs.gorillasalem.com/api/printavo-test)
+          echo "$json"
+          echo "$json" | node -e '
+            let raw = "";
+            process.stdin.on("data", (c) => (raw += c));
+            process.stdin.on("end", () => {
+              const r = JSON.parse(raw);
+              if (r.connected !== true) {
+                console.error("::error::Printavo reports NOT connected: " + (r.error ?? "no error text"));
+                process.exit(1);
+              }
+              console.log("Printavo connected, build " + r.build);
+            });
+          '
+
+      - name: The S&S catalog still serves garments
+        run: |
+          json=$(curl -sS --max-time 60 https://labs.gorillasalem.com/api/ss-catalog)
+          echo "$json" | node -e '
+            let raw = "";
+            process.stdin.on("data", (c) => (raw += c));
+            process.stdin.on("end", () => {
+              const r = JSON.parse(raw);
+              const products = Array.isArray(r.products) ? r.products : [];
+              const colors = products.reduce((n, p) => n + (p.colors?.length ?? 0), 0);
+              if (products.length === 0) {
+                console.error("::error::S&S catalog returned ZERO products — this is the week-long-401 failure mode. Check the key.");
+                process.exit(1);
+              }
+              console.log(`S&S catalog alive: ${products.length} products, ${colors} colors`);
+            });
+          '

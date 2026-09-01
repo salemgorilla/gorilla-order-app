@@ -22,6 +22,32 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **Apparel has a number** — 2026-08-31, the "give apparel a number"
+  handoff, built after its Task 1 probe reported in writing (verdict:
+  wiring plus one model change; the priced configurator behind
+  status:"request" already worked to the cent). The garment component is
+  now a BLENDED per-shirt price until sizes exist — base + Σ share ×
+  size difference from the LIVE catalog SKUs, mix = ASSUMED_EXTENDED_MIX
+  in lib/apparel-blend.ts (Gabe 29 Aug: 9% 2XL + 6% 3XL), ceil to 5¢
+  (stated low-bias lean) — with the assumption ON SCREEN next to the
+  figure and the promise "Enter your sizes and this becomes exact."
+  Entering sizes prices every size from its own SKU, quantized to a 2dp
+  per-shirt unit (ceil — Printavo multiplies a stored unit, and raw
+  division re-opens the documented 4dp drift), and the screen says
+  "Priced from your sizes." The rough count came back for this: THE GRID
+  WINS, the count only fills the gap, nothing reconciles, sizes are now
+  OPTIONAL at estimate time (quantity is the required thing). LANGUAGE
+  (Task 3): no markup/vendor words on any customer surface — builder
+  copy swept, and the shop email's supplier block (style/SKU/sample/
+  blank price) moved ENTIRELY to the Printavo internal note (Gabe's
+  call, 31 Aug); the customer copy-text's vendor section is gone.
+  Verified by running: Stacey's quote ($352 → $276 ink lever → tier at
+  24 → $374.04 exact from her real mix) and Kurt's ($64.60, visible
+  before the form), every figure to the cent; audit driver now 36
+  checks. isStickerOrder(priced apparel) = false, pinned BY NAME in
+  tests/apparel-blend.test.ts. **status stays "request"** — flipping
+  waits on Gabe's one real reconciled order (three Printavo lines),
+  per Task 5.
 - **The need-by date has turnaround floors now** — 2026-08-31, Gabe's
   numbers, set in this session: stickers and vinyl banners can promise the
   NEXT BUSINESS DAY; apparel, yard signs and rigid signs 14 business days.

@@ -105,17 +105,10 @@ const REACHABLE: Record<FieldKey, () => string | undefined> = {
       24
     ).printLocations,
 
-  sizeBreakdown: () =>
-    getApparelFieldErrors(
-      {
-        specialOrder: false,
-        specialOrderNotes: "",
-        quantity: 0,
-        printLocations: ["Front"],
-      },
-      { ...emptyOrderPart, artwork: { file: { name: "art.png" } } },
-      0
-    ).sizeBreakdown,
+  // sizeBreakdown left this map when sizes became optional at estimate
+  // time (the blend prices an assumed mix until they exist) — no rule
+  // raises it any more, so reachability has nothing to prove for it. The
+  // menu flow's zero-count case now raises `quantity`, covered above.
 };
 
 describe("every validated field can actually be marked", () => {

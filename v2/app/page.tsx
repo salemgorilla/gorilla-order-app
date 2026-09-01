@@ -81,6 +81,11 @@ import {
   STICKER_SETUP_FEE_ADDITIONAL,
 } from "../lib/pricing";
 import { calculateApparelPricing } from "../lib/apparel-pricing";
+import {
+  blendedGarmentUnitPrice,
+  describeAssumedMix,
+  garmentUnitPriceFromSizes,
+} from "../lib/apparel-blend";
 import { pruneSizeQuantities } from "../lib/size-quantities";
 import {
   earliestNeedBy,
@@ -476,11 +481,25 @@ export default function Home() {
     // had just filled in, with no way to clear it.
     if (isApparelRequest) return apparelQuoteState;
 
-    return apparelQuoteState.quantity === sizeQuantityTotal
+    /**
+     * THE GRID WINS; the rough count fills the gap before it exists.
+     *
+     * The configurator asks "how many, roughly?" so the estimate has a
+     * quantity before any size is entered — that early number is the whole
+     * point of the blend (lib/apparel-blend.ts). The moment the size grid
+     * holds anything, ITS total is the quantity and the rough count is
+     * discarded, never reconciled — so the old "size breakdown must total
+     * 24" error stays dead: there is no comparison to fail, just a fact
+     * replacing a guess.
+     */
+    const effectiveQuantity =
+      sizeQuantityTotal > 0 ? sizeQuantityTotal : apparelQuoteState.quantity;
+
+    return apparelQuoteState.quantity === effectiveQuantity
       ? // Same object when nothing changed, so memo consumers downstream do
         // not see a new reference every render.
         apparelQuoteState
-      : { ...apparelQuoteState, quantity: sizeQuantityTotal };
+      : { ...apparelQuoteState, quantity: effectiveQuantity };
   }, [apparelQuoteState, isApparelRequest, sizeQuantityTotal]);
 
   const sizeBreakdownFromButtons = useMemo(() => {
@@ -520,10 +539,44 @@ export default function Home() {
     [signsQuote]
   );
 
+  /**
+   * Which basis the apparel estimate stands on. "exact" the moment the size
+   * grid holds anything — every size then prices from its own SKU and the
+   * screen says "priced from your sizes". "assumed" before that: the
+   * blended garment figure with the stated mix (lib/apparel-blend.ts).
+   */
+  const apparelEstimateBasis: "assumed" | "exact" =
+    sizeQuantityTotal > 0 ? "exact" : "assumed";
+
   const apparelPricing = useMemo(() => {
+    /**
+     * The garment component of the estimate, replacing the old model that
+     * billed EVERY shirt at the sample size's price — a figure that ran
+     * under the invoice for any order with 2XL+ in it, the direction
+     * customers remember.
+     *
+     * exact:   every size priced from its own SKU (the grid), quantized to
+     *          a clean 2dp per-shirt unit — see garmentUnitPriceFromSizes
+     *          for why unit × quantity is the only safe shape near Printavo.
+     * assumed: blended per-shirt price × the rough count, assumption
+     *          stated on screen beside the number.
+     * No catalogue colour (S&S dark, fallback garment list): garment
+     * contributes 0 exactly as before — printing and screens still price,
+     * the garment is quoted by hand.
+     */
+    const garmentUnit = !chosenSsColor
+      ? 0
+      : apparelEstimateBasis === "exact"
+      ? garmentUnitPriceFromSizes(
+          chosenSsColor,
+          sizeQuantities,
+          apparelQuote.quantity
+        )
+      : blendedGarmentUnitPrice(chosenSsColor);
+
     return calculateApparelPricing({
       quantity: apparelQuote.quantity,
-      garmentUnitPrice: selectedGarmentPrice,
+      garmentUnitPrice: garmentUnit,
       printLocations: apparelQuote.printLocations,
       inkColors: apparelQuote.inkColors,
       hasUnderbase:
@@ -531,11 +584,13 @@ export default function Home() {
         Boolean(artworkAnalysis?.estimatedColorCount),
     });
   }, [
+    apparelEstimateBasis,
+    chosenSsColor,
+    sizeQuantities,
     apparelQuote.quantity,
     apparelQuote.printLocations,
     apparelQuote.inkColors,
     apparelQuote.garmentColor,
-    selectedGarmentPrice,
     artworkAnalysis?.estimatedColorCount,
   ]);
 
@@ -1701,7 +1756,12 @@ export default function Home() {
           : {
               ...apparelPricing,
               quoteRequired: false,
-              note: "Estimated apparel pricing. Final pricing reviewed by Gorilla Salem.",
+              // The shop reads this to know what the customer's figure stood
+              // on: an assumed size mix, or their entered breakdown.
+              note:
+                apparelEstimateBasis === "exact"
+                  ? "Estimate priced from the customer's size breakdown. Final pricing reviewed by Gorilla Salem."
+                  : `Estimate uses an assumed size mix — ${describeAssumedMix().toLowerCase()} Final pricing reviewed by Gorilla Salem.`,
             },
       };
     }
@@ -2592,24 +2652,19 @@ Quantity: ${apparelQuote.quantity.toLocaleString()}${
         isApparelRequest
           ? `
 Your Request: ${apparelQuote.specialOrderNotes.trim() || "Not provided"}`
-          : `
+          : // The customer's own record describes the garment and never
+            // sources it. This block used to print a whole vendor section —
+            // supplier name, style number, stock code, and the blank's cost
+            // with the pricing method named outright — into the text a
+            // customer copies and forwards. Ordering details are the shop's
+            // business: they ride the supplier block into the Printavo
+            // internal note, nowhere customer-reachable.
+            `
+Garment: ${selectedGarmentLabel || apparelQuote.garmentType}
 Garment Color: ${apparelQuote.garmentColor}
 Print Locations: ${apparelQuote.printLocations.join(", ")}
 Ink Colors: ${apparelQuote.inkColors}
-Size Breakdown: ${apparelQuote.sizeBreakdown}
-
-S&S CATALOG DETAILS
-Customer-Facing Product: ${selectedGarmentLabel || "Not selected"}
-S&S Product: ${chosenSsProduct?.displayName || "Not selected"}
-S&S Style: ${chosenSsProduct?.catalogStyle || "Not selected"}
-Color: ${chosenSsColor?.colorName || "Not selected"}
-Sample Size: ${chosenSsSize?.sizeName || "Not selected"}
-SKU: ${chosenSsSize?.sku || "Not selected"}
-Marked-Up Garment Price: ${
-              selectedGarmentPrice ? `$${selectedGarmentPrice.toFixed(2)}` : "N/A"
-            }
-Availability: ${selectedGarmentIsOutOfStock ? "Out of stock" : "Available"}
-Image: ${selectedGarmentImage || "N/A"}`
+Size Breakdown: ${apparelQuote.sizeBreakdown || "Not entered yet"}`
       }
 
 ${timelineSection}
@@ -2627,6 +2682,11 @@ Garments: $${apparelPricing.garmentTotal.toFixed(2)}
 Printing: $${apparelPricing.printTotal.toFixed(2)}
 Setup / Screens: $${apparelPricing.setupTotal.toFixed(2)}
 Locations: ${apparelQuote.printLocations.length}
+${
+              apparelEstimateBasis === "exact"
+                ? "Priced from your sizes."
+                : `${describeAssumedMix()} Enter your sizes and this becomes exact.`
+            }
 Pricing Note: Final pricing reviewed by Gorilla Salem.`
       }${addOnsSection}${artworkGapSection}
 
@@ -2987,8 +3047,8 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
   ) : isApparelSelected ? (
     <ApparelSummaryCard
       apparelQuote={apparelQuote}
-      selectedSsSize={selectedSsSize}
       apparelPricing={apparelPricing}
+      apparelEstimateBasis={apparelEstimateBasis}
       artworkAnalysis={artworkAnalysis}
     />
   ) : (
@@ -3517,6 +3577,15 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   onUpdateSizeQuantity={updateSizeQuantity}
                   onSetSizeQuantity={setSizeQuantity}
                   onResetSizeBreakdown={resetSizeBreakdown}
+                  onSetRoughQuantity={(quantity) =>
+                    setApparelQuoteState((current) => ({
+                      ...current,
+                      quantity: Number.isFinite(quantity)
+                        ? Math.max(0, Math.floor(quantity))
+                        : 0,
+                    }))
+                  }
+                  sizesEntered={sizeQuantityTotal > 0}
                 />
               ) : (
                 <div className="space-y-6">

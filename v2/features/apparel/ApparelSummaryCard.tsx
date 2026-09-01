@@ -1,21 +1,40 @@
 "use client";
 
 import type { ApparelQuote } from "../../lib/apparel";
+import { describeAssumedMix } from "../../lib/apparel-blend";
 import type { ApparelPricingResult } from "../../lib/apparel-pricing";
+import { apparelPricingConfig } from "../../lib/apparel-pricing-config";
 import type { ArtworkAnalysis } from "../../lib/artwork";
-import type { SsCatalogSize } from "../types";
 
 type Props = {
   apparelQuote: ApparelQuote;
-  selectedSsSize: SsCatalogSize | null;
   apparelPricing: ApparelPricingResult;
+  /**
+   * What the figure stands on. "assumed": the blended garment price with
+   * the stated size mix — shown WITH the assumption, on the same screen,
+   * per the handoff. "exact": every size priced from its own SKU.
+   */
+  apparelEstimateBasis: "assumed" | "exact";
   artworkAnalysis: ArtworkAnalysis | null;
 };
 
+/**
+ * The next quantity price break above the current count, so the card can
+ * name the lever ("at 50 shirts the printing rate drops") instead of
+ * leaving the customer to email three times hunting for it.
+ */
+function nextQuantityBreak(quantity: number): number | null {
+  const above = apparelPricingConfig.basePrintPrices
+    .map((tier) => tier.minQuantity)
+    .filter((min) => min > quantity);
+
+  return above.length > 0 ? Math.min(...above) : null;
+}
+
 export default function ApparelSummaryCard({
   apparelQuote,
-  selectedSsSize,
   apparelPricing,
+  apparelEstimateBasis,
   artworkAnalysis,
 }: Props) {
   return (
@@ -45,24 +64,6 @@ export default function ApparelSummaryCard({
           <span>Ink</span>
           <span className="text-right font-bold text-[var(--ink-black)]">{apparelQuote.inkColors}</span>
         </div>
-
-        {selectedSsSize && (
-          <div className="flex justify-between gap-4">
-            <span>Garment Price</span>
-            <span className="text-right font-bold text-[var(--ink-black)]">
-              ${selectedSsSize.markedUpPrice.toFixed(2)}
-            </span>
-          </div>
-        )}
-
-        {selectedSsSize && (
-          <div className="flex justify-between gap-4">
-            <span>SKU</span>
-            <span className="text-right font-bold text-[var(--ink-black)]">
-              {selectedSsSize.sku}
-            </span>
-          </div>
-        )}
 
         {!apparelQuote.specialOrder && (
           <>
@@ -164,6 +165,35 @@ export default function ApparelSummaryCard({
               </span>
             </div>
           </div>
+
+          {/* The assumption lives ON THE SAME SCREEN as the number, and the
+              asterisk promises the specific thing that removes it — not
+              "this is an estimate", which every customer ignores. Once real
+              sizes exist the assumption is gone and the line says so. */}
+          {apparelEstimateBasis === "exact" ? (
+            <p className="mt-3 border-t border-[var(--rule-faint)] pt-3 text-fine font-bold leading-5 text-[var(--gorilla-green)]">
+              Priced from your sizes.
+            </p>
+          ) : (
+            <p className="mt-3 border-t border-[var(--rule-faint)] pt-3 text-fine font-medium leading-5 text-[var(--ink-muted)]">
+              * {describeAssumedMix()}{" "}
+              <span className="font-bold text-[var(--ink-black)]">
+                Enter your sizes and this becomes exact.
+              </span>
+            </p>
+          )}
+
+          {/* Stacey's levers: when the figure moves, this is what moved it.
+              She cut count, colours and artwork size across three
+              submissions hunting for a price the app never showed — name
+              the levers so she can find her own. */}
+          <p className="mt-2 text-fine font-medium leading-5 text-[var(--ink-muted)]">
+            What moves this number: ink colors, print locations, and run
+            size
+            {nextQuantityBreak(apparelQuote.quantity) !== null
+              ? ` — at ${nextQuantityBreak(apparelQuote.quantity)} shirts the printing rate drops.`
+              : "."}
+          </p>
         </div>
       </div>
       )}

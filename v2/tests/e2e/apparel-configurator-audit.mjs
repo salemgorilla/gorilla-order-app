@@ -142,7 +142,7 @@ try {
   check("catalog fetched once on apparel selection", state.catalogRequests === 1);
 
   await page.click('button:has-text("02")');
-  await page.waitForSelector("text=Live S&S Catalog");
+  await page.waitForSelector("text=Garment Catalog");
   const shown = await page.textContent("text=/\\d+ shown/");
   check("all 3 catalog products offered", shown?.trim() === "3 shown", shown ?? "missing");
 
@@ -167,16 +167,16 @@ try {
   await page.waitForTimeout(200);
   const sizeRow = await page.evaluate(() => {
     const h = [...document.querySelectorAll("p")].find(
-      (p) => p.textContent === "Sample Size / Garment Price"
+      (p) => p.textContent === "Garment Prices by Size"
     );
     return h ? h.parentElement.innerText : "";
   });
-  check("sample sizes carry the marked-up S&S price", /M\s*\n?\s*\$3\.49/.test(sizeRow), sizeRow.slice(0, 120));
-  check("2XL upcharge is visible on the size row", /2XL\s*\n?\s*\$6\.30/.test(sizeRow));
+  check("the size row prices each size from its own SKU", /M\s*\n?\s*\$3\.49/.test(sizeRow), sizeRow.slice(0, 120));
+  check("the 2XL price difference is visible, as a price", /2XL\s*\n?\s*\$6\.30/.test(sizeRow));
 
   await page.evaluate(() => {
     const h = [...document.querySelectorAll("p")].find(
-      (p) => p.textContent === "Sample Size / Garment Price"
+      (p) => p.textContent === "Garment Prices by Size"
     );
     const btn = [...h.parentElement.querySelectorAll("button")].find(
       (b) => b.textContent.trim().startsWith("M")
@@ -184,14 +184,57 @@ try {
     btn.click();
   });
 
-  // Size grid: M=12, L=12 via the inputs
+  // ── BLEND MODE: before any size is entered ────────────────────────────
+  // The rough count (defaults 24) gives the estimate a quantity; the
+  // garment component is the blended per-shirt price — Gildan 2000 White:
+  // base 3.49, +0.09×2.81 (2XL) +0.06×5.68 (3XL) = 4.0837 → 4.10 ceil-5¢.
+  {
+    const expectBlend = calculateApparelPricing({
+      quantity: 24,
+      garmentUnitPrice: 4.1,
+      printLocations: ["Front"],
+      inkColors: "1 color",
+      hasUnderbase: false,
+    });
+    const shownBlend = await estimatedTotalOnSummary(page);
+    check(
+      "BLEND: pre-size total equals the engine at the blended unit",
+      shownBlend !== null && Math.abs(shownBlend - expectBlend.total) < 0.005,
+      `screen ${shownBlend} vs engine ${expectBlend.total.toFixed(2)}`
+    );
+    const summary = await summaryText(page);
+    check(
+      "BLEND: the assumption is stated on the same screen as the number",
+      /Assumes about 15% of the order is 2XL or 3XL/.test(summary),
+      summary.slice(-300)
+    );
+    check(
+      "BLEND: the asterisk promises exactness, not vagueness",
+      /Enter your sizes and this becomes exact/.test(summary)
+    );
+  }
+
+  // Size grid: M=12, L=12 via the inputs — the grid REPLACES the rough count
   await page.fill('input[aria-label="M quantity"]', "12");
   await page.fill('input[aria-label="L quantity"]', "12");
   await page.waitForTimeout(200);
   const badge = await page.textContent("text=/\\d+ shirts/");
   check("quantity derives from the grid", badge?.trim() === "24 shirts", badge ?? "");
+  {
+    const summary = await summaryText(page);
+    check(
+      "EXACT: entering sizes flips the label to priced-from-your-sizes",
+      /Priced from your sizes/.test(summary)
+    );
+    check(
+      "EXACT: the assumption is gone once sizes exist",
+      !/Assumes about/.test(summary)
+    );
+  }
 
-  // Engine comparison — White garment, no artwork yet, Front, 1 color
+  // Engine comparison — EXACT basis (grid filled): M and L both price at
+  // 3.49, so the quantized per-shirt unit is 3.49 and these figures match
+  // the pre-blend era on purpose.
   const expectA = calculateApparelPricing({
     quantity: 24,
     garmentUnitPrice: 3.49,
@@ -263,7 +306,7 @@ try {
   await page.waitForTimeout(200);
   await page.evaluate(() => {
     const h = [...document.querySelectorAll("p")].find(
-      (p) => p.textContent === "Sample Size / Garment Price"
+      (p) => p.textContent === "Garment Prices by Size"
     );
     const btn = [...h.parentElement.querySelectorAll("button")].find(
       (b) => b.textContent.trim().startsWith("M")
@@ -373,7 +416,7 @@ try {
     await m.click("text=T-Shirts & Apparel");
     await m.waitForTimeout(600);
     await m.click('button:has-text("02")');
-    await m.waitForSelector("text=Live S&S Catalog");
+    await m.waitForSelector("text=Garment Catalog");
     await m.click('button:has-text("Starter Tee")');
     await m.waitForTimeout(400);
     const overflow = await m.evaluate(

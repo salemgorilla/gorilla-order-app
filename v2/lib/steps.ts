@@ -92,7 +92,6 @@ export const FIELD_STEP: Record<FieldKey, StepId> = {
   height: "details",
   quantity: "details",
   printLocations: "details",
-  sizeBreakdown: "details",
   specialOrderNotes: "details",
   needBy: "details",
 

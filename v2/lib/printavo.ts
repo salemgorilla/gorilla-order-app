@@ -1109,10 +1109,16 @@ export function buildPrintavoQuotePlan(input: {
         }`,
         `Ink: ${str(product.inkColors, "TBD")}`,
         `Sizes: ${str(product.sizeBreakdown, "Not provided")}`,
+        // The blank-ordering details live HERE and only here — the quote
+        // email dropped them (Gabe, 31 Aug) because it is the surface the
+        // shop replies to customers from, and these four facts price the
+        // blank for anyone who sees them. The internal note is shop-only.
         `S&S style: ${str(supplier.catalogStyle, "N/A")} / SKU ${str(
           supplier.sku,
           "N/A"
-        )}`,
+        )} / sample ${str(supplier.sampleSize, "N/A")} @ $${num(
+          supplier.markedUpGarmentPrice
+        ).toFixed(2)}`,
         // The whole point of a special order — what they actually asked for.
         ...(isSpecialOrder
           ? [

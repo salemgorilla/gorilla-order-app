@@ -47,6 +47,14 @@ type Props = {
   onUpdateSizeQuantity: (sizeName: string, change: number) => void;
   onSetSizeQuantity: (sizeName: string, value: number) => void;
   onResetSizeBreakdown: () => void;
+  /**
+   * The rough count that gives the estimate a quantity BEFORE any size is
+   * entered. The size grid's total replaces it the moment the grid holds
+   * anything — grid wins, no reconciliation, see the apparelQuote memo.
+   */
+  onSetRoughQuantity: (quantity: number) => void;
+  /** True once the size grid holds anything — the rough count is then retired. */
+  sizesEntered: boolean;
 };
 
 export default function ApparelBuilder({
@@ -78,6 +86,8 @@ export default function ApparelBuilder({
   onUpdateSizeQuantity,
   onSetSizeQuantity,
   onResetSizeBreakdown,
+  onSetRoughQuantity,
+  sizesEntered,
 }: Props) {
   return (
     <>
@@ -89,11 +99,11 @@ export default function ApparelBuilder({
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="eyebrow">
-              Live S&S Catalog
+              Garment Catalog
             </p>
             <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
-              Products, colors, sizes, pricing, availability, and images
-              are pulled from S&S.
+              Real garments with live colors, sizes, prices and
+              availability.
             </p>
           </div>
 
@@ -213,11 +223,7 @@ export default function ApparelBuilder({
                                 {product.customerLabel || product.displayName}
                               </p>
                               <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
-                                {product.customerCategory} • Style{" "}
-                                {product.catalogStyle}
-                              </p>
-                              <p className="mt-1 text-spec font-medium text-[var(--ink-muted)]">
-                                S&S: {product.displayName}
+                                {product.customerCategory}
                               </p>
                             </div>
 
@@ -301,7 +307,7 @@ export default function ApparelBuilder({
             {selectedSsColor && (
               <div>
                 <p className="mb-3 text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
-                  Sample Size / Garment Price
+                  Garment Prices by Size
                 </p>
 
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -337,8 +343,8 @@ export default function ApparelBuilder({
                 </div>
 
                 <p className="mt-3 text-spec font-medium leading-5 text-[var(--ink-muted)]">
-                  This garment price includes the 40% markup over S&S
-                  customer pricing. Print/decorating costs are added later.
+                  Shirt price by size, before printing. Printing and
+                  screens are added in the estimate.
                 </p>
               </div>
             )}
@@ -361,6 +367,55 @@ export default function ApparelBuilder({
               }
             />
           </div>
+        )}
+      </div>
+
+      {/* The quantity the estimate stands on until sizes exist. Stacey Beer
+          submitted three times hunting for a number she could negotiate
+          against; this is where that number gets its count. The size grid
+          below REPLACES this the moment it holds anything — grid wins, no
+          reconciliation error, see the apparelQuote memo in page.tsx. */}
+      <div
+        className={` bg-[var(--shirt-blank)] p-5 ${
+          fieldErrors?.quantity
+            ? "border-2 border-[var(--rush-red)]"
+            : "border border-[var(--rule)]"
+        }`}
+        data-invalid={fieldErrors?.quantity ? "true" : undefined}
+      >
+        <label className="block">
+          <span className="text-fine font-semibold text-[var(--ink-black)]">
+            How many do you need?
+          </span>
+          <input
+            type="number"
+            min={1}
+            inputMode="numeric"
+            value={apparelQuote.quantity || ""}
+            onFocus={(event) => event.target.select()}
+            onChange={(event) => onSetRoughQuantity(Number(event.target.value))}
+            disabled={sizesEntered}
+            aria-invalid={fieldErrors?.quantity ? true : undefined}
+            aria-describedby={
+              fieldErrors?.quantity ? "apparel-quantity-error" : undefined
+            }
+            className="spec mt-2 h-12 w-32 bg-white px-3 text-center text-value font-bold text-[var(--ink-black)] outline-none focus:ring-2 focus:ring-[var(--gorilla-green)] disabled:opacity-50"
+          />
+        </label>
+
+        <p className="mt-2 text-fine font-medium leading-5 text-[var(--ink-muted)]">
+          {sizesEntered
+            ? "Counting your entered sizes below — clear them to type a rough total again."
+            : "A rough count is fine — the estimate updates as you change it. Enter your sizes below and it becomes exact."}
+        </p>
+
+        {fieldErrors?.quantity && (
+          <p
+            id="apparel-quantity-error"
+            className="mt-2 text-fine font-bold text-[var(--rush-red)]"
+          >
+            {fieldErrors.quantity}
+          </p>
         )}
       </div>
 
@@ -548,21 +603,15 @@ export default function ApparelBuilder({
         </div>
       )}
 
-      <div
-        className={` bg-[var(--shirt-blank)] p-5 ${
-          fieldErrors?.sizeBreakdown
-            ? "border-2 border-[var(--rush-red)]"
-            : "border border-[var(--rule)]"
-        }`}
-        data-invalid={fieldErrors?.sizeBreakdown ? "true" : undefined}
-      >
+      <div className=" border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="eyebrow">
               Size Breakdown
             </p>
             <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
-              Use the buttons to make the total match the quantity.
+              Optional for the estimate — enter your sizes and the price
+              becomes exact. We confirm sizes before printing either way.
             </p>
           </div>
 
@@ -658,12 +707,6 @@ export default function ApparelBuilder({
             {sizeBreakdownFromButtons || "No sizes selected yet"}
           </p>
 
-          {fieldErrors?.sizeBreakdown && (
-            <p className="mt-2 text-fine font-bold text-[var(--rush-red)]">
-              {fieldErrors.sizeBreakdown}
-            </p>
-          )}
-
           {!sizeBreakdownMatchesQuantity && (
             <p className="mt-2 text-fine font-bold leading-6 text-[var(--rush-red)]">
               Add or remove sizes until the total equals{" "}
@@ -673,7 +716,7 @@ export default function ApparelBuilder({
 
           {sizeBreakdownMatchesQuantity && sizeQuantityTotal > 0 && (
             <p className="mt-2 text-fine font-bold leading-6 text-[var(--gorilla-green)]">
-              Size breakdown total matches the quantity.
+              Priced from your sizes.
             </p>
           )}
 

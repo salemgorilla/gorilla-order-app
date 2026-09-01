@@ -331,10 +331,13 @@ export function buildQuoteEmail(input: {
             line("What they need", str(product.specialOrderNotes, "Not described")),
           ]
         : []),
-      line("S&S Style", str(supplier.catalogStyle, "N/A")),
-      line("Sample Size", str(supplier.sampleSize, "N/A")),
-      line("SKU", str(supplier.sku, "N/A")),
-      line("Garment Price (marked up)", money(supplier.markedUpGarmentPrice))
+      // The style, SKU and blank price used to print here — four lines
+      // naming the supplier and stating outright that a markup is applied,
+      // in the email the shop REPLIES TO CUSTOMERS from. One forward or one
+      // quoted thread and the customer could price the blank themselves.
+      // Gabe's call, 31 Aug: ordering details live only in the Printavo
+      // internal note, which no customer can ever see. The figure is not
+      // lost — the note carries style, SKU, sample size and blank cost.
     );
   } else if (signs && signsDesigns.length > 1) {
     /**

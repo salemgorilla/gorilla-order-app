@@ -528,6 +528,13 @@ export function buildQuoteEmail(input: {
       line("Printing", money(pricing.printTotal)),
       line("Setup / Screens", money(pricing.setupTotal))
     );
+
+    // What the customer's figure stood on — the assumed size mix, or their
+    // entered breakdown. The payload has said this since the blend landed;
+    // without this line the shop priced replies blind to it.
+    if (pricing.note) {
+      estimateLines.push(line("Basis", str(pricing.note)));
+    }
   } else {
     estimateLines.push(
       line("Stickers", money(pricing.stickerPrice)),

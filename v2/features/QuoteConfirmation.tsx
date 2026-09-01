@@ -5,6 +5,7 @@ import KioskPickupCard from "../components/kiosk/KioskPickupCard";
 import { useKiosk } from "../components/kiosk/KioskProvider";
 import type { Order } from "../types/order";
 import type { ApparelQuote } from "../lib/apparel";
+import { describeAssumedMix } from "../lib/apparel-blend";
 import type { ApparelPricingResult } from "../lib/apparel-pricing";
 import type { QuoteConfirmation, SsCatalogColor } from "./types";
 import { SALES_TAX, getSignsTotals, getStickerTotals } from "../lib/tax";
@@ -23,6 +24,12 @@ type Props = {
   /** Request-flow submissions confirm the three questions asked, not the
       configurator fields the flow never showed. */
   isApparelRequest: boolean;
+  /**
+   * What the apparel figure stands on, unchanged from the review screen:
+   * the handoff's rule is that the assumption lives on the same screen as
+   * the number, and this screen still shows the number.
+   */
+  apparelEstimateBasis: "assumed" | "exact";
   isSignsSubmitted: boolean;
   signsQuote: SignsQuote;
   /** Null when the signs job could not be priced online. */
@@ -44,6 +51,7 @@ export default function QuoteConfirmationScreen({
   order,
   isApparelSubmitted,
   isApparelRequest,
+  apparelEstimateBasis,
   isSignsSubmitted,
   signsQuote,
   signsTotal,
@@ -428,6 +436,14 @@ export default function QuoteConfirmationScreen({
                     </p>
                     <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
                       ${apparelPricing.unitPrice.toFixed(2)} each estimated
+                    </p>
+                    {/* The assumption travels with the number past submit —
+                        this screen shows the figure, so it states the basis,
+                        exactly as the review screen did. */}
+                    <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
+                      {apparelEstimateBasis === "exact"
+                        ? "Priced from your sizes"
+                        : `${describeAssumedMix()} We'll confirm sizes with you.`}
                     </p>
                     <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
                       Final pricing reviewed by Gorilla Salem

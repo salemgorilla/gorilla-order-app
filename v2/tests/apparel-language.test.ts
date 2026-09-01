@@ -76,6 +76,13 @@ describe("the quote email never prices the blank", () => {
     assert.match(body, /Starter Tee/);
     assert.match(body, /White/);
   });
+
+  it("prints the basis the customer's figure stood on", () => {
+    // The payload's pricing.note says whether the total used the assumed
+    // size mix or an entered breakdown; the shop prices replies from this
+    // email, so the note has to reach it.
+    assert.match(body, /Basis: Estimate uses an assumed size mix\./);
+  });
 });
 
 describe("the Printavo internal note carries what the email gave up", () => {

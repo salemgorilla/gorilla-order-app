@@ -365,6 +365,14 @@ try {
     .then(() => true)
     .catch(() => false);
   check("confirmation renders after submit", confirmed);
+  {
+    const confirmationText = await page.evaluate(() => document.body.innerText);
+    check(
+      "confirmation carries the basis with the number",
+      /Priced from your sizes/.test(confirmationText),
+      "the figure appears post-submit without saying what it stands on"
+    );
+  }
   await page.screenshot({ path: S + "/audit-confirmation.png", fullPage: true });
 
   const order = JSON.parse(formField(state.quoteRaw || "", "order") || "null");

@@ -2901,6 +2901,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         order={order}
         isApparelSubmitted={isApparelSubmitted}
         isApparelRequest={apparelIsRequestFlow}
+        apparelEstimateBasis={apparelEstimateBasis}
         isSignsSubmitted={isSignsSubmitted}
         signsQuote={signsQuote}
         signsTotal={signsPricing.priceable ? signsPricing.total : null}

@@ -30,6 +30,18 @@ import { calculateApparelPricing } from "../../lib/apparel-pricing";
 import { isStickerOrder } from "../../lib/sticker-repricing";
 
 const BASE = process.env.SMOKE_URL || "http://localhost:3000";
+
+/**
+ * A need-by date that is always legal. The turnaround floors (PR #97)
+ * refuse dates inside each flow's minimum, so a HARDCODED date here is a
+ * time bomb: "2026-12-15" passes today and starts failing every CI run in
+ * late November with no code change to blame. Ninety days clears the
+ * 14-business-day slow-lane floor with room to spare, forever.
+ */
+const NEED_BY = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
+  .toISOString()
+  .slice(0, 10);
+
 const CATALOG = JSON.parse(
   fs.readFileSync(
     new URL("./fixtures/ss-catalog-live-2026-08-25.json", import.meta.url),
@@ -318,7 +330,7 @@ try {
   if (await resetBtn.count()) await resetBtn.click();
   await page.fill('input[aria-label="M quantity"]', "12");
   await page.fill('input[aria-label="L quantity"]', "12");
-  await page.locator("input[type=date]").first().fill("2026-12-15");
+  await page.locator("input[type=date]").first().fill(NEED_BY);
 
   await page.screenshot({ path: S + "/audit-summary.png", fullPage: true });
 

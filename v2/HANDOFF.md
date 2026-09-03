@@ -22,6 +22,26 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **The apparel cart, engine first** — 2026-09-03. lib/apparel-cart.ts
+  prices SEVERAL GARMENT LINES in one quote (24 tees + 12 hoodies), the
+  thing Stacey needed and signs got in #51. TWO MODEL DECISIONS, both
+  stated as reversible data rather than buried: the print tier is read
+  from the COMBINED count (20+20 is a 40-piece run at the 24+ rate, which
+  is what the press does), and SETUP IS CHARGED ONCE per quote, not per
+  line — the same screens print both garments, and billing twice would
+  charge for screens nobody burned (apparelCartRules.shareSetupAcrossLines
+  flips it). THE INVARIANT, pinned across the whole tier grid: a ONE-LINE
+  cart prices exactly as the single-garment configurator did, to the cent
+  — so the committed price sheet and the audit driver still describe the
+  product. The live flow is already routed through it as a cart of one,
+  so the engine is load-bearing, not inventory; audit still 37/37 green
+  with the flip. A defect the tests caught: an empty cart quoted $33 (a
+  phantom shirt plus a full set of screens) because the engine floors
+  quantity at 1 — nothing ordered is now nothing owed.
+  STILL TO COME: the UI for adding lines. The shape assumption is in the
+  file header — a line is a GARMENT (one design across several garments),
+  not a design; say the word if a team order at Gorilla means the other
+  thing.
 - **Reorder links** — 2026-09-03. The customer confirmation email for a
   sticker order now carries "Need these again?" — a link that rebuilds
   the builder from that order's spec (lib/reorder.ts, readable format:

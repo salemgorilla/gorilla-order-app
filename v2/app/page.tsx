@@ -83,6 +83,7 @@ import {
   STICKER_SETUP_FEE_ADDITIONAL,
 } from "../lib/pricing";
 import { calculateApparelPricing } from "../lib/apparel-pricing";
+import { quoteApparelCart } from "../lib/apparel-cart";
 import {
   blendedGarmentUnitPrice,
   describeAssumedMix,
@@ -618,15 +619,35 @@ export default function Home() {
         )
       : blendedGarmentUnitPrice(chosenSsColor);
 
-    const base = calculateApparelPricing({
-      quantity: apparelQuote.quantity,
-      garmentUnitPrice: garmentUnit,
-      printLocations: apparelQuote.printLocations,
-      inkColors: apparelQuote.inkColors,
-      hasUnderbase:
-        apparelQuote.garmentColor !== "White" &&
-        Boolean(artworkAnalysis?.estimatedColorCount),
-    });
+    /**
+     * Priced through the CART engine as a cart of one.
+     *
+     * The configurator quotes one garment today; a team order is rarely
+     * one garment, and lib/apparel-cart.ts is where several will live.
+     * Routing the single-garment case through it now means the cart
+     * engine is load-bearing from the day it lands rather than inventory
+     * waiting for a UI — and a one-line cart prices identically to the
+     * old direct call, to the cent, pinned across the whole tier grid in
+     * tests/apparel-cart.test.ts.
+     */
+    const base = quoteApparelCart(
+      [
+        {
+          id: "line-1",
+          garmentLabel: selectedGarmentLabel,
+          colorName: apparelQuote.garmentColor,
+          garmentUnitPrice: garmentUnit,
+          quantity: apparelQuote.quantity,
+        },
+      ],
+      {
+        printLocations: apparelQuote.printLocations,
+        inkColors: apparelQuote.inkColors,
+        hasUnderbase:
+          apparelQuote.garmentColor !== "White" &&
+          Boolean(artworkAnalysis?.estimatedColorCount),
+      }
+    );
 
     // Rush rides on the goods — garments, printing and screens — and is
     // added to the total every surface reads, so the sticky bar, the

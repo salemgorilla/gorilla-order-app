@@ -20,7 +20,10 @@ import {
   rushOffer,
   rushRules,
 } from "../lib/rush";
+import { readFileSync } from "node:fs";
+
 import { calculateApparelPricing } from "../lib/apparel-pricing";
+import { getSignsTotals } from "../lib/tax";
 import { isStickerOrder } from "../lib/sticker-repricing";
 
 const MONDAY = "2026-08-31";
@@ -221,5 +224,63 @@ describe("the offer tells the truth about what will happen", () => {
 
     assert.match(offer, /include it in your quote/);
     assert.doesNotMatch(offer, /estimate updates/);
+  });
+});
+
+describe("rush is LABOUR, so it is not taxed (Gabe, 2026-09-04)", () => {
+  /**
+   * Massachusetts taxes tangible goods, not separately stated labour. A
+   * rush fee buys the shop rearranging its schedule — the same treatment
+   * separately stated shipping already gets in lib/tax.ts.
+   *
+   * The fee still appears on the bill; it just leaves the taxable base.
+   */
+  test("the taxable base is the goods, the total still includes the fee", () => {
+    // The browser-verified example: $46.00 of yard signs, rushed.
+    const goods = 46;
+    const fee = rushFeeFor(goods);
+    const totals = getSignsTotals({ total: goods + fee, rushFee: fee });
+
+    assert.equal(fee.toFixed(2), "11.50");
+    assert.equal(totals.taxableSubtotal.toFixed(2), "46.00");
+    assert.equal(totals.estimatedTax.toFixed(2), "2.88");
+    assert.equal(totals.estimatedTotal.toFixed(2), "60.38");
+  });
+
+  test("taxing the fee would have cost the customer 71 cents", () => {
+    // What the previous behaviour did, kept as the contrast so nobody
+    // "simplifies" the rushFee argument away.
+    const goods = 46;
+    const fee = rushFeeFor(goods);
+    const taxedAnyway = getSignsTotals({ total: goods + fee });
+
+    assert.equal(taxedAnyway.estimatedTax.toFixed(2), "3.59");
+    assert.equal(
+      (taxedAnyway.estimatedTax - getSignsTotals({ total: goods + fee, rushFee: fee }).estimatedTax).toFixed(2),
+      "0.71"
+    );
+  });
+
+  test("a quote with no rush is completely unchanged", () => {
+    assert.deepEqual(
+      getSignsTotals({ total: 108, rushFee: 0 }),
+      getSignsTotals({ total: 108 })
+    );
+  });
+
+  test("the Printavo line says labour too, not just the estimate", () => {
+    // The estimate and the invoice have to agree, not merely resemble each
+    // other: the fee line carries taxed:false so Printavo computes the
+    // same tax the customer was shown.
+    const source = readFileSync(
+      new URL("../lib/printavo.ts", import.meta.url),
+      "utf8"
+    );
+    const rushLine = source.slice(
+      source.indexOf('itemNumber: "GORILLA-RUSH"'),
+      source.indexOf('itemNumber: "GORILLA-RUSH"') + 500
+    );
+
+    assert.match(rushLine, /taxed: false/);
   });
 });

@@ -73,8 +73,13 @@ Working and verified:
   fast-lane work — staff is standing there to agree to it. Kiosk apparel
   and kiosk yard/rigid signs keep the 14-day floor; blanks and screens do
   not care who is at the counter.
-  FLAGGED FOR GABE: MA sales tax currently applies to the rush fee (it
-  rides the taxable goods sale). Worth one check with the accountant.
+  TAX, ANSWERED (Gabe, 2026-09-04): the rush fee is LABOUR and is NOT
+  taxed. It stays in the total the customer pays and comes out of the
+  taxable base — the same treatment separately stated shipping already
+  gets — and the Printavo line carries taxed:false so the invoice agrees
+  with the estimate rather than merely resembling it. Verified on
+  screen: $46 of yard signs taxes $2.88 rushed or not; rushed total
+  $60.38.
 - **Apparel has a price sheet** — 2026-09-01, the second line for the new
   engine, exactly as tests/price-sheet.test.ts is for stickers: 318 rows
   of LITERAL figures (all 191 catalog colours' blended units, a 120-cell

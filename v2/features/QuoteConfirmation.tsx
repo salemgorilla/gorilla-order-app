@@ -34,6 +34,8 @@ type Props = {
   signsQuote: SignsQuote;
   /** Null when the signs job could not be priced online. */
   signsTotal: number | null;
+  /** Rush scheduling — labour, so untaxed. See QuoteReviewCard's note. */
+  signsRushFee?: number;
   apparelQuote: ApparelQuote;
   selectedGarmentLabel: string;
   selectedSsColor: SsCatalogColor | null;
@@ -55,6 +57,7 @@ export default function QuoteConfirmationScreen({
   isSignsSubmitted,
   signsQuote,
   signsTotal,
+  signsRushFee,
   apparelQuote,
   selectedGarmentLabel,
   selectedSsColor,
@@ -84,7 +87,10 @@ export default function QuoteConfirmationScreen({
    * price up. Signs are invoiced rather than paid on the spot, so this
    * screen is the LAST number they hold until that invoice.
    */
-  const signsTotals = signsTotal !== null ? getSignsTotals({ total: signsTotal }) : null;
+  const signsTotals =
+    signsTotal !== null
+      ? getSignsTotals({ total: signsTotal, rushFee: signsRushFee })
+      : null;
 
   /**
    * Read here rather than threaded in as a prop, so there is one way of

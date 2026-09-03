@@ -705,6 +705,12 @@ export type PrintavoQuotePlan = {
     description: string;
     itemNumber: string;
     price: number;
+    /**
+     * Per-line override. Defaults to the quote's rate (goods and ordinary
+     * fees are taxable); false for separately stated LABOUR, which
+     * Massachusetts does not tax — rush scheduling is the one today.
+     */
+    taxed?: boolean;
   }[];
   /**
    * Sales tax rate as a percentage, or null to leave the quote untaxed.
@@ -1445,6 +1451,10 @@ export function buildPrintavoQuotePlan(input: {
               )}`,
               itemNumber: "GORILLA-RUSH",
               price: money(pricing.rushFee),
+              // Labour, not goods: MA does not tax separately stated
+              // labour, and the estimate excludes it from the taxable base
+              // too (lib/tax.ts). Gabe's call, 2026-09-04.
+              taxed: false,
             },
           ]
         : []),
@@ -1622,7 +1632,8 @@ export async function createPrintavoQuote(input: {
               position: plan.lineItems.length + index + 1,
               price: fee.price,
               sizes: [{ size: "size_other", count: 1 }],
-              taxed: plan.salesTaxRate !== null,
+              // The line may opt out — rush scheduling is labour, not goods.
+              taxed: fee.taxed ?? plan.salesTaxRate !== null,
             })),
             ...(plan.shippingLineItem
               ? [

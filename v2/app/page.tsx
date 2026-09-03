@@ -3069,6 +3069,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         isSignsSubmitted={isSignsSubmitted}
         signsQuote={signsQuote}
         signsTotal={signsPricing.priceable ? signsPricing.total : null}
+              signsRushFee={activeRushFee}
         apparelQuote={apparelQuote}
         selectedGarmentLabel={selectedGarmentLabel}
         selectedSsColor={selectedSsColor}
@@ -4107,6 +4108,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               apparelPricing={apparelPricing}
               signsQuote={signsQuote}
               signsTotal={signsPricing.priceable ? signsPricing.total : null}
+              signsRushFee={activeRushFee}
               selectedGarmentLabel={selectedGarmentLabel}
               selectedSsColor={selectedSsColor}
               isReady={currentValidationErrors.length === 0}

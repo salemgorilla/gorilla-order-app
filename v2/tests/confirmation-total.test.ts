@@ -80,6 +80,12 @@ describe("the wiring", () => {
     // A cart with an unpriceable design has no total to make tax-inclusive.
     // "Quoted by hand" must survive this change untouched.
     assert.match(source, /Quoted by hand/);
-    assert.match(source, /signsTotal !== null \? getSignsTotals/);
+    // The null guard, not its line breaks: the totals call gained a
+    // rushFee argument (rush is untaxed labour) and wrapped across lines.
+    // What must hold is that a null total never reaches getSignsTotals.
+    assert.match(
+      source,
+      /signsTotal !== null\s*\?\s*getSignsTotals\(/
+    );
   });
 });

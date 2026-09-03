@@ -348,6 +348,10 @@ export default function Home() {
     isApparel: isApparelSelected,
     isSigns: isSignsSelected,
     signsFamily,
+    // The shop's own terminal may promise today on fast-lane work: staff is
+    // standing there to agree to it. Apparel and the signs pipeline keep
+    // their floor either way — see lib/turnaround.ts.
+    isKiosk: kiosk.enabled,
   });
 
   const signsQuote = largeFormatQuotes[signsFamily];

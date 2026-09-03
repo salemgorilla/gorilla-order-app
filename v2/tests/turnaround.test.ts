@@ -250,3 +250,80 @@ describe("all three validators enforce their lane", () => {
     assert.match(refused.needBy ?? "", /apparel and signs/);
   });
 });
+
+describe("the walk-in lane — the shop's own counter", () => {
+  // Gabe's call, 1 Sep 2026. The floor exists to stop the WEB promising
+  // what nobody at the shop heard; a walk-in is standing in front of the
+  // person who runs the press, so that reason does not apply. Fast-lane
+  // work only — blanks and screens do not care who is at the counter.
+  test("a kiosk sticker order may promise today", () => {
+    const lane = turnaroundLaneFor({
+      isApparel: false,
+      isSigns: false,
+      signsFamily: "signs",
+      isKiosk: true,
+    });
+
+    assert.equal(lane, "walkin");
+    assert.equal(earliestNeedBy(lane, MONDAY), MONDAY);
+    assert.equal(isNeedByTooSoon(MONDAY, lane, MONDAY), false);
+  });
+
+  test("kiosk banners ride the same counter rule", () => {
+    assert.equal(
+      turnaroundLaneFor({
+        isApparel: false,
+        isSigns: true,
+        signsFamily: "banners",
+        isKiosk: true,
+      }),
+      "walkin"
+    );
+  });
+
+  test("a kiosk APPAREL order still waits 14 business days", () => {
+    // The load-bearing half of this rule: staff standing there cannot
+    // conjure blanks or burn screens any faster.
+    const lane = turnaroundLaneFor({
+      isApparel: true,
+      isSigns: false,
+      signsFamily: "signs",
+      isKiosk: true,
+    });
+
+    assert.equal(lane, "slow");
+    assert.equal(earliestNeedBy(lane, MONDAY), "2026-09-18");
+  });
+
+  test("kiosk yard and rigid signs keep the slow floor too", () => {
+    assert.equal(
+      turnaroundLaneFor({
+        isApparel: false,
+        isSigns: true,
+        signsFamily: "signs",
+        isKiosk: true,
+      }),
+      "slow"
+    );
+  });
+
+  test("the web is unchanged — no kiosk flag, no same day", () => {
+    assert.equal(
+      turnaroundLaneFor({ isApparel: false, isSigns: false, signsFamily: "signs" }),
+      "fast"
+    );
+    assert.equal(isNeedByTooSoon(MONDAY, "fast", MONDAY), true);
+  });
+
+  test("the counter's note drops the call-us out — the customer is here", () => {
+    const note = turnaroundNote("walkin");
+
+    assert.match(note, /same day/i);
+    assert.doesNotMatch(note, /call or email/i);
+  });
+
+  test("yesterday is still refused at the counter", () => {
+    // Same day, not any day: a date in the past is never a promise.
+    assert.equal(isNeedByTooSoon("2026-08-30", "walkin", MONDAY), true);
+  });
+});

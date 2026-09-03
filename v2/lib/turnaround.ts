@@ -10,13 +10,16 @@
  * Gabe's numbers, set 2026-08-31, and this object is the one place to
  * change them.
  *
- * Two lanes, keyed on the product families the banners/signs hard split
- * already created:
+ * Three lanes, keyed on the product families the banners/signs hard split
+ * already created, plus where the order is being taken:
  *
- *   fast — stickers and vinyl banners: printed in-house on the roll,
- *          ready as soon as the NEXT business day.
- *   slow — apparel, yard signs and rigid signs: blanks ordered in,
- *          screens burned, substrate cut — 14 business days.
+ *   walkin — fast-lane work at the shop's own counter (the kiosk): TODAY
+ *            is allowed, because staff is standing there to agree to it.
+ *   fast   — stickers and vinyl banners on the web: printed in-house on
+ *            the roll, ready as soon as the NEXT business day.
+ *   slow   — apparel, yard signs and rigid signs: blanks ordered in,
+ *            screens burned, substrate cut — 14 business days, counter or
+ *            not.
  *
  * The floor BLOCKS, with an out: the picker's min stops earlier dates, the
  * validator catches anything typed past the picker, and the copy tells the
@@ -24,12 +27,26 @@
  * not the enthusiasm.
  */
 
-export type TurnaroundLane = "fast" | "slow";
+export type TurnaroundLane = "walkin" | "fast" | "slow";
 
 export const turnaroundRules: Record<
   TurnaroundLane,
   { minBusinessDays: number; products: string; promise: string }
 > = {
+  /**
+   * The shop's own counter, for work printed on the roll. A walk-in is
+   * standing in front of the person who runs the press, and the floor
+   * exists to stop the WEB promising what nobody heard — that reason does
+   * not apply when staff is right there. So the kiosk may promise today,
+   * for fast-lane products only: a walk-in asking for 24 screen-printed
+   * shirts still waits on blanks and screens like everyone else, and
+   * turnaroundLaneFor keeps them in the slow lane.
+   */
+  walkin: {
+    minBusinessDays: 0,
+    products: "stickers and banners",
+    promise: "often same day in the shop",
+  },
   fast: {
     minBusinessDays: 1,
     products: "stickers and banners",
@@ -51,10 +68,15 @@ export function turnaroundLaneFor(flow: {
   isApparel: boolean;
   isSigns: boolean;
   signsFamily: "banners" | "signs";
+  /** True on the shop's own terminal — see the walkin rule above. */
+  isKiosk?: boolean;
 }): TurnaroundLane {
   if (flow.isApparel) return "slow";
-  if (flow.isSigns) return flow.signsFamily === "banners" ? "fast" : "slow";
-  return "fast"; // stickers — the kiosk included
+  if (flow.isSigns && flow.signsFamily !== "banners") return "slow";
+
+  // Fast-lane work (stickers, banners) — same day when a person is at the
+  // counter to say yes to it, next business day on the web.
+  return flow.isKiosk ? "walkin" : "fast";
 }
 
 /**
@@ -131,6 +153,11 @@ export function needByTooSoonError(
 /** The standing note under the date picker, before anything goes wrong. */
 export function turnaroundNote(lane: TurnaroundLane): string {
   const rule = turnaroundRules[lane];
+
+  if (lane === "walkin") {
+    // No "call us" out: the customer IS here, talking to staff.
+    return `Stickers and banners are ${rule.promise} — ask us about today.`;
+  }
 
   return lane === "fast"
     ? `Stickers and banners are ${rule.promise}. Need it faster? Call or email us.`

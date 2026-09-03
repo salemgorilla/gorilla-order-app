@@ -12,6 +12,7 @@
  *   stickers          taxable    ordinary tangible goods
  *   signs & banners   taxable    ordinary tangible goods
  *   apparel           EXEMPT     Massachusetts exempts clothing
+ *   rush scheduling   EXEMPT     labour, not goods (Gabe, 2026-09-04)
  *
  * The clothing exemption has a threshold: it applies to the first $175 per
  * item, and only the amount ABOVE $175 is taxable. Every garment this shop
@@ -150,10 +151,28 @@ export function getStickerTotals(pricing: {
  * total that is entirely goods and fees — so the whole total is taxable and
  * the base and the pre-tax total are the same number.
  */
-export function getSignsTotals(pricing: { total: number }): QuoteTotals {
+export function getSignsTotals(pricing: {
+  total: number;
+  /**
+   * Rush scheduling (lib/rush.ts). NOT taxable: it buys LABOUR — the shop
+   * rearranging its schedule — not goods, and Massachusetts does not tax
+   * separately stated labour. Gabe's call, 2026-09-04.
+   *
+   * It stays in preTaxTotal (the customer does pay it) and comes out of
+   * the taxable base — the same treatment separately stated shipping
+   * already gets. The Printavo line carries taxed:false so the invoice
+   * agrees with the estimate rather than merely resembling it.
+   */
+  rushFee?: number;
+}): QuoteTotals {
+  const rushFee = Math.max(0, Number(pricing.rushFee) || 0);
+
   return getQuoteTotals({
     flow: "signs",
-    taxableSubtotal: pricing.total,
+    taxableSubtotal: Math.max(
+      0,
+      Math.round((pricing.total - rushFee) * 100) / 100
+    ),
     preTaxTotal: pricing.total,
   });
 }

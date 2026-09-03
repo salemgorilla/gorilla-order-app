@@ -25,6 +25,14 @@ type Props = {
   apparelPricing: ApparelPricingResult;
   signsQuote: SignsQuote;
   signsTotal: number | null;
+  /**
+   * Rush scheduling, which is LABOUR and therefore untaxed (lib/tax.ts).
+   * Passed separately because this card gets a bare total rather than the
+   * pricing object — without it this surface would tax the fee while the
+   * summary card did not, which is the "four surfaces, two numbers"
+   * failure getQuoteTotals exists to prevent.
+   */
+  signsRushFee?: number;
   selectedGarmentLabel: string;
   selectedSsColor: SsCatalogColor | null;
   isReady: boolean;
@@ -39,13 +47,17 @@ export default function QuoteReviewCard({
   apparelPricing,
   signsQuote,
   signsTotal,
+  signsRushFee,
   selectedGarmentLabel,
   selectedSsColor,
   isReady,
 }: Props) {
   // Shared with the summary, the confirmation screen and the sticky bar.
   const stickerTotals = getStickerTotals(order.pricing);
-  const signsTotals = signsTotal !== null ? getSignsTotals({ total: signsTotal }) : null;
+  const signsTotals =
+    signsTotal !== null
+      ? getSignsTotals({ total: signsTotal, rushFee: signsRushFee })
+      : null;
 
   return (
     <div className=" border border-[var(--rule)] bg-white p-6">

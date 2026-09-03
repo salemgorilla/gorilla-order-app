@@ -1,10 +1,9 @@
 import { looksLikeEmailAddress } from "./email-address";
-import {
-  isNeedByTooSoon,
-  needByTooSoonError,
-  todayIso,
-  type TurnaroundLane,
-} from "./turnaround";
+import { todayIso, type TurnaroundLane } from "./turnaround";
+// The floor the FORM enforces is the rush floor where rush is offered
+// (lib/rush.ts) — picking a rush date is allowed and priced, not refused.
+// Below even that, the answer is still the phone.
+import { isNeedByRefused, needByRefusedError } from "./rush";
 import { orderProblemsByStep, type FieldProblem } from "./steps";
 import { Order, StickerItem } from "../types/order";
 
@@ -134,12 +133,12 @@ export function getOrderFieldErrors(
 
   if (!order.production.needBy) {
     errors.needBy = "Enter the date you need this in hand.";
-  } else if (isNeedByTooSoon(order.production.needBy, "fast", today)) {
+  } else if (isNeedByRefused(order.production.needBy, "fast", today)) {
     // Stickers ride the fast lane (lib/turnaround.ts) — and of the three
     // flows this is the one where the floor really matters: stickers
     // auto-bill, so an impossible in-hand date could be PAID for before
     // anyone at the shop reads it.
-    errors.needBy = needByTooSoonError("fast", today);
+    errors.needBy = needByRefusedError("fast", today);
   }
 
   if (!order.customer.customerName.trim()) {
@@ -299,8 +298,8 @@ export function getSignsFieldErrors(
 
   if (!order.production.needBy.trim()) {
     errors.needBy = "Enter the date you need this in hand.";
-  } else if (isNeedByTooSoon(order.production.needBy, lane, today)) {
-    errors.needBy = needByTooSoonError(lane, today);
+  } else if (isNeedByRefused(order.production.needBy, lane, today)) {
+    errors.needBy = needByRefusedError(lane, today);
   }
 
   /**
@@ -510,11 +509,11 @@ export function getApparelFieldErrors(
 
   if (!order.production.needBy.trim()) {
     errors.needBy = "Enter the date you need this in hand.";
-  } else if (isNeedByTooSoon(order.production.needBy, "slow", today)) {
+  } else if (isNeedByRefused(order.production.needBy, "slow", today)) {
     // Apparel always rides the slow lane: blanks ordered in, screens
     // burned. The rule applies to special orders too — a hand quote can
     // still not beat the calendar.
-    errors.needBy = needByTooSoonError("slow", today);
+    errors.needBy = needByRefusedError("slow", today);
   }
 
   // A special order is priced by hand, so the strict menu rules (print

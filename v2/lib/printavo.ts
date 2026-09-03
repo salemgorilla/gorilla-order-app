@@ -1429,6 +1429,26 @@ export function buildPrintavoQuotePlan(input: {
           ]
         : []),
       /**
+       * Rush scheduling — its own SKU on both hand-quoted flows.
+       *
+       * Never folded into a product line: the shop has to be able to drop
+       * the rush charge (or the whole rush) when the schedule turns out to
+       * allow it, and "how much rush did we sell this quarter" has to have
+       * an answer. Same reason setup is its own row.
+       */
+      ...(num(pricing.rushFee) > 0
+        ? [
+            {
+              description: `Rush scheduling - in hand by ${str(
+                production.needBy,
+                "the agreed date"
+              )}`,
+              itemNumber: "GORILLA-RUSH",
+              price: money(pricing.rushFee),
+            },
+          ]
+        : []),
+      /**
        * Sticker setup, as its own line.
        *
        * THIS WAS BEING LOST. getStickerPrice() used to bake setup into the

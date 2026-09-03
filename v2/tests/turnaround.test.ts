@@ -191,14 +191,26 @@ describe("all three validators enforce their lane", () => {
     assert.equal(allowed.needBy, undefined);
   });
 
-  test("yard and rigid signs: 13 business days out is refused, 14 is allowed", () => {
+  test("yard and rigid signs: below the RUSH floor is refused, 14 is allowed", () => {
+    // Changed 3 Sep with rush (lib/rush.ts): a slow-lane date sooner than
+    // 14 business days is no longer refused outright — between the rush
+    // floor (5 business days) and standard it is ALLOWED and priced with
+    // a rush fee. What the form still refuses is sooner than rush can go.
     const refused = getSignsFieldErrors(
+      [signsDesign],
+      { ...contact, production: { needBy: "2026-09-04" } },
+      "slow",
+      MONDAY
+    );
+    assert.match(refused.needBy ?? "", /apparel and signs/);
+
+    const rushed = getSignsFieldErrors(
       [signsDesign],
       { ...contact, production: { needBy: "2026-09-17" } },
       "slow",
       MONDAY
     );
-    assert.match(refused.needBy ?? "", /apparel and signs/);
+    assert.equal(rushed.needBy, undefined, "a rush date must be submittable");
 
     const allowed = getSignsFieldErrors(
       [signsDesign],
@@ -219,14 +231,24 @@ describe("all three validators enforce their lane", () => {
   const apparelOrderPart = (needBy: string) =>
     ({ ...contact, artwork: { file: {} }, production: { needBy } }) as never;
 
-  test("apparel: the 14-day floor holds", () => {
+  test("apparel: the floor holds at the rush limit", () => {
+    // Same change as signs above: 2026-09-04 is sooner than even rush can
+    // promise, so it is refused; a rush-window date is allowed and priced.
     const refused = getApparelFieldErrors(
+      apparelQuote,
+      apparelOrderPart("2026-09-04"),
+      24,
+      MONDAY
+    );
+    assert.match(refused.needBy ?? "", /apparel and signs/);
+
+    const rushed = getApparelFieldErrors(
       apparelQuote,
       apparelOrderPart("2026-09-17"),
       24,
       MONDAY
     );
-    assert.match(refused.needBy ?? "", /apparel and signs/);
+    assert.equal(rushed.needBy, undefined, "a rush date must be submittable");
 
     const allowed = getApparelFieldErrors(
       apparelQuote,

@@ -14,6 +14,7 @@ import {
 } from "../../../lib/email";
 import { getDesignNumbers } from "../../../lib/attachment-plan";
 import { buildOrderConfirmation } from "../../../lib/order-confirmation";
+import { reorderUrl } from "../../../lib/reorder";
 import { describeRepricing } from "../../../lib/repricing-note";
 import { repriceSigns } from "../../../lib/signs-repricing";
 import { getEmailError } from "../../../lib/validation";
@@ -900,6 +901,18 @@ export async function POST(request: Request) {
       paymentEmailSent: Boolean(checkout?.ready),
       printavoCreated: Boolean(printavo.created),
       kiosk: Boolean(kioskSession),
+      // Stickers only: they are the repeat product, and the only flow whose
+      // whole spec a link can carry. reorderUrl returns null for anything
+      // it cannot describe, and the email omits the line.
+      reorderUrl: isStickerOrder(order)
+        ? reorderUrl("https://labs.gorillasalem.com", {
+            items: Array.isArray(order.items)
+              ? (order.items as Record<string, unknown>[])
+              : [],
+            deliveryMethod: (order.production as Record<string, unknown>)
+              ?.deliveryMethod,
+          })
+        : null,
       droppedArtwork: artworkParts
         .filter((part) => part.dropped)
         .map((part) => ({

@@ -72,6 +72,8 @@ import {
 } from "../lib/templates";
 import { reviews } from "../lib/reviews";
 import { createStickerItem, defaultOrder } from "../lib/order";
+import { decodeReorder } from "../lib/reorder";
+import { CUSTOM_STICKER_SIZE, stickerCatalog } from "../lib/catalog";
 import { AddOnOffer, toAddOn } from "../lib/addons";
 import {
   describeStickerSize,
@@ -1093,6 +1095,71 @@ export default function Home() {
    * the moment the design appears — a customer adding a second design should
    * see the $12.50 land, not discover it at review.
    */
+  /**
+   * "Order these again" — a reorder link (lib/reorder.ts), applied once.
+   *
+   * PREFILLS, NEVER SUBMITS. Stickers auto-bill, so a URL that could place
+   * an order would be a URL that could take money; this one rebuilds the
+   * cart on step 1 and stops, exactly like a customer typing it in. The
+   * link carries no price either — recalculateOrder prices it from the
+   * engine, so a link mailed in March quotes March's prices in March and
+   * September's in September.
+   */
+  const reorderApplied = useRef(false);
+  /** Banner state: the cart was built from a link, so say so on screen. */
+  const [reorderPrefilled, setReorderPrefilled] = useState(false);
+
+  useEffect(() => {
+    // Applied once. Re-applying would be harmless — the same link rebuilds
+    // the same cart — but it would also stomp edits the customer had
+    // already made to the prefilled quote.
+    if (reorderApplied.current) return;
+    reorderApplied.current = true;
+
+    const spec = decodeReorder(window.location.search, {
+      materials: stickerCatalog.materials,
+      shapes: stickerCatalog.shapes,
+    });
+    if (!spec) return;
+
+    /**
+     * setState in an effect, deliberately, and scoped to this one case.
+     *
+     * The rule guards against cascading renders — state that sets state on
+     * every pass. This runs ONCE on mount, behind the ref above, reading a
+     * value the server cannot see (the browser's query string) into state
+     * the whole builder derives from. Deriving it during render instead
+     * would need window at render time, which is the hydration mismatch
+     * this avoids.
+     */
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSelectedProductId("stickers");
+    setOrder((current) =>
+      recalculateOrder({
+        ...current,
+        items: spec.designs.map((design) => {
+          const item = createStickerItem();
+          return {
+            ...item,
+            quantity: design.quantity,
+            widthInches: design.widthInches,
+            heightInches: design.heightInches,
+            size: CUSTOM_STICKER_SIZE,
+            material: design.material || item.material,
+            shape: design.shape || item.shape,
+          };
+        }),
+        production: {
+          ...current.production,
+          deliveryMethod:
+            (spec.deliveryMethod as typeof current.production.deliveryMethod) ||
+            current.production.deliveryMethod,
+        },
+      })
+    );
+    setReorderPrefilled(true);
+  }, []);
+
   function addDesign() {
     setOrder(
       recalculateOrder({
@@ -3216,6 +3283,25 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         {/* The masthead belongs to the decision to start, not to the work.
             Once a customer is building, it is a screen of marketing between
             them and the step they are on. */}
+        {/* A cart that arrived prefilled has to say so. A customer who
+            clicked "order these again" and lands on a form already full
+            needs to know it is THEIR last order and not a mistake — and
+            that the price is being worked out fresh, not carried over. */}
+        {reorderPrefilled && currentStepId === "product" && (
+          <div
+            role="status"
+            className="mb-6 border border-[var(--rule)] border-l-4 border-l-[var(--gorilla-green)] bg-[var(--surface-ok)] p-4"
+          >
+            <p className="text-fine font-bold text-[var(--gorilla-green-dark)]">
+              We&rsquo;ve set this up from your last order.
+            </p>
+            <p className="mt-1 text-fine font-medium leading-5 text-[var(--ink-muted)]">
+              Check the sizes and counts, add your artwork, and today&rsquo;s
+              price is worked out as you go. Change anything you like.
+            </p>
+          </div>
+        )}
+
         {currentStepId === "product" && (
         <div className="mb-10">
           {/* Same rule as .eyebrow above it in the cascade: this is a hand-

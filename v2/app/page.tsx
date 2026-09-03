@@ -87,11 +87,14 @@ import {
   garmentUnitPriceFromSizes,
 } from "../lib/apparel-blend";
 import { pruneSizeQuantities } from "../lib/size-quantities";
+import { turnaroundLaneFor, turnaroundNote } from "../lib/turnaround";
 import {
-  earliestNeedBy,
-  turnaroundLaneFor,
-  turnaroundNote,
-} from "../lib/turnaround";
+  applyRush,
+  earliestRushNeedBy,
+  rushChosenNote,
+  rushOffer,
+  RUSH_LINE_LABEL,
+} from "../lib/rush";
 import { apparelCatalogStyles } from "../lib/apparel-catalog";
 import { sameOriginGarmentPhotoUrl } from "../lib/garment-photo";
 import {
@@ -348,6 +351,25 @@ export default function Home() {
     isApparel: isApparelSelected,
     isSigns: isSignsSelected,
     signsFamily,
+    // The shop's own terminal may promise today on fast-lane work: staff is
+    // standing there to agree to it. Apparel and the signs pipeline keep
+    // their floor either way — see lib/turnaround.ts.
+    isKiosk: kiosk.enabled,
+  });
+
+  /**
+   * Rush is DERIVED FROM THE DATE, never a checkbox — see lib/rush.ts. A
+   * date inside the rush window buys its way forward and adds the fee; the
+   * server recomputes the same thing from the same date, so there is no
+   * flag to disagree about.
+   *
+   * Goods only: the fee is a share of what the shop is making (garments,
+   * printing, screens / product and setup), not of itself.
+   */
+  const rushOfferNote = rushOffer(turnaroundLane, undefined, {
+    // The apparel request flow prices nothing on screen, so its offer must
+    // not promise an estimate that updates — see lib/rush.ts.
+    priced: !isApparelRequest,
   });
 
   const signsQuote = largeFormatQuotes[signsFamily];
@@ -534,10 +556,30 @@ export default function Home() {
   // One quote, however many designs are in it. The $15 setup is per design,
   // so quoteSignsCart is a sum rather than a second pricing engine — see
   // lib/signs-cart.ts.
-  const signsPricing = useMemo(
-    () => quoteSignsCart(signsQuote.designs),
-    [signsQuote]
-  );
+  const signsPricing = useMemo(() => {
+    const quote = quoteSignsCart(signsQuote.designs);
+
+    // A hand-quoted cart has no goods figure to take a share of, so rush
+    // stays off it — the shop prices the whole thing, rush included.
+    if (!quote.priceable) return quote;
+
+    const rush = applyRush({
+      goodsSubtotal: quote.total,
+      needBy: order.production.needBy,
+      lane: turnaroundLane,
+    });
+
+    if (!rush.isRush) return quote;
+
+    // Into `lines` so the estimate table, the shop email and the copied
+    // record all pick it up from the one place they already read.
+    return {
+      ...quote,
+      lines: [...quote.lines, { label: RUSH_LINE_LABEL, amount: rush.fee }],
+      total: Math.round((quote.total + rush.fee) * 100) / 100,
+      rushFee: rush.fee,
+    };
+  }, [order.production.needBy, signsQuote, turnaroundLane]);
 
   /**
    * Which basis the apparel estimate stands on. "exact" the moment the size
@@ -574,7 +616,7 @@ export default function Home() {
         )
       : blendedGarmentUnitPrice(chosenSsColor);
 
-    return calculateApparelPricing({
+    const base = calculateApparelPricing({
       quantity: apparelQuote.quantity,
       garmentUnitPrice: garmentUnit,
       printLocations: apparelQuote.printLocations,
@@ -583,8 +625,30 @@ export default function Home() {
         apparelQuote.garmentColor !== "White" &&
         Boolean(artworkAnalysis?.estimatedColorCount),
     });
+
+    // Rush rides on the goods — garments, printing and screens — and is
+    // added to the total every surface reads, so the sticky bar, the
+    // review card, the confirmation and the payload cannot disagree
+    // about what the customer was quoted.
+    const rush = applyRush({
+      goodsSubtotal: base.total,
+      needBy: order.production.needBy,
+      lane: turnaroundLane,
+    });
+
+    return {
+      ...base,
+      rushFee: rush.fee,
+      total: Math.round((base.total + rush.fee) * 100) / 100,
+      unitPrice:
+        Math.round(
+          ((base.total + rush.fee) / Math.max(1, apparelQuote.quantity)) * 100
+        ) / 100,
+    };
   }, [
     apparelEstimateBasis,
+    order.production.needBy,
+    turnaroundLane,
     chosenSsColor,
     sizeQuantities,
     apparelQuote.quantity,
@@ -593,6 +657,18 @@ export default function Home() {
     apparelQuote.garmentColor,
     artworkAnalysis?.estimatedColorCount,
   ]);
+
+  /**
+   * The rush fee actually on THIS quote, whichever flow is mounted — what
+   * the date picker's confirmation line names and the payload carries.
+   * Stickers never carry one: the fast lane does not sell rush (lib/rush.ts
+   * says why, and the reason is that they auto-bill).
+   */
+  const activeRushFee = isApparelSelected
+    ? apparelPricing.rushFee ?? 0
+    : isSignsSelected
+    ? (signsPricing as { rushFee?: number }).rushFee ?? 0
+    : 0;
 
   /**
    * What the sticky estimate stub shows. Pure selection over values the three
@@ -3663,8 +3739,14 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   })
                 }
                 error={fieldErrors.needBy}
-                minDate={earliestNeedBy(turnaroundLane)}
+                // The rush floor where rush is offered: a rush date must be
+                // SELECTABLE, or the offer under the picker is a lie.
+                minDate={earliestRushNeedBy(turnaroundLane)}
                 turnaroundNote={turnaroundNote(turnaroundLane)}
+                rushOffer={rushOfferNote}
+                rushChosen={
+                  activeRushFee > 0 ? rushChosenNote(activeRushFee) : null
+                }
               />
               </>
               )}

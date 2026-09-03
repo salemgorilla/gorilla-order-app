@@ -16,6 +16,13 @@ type Props = {
   minDate: string;
   /** The flow's turnaround promise plus the rush out, under the field. */
   turnaroundNote: string;
+  /**
+   * The rush offer, on flows that sell it (lib/rush.ts): what an earlier
+   * date costs and how early it can go. Null where rush is not offered.
+   */
+  rushOffer?: string | null;
+  /** Named once a rush date IS picked — the fee, on the same screen. */
+  rushChosen?: string | null;
 };
 
 /**
@@ -33,6 +40,8 @@ export default function NeedByDate({
   error,
   minDate,
   turnaroundNote,
+  rushOffer,
+  rushChosen,
 }: Props) {
   return (
     <div className="border border-[var(--rule)] bg-[var(--paper)] p-6">
@@ -75,6 +84,22 @@ export default function NeedByDate({
         <p className="mt-2 text-fine font-medium leading-5 text-[var(--ink-muted)]">
           {turnaroundNote}
         </p>
+
+        {/* The offer replaces "call us" with a date the customer can just
+            pick. Kurt Sletten's job left over that sentence. Once a rush
+            date IS picked the offer gives way to the fee, stated here
+            rather than discovered on the estimate. */}
+        {rushChosen ? (
+          <p className="mt-2 border border-[var(--rule)] border-l-4 border-l-[var(--gorilla-green)] bg-[var(--surface-ok)] p-3 text-fine font-bold leading-5 text-[var(--gorilla-green-dark)]">
+            {rushChosen}
+          </p>
+        ) : (
+          rushOffer && (
+            <p className="mt-2 text-fine font-medium leading-5 text-[var(--ink-muted)]">
+              {rushOffer}
+            </p>
+          )
+        )}
 
         {error && (
           <p

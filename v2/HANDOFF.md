@@ -22,6 +22,26 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **Rush is a product now, and the counter may say today** — 2026-09-03.
+  RUSH (lib/rush.ts, spec as data — 5 business days, 25% of goods, Gabe's
+  figures): apparel, yard and rigid signs can buy their way from the
+  14-business-day floor down to 5. Rush is DERIVED FROM THE DATE, never a
+  checkbox — one fact, one copy, and the server can recompute it. The
+  offer replaces "call or email us" under the picker (the sentence Kurt's
+  job left through), and a chosen rush date names its fee on the same
+  screen. Its own GORILLA-RUSH line in Printavo, its own line in the shop
+  email. DELIBERATELY NOT ON STICKERS/BANNERS: the fast lane already
+  promises next business day, and same-day there would issue a live
+  payment link for a date nobody at the shop agreed to — that needs the
+  payment-link change AND the reconciliation task #20 still owes. Pinned
+  by a named invariant test. Verified in the browser: yard signs $46
+  goods → +$11.50 rush → $61.09 with tax.
+  WALK-IN (turnaround "walkin" lane): the kiosk may promise TODAY on
+  fast-lane work — staff is standing there to agree to it. Kiosk apparel
+  and kiosk yard/rigid signs keep the 14-day floor; blanks and screens do
+  not care who is at the counter.
+  FLAGGED FOR GABE: MA sales tax currently applies to the rush fee (it
+  rides the taxable goods sale). Worth one check with the accountant.
 - **Apparel has a price sheet** — 2026-09-01, the second line for the new
   engine, exactly as tests/price-sheet.test.ts is for stickers: 318 rows
   of LITERAL figures (all 191 catalog colours' blended units, a 120-cell

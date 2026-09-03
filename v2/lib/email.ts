@@ -529,6 +529,13 @@ export function buildQuoteEmail(input: {
       line("Setup / Screens", money(pricing.setupTotal))
     );
 
+    // Rush is a scheduling fee on top of the goods, and the shop has to
+    // see it: this is the line that says a date was BOUGHT, not just
+    // asked for. Signs get theirs from pricing.lines a few lines up.
+    if ((Number(pricing.rushFee) || 0) > 0) {
+      estimateLines.push(line("Rush scheduling", money(pricing.rushFee)));
+    }
+
     // What the customer's figure stood on — the assumed size mix, or their
     // entered breakdown. The payload has said this since the blend landed;
     // without this line the shop priced replies blind to it.

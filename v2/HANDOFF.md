@@ -896,8 +896,10 @@ it.
   guarding a copy while the running code went unwatched. eslint had been
   saying so the whole time, buried in 25 warnings, 11 of which were
   deliberate `_`-prefixed discards. The config now ignores `^_`, the dead
-  symbols are gone, and the count is 8 — all of them the deliberate `<img>`
-  ones. Keep it that way; the next real signal has to be visible.
+  symbols are gone, and the count is 11 — all of them the deliberate
+  `<img>` ones (it was 8 at the time of that clean-up; three more `<img>`
+  uses have landed since, and nothing else). Keep it that way; the next
+  real signal has to be visible.
 
 
 - **The quote route can be imported and driven under `tsx --test`.** `POST`

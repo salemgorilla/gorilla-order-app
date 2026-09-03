@@ -49,8 +49,10 @@ gorillasalem.com. Treat every change accordingly.
 - **Deploys:** `main` → production (labs.gorillasalem.com). `develop` → preview.
   Both via Vercel, ~30s. `GET /api/artwork-upload` returns a `build` field —
   a reliable deploy fingerprint.
-- **Flows:** Custom Stickers (live, instant price, **self-checkout**), Banners
-  & Signs (live, priced from the shop's boards), T-Shirts & Apparel (live as a
+- **Flows:** Custom Stickers (live, instant price, **self-checkout**), Vinyl
+  Banners and Signs (live, instant price, invoiced by hand — two separate
+  products and two separate carts since the 2026-08-23 split, sharing the
+  pricing machinery in `lib/signs.ts`), T-Shirts & Apparel (live as a
   *hand-quote request* — the full configurator exists but is not rendered).
 - **Shape:** five steps — Product · Details · Artwork · Contact · Review.
 - **On submit:** an email to the shop plus a Printavo quote on the customer's
@@ -112,15 +114,22 @@ palette.
 
 ## How to work
 
-- **Branch:** develop on `develop`, push there, look at the preview, merge to
-  `main` only once a human has. Never push straight to `main`.
+- **Branch:** branch off `main` and open a PR back to `main` — CI
+  (`.github/workflows/ci.yml`) gates every PR on tests, types, lint, build and
+  the browser smoke. Look at the Vercel preview before merging. Never push
+  straight to `main`.
 - **Verify by running, not by reading.** This repo has been bitten by patches
   that matched nothing and reported success. Load the flow in a browser and
-  step it. Chromium is at `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`.
+  step it. Playwright resolves its own Chromium from
+  `PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`; `SMOKE_CHROMIUM` overrides it
+  for the e2e drivers. Do not hard-code a versioned path — it moves.
 - **Check both breakpoints:** 1280px and 360px.
-- `npm run build` and `npx tsc --noEmit` clean before you claim done. Two lint
-  errors in `v2/app/page.tsx` are pre-existing — compare against baseline
-  rather than assuming you caused them.
+- `npm test`, `npx tsc --noEmit` and `npm run build` clean before you claim
+  done. **There is no lint-error baseline any more:** `npx eslint .` should
+  report zero errors and exactly 11 warnings, all of them the deliberate
+  `<img>` ones. A dead import hid inside 25 warnings once and left six tests
+  guarding a copy of a rule while the running code went unwatched. If the
+  count moves, that is the finding.
 - Match the surrounding comment density. This codebase explains *why*, not
   what, and records the bug a guard exists to prevent. Keep that.
 

@@ -22,6 +22,19 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **Reorder links** — 2026-09-03. The customer confirmation email for a
+  sticker order now carries "Need these again?" — a link that rebuilds
+  the builder from that order's spec (lib/reorder.ts, readable format:
+  `?reorder=1&d=100@3x3:gloss-white-vinyl:die-cut`). TWO SAFETY
+  PROPERTIES, both pinned by name: a link carries the SPEC and NEVER a
+  price (today's engine prices it, so a March link quotes September's
+  prices in September), and a link PREFILLS BUT NEVER SUBMITS (stickers
+  auto-bill, so a URL that could order would be a URL that could take
+  money). Decoding is tolerant — junk, an unknown version, a
+  discontinued material or an absurd count all prefill nothing rather
+  than half a cart. A prefilled cart says so on screen. Verified in the
+  browser: the two-design link rebuilds 3x3x100 + 2x2x50, reprices to
+  $81.32, lands on step 1, zero submit attempts.
 - **Rush is a product now, and the counter may say today** — 2026-09-03.
   RUSH (lib/rush.ts, spec as data — 5 business days, 25% of goods, Gabe's
   figures): apparel, yard and rigid signs can buy their way from the

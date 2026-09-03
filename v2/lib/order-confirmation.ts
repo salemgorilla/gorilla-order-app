@@ -67,6 +67,13 @@ export function buildOrderConfirmation(input: {
    */
   kiosk: boolean;
   /**
+   * "Order these again" — the customer's own spec as a link (lib/reorder.ts).
+   * Stickers are the repeat product, and today a repeat order means
+   * rebuilding the whole quote from memory. Absent on flows and carts the
+   * link cannot describe; the email simply omits the line.
+   */
+  reorderUrl?: string | null;
+  /**
    * Files that did not travel with the quote. When present, this email is
    * the recovery channel: it names the file, gives the one action, and says
    * nothing else is missing — because on 25 Aug a customer walked away from
@@ -76,6 +83,7 @@ export function buildOrderConfirmation(input: {
   droppedArtwork?: { name: string; size: number }[];
 }): OrderConfirmationDecision {
   const quoteNumber = String(input.quoteNumber || "").trim();
+  const reorder = String(input.reorderUrl || "").trim();
   const dropped = input.droppedArtwork ?? [];
 
   if (!quoteNumber) {
@@ -139,6 +147,9 @@ export function buildOrderConfirmation(input: {
     // carries the reasoning, and the kiosk card and the confirmation screen
     // ask the same question.
     ...(showTracker ? [`Check on it any time: ${getTrackUrl(quoteNumber)}`] : []),
+    // The link rebuilds the builder from this order's spec — it never
+    // carries a price (today's engine prices it) and never submits.
+    ...(reorder ? ["", `Need these again? ${reorder}`] : []),
     "",
     "Keep this email — the quote number is how we both find it.",
     "",
@@ -156,6 +167,11 @@ export function buildOrderConfirmation(input: {
     showTracker
       ? `<br><a href="${escapeEmailHtml(getTrackUrl(quoteNumber))}">Check on it any time</a></p>`
       : `</p>`,
+    ...(reorder
+      ? [
+          `<p style="margin-top:20px"><a href="${escapeEmailHtml(reorder)}">Need these again?</a> &mdash; we&rsquo;ll set the builder back up the way you had it.</p>`,
+        ]
+      : []),
     `<p style="margin-top:20px">Keep this email &mdash; the quote number is how we both find it.</p>`,
     `<p style="margin-top:20px">Thanks,<br>Gorilla Salem</p>`,
   ].join("\n");

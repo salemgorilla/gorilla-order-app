@@ -1,5 +1,6 @@
 import {
   calculateSignsPricing,
+  signsFeeTotal,
   type SignsPricingLine,
   type SignsPricingResult,
 } from "./signs-pricing";
@@ -59,6 +60,13 @@ export type SignsCartQuote = {
   note: string;
   hasQuotedExtras: boolean;
   suggestions: string[];
+  /**
+   * Setup and finishing add-ons — the part of `total` that is fee rather
+   * than goods, and therefore untaxed (lib/tax.ts). Carried on the quote so
+   * every surface reads the same figure; app/page.tsx adds rush to it when
+   * the date calls for one.
+   */
+  feeTotal: number;
   /**
    * Rush scheduling, when the need-by date falls inside the rush window
    * (lib/rush.ts). Not computed here — the date lives on the ORDER, not on
@@ -133,6 +141,7 @@ export function quoteSignsCart(designs: SignsDesign[]): SignsCartQuote {
       lines: [],
       subtotal: 0,
       total: 0,
+      feeTotal: 0,
       unitPrice: 0,
       quantity,
       note: signsPricingConfig.taxNote,
@@ -148,12 +157,18 @@ export function quoteSignsCart(designs: SignsDesign[]): SignsCartQuote {
     priced.reduce((sum, entry) => sum + entry.pricing.subtotal, 0)
   );
 
+  // Built once: the fee figure has to be derived from the SAME list the
+  // estimate table and the invoice read, not from a second call that could
+  // one day be given different arguments.
+  const lines = buildCartLines(priced);
+
   return {
     priceable: true,
     designs: priced,
-    lines: buildCartLines(priced),
+    lines,
     subtotal,
     total,
+    feeTotal: signsFeeTotal(lines),
     unitPrice: quantity > 0 ? round2(total / quantity) : 0,
     quantity,
     note: signsPricingConfig.taxNote,

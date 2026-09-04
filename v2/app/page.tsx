@@ -593,6 +593,9 @@ export default function Home() {
         },
       ],
       total: Math.round((quote.total + rush.fee) * 100) / 100,
+      // Rush is a fee, so it lands in BOTH figures: the customer pays it,
+      // and it is not taxed (lib/tax.ts).
+      feeTotal: Math.round((quote.feeTotal + rush.fee) * 100) / 100,
       rushFee: rush.fee,
     };
   }, [order.production.needBy, signsQuote, turnaroundLane]);
@@ -721,8 +724,8 @@ export default function Home() {
           designs.length > 1
             ? `${designs.length} designs · ${signsPricing.quantity} ${SIGN_FAMILIES[signsFamily].noun}`
             : `${designs[0].quantity} × ${product.label}`,
-        // Tax-inclusive. Signs carry no shipping component, so the whole
-        // total is taxable — see getSignsTotals.
+        // Tax-inclusive. Signs carry no shipping component, so the base is
+        // the total less its fee lines — see getSignsTotals.
         total: signsPricing.priceable
           ? getSignsTotals(signsPricing).estimatedTotal
           : 0,
@@ -3082,7 +3085,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         isSignsSubmitted={isSignsSubmitted}
         signsQuote={signsQuote}
         signsTotal={signsPricing.priceable ? signsPricing.total : null}
-              signsRushFee={activeRushFee}
+        signsFeeTotal={signsPricing.feeTotal}
         apparelQuote={apparelQuote}
         selectedGarmentLabel={selectedGarmentLabel}
         selectedSsColor={selectedSsColor}
@@ -4121,7 +4124,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               apparelPricing={apparelPricing}
               signsQuote={signsQuote}
               signsTotal={signsPricing.priceable ? signsPricing.total : null}
-              signsRushFee={activeRushFee}
+              signsFeeTotal={signsPricing.feeTotal}
               selectedGarmentLabel={selectedGarmentLabel}
               selectedSsColor={selectedSsColor}
               isReady={currentValidationErrors.length === 0}

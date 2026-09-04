@@ -22,6 +22,42 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **All fees are non-taxable, on screen and on the invoice** — 2026-09-04.
+  Gabe's ruling, generalised from rush the same day: setup, screens,
+  finishing add-ons and rush are labour and services stated separately from
+  the goods, and Massachusetts does not tax separately stated labour. THIS
+  CHANGES WHAT CUSTOMERS ARE CHARGED on the auto-billing flow — a 100 x
+  3"x3" pickup sticker order goes $57.16 -> $55.60 (tax $3.36 -> $1.80),
+  and the canonical two-design order $77.24 -> $74.90 (tax $4.54 -> $2.20).
+  Task #20's reconciliation now validates those figures.
+  Both sides moved together, which is the whole point: `getStickerTotals`
+  drops setup from the base, `getSignsTotals` takes a REQUIRED `feeTotal`
+  (optional would let one of four surfaces forget and show a different tax
+  than the review card), and every Printavo fee line now carries a REQUIRED
+  `taxed` flag rather than defaulting to the quote's rate. What a fee IS has
+  one definition — `SIGNS_FEE_KINDS` in lib/signs-pricing.ts — read by the
+  estimate and by the invoice, and `tests/fee-tax.test.ts` asserts the two
+  bases are equal to the cent rather than asserting the rule twice.
+  NOT everything Printavo files as a fee line is a fee: on a one-design
+  signs quote the fee list is "every row after the product", which sweeps
+  up step stakes and sewn construction. Those are goods and stay taxed.
+  ONE THING FOR THE ACCOUNTANT, written down rather than decided: MA
+  distinguishes services from FABRICATION. Screens and rush are plainly
+  service; a pole pocket sewn into a banner is arguably fabrication and
+  arguably taxable. Every fee line is untaxed today per the instruction —
+  lib/tax.ts names the one place to change it if the accountant disagrees.
+- **Signs rush reached Printavo wrong, both ways** — 2026-09-04. The rush
+  fee travelled on the apparel payload (it spreads the whole pricing
+  object) and NOT on the signs payload, which builds its pricing block
+  field by field. One design: the untagged rush row was swept into
+  `lines.slice(1)` and invoiced as GORILLA-SIGN-RUSH-SCHEDULING **with tax**
+  ($25.59 against the $20.47 quoted). A cart: rush was in no list at all —
+  $655.00 invoiced against $818.75 quoted, $163.75 short. Neither was
+  visible on screen; the website total was right in both cases. Found by
+  driving the real payload builder and the real Printavo plan. The row is
+  tagged `kind: "rush"` now and `SignsCartQuote` declares `rushFee`, so it
+  bills once, under GORILLA-RUSH, untaxed.
+
 - **The apparel cart, engine first** — 2026-09-03. lib/apparel-cart.ts
   prices SEVERAL GARMENT LINES in one quote (24 tees + 12 hoodies), the
   thing Stacey needed and signs got in #51. TWO MODEL DECISIONS, both

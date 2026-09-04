@@ -76,9 +76,13 @@ describe("the signs rows", () => {
   });
 
   test("the arithmetic behind the row the browser showed", () => {
-    // The two-design cart driven in Chromium: $223.00 of signs, 6.25% on
-    // the lot, $236.94 on the card and the summary alike.
-    assert.equal(getSignsTotals({ total: 223 }).estimatedTotal, 236.94);
+    // The two-design cart driven in Chromium: $223.00, of which $30 is the
+    // two setup fees. 6.25% on the $193 of signs. Was $236.94 while fees
+    // were taxed; $235.06 since they are not (Gabe, 2026-09-04).
+    const totals = getSignsTotals({ total: 223, feeTotal: 30 });
+
+    assert.equal(totals.taxableSubtotal, 193);
+    assert.equal(totals.estimatedTotal, 235.06);
   });
 });
 

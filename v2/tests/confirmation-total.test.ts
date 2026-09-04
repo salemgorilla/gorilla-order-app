@@ -37,19 +37,21 @@ const source = readFileSync(
 
 describe("the arithmetic the screen now performs", () => {
   test("the banner that surfaced it", () => {
-    // $162 product + $15 setup, then 6.25% on the lot — signs carry no
-    // shipping component, so the whole total is taxable.
-    const totals = getSignsTotals({ total: 177 });
+    // $162 of banner + $15 setup. Tax is 6.25% of the BANNER: setup is a
+    // fee, and all fees are untaxed (Gabe, 2026-09-04). This pin moved from
+    // $11.06 / $188.06 in that change, deliberately.
+    const totals = getSignsTotals({ total: 177, feeTotal: 15 });
 
-    assert.equal(totals.estimatedTax, 11.06);
-    assert.equal(totals.estimatedTotal, 188.06);
+    assert.equal(totals.estimatedTax, 10.13);
+    assert.equal(totals.estimatedTotal, 187.13);
   });
 
   test("a two-design cart taxes the same way", () => {
-    // 177 + 303 (a second, bigger banner) — the sum of designs, then tax.
-    const totals = getSignsTotals({ total: 480 });
+    // 177 + 303 (a second, bigger banner), $15 of setup in each.
+    const totals = getSignsTotals({ total: 480, feeTotal: 30 });
 
-    assert.equal(totals.estimatedTotal, 510);
+    assert.equal(totals.taxableSubtotal, 450);
+    assert.equal(totals.estimatedTotal, 508.13);
   });
 });
 
@@ -81,8 +83,8 @@ describe("the wiring", () => {
     // "Quoted by hand" must survive this change untouched.
     assert.match(source, /Quoted by hand/);
     // The null guard, not its line breaks: the totals call gained a
-    // rushFee argument (rush is untaxed labour) and wrapped across lines.
-    // What must hold is that a null total never reaches getSignsTotals.
+    // feeTotal argument (fees are untaxed) and wrapped across lines. What
+    // must hold is that a null total never reaches getSignsTotals.
     assert.match(
       source,
       /signsTotal !== null\s*\?\s*getSignsTotals\(/

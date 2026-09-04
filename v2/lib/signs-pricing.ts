@@ -44,6 +44,37 @@ export type SignsPricingLine = {
   code?: string;
 };
 
+/**
+ * Which line kinds are FEES — stated separately from the goods, billed under
+ * their own SKU, and untaxed (lib/tax.ts).
+ *
+ * The one definition. The estimate takes these out of the taxable base and
+ * buildPrintavoQuotePlan sends them with `taxed: false`; if the two ever
+ * derived it separately they would eventually disagree, and the customer
+ * would meet one tax on the website and another on the invoice.
+ *
+ * Untagged lines are GOODS — the product row, step stakes, sewn construction,
+ * the no-hem credit — whatever list Printavo happens to file them under.
+ */
+export const SIGNS_FEE_KINDS = ["setup", "addOn", "rush"] as const;
+
+export function isSignsFeeLine(line: SignsPricingLine): boolean {
+  return (SIGNS_FEE_KINDS as readonly (string | undefined)[]).includes(
+    line.kind
+  );
+}
+
+/** What the fee lines add up to, for the taxable base. */
+export function signsFeeTotal(lines: SignsPricingLine[]): number {
+  return (
+    Math.round(
+      lines
+        .filter(isSignsFeeLine)
+        .reduce((sum, line) => sum + (Number(line.amount) || 0), 0) * 100
+    ) / 100
+  );
+}
+
 export type SignsPricingResult = {
   /** False when we can't price the configuration (unknown size/material). */
   priceable: boolean;

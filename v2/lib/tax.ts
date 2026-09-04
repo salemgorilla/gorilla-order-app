@@ -12,7 +12,25 @@
  *   stickers          taxable    ordinary tangible goods
  *   signs & banners   taxable    ordinary tangible goods
  *   apparel           EXEMPT     Massachusetts exempts clothing
- *   rush scheduling   EXEMPT     labour, not goods (Gabe, 2026-09-04)
+ *   ALL FEE LINES     EXEMPT     labour and services, not goods
+ *                                (Gabe, 2026-09-04)
+ *
+ * A FEE is anything the quote states separately from the goods and bills
+ * under its own line: setup / screens, banner finishing add-ons, rush
+ * scheduling, and shipping. Gabe's ruling, generalised from rush the same
+ * day: the shop sells labour separately and Massachusetts does not tax
+ * separately stated labour, so no fee line carries tax on either the
+ * estimate or the invoice.
+ *
+ * ONE CAVEAT, WRITTEN DOWN FOR THE ACCOUNTANT rather than decided here:
+ * Massachusetts distinguishes services from FABRICATION — labour that
+ * becomes part of the finished article. Screens and rush are clearly
+ * service. A pole pocket sewn into a banner is arguably fabrication and
+ * therefore arguably taxable. The rule above applies to every fee line
+ * uniformly, which is the instruction; if the shop's accountant wants
+ * finishing add-ons taxed, the one place to change it is the `taxed` flag
+ * on the add-on lines in buildPrintavoQuotePlan plus signsFeeTotal below,
+ * and the estimate follows automatically.
  *
  * The clothing exemption has a threshold: it applies to the first $175 per
  * item, and only the amount ABOVE $175 is taxable. Every garment this shop
@@ -22,9 +40,11 @@
  *
  * TWO MECHANICS:
  *
- * 1. Separately stated SHIPPING is not taxable in Massachusetts. Every line
- *    sent to Printavo carries an explicit `taxed` flag rather than relying on
- *    a blanket rate — see buildPrintavoQuotePlan.
+ * 1. Every line sent to Printavo carries an explicit `taxed` flag rather than
+ *    relying on a blanket rate — see buildPrintavoQuotePlan, where the flag is
+ *    REQUIRED on fee lines so a new charge cannot be added without someone
+ *    deciding. Shipping has always been sent untaxed; as of 2026-09-04 so is
+ *    every other fee.
  *
  * 2. Printavo computes the tax. We send the RATE on the quote and the taxable
  *    flag per line; Printavo derives salesTaxAmount and the total, and the
@@ -127,10 +147,16 @@ export function getQuoteTotals(input: {
 /**
  * The sticker flow's totals, derived once.
  *
- * Shipping is excluded from the base deliberately: buildPrintavoQuotePlan
- * sends the shipping line with `taxed: false` while goods AND fee lines carry
- * `taxed: salesTaxRate !== null`. Setup is a fee line, so it IS taxed —
- * leaving it out would under-report by $2.34 on the reference order.
+ * The base is the DECALS and nothing else. Setup and shipping are both fee
+ * lines, both sent to Printavo with `taxed: false`, and both therefore out of
+ * the base here.
+ *
+ * Setup used to be in it, with a comment arguing that leaving it out would
+ * under-report by $2.34 on the reference order. That was right under the old
+ * ruling and is wrong under this one — all fees are untaxed (Gabe,
+ * 2026-09-04). Stickers AUTO-BILL, so this figure is not decoration: the
+ * customer pays the Printavo invoice, and the estimate and the invoice have
+ * to derive the exemption the same way. Both moved in this change.
  */
 export function getStickerTotals(pricing: {
   stickerPrice: number;
@@ -139,7 +165,10 @@ export function getStickerTotals(pricing: {
 }): QuoteTotals {
   return getQuoteTotals({
     flow: "stickers",
-    taxableSubtotal: pricing.stickerPrice + pricing.setupPrice,
+    // Decals only. `setupPrice` stays in the signature because callers pass
+    // the whole pricing object, and deleting it here would silently start
+    // accepting objects that have no setup at all.
+    taxableSubtotal: pricing.stickerPrice,
     preTaxTotal: pricing.total,
   });
 }
@@ -147,31 +176,37 @@ export function getStickerTotals(pricing: {
 /**
  * The signs flow's totals.
  *
- * Signs carry no shipping component at all — `calculateSignsPricing` returns a
- * total that is entirely goods and fees — so the whole total is taxable and
- * the base and the pre-tax total are the same number.
+ * Signs carry no shipping component at all — the total is goods plus fees —
+ * so the base is the total with the fees taken back out.
+ *
+ * `feeTotal` is REQUIRED rather than optional on purpose. Four surfaces show
+ * this figure (the sticky bar, the summary card, the review card and the
+ * confirmation screen) and two of them are handed a bare total rather than
+ * the pricing object. An optional field lets one of those four forget, and
+ * the customer then meets a different tax on review than on the screen they
+ * screenshotted. The type makes forgetting a build error instead.
+ *
+ * Use signsFeeTotal(lines) to derive it — one definition of what a fee is,
+ * shared with the invoice.
  */
 export function getSignsTotals(pricing: {
   total: number;
   /**
-   * Rush scheduling (lib/rush.ts). NOT taxable: it buys LABOUR — the shop
-   * rearranging its schedule — not goods, and Massachusetts does not tax
-   * separately stated labour. Gabe's call, 2026-09-04.
-   *
-   * It stays in preTaxTotal (the customer does pay it) and comes out of
-   * the taxable base — the same treatment separately stated shipping
-   * already gets. The Printavo line carries taxed:false so the invoice
-   * agrees with the estimate rather than merely resembling it.
+   * Setup, finishing add-ons and rush — everything the quote states
+   * separately from the goods. Not taxable: labour and services, not goods
+   * (Gabe, 2026-09-04). It stays in preTaxTotal, because the customer does
+   * pay it; it comes out of the taxable base, because Printavo bills those
+   * lines with `taxed: false`.
    */
-  rushFee?: number;
+  feeTotal: number;
 }): QuoteTotals {
-  const rushFee = Math.max(0, Number(pricing.rushFee) || 0);
+  const feeTotal = Math.max(0, Number(pricing.feeTotal) || 0);
 
   return getQuoteTotals({
     flow: "signs",
     taxableSubtotal: Math.max(
       0,
-      Math.round((pricing.total - rushFee) * 100) / 100
+      Math.round((pricing.total - feeTotal) * 100) / 100
     ),
     preTaxTotal: pricing.total,
   });

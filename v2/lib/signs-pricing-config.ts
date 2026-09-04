@@ -202,6 +202,15 @@ export const signsPricingConfig = {
     doubleSidedPerSqft: 8,
   },
 
-  /** Shown on every signs estimate. */
-  taxNote: "Tax not included.",
+  /**
+   * Shown on every signs estimate, under the totals.
+   *
+   * It read "Tax not included." while the card directly above it printed an
+   * estimated tax row and a tax-INCLUSIVE total — true when it was written,
+   * false since the tax line landed, and flatly contradicting the number
+   * beside it. Now it says which part of the bill the tax is on, which is
+   * the question a customer actually has after this change: setup and rush
+   * are fees, and fees are untaxed (Gabe, 2026-09-04).
+   */
+  taxNote: "Tax is estimated on the signs; setup and rush are not taxed.",
 };

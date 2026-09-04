@@ -24,12 +24,20 @@ import {
 const REFERENCE = { stickerPrice: 35.2, setupPrice: 37.5, total: 72.7 };
 
 describe("stickers", () => {
+  /**
+   * REPRICED 4 Sep 2026, deliberately: all fees are untaxed (Gabe), so the
+   * $37.50 of setup left the taxable base. The reference order's tax went
+   * $4.54 -> $2.20 and its total $77.24 -> $74.90. This is the figure the
+   * customer PAYS — stickers auto-bill — so the same change sets
+   * `taxed: false` on GORILLA-DECAL-SETUP in lib/printavo.ts, and task #20's
+   * reconciliation now validates this pair of numbers.
+   */
   test("the reference order reconciles to the invoice", () => {
     const t = getStickerTotals(REFERENCE);
 
-    assert.equal(t.taxableSubtotal, 72.7);
-    assert.equal(t.estimatedTax, 4.54);
-    assert.equal(t.estimatedTotal, 77.24);
+    assert.equal(t.taxableSubtotal, 35.2, "setup is a fee — not in the base");
+    assert.equal(t.estimatedTax, 2.2);
+    assert.equal(t.estimatedTotal, 74.9);
     assert.equal(t.taxed, true);
   });
 
@@ -43,35 +51,61 @@ describe("stickers", () => {
     const shipped = { stickerPrice: 35.2, setupPrice: 37.5, total: 84.7 };
     const t = getStickerTotals(shipped);
 
-    assert.equal(t.taxableSubtotal, 72.7, "shipping leaked into the base");
-    assert.equal(t.estimatedTax, 4.54, "tax moved when only shipping changed");
-    assert.equal(t.estimatedTotal, 89.24, "shipping fell out of the total");
+    assert.equal(t.taxableSubtotal, 35.2, "shipping leaked into the base");
+    assert.equal(t.estimatedTax, 2.2, "tax moved when only shipping changed");
+    assert.equal(t.estimatedTotal, 86.9, "shipping fell out of the total");
   });
 
-  test("setup is taxed, because Printavo taxes the fee lines", () => {
-    const noSetup = getStickerTotals({ stickerPrice: 35.2, setupPrice: 0, total: 35.2 });
+  test("setup moves the total but never the tax", () => {
+    // The point of the ruling, stated as an arithmetic property: two orders
+    // with the same decals and different setup pay the same tax.
+    const withSetup = getStickerTotals(REFERENCE);
+    const noSetup = getStickerTotals({
+      stickerPrice: 35.2,
+      setupPrice: 0,
+      total: 35.2,
+    });
 
+    assert.equal(withSetup.estimatedTax, noSetup.estimatedTax);
     assert.equal(noSetup.estimatedTax, 2.2);
+    assert.notEqual(withSetup.estimatedTotal, noSetup.estimatedTotal);
   });
 
   test("float dust never reaches the total", () => {
-    // 72.7 + 4.54 is 77.24000000000001 in binary floating point.
-    assert.equal(getStickerTotals(REFERENCE).estimatedTotal, 77.24);
+    // 72.7 + 2.2 is 74.90000000000001 in binary floating point.
+    assert.equal(getStickerTotals(REFERENCE).estimatedTotal, 74.9);
   });
 });
 
 describe("signs", () => {
-  test("the whole total is taxable, because signs have no shipping line", () => {
-    // calculateSignsPricing returns a total that is entirely goods and fees.
-    const t = getSignsTotals({ total: 200 });
+  test("the goods are taxable; the fees inside the total are not", () => {
+    // Signs have no shipping line, so the total is goods plus fees and the
+    // base is the total with the fees taken back out.
+    const t = getSignsTotals({ total: 200, feeTotal: 15 });
+
+    assert.equal(t.taxableSubtotal, 185);
+    assert.equal(t.estimatedTax, 11.56);
+    assert.equal(t.estimatedTotal, 211.56);
+  });
+
+  test("a quote with no fees taxes the whole total", () => {
+    const t = getSignsTotals({ total: 200, feeTotal: 0 });
 
     assert.equal(t.taxableSubtotal, 200);
     assert.equal(t.estimatedTax, 12.5);
-    assert.equal(t.estimatedTotal, 212.5);
+  });
+
+  test("fees can never push the base negative", () => {
+    // A hand-quoted or zeroed job must not produce a credit.
+    const t = getSignsTotals({ total: 15, feeTotal: 40 });
+
+    assert.equal(t.taxableSubtotal, 0);
+    assert.equal(t.estimatedTax, 0);
+    assert.equal(t.estimatedTotal, 15);
   });
 
   test("signs are taxable, not exempt", () => {
-    assert.equal(getSignsTotals({ total: 100 }).taxed, true);
+    assert.equal(getSignsTotals({ total: 100, feeTotal: 0 }).taxed, true);
   });
 });
 

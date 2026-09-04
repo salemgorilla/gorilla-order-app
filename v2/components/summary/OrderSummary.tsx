@@ -196,9 +196,9 @@ export default function OrderSummary({ order }: Props) {
 
       {estimatedTax > 0 && (
         <p className="mt-2 text-fine leading-5 text-[var(--ink-muted)]">
-          Tax is estimated at {SALES_TAX.ratePercent}% on the stickers and
-          setup. Shipping is not taxable in Massachusetts. Gorilla Salem&rsquo;s
-          invoice is the final figure.
+          Tax is estimated at {SALES_TAX.ratePercent}% on the stickers.
+          Setup and shipping are not taxable in Massachusetts. Gorilla
+          Salem&rsquo;s invoice is the final figure.
         </p>
       )}
     </div>

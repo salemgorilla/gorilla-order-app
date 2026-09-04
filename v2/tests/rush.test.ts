@@ -231,15 +231,20 @@ describe("rush is LABOUR, so it is not taxed (Gabe, 2026-09-04)", () => {
   /**
    * Massachusetts taxes tangible goods, not separately stated labour. A
    * rush fee buys the shop rearranging its schedule — the same treatment
-   * separately stated shipping already gets in lib/tax.ts.
+   * separately stated shipping already gets in lib/tax.ts. Generalised the
+   * same day to every fee line — rush is now one member of the set
+   * getSignsTotals takes out via `feeTotal` (see tests/quote-totals).
    *
    * The fee still appears on the bill; it just leaves the taxable base.
+   *
+   * The figures below isolate rush: `feeTotal` is the rush fee alone, so
+   * these stay a statement about rush rather than about setup.
    */
   test("the taxable base is the goods, the total still includes the fee", () => {
     // The browser-verified example: $46.00 of yard signs, rushed.
     const goods = 46;
     const fee = rushFeeFor(goods);
-    const totals = getSignsTotals({ total: goods + fee, rushFee: fee });
+    const totals = getSignsTotals({ total: goods + fee, feeTotal: fee });
 
     assert.equal(fee.toFixed(2), "11.50");
     assert.equal(totals.taxableSubtotal.toFixed(2), "46.00");
@@ -252,19 +257,20 @@ describe("rush is LABOUR, so it is not taxed (Gabe, 2026-09-04)", () => {
     // "simplifies" the rushFee argument away.
     const goods = 46;
     const fee = rushFeeFor(goods);
-    const taxedAnyway = getSignsTotals({ total: goods + fee });
+    const taxedAnyway = getSignsTotals({ total: goods + fee, feeTotal: 0 });
 
     assert.equal(taxedAnyway.estimatedTax.toFixed(2), "3.59");
     assert.equal(
-      (taxedAnyway.estimatedTax - getSignsTotals({ total: goods + fee, rushFee: fee }).estimatedTax).toFixed(2),
+      (taxedAnyway.estimatedTax -
+        getSignsTotals({ total: goods + fee, feeTotal: fee }).estimatedTax).toFixed(2),
       "0.71"
     );
   });
 
   test("a quote with no rush is completely unchanged", () => {
     assert.deepEqual(
-      getSignsTotals({ total: 108, rushFee: 0 }),
-      getSignsTotals({ total: 108 })
+      getSignsTotals({ total: 108, feeTotal: 0 }),
+      getSignsTotals({ total: 108, feeTotal: 0 })
     );
   });
 

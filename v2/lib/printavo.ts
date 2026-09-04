@@ -1,4 +1,5 @@
 import { isTaxableFlow, SALES_TAX } from "./tax";
+import { SIGNS_FEE_KINDS } from "./signs-pricing";
 import { getTrackUrl } from "./order-status";
 
 // Pushes each submitted quote into Printavo as a DRAFT/UNCONFIRMED quote.
@@ -706,11 +707,15 @@ export type PrintavoQuotePlan = {
     itemNumber: string;
     price: number;
     /**
-     * Per-line override. Defaults to the quote's rate (goods and ordinary
-     * fees are taxable); false for separately stated LABOUR, which
-     * Massachusetts does not tax — rush scheduling is the one today.
+     * REQUIRED, not defaulted. Every fee the shop states separately is
+     * labour or service and therefore untaxed (Gabe, 2026-09-04) — but the
+     * signs fee list also carries GOODS that happen to be billed as their
+     * own line on a one-design quote (step stakes, sewn construction), and
+     * those stay taxable. Making the flag mandatory means a new charge
+     * cannot be added without someone deciding which it is; it was optional
+     * for one day, and in that day rush was the only line that opted out.
      */
-    taxed?: boolean;
+    taxed: boolean;
   }[];
   /**
    * Sales tax rate as a percentage, or null to leave the quote untaxed.
@@ -852,6 +857,11 @@ export function buildPrintavoQuotePlan(input: {
             )}`,
             amount: num(addOn.amount),
             code: str(addOn.code, ""),
+            // Read back off when the tax flag is set below. A cart's add-ons
+            // come from the DESIGNS rather than from the tagged line list,
+            // so the tag has to be restated here or finishing would be
+            // taxed on a cart and untaxed on a single design.
+            kind: "addOn" as const,
           })
         )
       )
@@ -865,6 +875,14 @@ export function buildPrintavoQuotePlan(input: {
    * charge landed as GORILLA-SIGN-RUSH-SCHEDULING and taxable, $5.12 above
    * the tax the customer was quoted on a $409.38 order.
    */
+  /**
+   * Is this signs line a FEE (untaxed) or GOODS? The kinds come from
+   * lib/signs-pricing.ts so the estimate and the invoice cannot drift apart
+   * about what a fee is — see signsFeeTotal, which sums exactly this set.
+   */
+  const isSignsFeeLine = (line: { kind?: string }) =>
+    (SIGNS_FEE_KINDS as readonly string[]).includes(str(line.kind, ""));
+
   const signsFeeLines = signsCart
     ? [...signsLines.filter((l) => l.kind === "setup"), ...signsCartAddOnLines]
     : signsLines.slice(1).filter((l) => l.kind !== "rush");
@@ -1287,6 +1305,20 @@ export function buildPrintavoQuotePlan(input: {
       : "Artwork came in as an email attachment; there is no link to open. See the quote email.",
   ].join("\n");
 
+  /**
+   * Taxability follows the GOODS, not whether the flow checks out online.
+   * Stickers and signs are ordinary tangible goods; Massachusetts exempts
+   * clothing, so apparel carries no tax. See lib/tax.ts.
+   *
+   * Read twice below — once as the quote's rate, once to decide the flag on
+   * signs lines that are goods rather than fees — so it is derived once.
+   */
+  const salesTaxRate = isTaxableFlow(
+    apparel ? "apparel" : signs ? "signs" : "stickers"
+  )
+    ? SALES_TAX.ratePercent
+    : null;
+
   return {
     nickname,
     customerDueAt,
@@ -1430,6 +1462,8 @@ export function buildPrintavoQuotePlan(input: {
               ).toFixed(2)}`,
               itemNumber: "GORILLA-APPAREL-PRINT",
               price: money(pricing.printTotal),
+              // Printing is service, and apparel is exempt besides.
+              taxed: false,
             },
           ]
         : []),
@@ -1439,6 +1473,7 @@ export function buildPrintavoQuotePlan(input: {
               description: "Screens / setup",
               itemNumber: "GORILLA-APPAREL-SETUP",
               price: money(pricing.setupTotal),
+              taxed: false,
             },
           ]
         : []),
@@ -1487,6 +1522,16 @@ export function buildPrintavoQuotePlan(input: {
                   : "Setup and artwork prep",
               itemNumber: "GORILLA-DECAL-SETUP",
               price: money(pricing.setupPrice),
+              /**
+               * Untaxed as of 2026-09-04 — all fees are (Gabe). This one
+               * changes what a customer is CHARGED: stickers auto-bill
+               * against the quote's amountOutstanding, so the invoice
+               * follows this flag with nobody in the loop. getStickerTotals
+               * takes setup out of the estimate's base in the same change,
+               * so the two still agree to the cent. On the reference
+               * two-design order that is $4.54 of tax becoming $2.20.
+               */
+              taxed: false,
             },
           ]
         : []),
@@ -1521,14 +1566,18 @@ export function buildPrintavoQuotePlan(input: {
             .replace(/-$/, "")
         }`,
         price: money(l.amount),
+        /**
+         * On a ONE-design quote this list is `lines.slice(1)`, which is
+         * every row after the product — and that includes GOODS billed on
+         * their own line, step stakes and sewn construction among them.
+         * Only the tagged kinds are actually fees, so only those are
+         * untaxed; the estimate takes exactly the same set out of its
+         * taxable base (signsFeeTotal in lib/signs-pricing.ts).
+         */
+        taxed: isSignsFeeLine(l) ? false : salesTaxRate !== null,
       })),
     ],
-    // Taxability follows the GOODS, not whether the flow checks out online.
-    // Stickers and signs are ordinary tangible goods; Massachusetts exempts
-    // clothing, so apparel carries no tax. See lib/tax.ts.
-    salesTaxRate: isTaxableFlow(apparel ? "apparel" : signs ? "signs" : "stickers")
-      ? SALES_TAX.ratePercent
-      : null,
+    salesTaxRate,
   };
 }
 
@@ -1640,8 +1689,8 @@ export async function createPrintavoQuote(input: {
               position: plan.lineItems.length + index + 1,
               price: fee.price,
               sizes: [{ size: "size_other", count: 1 }],
-              // The line may opt out — rush scheduling is labour, not goods.
-              taxed: fee.taxed ?? plan.salesTaxRate !== null,
+              // Stated by the plan, never inferred here. See feeLineItems.
+              taxed: fee.taxed,
             })),
             ...(plan.shippingLineItem
               ? [

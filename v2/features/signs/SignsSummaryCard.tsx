@@ -146,8 +146,9 @@ export default function SignsSummaryCard({
                 {/* Signs are taxable, like stickers — clothing is the only
                     exempt flow. This card showed a pre-tax total, so a signs
                     customer met 6.25% for the first time on the invoice, the
-                    same gap the sticker review screen had. Signs carry no
-                    shipping component, so the whole total is the base. */}
+                    same gap the sticker review screen had. The base is the
+                    goods: setup, finishing add-ons and rush are fees, and
+                    fees are untaxed (Gabe, 2026-09-04). */}
                 {signsTotals.estimatedTax > 0 && (
                   <div className="mb-1 flex justify-between gap-4">
                     <span>Estimated {SALES_TAX.label}</span>

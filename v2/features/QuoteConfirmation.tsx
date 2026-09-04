@@ -34,8 +34,8 @@ type Props = {
   signsQuote: SignsQuote;
   /** Null when the signs job could not be priced online. */
   signsTotal: number | null;
-  /** Rush scheduling — labour, so untaxed. See QuoteReviewCard's note. */
-  signsRushFee?: number;
+  /** Setup, add-ons and rush — fees, so untaxed. See QuoteReviewCard. */
+  signsFeeTotal: number;
   apparelQuote: ApparelQuote;
   selectedGarmentLabel: string;
   selectedSsColor: SsCatalogColor | null;
@@ -57,7 +57,7 @@ export default function QuoteConfirmationScreen({
   isSignsSubmitted,
   signsQuote,
   signsTotal,
-  signsRushFee,
+  signsFeeTotal,
   apparelQuote,
   selectedGarmentLabel,
   selectedSsColor,
@@ -89,7 +89,7 @@ export default function QuoteConfirmationScreen({
    */
   const signsTotals =
     signsTotal !== null
-      ? getSignsTotals({ total: signsTotal, rushFee: signsRushFee })
+      ? getSignsTotals({ total: signsTotal, feeTotal: signsFeeTotal })
       : null;
 
   /**

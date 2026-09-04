@@ -1,5 +1,7 @@
 import { calculateApparelPricing } from "./apparel-pricing";
 import { apparelPricingConfig } from "./apparel-pricing-config";
+import { applyRush } from "./rush";
+import type { TurnaroundLane } from "./turnaround";
 
 /**
  * Several garments in one apparel quote — 24 tees AND 12 hoodies, one
@@ -82,6 +84,12 @@ export type ApparelCartQuote = {
   unitPrice: number;
   inkColorCount: number;
   locationCount: number;
+  /**
+   * Rush scheduling, when the need-by date calls for one — see
+   * withApparelRush. Zero on an ordinary quote; always present so the
+   * payload carries the field rather than depending on a spread.
+   */
+  rushFee?: number;
 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -192,4 +200,38 @@ export function combinedTierQuantity(quote: ApparelCartQuote): number | null {
     .filter((min) => min > quote.quantity);
 
   return tiers.length > 0 ? Math.min(...tiers) : null;
+}
+
+/**
+ * The same quote with rush scheduling applied, when the date calls for one.
+ *
+ * The sibling of withSignsRush, and here for the same reason: this
+ * composition lived in a useMemo that no test could mount, and it is the
+ * step where the quote and the invoice get their chance to disagree. Rush
+ * rides on the GOODS — garments, printing and screens — and lands in the
+ * total every surface reads, so the sticky bar, the review card, the
+ * confirmation and the payload cannot answer differently.
+ *
+ * Apparel is MA-exempt outright, so there is no taxable base to adjust here
+ * the way the signs version adjusts `feeTotal`.
+ */
+export function withApparelRush(
+  quote: ApparelCartQuote,
+  when: { needBy: string; lane: TurnaroundLane; today?: string }
+): ApparelCartQuote {
+  const rush = applyRush({
+    goodsSubtotal: quote.total,
+    needBy: when.needBy,
+    lane: when.lane,
+    today: when.today,
+  });
+
+  const total = round2(quote.total + rush.fee);
+
+  return {
+    ...quote,
+    rushFee: rush.fee,
+    total,
+    unitPrice: round2(total / Math.max(1, quote.quantity)),
+  };
 }

@@ -58,7 +58,7 @@ import {
   type SignsDesign,
   type SignsQuote,
 } from "../lib/signs";
-import { quoteSignsCart } from "../lib/signs-cart";
+import { quoteSignsCart, withSignsRush } from "../lib/signs-cart";
 import { buildSignsPayloadParts } from "../lib/signs-payload";
 import { signsPricingConfig } from "../lib/signs-pricing-config";
 import {
@@ -82,8 +82,7 @@ import {
   STICKER_SETUP_FEE,
   STICKER_SETUP_FEE_ADDITIONAL,
 } from "../lib/pricing";
-import { calculateApparelPricing } from "../lib/apparel-pricing";
-import { quoteApparelCart } from "../lib/apparel-cart";
+import { quoteApparelCart, withApparelRush } from "../lib/apparel-cart";
 import {
   blendedGarmentUnitPrice,
   describeAssumedMix,
@@ -92,11 +91,9 @@ import {
 import { pruneSizeQuantities } from "../lib/size-quantities";
 import { turnaroundLaneFor, turnaroundNote } from "../lib/turnaround";
 import {
-  applyRush,
   earliestRushNeedBy,
   rushChosenNote,
   rushOffer,
-  RUSH_LINE_LABEL,
 } from "../lib/rush";
 import { apparelCatalogStyles } from "../lib/apparel-catalog";
 import { sameOriginGarmentPhotoUrl } from "../lib/garment-photo";
@@ -559,46 +556,14 @@ export default function Home() {
   // One quote, however many designs are in it. The $15 setup is per design,
   // so quoteSignsCart is a sum rather than a second pricing engine — see
   // lib/signs-cart.ts.
-  const signsPricing = useMemo(() => {
-    const quote = quoteSignsCart(signsQuote.designs);
-
-    // A hand-quoted cart has no goods figure to take a share of, so rush
-    // stays off it — the shop prices the whole thing, rush included.
-    if (!quote.priceable) return quote;
-
-    const rush = applyRush({
-      goodsSubtotal: quote.total,
-      needBy: order.production.needBy,
-      lane: turnaroundLane,
-    });
-
-    if (!rush.isRush) return quote;
-
-    // Into `lines` so the estimate table, the shop email and the copied
-    // record all pick it up from the one place they already read.
-    return {
-      ...quote,
-      lines: [
-        ...quote.lines,
-        {
-          label: RUSH_LINE_LABEL,
-          amount: rush.fee,
-          // Tagged, because lib/printavo.ts bills rush from `rushFee` under
-          // its own GORILLA-RUSH SKU. Untagged it was ALSO the last entry of
-          // a one-design quote's `lines.slice(1)` fee sweep, so it invoiced
-          // as GORILLA-SIGN-RUSH-SCHEDULING and carried tax the estimate had
-          // already taken off. Found by kind, never by label text.
-          kind: "rush" as const,
-          code: "RUSH",
-        },
-      ],
-      total: Math.round((quote.total + rush.fee) * 100) / 100,
-      // Rush is a fee, so it lands in BOTH figures: the customer pays it,
-      // and it is not taxed (lib/tax.ts).
-      feeTotal: Math.round((quote.feeTotal + rush.fee) * 100) / 100,
-      rushFee: rush.fee,
-    };
-  }, [order.production.needBy, signsQuote, turnaroundLane]);
+  const signsPricing = useMemo(
+    () =>
+      withSignsRush(quoteSignsCart(signsQuote.designs), {
+        needBy: order.production.needBy,
+        lane: turnaroundLane,
+      }),
+    [order.production.needBy, signsQuote, turnaroundLane]
+  );
 
   /**
    * Which basis the apparel estimate stands on. "exact" the moment the size
@@ -665,25 +630,10 @@ export default function Home() {
       }
     );
 
-    // Rush rides on the goods — garments, printing and screens — and is
-    // added to the total every surface reads, so the sticky bar, the
-    // review card, the confirmation and the payload cannot disagree
-    // about what the customer was quoted.
-    const rush = applyRush({
-      goodsSubtotal: base.total,
+    return withApparelRush(base, {
       needBy: order.production.needBy,
       lane: turnaroundLane,
     });
-
-    return {
-      ...base,
-      rushFee: rush.fee,
-      total: Math.round((base.total + rush.fee) * 100) / 100,
-      unitPrice:
-        Math.round(
-          ((base.total + rush.fee) / Math.max(1, apparelQuote.quantity)) * 100
-        ) / 100,
-    };
   }, [
     apparelEstimateBasis,
     order.production.needBy,

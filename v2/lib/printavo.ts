@@ -605,10 +605,19 @@ export async function createStickerCheckout(input: {
  * same sign always lands in the same place.
  */
 function signSku(signType: string) {
-  return `GORILLA-SIGN-${signType
+  return `GORILLA-SIGN-${skuPart(signType)}`;
+}
+
+/**
+ * A name, as an item number fragment: upper case, single dashes, no edges.
+ * Shared so every SKU in this file is built the same way — the sign SKU, the
+ * signs fee SKUs and the apparel cart's garment rows.
+ */
+function skuPart(name: string) {
+  return name
     .toUpperCase()
     .replace(/[^A-Z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")}`;
+    .replace(/^-|-$/g, "");
 }
 
 /**
@@ -935,6 +944,30 @@ export function buildPrintavoQuotePlan(input: {
    * so anything priced or described off it alone states design 1's size as
    * fact about the whole run.
    */
+  /**
+   * The APPAREL cart, when the payload carries one — several garment lines
+   * in one quote (lib/apparel-cart.ts).
+   *
+   * Only ever more than one line once the cart UI exists; the live flow
+   * prices a cart of one today. It is handled HERE rather than with that UI
+   * because the failure it prevents is silent and this is where it lands:
+   * the quote's `garmentUnitPrice` is a WEIGHTED AVERAGE across the lines,
+   * and one Printavo row at an average times the combined count does not
+   * come back to the garment total. On 7 tees at $5.49, 33 at $5.83 and 111
+   * long sleeves at $9.12 the invoice came out $0.41 UNDER the $2,684.19
+   * quoted, and the gap grows with the spread between garments.
+   *
+   * The same "average of things that do not average" the sticker cart and
+   * the old blended apparel line were both already fixed for. One row per
+   * garment line removes the division entirely.
+   */
+  const apparelCartLines =
+    apparel && Array.isArray(pricing.lines)
+      ? (pricing.lines as AnyRecord[]).filter(
+          (line) => num(line.quantity) > 0 && num(line.garmentUnitPrice) > 0
+        )
+      : [];
+
   const stickerItems =
     !apparel && !signs && Array.isArray(order.items)
       ? (order.items as AnyRecord[])
@@ -1335,7 +1368,34 @@ export function buildPrintavoQuotePlan(input: {
       ...(addOnLines.length ? ["#Upsell"] : []),
     ],
     lineItems:
-      signsDesigns.length > 1
+      apparelCartLines.length > 1
+        ? // One row per garment, each at its OWN exact supplier price. See
+          // apparelCartLines above for the 41 cents this is not losing.
+          apparelCartLines.map((line, index) => {
+            const lineQuantity = Math.max(1, num(line.quantity, 1));
+
+            return {
+              description: `${str(line.garmentLabel, "Apparel")}${
+                str(line.colorName) ? ` / ${str(line.colorName)}` : ""
+              }\n${lineQuantity} x $${num(line.garmentUnitPrice).toFixed(2)}`,
+              // Named by the garment, the way signs rows are named by the
+              // product: the description carries the story, the item number
+              // names the thing and holds still. `catalogStyle` when the
+              // line knows its S&S style, the garment label otherwise.
+              itemNumber: `GORILLA-APPAREL-${
+                skuPart(str(line.catalogStyle, "")) ||
+                skuPart(str(line.garmentLabel, "")) ||
+                `LINE-${index + 1}`
+              }`,
+              // Exact to the cent, never total/quantity.
+              price: money(num(line.garmentUnitPrice)),
+              quantity: lineQuantity,
+              // Per-line size counts arrive with the cart UI; until then the
+              // line states its count and nothing it does not know.
+              sizes: [{ size: "size_other", count: lineQuantity }],
+            };
+          })
+        : signsDesigns.length > 1
         ? // One row per sign. Each carries its own spec and the price the
           // engine put on that design — never the cart total split evenly,
           // which would invoice three different signs at one blended rate.

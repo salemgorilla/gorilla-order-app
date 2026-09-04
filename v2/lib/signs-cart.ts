@@ -1,3 +1,5 @@
+import { applyRush, RUSH_LINE_LABEL } from "./rush";
+import type { TurnaroundLane } from "./turnaround";
 import {
   calculateSignsPricing,
   signsFeeTotal,
@@ -226,4 +228,61 @@ function buildCartLines(priced: SignsCartDesign[]): SignsPricingLine[] {
   });
 
   return lines;
+}
+
+/**
+ * The same quote with rush scheduling applied, when the need-by date calls
+ * for one. Returns the quote UNCHANGED when it does not.
+ *
+ * ── WHY THIS IS A FUNCTION AND NOT A useMemo ──────────────────────────────
+ * It lived inside app/page.tsx's pricing memo, which no node test can mount.
+ * That is not a style point: the composition it performs — add a line, add
+ * to the total, add to the fee figure, expose `rushFee` — is exactly where a
+ * rushed cart went to Printavo $163.75 SHORT of the quote and a rushed
+ * single design went with tax on a fee that had been exempted. The tests
+ * covering "Printavo invoices what the site quoted" could not reach any of
+ * it; they hand-built a payload instead, so they agreed with themselves.
+ *
+ * A hand-quoted cart is returned untouched: there is no goods figure to take
+ * a share of, and the shop prices the whole thing, rush included.
+ */
+export function withSignsRush(
+  quote: SignsCartQuote,
+  when: { needBy: string; lane: TurnaroundLane; today?: string }
+): SignsCartQuote {
+  if (!quote.priceable) return quote;
+
+  const rush = applyRush({
+    goodsSubtotal: quote.total,
+    needBy: when.needBy,
+    lane: when.lane,
+    today: when.today,
+  });
+
+  if (!rush.isRush) return quote;
+
+  return {
+    ...quote,
+    // Into `lines` so the estimate table, the shop email and the copied
+    // record all pick it up from the one place they already read.
+    lines: [
+      ...quote.lines,
+      {
+        label: RUSH_LINE_LABEL,
+        amount: rush.fee,
+        // Tagged, because lib/printavo.ts bills rush from `rushFee` under its
+        // own GORILLA-RUSH SKU. Untagged it was ALSO the last entry of a
+        // one-design quote's `lines.slice(1)` fee sweep, so it invoiced as
+        // GORILLA-SIGN-RUSH-SCHEDULING and carried tax the estimate had
+        // already taken off. Found by kind, never by label text.
+        kind: "rush" as const,
+        code: "RUSH",
+      },
+    ],
+    total: round2(quote.total + rush.fee),
+    // Rush is a fee, so it lands in BOTH figures: the customer pays it, and
+    // it is not taxed (lib/tax.ts).
+    feeTotal: round2(quote.feeTotal + rush.fee),
+    rushFee: rush.fee,
+  };
 }

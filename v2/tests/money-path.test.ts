@@ -325,6 +325,17 @@ describe("only stickers self-check-out", () => {
 
 describe("signs: Printavo invoices exactly what the site quoted", () => {
   /**
+   * NOTE, added 2026-09-04: these cases build the payload BY HAND — engine
+   * out, `{ total, unitPrice, lines }` assembled here, straight into
+   * buildPrintavoQuotePlan. The real page goes through
+   * buildSignsPayloadParts, and when rush landed it was that builder which
+   * dropped the fee: a rushed cart invoiced $655.00 against $818.75 quoted
+   * and every case below still passed, because they agreed with themselves
+   * about a payload nothing sends. tests/quote-invoice-sweep.test.ts drives
+   * the real composition end to end; keep these as the named regressions
+   * they are, and add new coverage there.
+   */
+  /**
    * The signs engine splits its own breakdown into a product line plus fee
    * lines, and printavo.ts reassembles them — netting negative credits into
    * the product line, because a negative Printavo line item would make the

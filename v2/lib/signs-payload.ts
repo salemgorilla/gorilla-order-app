@@ -221,6 +221,19 @@ export function buildSignsPayloadParts(
           total: pricing.total,
           unitPrice: pricing.unitPrice,
           lines: pricing.lines,
+          /**
+           * The rush charge, as its own figure and not merely as a row in
+           * `lines`. lib/printavo.ts bills it from HERE, under GORILLA-RUSH
+           * and untaxed; apparel has always sent it because that payload
+           * spreads the whole pricing object, and signs — which builds its
+           * pricing block field by field — silently did not. A rushed
+           * two-design quote therefore invoiced $163.75 short of the total
+           * the customer had been shown, and a one-design one invoiced the
+           * charge under a label-derived SKU with tax on it.
+           */
+          ...(pricing.rushFee && pricing.rushFee > 0
+            ? { rushFee: pricing.rushFee }
+            : {}),
           quoteRequired: false,
           note: `${pricing.note} Estimate — Gorilla Salem confirms artwork and add-ons before production.`,
         }

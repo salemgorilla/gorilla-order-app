@@ -29,7 +29,7 @@ export type SignsPricingLine = {
    * quoteSignsCart collapses one setup line per design into a single row, and
    * a string match would break the moment the wording changed.
    */
-  kind?: "product" | "setup" | "addOn";
+  kind?: "product" | "setup" | "addOn" | "rush";
   /**
    * A STABLE identifier for what this charge is, independent of how the label
    * happens to read.

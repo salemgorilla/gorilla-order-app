@@ -59,6 +59,15 @@ export type SignsCartQuote = {
   note: string;
   hasQuotedExtras: boolean;
   suggestions: string[];
+  /**
+   * Rush scheduling, when the need-by date falls inside the rush window
+   * (lib/rush.ts). Not computed here — the date lives on the ORDER, not on
+   * a design — but declared here because the payload has to carry it: a
+   * rushed quote whose `rushFee` never left the browser reached Printavo
+   * either as a mis-SKU'd taxable fee (one design) or not at all (a cart,
+   * $163.75 short on a two-design test). See lib/signs-payload.ts.
+   */
+  rushFee?: number;
 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;

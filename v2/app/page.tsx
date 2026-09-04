@@ -578,7 +578,20 @@ export default function Home() {
     // record all pick it up from the one place they already read.
     return {
       ...quote,
-      lines: [...quote.lines, { label: RUSH_LINE_LABEL, amount: rush.fee }],
+      lines: [
+        ...quote.lines,
+        {
+          label: RUSH_LINE_LABEL,
+          amount: rush.fee,
+          // Tagged, because lib/printavo.ts bills rush from `rushFee` under
+          // its own GORILLA-RUSH SKU. Untagged it was ALSO the last entry of
+          // a one-design quote's `lines.slice(1)` fee sweep, so it invoiced
+          // as GORILLA-SIGN-RUSH-SCHEDULING and carried tax the estimate had
+          // already taken off. Found by kind, never by label text.
+          kind: "rush" as const,
+          code: "RUSH",
+        },
+      ],
       total: Math.round((quote.total + rush.fee) * 100) / 100,
       rushFee: rush.fee,
     };
@@ -690,7 +703,7 @@ export default function Home() {
   const activeRushFee = isApparelSelected
     ? apparelPricing.rushFee ?? 0
     : isSignsSelected
-    ? (signsPricing as { rushFee?: number }).rushFee ?? 0
+    ? signsPricing.rushFee ?? 0
     : 0;
 
   /**

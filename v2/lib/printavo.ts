@@ -857,9 +857,17 @@ export function buildPrintavoQuotePlan(input: {
       )
     : [];
 
+  /**
+   * Rush is billed from `pricing.rushFee` under GORILLA-RUSH, with
+   * taxed:false — see the fee list below. It must therefore be kept OUT of
+   * the signs fee sweep, or a one-design rushed quote bills it twice under
+   * two different SKUs. Before it was tagged, `slice(1)` swept it up: the
+   * charge landed as GORILLA-SIGN-RUSH-SCHEDULING and taxable, $5.12 above
+   * the tax the customer was quoted on a $409.38 order.
+   */
   const signsFeeLines = signsCart
     ? [...signsLines.filter((l) => l.kind === "setup"), ...signsCartAddOnLines]
-    : signsLines.slice(1);
+    : signsLines.slice(1).filter((l) => l.kind !== "rush");
 
   // The decal unit price excludes shipping — shipping becomes its own line
   // item so the Printavo total matches the website total.

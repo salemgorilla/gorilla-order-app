@@ -310,6 +310,12 @@ export function buildQuoteEmail(input: {
       line("Type", "T-Shirts & Apparel"),
       line("Garment", str(supplier.productName || product.garmentType, "Not selected")),
       line("Quantity", String(quantity)),
+      // A cart: the full garment list, right under the first garment's row,
+      // so "Garment: Premium Tee / Quantity: 36" cannot be read as 36 tees
+      // when 12 of them are hoodies. Absent on a one-garment order.
+      ...(str(product.garmentLines)
+        ? [line("All Garments", str(product.garmentLines))]
+        : []),
       // "Not specified", not blank: a request-mode payload sends these empty
       // because its form never asked (the answers are in the notes below).
       // A blank after the label reads as a rendering fault; the words say

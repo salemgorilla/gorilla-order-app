@@ -84,6 +84,14 @@ import {
 } from "../lib/pricing";
 import { quoteApparelCart, withApparelRush } from "../lib/apparel-cart";
 import {
+  anyGarmentNeedsUnderbase,
+  describeGarmentLines,
+  extraGarmentLineErrors,
+  newExtraGarmentLine,
+  resolveExtraGarmentLines,
+  type ExtraGarmentLine,
+} from "../lib/apparel-cart-lines";
+import {
   blendedGarmentUnitPrice,
   describeAssumedMix,
   garmentUnitPriceFromSizes,
@@ -146,6 +154,7 @@ import QuoteReviewCard from "../features/QuoteReviewCard";
 import DecalBuilder from "../features/decals/DecalBuilder";
 import DecalPreviewCard from "../features/decals/DecalPreviewCard";
 import ApparelBuilder from "../features/apparel/ApparelBuilder";
+import ApparelCartLines from "../features/apparel/ApparelCartLines";
 import ApparelRequestBuilder from "../features/apparel/ApparelRequestBuilder";
 import ApparelSummaryCard from "../features/apparel/ApparelSummaryCard";
 import SignsBuilder from "../features/signs/SignsBuilder";
@@ -253,6 +262,12 @@ export default function Home() {
   const [selectedSsSizeName, setSelectedSsSizeName] = useState("");
   const [selectedApparelCategory, setSelectedApparelCategory] = useState("All");
   const [sizeQuantities, setSizeQuantities] = useState<Record<string, number>>({});
+  /**
+   * The garments ADDED under the configurator — "and 12 of these as
+   * hoodies". The configurator's own garment is line one; these are the
+   * rest, priced together as one run. See lib/apparel-cart-lines.ts.
+   */
+  const [extraGarmentLines, setExtraGarmentLines] = useState<ExtraGarmentLine[]>([]);
   const [ssCatalogStatus, setSsCatalogStatus] = useState<
     "idle" | "loading" | "loaded" | "error"
   >("idle");
@@ -617,15 +632,22 @@ export default function Home() {
           id: "line-1",
           garmentLabel: selectedGarmentLabel,
           colorName: apparelQuote.garmentColor,
+          catalogStyle: chosenSsProduct?.catalogStyle,
           garmentUnitPrice: garmentUnit,
           quantity: apparelQuote.quantity,
         },
+        // The "and also" garments, resolved against the live catalogue so
+        // the figure is always today's. Empty until the customer adds one,
+        // which keeps the cart-of-one invariant exactly true.
+        ...resolveExtraGarmentLines(extraGarmentLines, ssProducts),
       ],
       {
         printLocations: apparelQuote.printLocations,
         inkColors: apparelQuote.inkColors,
+        // One decision for the whole run — see anyGarmentNeedsUnderbase for
+        // why a mixed cart errs high rather than low.
         hasUnderbase:
-          apparelQuote.garmentColor !== "White" &&
+          anyGarmentNeedsUnderbase(apparelQuote.garmentColor, extraGarmentLines) &&
           Boolean(artworkAnalysis?.estimatedColorCount),
       }
     );
@@ -645,7 +667,19 @@ export default function Home() {
     apparelQuote.inkColors,
     apparelQuote.garmentColor,
     artworkAnalysis?.estimatedColorCount,
+    chosenSsProduct?.catalogStyle,
+    extraGarmentLines,
+    ssProducts,
   ]);
+
+  /**
+   * What is wrong with each added garment line, resolved against the
+   * catalogue here because the validator does not know the catalogue.
+   */
+  const extraLineErrors = useMemo(
+    () => extraGarmentLineErrors(extraGarmentLines, ssProducts),
+    [extraGarmentLines, ssProducts]
+  );
 
   /**
    * The rush fee actually on THIS quote, whichever flow is mounted — what
@@ -1763,12 +1797,24 @@ export default function Home() {
   // The rules themselves live in lib/validation.ts so they can be tested;
   // this binds them to the component's state. See getApparelFieldErrors there.
   function getApparelFieldErrors(): FieldErrors {
-    return getApparelFieldErrorsFor(apparelQuote, order, sizeQuantityTotal);
+    return getApparelFieldErrorsFor(
+      apparelQuote,
+      order,
+      sizeQuantityTotal,
+      undefined,
+      extraLineErrors
+    );
   }
 
   function getApparelValidationErrors() {
     // The sentences live in lib/validation.ts, like the other two flows.
-    return getApparelValidationSummary(apparelQuote, order, sizeQuantityTotal);
+    return getApparelValidationSummary(
+      apparelQuote,
+      order,
+      sizeQuantityTotal,
+      undefined,
+      extraLineErrors
+    );
   }
 
   function getCurrentFieldErrors(): FieldErrors {
@@ -1842,7 +1888,22 @@ export default function Home() {
         product: {
           type: "T-Shirts & Apparel",
           garmentType: apparelQuote.garmentType,
-          quantity: apparelQuote.quantity,
+          // The whole run when there is a cart — the subject line, the
+          // Printavo nickname and the size check all read this. Equal to
+          // the configurator's count until a second garment is added.
+          quantity:
+            apparelPricing.lines.length > 1
+              ? apparelPricing.quantity
+              : apparelQuote.quantity,
+          // The cart, as the shop reads it. `pricing.lines` carries the
+          // figures; this is the sentence. Absent on a one-garment order
+          // so nothing downstream has to learn a new field to keep working.
+          ...(apparelPricing.lines.length > 1
+            ? {
+                garmentLineCount: apparelPricing.lines.length,
+                garmentLines: describeGarmentLines(apparelPricing.lines),
+              }
+            : {}),
           // Empty in request mode, deliberately: colour, locations and ink
           // are form DEFAULTS there — the flow never asked. Sent as values,
           // the shop email printed "Color: White · Front · 1 color" above
@@ -1890,7 +1951,12 @@ export default function Home() {
               // on: an assumed size mix, or their entered breakdown.
               note:
                 apparelEstimateBasis === "exact"
-                  ? "Estimate priced from the customer's size breakdown. Final pricing reviewed by Gorilla Salem."
+                  ? apparelPricing.lines.length > 1
+                    ? // Only line one has a size grid; the added garments
+                      // stand on the blend. Said so, or the shop reads
+                      // "from the size breakdown" as covering the hoodies.
+                      `Estimate priced from the customer's size breakdown for the first garment; added garments use an assumed size mix — ${describeAssumedMix().toLowerCase()} Final pricing reviewed by Gorilla Salem.`
+                    : "Estimate priced from the customer's size breakdown. Final pricing reviewed by Gorilla Salem."
                   : `Estimate uses an assumed size mix — ${describeAssumedMix().toLowerCase()} Final pricing reviewed by Gorilla Salem.`,
             },
       };
@@ -3182,6 +3248,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       apparelPricing={apparelPricing}
       apparelEstimateBasis={apparelEstimateBasis}
       artworkAnalysis={artworkAnalysis}
+      garmentLines={apparelPricing.lines}
     />
   ) : (
     <OrderSummary order={order} />
@@ -3683,6 +3750,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   onUpdate={(updates) => updateApparelQuote(updates)}
                 />
               ) : isApparelSelected ? (
+                <>
                 <ApparelBuilder
                   apparelQuote={apparelQuote}
                   artworkAnalysis={artworkAnalysis}
@@ -3738,6 +3806,36 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   }
                   sizesEntered={sizeQuantityTotal > 0}
                 />
+                  <ApparelCartLines
+                    lines={extraGarmentLines}
+                    products={ssProducts}
+                    lineErrors={extraLineErrors}
+                    fieldErrors={fieldErrors}
+                    primaryDescription={
+                      apparelQuote.quantity > 0
+                        ? `${apparelQuote.quantity} × ${selectedGarmentLabel || apparelQuote.garmentType} / ${apparelQuote.garmentColor}`
+                        : `${selectedGarmentLabel || apparelQuote.garmentType}`
+                    }
+                    onAdd={() =>
+                      setExtraGarmentLines((current) => [
+                        ...current,
+                        newExtraGarmentLine(),
+                      ])
+                    }
+                    onUpdate={(id, updates) =>
+                      setExtraGarmentLines((current) =>
+                        current.map((line) =>
+                          line.id === id ? { ...line, ...updates } : line
+                        )
+                      )
+                    }
+                    onRemove={(id) =>
+                      setExtraGarmentLines((current) =>
+                        current.filter((line) => line.id !== id)
+                      )
+                    }
+                  />
+                </>
               ) : (
                 <div className="space-y-6">
                   {order.items.map((item, index) => (
@@ -4072,6 +4170,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               order={order}
               apparelQuote={apparelQuote}
               apparelPricing={apparelPricing}
+              garmentLines={apparelPricing.lines}
               signsQuote={signsQuote}
               signsTotal={signsPricing.priceable ? signsPricing.total : null}
               signsFeeTotal={signsPricing.feeTotal}

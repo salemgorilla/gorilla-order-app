@@ -35,6 +35,12 @@ type Props = {
   signsFeeTotal: number;
   selectedGarmentLabel: string;
   selectedSsColor: SsCatalogColor | null;
+  /** Every garment in the apparel quote; see ApparelSummaryCard. */
+  garmentLines?: Array<{
+    garmentLabel: string;
+    colorName: string;
+    quantity: number;
+  }>;
   isReady: boolean;
 };
 
@@ -50,6 +56,7 @@ export default function QuoteReviewCard({
   signsFeeTotal,
   selectedGarmentLabel,
   selectedSsColor,
+  garmentLines = [],
   isReady,
 }: Props) {
   // Shared with the summary, the confirmation screen and the sticky bar.
@@ -183,26 +190,43 @@ export default function QuoteReviewCard({
           </>
         ) : isApparelSelected ? (
           <>
-            <div className="flex justify-between gap-4">
-              <span>Garment</span>
-              <span className="text-right font-bold text-[var(--ink-black)]">
-                {selectedGarmentLabel}
-              </span>
-            </div>
+            {garmentLines.length > 1 ? (
+              // A cart: every garment, so the customer checks the order they
+              // built rather than its first line.
+              <div className="flex justify-between gap-4">
+                <span>Garments</span>
+                <span className="text-right font-bold text-[var(--ink-black)]">
+                  {garmentLines.map((line, index) => (
+                    <span key={`${line.garmentLabel}-${line.colorName}-${index}`} className="block">
+                      {line.quantity} × {line.garmentLabel} / {line.colorName}
+                    </span>
+                  ))}
+                </span>
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between gap-4">
+                  <span>Garment</span>
+                  <span className="text-right font-bold text-[var(--ink-black)]">
+                    {selectedGarmentLabel}
+                  </span>
+                </div>
 
-            <div className="flex justify-between gap-4">
-              <span>Color</span>
-              <span className="text-right font-bold text-[var(--ink-black)]">
-                {selectedSsColor?.colorName || apparelQuote.garmentColor}
-              </span>
-            </div>
+                <div className="flex justify-between gap-4">
+                  <span>Color</span>
+                  <span className="text-right font-bold text-[var(--ink-black)]">
+                    {selectedSsColor?.colorName || apparelQuote.garmentColor}
+                  </span>
+                </div>
 
-            <div className="flex justify-between gap-4">
-              <span>Quantity</span>
-              <span className="text-right font-bold text-[var(--ink-black)]">
-                {apparelQuote.quantity.toLocaleString()}
-              </span>
-            </div>
+                <div className="flex justify-between gap-4">
+                  <span>Quantity</span>
+                  <span className="text-right font-bold text-[var(--ink-black)]">
+                    {apparelQuote.quantity.toLocaleString()}
+                  </span>
+                </div>
+              </>
+            )}
 
             <div className="flex justify-between gap-4">
               <span>Sizes</span>

@@ -1164,6 +1164,11 @@ export function buildPrintavoQuotePlan(input: {
     : apparel
     ? [
         `${quantity}x ${garmentLabel}`,
+        // The cart, when there is one: the line items carry each garment's
+        // figure, this is the sentence that says the run is several garments.
+        ...(str(product.garmentLines)
+          ? [`GARMENTS: ${str(product.garmentLines)}`]
+          : []),
         `Color: ${str(product.garmentColor || supplier.colorName, "TBD")}`,
         `Print locations: ${
           // An empty array is a request-mode payload saying "never asked" —

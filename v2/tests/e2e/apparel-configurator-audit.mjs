@@ -27,6 +27,7 @@ import { chromium } from "playwright";
 import fs from "node:fs";
 
 import { calculateApparelPricing } from "../../lib/apparel-pricing";
+import { quoteApparelCart } from "../../lib/apparel-cart";
 import { isStickerOrder } from "../../lib/sticker-repricing";
 
 const BASE = process.env.SMOKE_URL || "http://localhost:3000";
@@ -428,6 +429,102 @@ try {
     check("THE invariant: a configured apparel order must never auto-bill", !isStickerOrder(order));
   }
   await page.close();
+
+  // ── C: the cart — a second garment under the configurator ─────────────
+  //
+  // The engine (lib/apparel-cart.ts) is pinned to the cent in its own tests;
+  // what only the browser can prove is the WIRING: that a garment added in
+  // the form reaches the estimate, the review card and the payload as the
+  // same line, and that Printavo would bill it as its own row.
+  {
+    const cState = { catalogRequests: 0, quoteRaw: null };
+    const c = await openPage(cState);
+    await c.click("text=T-Shirts & Apparel");
+    await c.waitForTimeout(600);
+    await c.click('button:has-text("02")');
+    await c.waitForSelector("text=Garment Catalog");
+    await c.click('button:has-text("Starter Tee")');
+    await c.waitForTimeout(300);
+    await clickColor(c, "White");
+    await c.locator("input[type=date]").first().fill(NEED_BY);
+    await c.waitForTimeout(300);
+
+    const before = await estimatedTotalOnSummary(c);
+    check("cart: a one-garment estimate exists before anything is added", before !== null && before > 0, String(before));
+
+    // Add a line, leave it blank: nothing may change, and submit must refuse.
+    await c.click('button:has-text("Add another garment")');
+    await c.waitForTimeout(300);
+    const afterBlank = await estimatedTotalOnSummary(c);
+    check("cart: a blank added line prices NOTHING (no phantom garment)", afterBlank === before, `${before} -> ${afterBlank}`);
+
+    // Fill it: Classic Hoodie / Black / 12.
+    const garmentSelect = c.locator('section[aria-label="Added garment 1"] select').first();
+    const hoodieValue = await garmentSelect.evaluate((el) =>
+      [...el.options].find((o) => o.textContent.includes("Classic Hoodie"))?.value ?? ""
+    );
+    check("cart: the garment picker offers the hoodie", Boolean(hoodieValue));
+    await garmentSelect.selectOption(hoodieValue);
+    await c.locator('section[aria-label="Added garment 1"] select').nth(1).selectOption("Black");
+    await c.fill('input[id^="apparel-line-"][id$="-quantity"]', "12");
+    await c.locator('input[id^="apparel-line-"][id$="-quantity"]').blur();
+    await c.waitForTimeout(400);
+
+    const afterFilled = await estimatedTotalOnSummary(c);
+    check("cart: the estimate moved once the line was finished", afterFilled !== null && afterFilled > before, `${before} -> ${afterFilled}`);
+    const summary = await summaryText(c);
+    check("cart: the summary lists both garments", /24 × Starter Tee \/ White/.test(summary) && /12 × Classic Hoodie \/ Black/.test(summary), summary.slice(0, 200));
+    // innerText applies the eyebrow's text-transform, so match case-blind.
+    check("cart: the summary counts 36 pieces", /36 pieces/i.test(summary), summary.slice(0, 120));
+    await c.screenshot({ path: S + "/audit-cart.png", fullPage: true });
+
+    // Through to review and submit.
+    await c.click('button:has-text("03")');
+    await c.setInputFiles("input[type=file]", { name: "audit-logo.png", mimeType: "image/png", buffer: await makePng(c) });
+    await c.waitForTimeout(1200);
+    await c.click('button:has-text("04")');
+    await c.locator("input[id*=ame], input[name*=ame]").first().fill("Audit Driver");
+    await c.locator("input[type=email]").first().fill("audit@example.com");
+    await c.click('button:has-text("05")');
+    await c.waitForTimeout(400);
+    const cReview = await c.evaluate(() => document.body.innerText);
+    check("cart: review lists the hoodie line", /12 × Classic Hoodie \/ Black/.test(cReview));
+    await c.click('button:has-text("Request Quote")');
+    await c.waitForTimeout(1500);
+
+    const cOrder = JSON.parse(formField(cState.quoteRaw || "", "order") || "null");
+    check("cart: payload captured", Boolean(cOrder));
+    if (cOrder) {
+      const lines = cOrder.pricing?.lines ?? [];
+      check("cart: payload carries two garment lines", lines.length === 2, JSON.stringify(lines.map((l) => [l.garmentLabel, l.colorName, l.quantity])));
+      check("cart: product.quantity is the whole run", cOrder.product?.quantity === 36, String(cOrder.product?.quantity));
+      check("cart: payload names every garment for the shop", cOrder.product?.garmentLines === "24 × Starter Tee / White · 12 × Classic Hoodie / Black", cOrder.product?.garmentLines);
+      const hoodie = (CATALOG.products || CATALOG).find((p) => p.customerLabel === "Classic Hoodie");
+      check("cart: the hoodie line carries its S&S style for the SKU", Boolean(hoodie) && lines[1]?.catalogStyle === hoodie.catalogStyle, `${lines[1]?.catalogStyle} vs catalog ${hoodie?.catalogStyle}`);
+
+      // The figure, recomputed by the engine from the payload's own lines.
+      const expected = quoteApparelCart(
+        lines.map((l) => ({ id: l.id, garmentLabel: l.garmentLabel, colorName: l.colorName, garmentUnitPrice: l.garmentUnitPrice, quantity: l.quantity })),
+        {
+          printLocations: cOrder.product.printLocations,
+          inkColors: cOrder.product.inkColors,
+          // A black hoodie in the run: the whole run is priced WITH the
+          // underbase (lib/apparel-cart-lines.ts, anyGarmentNeedsUnderbase).
+          // The first run of this section recomputed with false and read a
+          // $27.00 gap — 36 pieces x $0.75 — which is the rule working.
+          hasUnderbase: lines.some((l) => l.colorName !== "White"),
+        }
+      );
+      check("cart: the payload states the underbase it charged", cOrder.pricing?.underbaseFeePerPiece === 0.75, String(cOrder.pricing?.underbaseFeePerPiece));
+      check(
+        "cart: payload total equals the cart engine for its own lines",
+        Math.abs((cOrder.pricing?.total ?? -1) - expected.total) < 0.005,
+        `payload ${cOrder.pricing?.total} vs engine ${expected.total.toFixed(2)}`
+      );
+      check("cart: still never auto-bills", !isStickerOrder(cOrder));
+    }
+    await c.close();
+  }
 
   // ── B: mobile 390px ──────────────────────────────────────────────────
   {

@@ -22,6 +22,32 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **The apparel cart has its UI** — 2026-09-04. Under the configurator (which
+  still configures ONE garment in full — catalogue, colour, the size grid)
+  there is now "More garments, same print": add a line, pick a garment and a
+  colour from the live catalogue, type a count. lib/apparel-cart.ts prices
+  the lot as one run — combined count for the print tier, setup once — and
+  lib/printavo.ts bills each garment as its own row at its own price (#109).
+  Browser-driven end to end with the cart section added to
+  tests/e2e/apparel-configurator-audit.mjs (15 checks): 24 Starter Tees +
+  12 Classic Hoodies reads $535.60 on the summary, lists both garments and
+  "36 pieces", reaches review as two lines, and the payload's total equals
+  the engine recomputed from the payload's own lines. A blank added line
+  prices NOTHING (no phantom garment) and blocks submit with "Finish or
+  remove the added garment" — verified: 0 POSTs.
+  THREE STATED DECISIONS, each in the file header where it can be argued
+  with: (1) a line is a GARMENT sharing the one print, not a second design
+  (lib/apparel-cart.ts); (2) added garments stand on the ASSUMED size mix
+  even when line one has exact sizes — the basis note on screen and in the
+  payload says so (lib/apparel-cart-lines.ts); (3) a mixed run with any dark
+  garment is priced WITH the underbase on every piece — errs high on the
+  white tees, never low on the black hoodies, on a hand-confirmed flow
+  (anyGarmentNeedsUnderbase). The audit's first run recomputed with the
+  flag off and read a $27.00 gap — 36 × $0.75 — which is that rule working.
+  STILL DORMANT: apparel is `status: "request"` in production, so none of
+  this is customer-visible until Gabe flips it (see the readiness report).
+  Verified by flipping locally and reverting; the flip is not in the diff.
+
 - **All fees are non-taxable, on screen and on the invoice** — 2026-09-04.
   Gabe's ruling, generalised from rush the same day: setup, screens,
   finishing add-ons and rush are labour and services stated separately from

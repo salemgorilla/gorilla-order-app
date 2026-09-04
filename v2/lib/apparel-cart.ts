@@ -52,6 +52,13 @@ export type ApparelCartLine = {
   /** What the customer sees: "Premium Soft Tee". */
   garmentLabel: string;
   colorName: string;
+  /**
+   * The S&S style number, when the line knows it. lib/printavo.ts files a
+   * cart's garment rows under GORILLA-APPAREL-<style> — the same SKU a
+   * single-garment order has always used — so "how many 5000s did we sell"
+   * has one answer whether the shirt came in on its own or in a cart.
+   */
+  catalogStyle?: string;
   /** Clean 2dp per-shirt price for this line — blended or exact. */
   garmentUnitPrice: number;
   quantity: number;

@@ -105,6 +105,25 @@ const REACHABLE: Record<FieldKey, () => string | undefined> = {
       24
     ).printLocations,
 
+  /**
+   * The apparel cart: a line the customer added and left blank. The rule
+   * takes the per-line problems already resolved against the catalogue
+   * (lib/apparel-cart-lines.ts) and surfaces the first at field level.
+   */
+  garmentLines: () =>
+    getApparelFieldErrors(
+      {
+        specialOrder: false,
+        specialOrderNotes: "",
+        quantity: 24,
+        printLocations: ["Front"],
+      },
+      { ...emptyOrderPart, artwork: { file: { name: "art.png" } } },
+      24,
+      undefined,
+      { "garment-1": "Choose a garment." }
+    ).garmentLines,
+
   // sizeBreakdown left this map when sizes became optional at estimate
   // time (the blend prices an assumed mix until they exist) — no rule
   // raises it any more, so reachability has nothing to prove for it. The

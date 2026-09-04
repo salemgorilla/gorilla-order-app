@@ -96,7 +96,9 @@ export type FieldKey =
   | "height"
   | "quantity"
   | "printLocations"
-  | "specialOrderNotes";
+  | "specialOrderNotes"
+  /** The apparel cart's extra garment lines — see lib/apparel-cart-lines. */
+  | "garmentLines";
 
 /** Field key -> the short message shown under that field. */
 export type FieldErrors = Partial<Record<FieldKey, string>>;
@@ -440,9 +442,16 @@ export function getApparelValidationSummary(
   apparelQuote: Parameters<typeof getApparelFieldErrors>[0],
   order: Parameters<typeof getApparelFieldErrors>[1],
   sizeQuantityTotal: number,
-  today: string = todayIso()
+  today: string = todayIso(),
+  extraLineErrors: Record<string, string> = {}
 ): string[] {
-  const fields = getApparelFieldErrors(apparelQuote, order, sizeQuantityTotal, today);
+  const fields = getApparelFieldErrors(
+    apparelQuote,
+    order,
+    sizeQuantityTotal,
+    today,
+    extraLineErrors
+  );
   const problems: FieldProblem[] = [];
 
   // Pushed straight from the field map, as stickers and signs already do.
@@ -474,6 +483,9 @@ export function getApparelValidationSummary(
   if (fields.printLocations) {
     problems.push({ field: "printLocations", message: fields.printLocations });
   }
+  if (fields.garmentLines) {
+    problems.push({ field: "garmentLines", message: fields.garmentLines });
+  }
   // No sizeBreakdown rule any more: sizes are optional at estimate time —
   // the blend covers them and the quantity rule above owns the count.
 
@@ -494,7 +506,17 @@ export function getApparelFieldErrors(
   },
   /** Total across the size grid. Quantity IS this sum, so the two cannot disagree. */
   sizeQuantityTotal: number,
-  today: string = todayIso()
+  today: string = todayIso(),
+  /**
+   * The extra garment lines, ALREADY CHECKED against the catalogue —
+   * extraGarmentLineErrors() in lib/apparel-cart-lines.ts, keyed by line
+   * id. Passed in resolved rather than raw because this module does not
+   * know the catalogue, and should not: the rule here is only that no
+   * line may be submitted half-filled. The per-line messages render in
+   * the rows; this surfaces the first one at the field level so the step
+   * bar and the checklist can point at it.
+   */
+  extraLineErrors: Record<string, string> = {}
 ): FieldErrors {
   const errors: FieldErrors = {};
 
@@ -556,6 +578,16 @@ export function getApparelFieldErrors(
    */
   if (!(apparelQuote.quantity > 0)) {
     errors.quantity = "Enter roughly how many you need.";
+  }
+
+  // A blank or half-filled extra garment: the customer pressed "add" and
+  // then either meant it (finish the line) or did not (remove it). Either
+  // way the quote cannot describe a garment it does not know.
+  const firstLineProblem = Object.values(extraLineErrors)[0];
+  if (firstLineProblem) {
+    errors.garmentLines = `Finish or remove the added garment — ${firstLineProblem
+      .charAt(0)
+      .toLowerCase()}${firstLineProblem.slice(1)}`;
   }
 
   return errors;

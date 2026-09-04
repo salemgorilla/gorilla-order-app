@@ -16,6 +16,18 @@ type Props = {
    */
   apparelEstimateBasis: "assumed" | "exact";
   artworkAnalysis: ArtworkAnalysis | null;
+  /**
+   * Every garment in the quote, line one first. One entry on an ordinary
+   * order, and the card reads exactly as it always has; several, and the
+   * Product/Quantity/Color rows give way to a list, because "Quantity 36"
+   * over "Color White" would be describing a cart as one shirt.
+   */
+  garmentLines?: Array<{
+    garmentLabel: string;
+    colorName: string;
+    quantity: number;
+    garmentTotal: number;
+  }>;
 };
 
 /**
@@ -36,7 +48,10 @@ export default function ApparelSummaryCard({
   apparelPricing,
   apparelEstimateBasis,
   artworkAnalysis,
+  garmentLines = [],
 }: Props) {
+  const isCart = garmentLines.length > 1;
+
   return (
     <div className=" border border-[var(--rule)] bg-white p-6">
       <p className="eyebrow">
@@ -44,18 +59,45 @@ export default function ApparelSummaryCard({
       </p>
 
       <div className="mt-5 space-y-3 text-fine font-medium text-[var(--ink-muted)]">
-        <div className="flex justify-between gap-4">
-          <span>Product</span>
-          <span className="text-right font-bold text-[var(--ink-black)]">{apparelQuote.garmentType}</span>
-        </div>
-        <div className="flex justify-between gap-4">
-          <span>Quantity</span>
-          <span className="text-right font-bold text-[var(--ink-black)]">{apparelQuote.quantity}</span>
-        </div>
-        <div className="flex justify-between gap-4">
-          <span>Color</span>
-          <span className="text-right font-bold text-[var(--ink-black)]">{apparelQuote.garmentColor}</span>
-        </div>
+        {isCart ? (
+          <div>
+            <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
+              Garments ·{" "}
+              {garmentLines.reduce((sum, line) => sum + line.quantity, 0)} pieces
+            </p>
+            <ul className="mt-2 space-y-1">
+              {garmentLines.map((line, index) => (
+                <li
+                  key={`${line.garmentLabel}-${line.colorName}-${index}`}
+                  className="flex justify-between gap-4"
+                >
+                  <span className="text-[var(--ink-black)]">
+                    <span className="spec font-bold">{line.quantity}</span> ×{" "}
+                    {line.garmentLabel} / {line.colorName}
+                  </span>
+                  <span className="spec text-right font-bold text-[var(--ink-black)]">
+                    ${line.garmentTotal.toFixed(2)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <>
+            <div className="flex justify-between gap-4">
+              <span>Product</span>
+              <span className="text-right font-bold text-[var(--ink-black)]">{apparelQuote.garmentType}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span>Quantity</span>
+              <span className="text-right font-bold text-[var(--ink-black)]">{apparelQuote.quantity}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span>Color</span>
+              <span className="text-right font-bold text-[var(--ink-black)]">{apparelQuote.garmentColor}</span>
+            </div>
+          </>
+        )}
         <div className="flex justify-between gap-4">
           <span>Locations</span>
           <span className="text-right font-bold text-[var(--ink-black)]">{apparelQuote.printLocations.join(", ")}</span>
@@ -172,7 +214,9 @@ export default function ApparelSummaryCard({
               sizes exist the assumption is gone and the line says so. */}
           {apparelEstimateBasis === "exact" ? (
             <p className="mt-3 border-t border-[var(--rule-faint)] pt-3 text-fine font-bold leading-5 text-[var(--gorilla-green)]">
-              Priced from your sizes.
+              {isCart
+                ? "First garment priced from your sizes; added garments use an assumed size mix."
+                : "Priced from your sizes."}
             </p>
           ) : (
             <p className="mt-3 border-t border-[var(--rule-faint)] pt-3 text-fine font-medium leading-5 text-[var(--ink-muted)]">

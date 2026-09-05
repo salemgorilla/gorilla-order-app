@@ -29,7 +29,11 @@ export type SignsPricingLine = {
    * quoteSignsCart collapses one setup line per design into a single row, and
    * a string match would break the moment the wording changed.
    */
-  kind?: "product" | "setup" | "addOn" | "rush";
+  /**
+   * "minimum" is the order-minimum top-up (lib/signs-cart.ts). It is NOT in
+   * SIGNS_FEE_KINDS on purpose: it is the price of the goods, and taxed.
+   */
+  kind?: "product" | "setup" | "addOn" | "rush" | "minimum";
   /**
    * A STABLE identifier for what this charge is, independent of how the label
    * happens to read.

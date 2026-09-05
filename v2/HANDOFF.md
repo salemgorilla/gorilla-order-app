@@ -22,6 +22,22 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **Order minimums on signs and banners** — 2026-09-05, Gabe's numbers:
+  sign orders start at $60, banner orders at $45. Applied ONCE to the whole
+  quote (lib/signs-cart.ts) after designs and setup, before rush and tax,
+  as a "Minimum order" line that makes up the difference — kind
+  "minimum", which is deliberately NOT in SIGNS_FEE_KINDS: the top-up is
+  the price of the goods and is taxed like them. Cart-level, so two $46
+  yard-sign designs clear it and one is lifted. THIS CHANGES LIVE PRICES:
+  one 18" x 24" yard sign was $46 and is $60; a 1' x 2' banner was $33
+  and is $45. Carried to Printavo on BOTH paths — the cart path had to be
+  told, because the per-design sweep never sees a cart-level line (the
+  gap that dropped rush, #107). tests/signs-minimum.test.ts pins the
+  figures, the cart rule, both invoice paths and the tax base. The
+  per-design price sheet does not move (the rule is per order).
+  Gabe's answer to D10; the 2' x 3' 18 oz inversion sits above the floor
+  and remains an observation in PRICING.md.
+
 - **The pricing invariants are tests, and they found a cliff** —
   2026-09-04. Gabe uploaded the 22 Aug pricing handoff; its §10 asked for
   four checks in CI ("fail the build on a monotonicity violation, do not

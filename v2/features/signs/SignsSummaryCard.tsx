@@ -196,6 +196,17 @@ export default function SignsSummaryCard({
                 a total that quietly does not match the rate card reads as an
                 error, and the customer is also owed the fact that they can
                 have the extra signs for nothing. */}
+            {/* The order minimum, said in words beside the line that
+                carries it: a customer at $46 needs to know the $60 is a
+                floor, not a mistake, and what would make it go away. */}
+            {pricing.minimumApplied ? (
+              <p className="mt-4 text-fine leading-5 text-[var(--ink-muted)]">
+                {`${getSignProduct(designs[0].productId).family === "banners" ? "Banner" : "Sign"} orders start at $${pricing.minimumApplied}. Yours comes to $${(
+                  pricing.total -
+                  (pricing.lines.find((l) => l.kind === "minimum")?.amount ?? 0)
+                ).toFixed(2)}, so it is priced at the minimum — adding to the order costs nothing until you pass it.`}
+              </p>
+            ) : null}
             {pricing.designs.map((entry, index) =>
               entry.pricing.pricedAtQuantity ? (
                 <p

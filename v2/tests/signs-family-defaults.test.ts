@@ -79,6 +79,9 @@ describe("every family's default design wears its own product's spec", () => {
     assert.equal(quoteSignsCart(createSignsQuote("banners").designs).total, 177);
     const signs = quoteSignsCart(createSignsQuote("signs").designs);
     assert.equal(signs.priceable, true);
-    assert.equal(signs.total, 46);
+    // $46 on its own ($31 + $15 setup), lifted to the $60 order minimum —
+    // Gabe, 2026-09-05. Was pinned at 46; moved deliberately with the rule.
+    assert.equal(signs.total, 60);
+    assert.equal(signs.minimumApplied, 60);
   });
 });

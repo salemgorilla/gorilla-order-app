@@ -39,6 +39,30 @@ export const signsPricingConfig = {
   setupFee: 15,
 
   /**
+   * ORDER MINIMUMS, by pipeline — Gabe, 2026-09-05.
+   *
+   *   signs    $60   yard signs, rigid signs, posters, window graphics
+   *   banners  $45   vinyl banners
+   *
+   * Applied to the whole quote, once, after the design totals and setup are
+   * summed and before rush and tax (lib/signs-cart.ts): a quote that comes
+   * to less is priced AT the minimum, with a "Minimum order" line making up
+   * the difference. The top-up is the price of the goods, not a separately
+   * stated service, so it is TAXED like the goods — unlike setup, add-ons
+   * and rush, which are fees and are not (lib/tax.ts).
+   *
+   * Why it exists: a 1' x 2' banner priced at $18 + $15 setup, and one
+   * 18" x 24" yard sign at $46. Small orders take the same set-up, proofing
+   * and handling as large ones, and those figures were under what the work
+   * costs. Chosen over a floor on the no-hem credit (PRICING.md, D10) as the
+   * trade's standard answer to the same problem.
+   */
+  minimumOrder: {
+    signs: 60,
+    banners: 45,
+  } as Record<"signs" | "banners", number>,
+
+  /**
    * Double-sided surcharge, per square foot, for the $/sqft products.
    * (Yard signs are not included — their table already has its own
    * double-sided column.)

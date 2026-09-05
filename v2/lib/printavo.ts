@@ -1522,9 +1522,16 @@ export function buildPrintavoQuotePlan(input: {
                 Array.isArray(product.printLocations)
                   ? (product.printLocations as string[]).length
                   : 1
-              } location(s), ${str(product.inkColors, "ink TBD")}) - ${quantity} x $${num(
-                pricing.printUnitPrice
-              ).toFixed(2)}`,
+              } location(s), ${str(product.inkColors, "ink TBD")}) - ${
+                // Just under a price break the print is charged at the next
+                // tier's minimum (never-pay-more, lib/apparel-pricing.ts),
+                // and "23 x $6.00" would not multiply to the line's price.
+                num(pricing.printTierQuantity) > quantity
+                  ? `${quantity} pcs printed at the ${num(
+                      pricing.printTierQuantity
+                    )}-piece rate, $${num(pricing.printUnitPrice).toFixed(2)} each`
+                  : `${quantity} x $${num(pricing.printUnitPrice).toFixed(2)}`
+              }`,
               itemNumber: "GORILLA-APPAREL-PRINT",
               price: money(pricing.printTotal),
               // Printing is service, and apparel is exempt besides.

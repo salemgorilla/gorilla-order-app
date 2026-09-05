@@ -50,7 +50,15 @@ describe("ANCHORS — browser-verified figures, 31 Aug 2026", () => {
   // Stacey Beer's scenario, driven in Chromium against the dev server with
   // the catalog fixture: every figure below appeared ON SCREEN and matched
   // the engine to the cent. Black Starter Tee blends to 4.55.
-  test("Stacey: 20 black shirts, 3 colors, front = $352.00", () => {
+  //
+  // REPRICED 4 Sep 2026, deliberately: the two 20-shirt figures moved when
+  // the never-pay-more rule landed (lib/apparel-pricing.ts). 20 shirts sat
+  // in the cliff under the 24 break — $8.00 a print against $6.00 one
+  // shirt-count later — and now print at the 24-piece figure. $352.00 ->
+  // $341.20 and $276.00 -> $260.00; the 24-shirt anchors did not move.
+  // Re-verified on screen the same day (tests/e2e/apparel-configurator-
+  // audit.mjs compares the summary to this engine).
+  test("Stacey: 20 black shirts, 3 colors, front = $341.20", () => {
     const r = calculateApparelPricing({
       quantity: 20,
       garmentUnitPrice: blendedGarmentUnitPrice(colorOf("Starter Tee", "Black")),
@@ -58,10 +66,11 @@ describe("ANCHORS — browser-verified figures, 31 Aug 2026", () => {
       inkColors: "3 colors",
       hasUnderbase: false,
     });
-    assert.equal(r.total.toFixed(2), "352.00");
+    assert.equal(r.total.toFixed(2), "341.20");
+    assert.equal(r.printTierQuantity, 24, "printed at the 24-piece rate");
   });
 
-  test("Stacey's ink lever: 1 color = $276.00", () => {
+  test("Stacey's ink lever: 1 color = $260.00", () => {
     const r = calculateApparelPricing({
       quantity: 20,
       garmentUnitPrice: 4.55,
@@ -69,7 +78,7 @@ describe("ANCHORS — browser-verified figures, 31 Aug 2026", () => {
       inkColors: "1 color",
       hasUnderbase: false,
     });
-    assert.equal(r.total.toFixed(2), "276.00");
+    assert.equal(r.total.toFixed(2), "260.00");
   });
 
   test("Stacey's tier lever: 24 shirts = $359.40 ($14.97 each)", () => {
@@ -369,16 +378,16 @@ const ENGINE_GRID: [string, number][] = [
   ["12 @ 3ink 2loc", 340.80],
   ["12 @ 5+ink 1loc", 301.40],
   ["12 @ 5+ink 2loc", 456.40],
-  ["23 @ 1ink 1loc", 303.30],
-  ["23 @ 1ink 1loc +ub", 320.55],
-  ["23 @ 1ink 2loc", 385.80],
-  ["23 @ 1ink 2loc +ub", 403.05],
-  ["23 @ 2ink 1loc", 343.25],
-  ["23 @ 2ink 2loc", 450.75],
-  ["23 @ 3ink 1loc", 383.20],
-  ["23 @ 3ink 2loc", 515.70],
-  ["23 @ 5+ink 1loc", 463.10],
-  ["23 @ 5+ink 2loc", 645.60],
+  ["23 @ 1ink 1loc", 263.30],
+  ["23 @ 1ink 1loc +ub", 281.30],
+  ["23 @ 1ink 2loc", 348.30],
+  ["23 @ 1ink 2loc +ub", 366.30],
+  ["23 @ 2ink 1loc", 303.90],
+  ["23 @ 2ink 2loc", 413.90],
+  ["23 @ 3ink 1loc", 344.50],
+  ["23 @ 3ink 2loc", 479.50],
+  ["23 @ 5+ink 1loc", 425.70],
+  ["23 @ 5+ink 2loc", 610.70],
   ["24 @ 1ink 1loc", 267.40],
   ["24 @ 1ink 1loc +ub", 285.40],
   ["24 @ 1ink 2loc", 352.40],
@@ -399,16 +408,16 @@ const ENGINE_GRID: [string, number][] = [
   ["25 @ 3ink 2loc", 497.50],
   ["25 @ 5+ink 1loc", 442.50],
   ["25 @ 5+ink 2loc", 630.00],
-  ["49 @ 1ink 1loc", 519.90],
-  ["49 @ 1ink 1loc +ub", 556.65],
-  ["49 @ 1ink 2loc", 667.40],
-  ["49 @ 1ink 2loc +ub", 704.15],
-  ["49 @ 2ink 1loc", 576.75],
-  ["49 @ 2ink 2loc", 749.25],
-  ["49 @ 3ink 1loc", 633.60],
-  ["49 @ 3ink 2loc", 831.10],
-  ["49 @ 5+ink 1loc", 747.30],
-  ["49 @ 5+ink 2loc", 994.80],
+  ["49 @ 1ink 1loc", 463.40],
+  ["49 @ 1ink 1loc +ub", 500.90],
+  ["49 @ 1ink 2loc", 613.40],
+  ["49 @ 1ink 2loc +ub", 650.90],
+  ["49 @ 2ink 1loc", 520.90],
+  ["49 @ 2ink 2loc", 695.90],
+  ["49 @ 3ink 1loc", 578.40],
+  ["49 @ 3ink 2loc", 778.40],
+  ["49 @ 5+ink 1loc", 693.40],
+  ["49 @ 5+ink 2loc", 943.40],
   ["50 @ 1ink 1loc", 467.50],
   ["50 @ 1ink 1loc +ub", 505.00],
   ["50 @ 1ink 2loc", 617.50],
@@ -419,16 +428,16 @@ const ENGINE_GRID: [string, number][] = [
   ["50 @ 3ink 2loc", 782.50],
   ["50 @ 5+ink 1loc", 697.50],
   ["50 @ 5+ink 2loc", 947.50],
-  ["99 @ 1ink 1loc", 901.15],
-  ["99 @ 1ink 1loc +ub", 975.40],
-  ["99 @ 1ink 2loc", 1173.65],
-  ["99 @ 1ink 2loc +ub", 1247.90],
-  ["99 @ 2ink 1loc", 990.50],
-  ["99 @ 2ink 2loc", 1288.00],
-  ["99 @ 3ink 1loc", 1079.85],
-  ["99 @ 3ink 2loc", 1402.35],
-  ["99 @ 5+ink 1loc", 1258.55],
-  ["99 @ 5+ink 2loc", 1631.05],
+  ["99 @ 1ink 1loc", 830.90],
+  ["99 @ 1ink 1loc +ub", 905.90],
+  ["99 @ 1ink 2loc", 1105.90],
+  ["99 @ 1ink 2loc +ub", 1180.90],
+  ["99 @ 2ink 1loc", 920.90],
+  ["99 @ 2ink 2loc", 1220.90],
+  ["99 @ 3ink 1loc", 1010.90],
+  ["99 @ 3ink 2loc", 1335.90],
+  ["99 @ 5+ink 1loc", 1190.90],
+  ["99 @ 5+ink 2loc", 1565.90],
   ["100 @ 1ink 1loc", 835.00],
   ["100 @ 1ink 1loc +ub", 910.00],
   ["100 @ 1ink 2loc", 1110.00],
@@ -439,16 +448,16 @@ const ENGINE_GRID: [string, number][] = [
   ["100 @ 3ink 2loc", 1340.00],
   ["100 @ 5+ink 1loc", 1195.00],
   ["100 @ 5+ink 2loc", 1570.00],
-  ["249 @ 1ink 1loc", 2041.90],
-  ["249 @ 1ink 1loc +ub", 2228.65],
-  ["249 @ 1ink 2loc", 2689.40],
-  ["249 @ 1ink 2loc +ub", 2876.15],
-  ["249 @ 2ink 1loc", 2228.75],
-  ["249 @ 2ink 2loc", 2901.25],
-  ["249 @ 3ink 1loc", 2415.60],
-  ["249 @ 3ink 2loc", 3113.10],
-  ["249 @ 5+ink 1loc", 2789.30],
-  ["249 @ 5+ink 2loc", 3536.80],
+  ["249 @ 1ink 1loc", 1858.40],
+  ["249 @ 1ink 1loc +ub", 2045.90],
+  ["249 @ 1ink 2loc", 2508.40],
+  ["249 @ 1ink 2loc +ub", 2695.90],
+  ["249 @ 2ink 1loc", 2045.90],
+  ["249 @ 2ink 2loc", 2720.90],
+  ["249 @ 3ink 1loc", 2233.40],
+  ["249 @ 3ink 2loc", 2933.40],
+  ["249 @ 5+ink 1loc", 2608.40],
+  ["249 @ 5+ink 2loc", 3358.40],
   ["250 @ 1ink 1loc", 1862.50],
   ["250 @ 1ink 1loc +ub", 2050.00],
   ["250 @ 1ink 2loc", 2512.50],

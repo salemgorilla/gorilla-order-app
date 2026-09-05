@@ -22,6 +22,31 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **The pricing invariants are tests, and they found a cliff** —
+  2026-09-04. Gabe uploaded the 22 Aug pricing handoff; its §10 asked for
+  four checks in CI ("fail the build on a monotonicity violation, do not
+  warn"). tests/pricing-invariants.test.ts runs them against the real
+  engines — totals never fall as quantity rises (ALL pairs), ladder
+  direction, tier coverage, setup derived from position — and on its
+  first run the apparel print tiers failed: 23 shirts printed for $184,
+  24 for $144, the same step-down cliff at 50, 100 and 250. Corrected
+  with the rule the shop already applies to yard signs: NEVER PAY MORE
+  THAN FOR MORE SHIRTS (lib/apparel-pricing.ts, `printTierQuantity`).
+  The customer buys only their blanks; the PRINT is charged at the better
+  tier, the summary card and the Printavo line both say so. 40 of the
+  120 committed grid totals moved, all just under a break, all down;
+  Stacey's 20-shirt anchors went $352.00 → $341.20 and $276.00 → $260.00
+  (the 24-shirt ones did not move). Audit driver 49/49 against the live
+  page with the rule in. Dormant flow — nothing customer-facing changed.
+  PRICING.md is the 22 Aug document rewritten first-hand from the repo
+  and re-dated. THE FINDING THAT MATTERS (D9): the app's print table is
+  NOT the Printavo matrix — $6.00 vs $4.50 a print at 24 pieces, the
+  colour adder $0.65 vs $2.15, garment markup 40% vs 130–150% — two
+  systems, one product, different answers. Blocks the apparel flip until
+  Gabe says which is Gorilla's price. Also reconciled: the website's sign
+  adders are stale on five of seven (D7); an unhemmed 18 oz banner prices
+  below a hemmed 13 oz at small sizes (D10).
+
 - **The apparel cart has its UI** — 2026-09-04. Under the configurator (which
   still configures ONE garment in full — catalogue, colour, the size grid)
   there is now "More garments, same print": add a line, pick a garment and a

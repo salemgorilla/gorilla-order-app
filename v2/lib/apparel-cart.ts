@@ -91,6 +91,8 @@ export type ApparelCartQuote = {
   unitPrice: number;
   inkColorCount: number;
   locationCount: number;
+  /** See ApparelPricingResult — the count the print charge was computed at. */
+  printTierQuantity: number;
   /**
    * Rush scheduling, when the need-by date calls for one — see
    * withApparelRush. Zero on an ordinary quote; always present so the
@@ -131,6 +133,7 @@ export function quoteApparelCart(
       unitPrice: 0,
       inkColorCount: 0,
       locationCount: 0,
+      printTierQuantity: 0,
     };
   }
 
@@ -180,6 +183,7 @@ export function quoteApparelCart(
     unitPrice: quantity > 0 ? round2(total / quantity) : 0,
     inkColorCount: priced.inkColorCount,
     locationCount: priced.locationCount,
+    printTierQuantity: priced.printTierQuantity,
   };
 }
 

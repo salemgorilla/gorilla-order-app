@@ -51,6 +51,10 @@ export default function ApparelSummaryCard({
   garmentLines = [],
 }: Props) {
   const isCart = garmentLines.length > 1;
+  // The run: every garment on a cart, the configurator's count otherwise.
+  const runQuantity = isCart
+    ? garmentLines.reduce((sum, line) => sum + line.quantity, 0)
+    : apparelQuote.quantity;
 
   return (
     <div className=" border border-[var(--rule)] bg-white p-6">
@@ -232,11 +236,25 @@ export default function ApparelSummaryCard({
               submissions hunting for a price the app never showed — name
               the levers so she can find her own. */}
           <p className="mt-2 text-fine font-medium leading-5 text-[var(--ink-muted)]">
-            What moves this number: ink colors, print locations, and run
-            size
-            {nextQuantityBreak(apparelQuote.quantity) !== null
-              ? ` — at ${nextQuantityBreak(apparelQuote.quantity)} shirts the printing rate drops.`
-              : "."}
+            {apparelPricing.printTierQuantity > runQuantity ? (
+              // Never-pay-more (lib/apparel-pricing.ts): said here so a
+              // customer at 23 shirts is not told the rate drops at 24
+              // when they are already getting it.
+              <>
+                Printing is charged at the {apparelPricing.printTierQuantity}
+                -piece rate, because that costs less than{" "}
+                {runQuantity} at the smaller-run rate — you never
+                pay more than you would for more shirts.
+              </>
+            ) : (
+              <>
+                What moves this number: ink colors, print locations, and run
+                size
+                {nextQuantityBreak(apparelQuote.quantity) !== null
+                  ? ` — at ${nextQuantityBreak(apparelQuote.quantity)} shirts the printing rate drops.`
+                  : "."}
+              </>
+            )}
           </p>
         </div>
       </div>

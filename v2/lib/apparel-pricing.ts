@@ -27,6 +27,13 @@ export type ApparelPricingResult = {
   locationCount: number;
   inkColorCount: number;
   underbaseFeePerPiece: number;
+  /**
+   * The piece count the PRINT charge was computed at. Equal to the quantity
+   * except just under a price break, where it is the next tier's minimum —
+   * see the never-pay-more rule in calculateApparelPricing. printTotal is
+   * always printUnitPrice × this, never × quantity.
+   */
+  printTierQuantity: number;
 };
 
 const fallbackApparelPricingConfig = {
@@ -112,17 +119,52 @@ export function calculateApparelPricing({
 
   const garmentTotal = garmentUnitPrice * safeQuantity;
 
-  const basePrintPrice = getBasePrintPrice(safeQuantity);
   const extraLocationFee =
     Math.max(0, locationCount - 1) * config.extraLocationFeePerPiece;
   const extraInkFee =
     Math.max(0, inkColorCount - 1) * config.extraInkColorFeePerPiece;
   const underbaseFeePerPiece = hasUnderbase ? config.underbaseFeePerPiece : 0;
+  const perPieceFees = extraLocationFee + extraInkFee + underbaseFeePerPiece;
 
-  const printUnitPrice =
-    basePrintPrice + extraLocationFee + extraInkFee + underbaseFeePerPiece;
+  /**
+   * NEVER PAY MORE THAN YOU WOULD FOR MORE SHIRTS.
+   *
+   * The print tiers step down at 24, 50, 100 and 250, and a step-down
+   * table has a cliff on the near side of every step: 23 shirts at $8.00
+   * printed for $184 while 24 at $6.00 printed for $144. A customer saved
+   * $40 by ordering one more shirt, and $57 at 49 -> 50. The pricing
+   * handoff's invariant checks (tests/pricing-invariants.test.ts) found
+   * it the first time they ran — the same shape that leaked money in the
+   * shop's Printavo matrix, arriving here by table rather than by typo.
+   *
+   * The rule is the one the shop already applies at the counter for yard
+   * signs (getYardSignPrice): if a bigger tier's MINIMUM prints for less,
+   * the print charge is that figure. The customer keeps the shirts they
+   * asked for and buys only those blanks; the PRINT is charged at the
+   * better tier. Per-piece adders (locations, colours, underbase) are part
+   * of the per-piece rate, so they are compared at the tier minimum too.
+   * Setup is untouched — screens do not care how many shirts run.
+   */
+  const tiers = [...config.basePrintPrices].sort(
+    (a, b) => a.minQuantity - b.minQuantity
+  );
 
-  const printTotal = printUnitPrice * safeQuantity;
+  let printUnitPrice = getBasePrintPrice(safeQuantity) + perPieceFees;
+  let printTierQuantity = safeQuantity;
+  let printTotal = printUnitPrice * safeQuantity;
+
+  for (const tier of tiers) {
+    if (tier.minQuantity <= safeQuantity) continue;
+
+    const unit = tier.pricePerPiece + perPieceFees;
+    const total = unit * tier.minQuantity;
+
+    if (total < printTotal) {
+      printUnitPrice = unit;
+      printTierQuantity = tier.minQuantity;
+      printTotal = total;
+    }
+  }
 
   const setupTotal =
     inkColorCount * locationCount * config.setupFeePerColorPerLocation;
@@ -141,5 +183,6 @@ export function calculateApparelPricing({
     locationCount,
     inkColorCount,
     underbaseFeePerPiece,
+    printTierQuantity,
   };
 }

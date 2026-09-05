@@ -79,13 +79,19 @@ describe("several garments, one run", () => {
   const twoLines = [line("tee", 3.49, 20), line("hoodie", 14.0, 20)];
 
   test("the print tier is read from the COMBINED count", () => {
-    // 20 + 20 is a 40-piece run: the 24+ rate ($6.00), not the under-24
-    // rate ($8.00) charged twice. This is what the press actually does.
+    // 20 + 20 is a 40-piece run, tiered as one — not two under-24 runs at
+    // $8.00. This is what the press actually does.
+    //
+    // Since 4 Sep the run also rides never-pay-more (lib/apparel-pricing):
+    // 40 sits under the 50 break, and 50 × $4.75 = $237.50 prints for less
+    // than 40 × $6.00 = $240.00, so the print is charged at the 50-piece
+    // figure. Was $6.00 / $240.00.
     const cart = quoteApparelCart(twoLines, FRONT_ONE_COLOR);
 
     assert.equal(cart.quantity, 40);
-    assert.equal(cart.printUnitPrice.toFixed(2), "6.00");
-    assert.equal(cart.printTotal.toFixed(2), "240.00");
+    assert.equal(cart.printTierQuantity, 50);
+    assert.equal(cart.printUnitPrice.toFixed(2), "4.75");
+    assert.equal(cart.printTotal.toFixed(2), "237.50");
   });
 
   test("setup is charged ONCE — the same screens print both", () => {
@@ -106,7 +112,9 @@ describe("several garments, one run", () => {
   test("the grand total is the three parts, to the cent", () => {
     const cart = quoteApparelCart(twoLines, FRONT_ONE_COLOR);
 
-    assert.equal(cart.total.toFixed(2), "614.80");
+    // $349.80 garments + $237.50 print + $25 setup. Was $614.80 while the
+    // print sat at the 40-piece figure — see the tier test above.
+    assert.equal(cart.total.toFixed(2), "612.30");
     assert.equal(
       (cart.garmentTotal + cart.printTotal + cart.setupTotal).toFixed(2),
       cart.total.toFixed(2)
@@ -115,14 +123,17 @@ describe("several garments, one run", () => {
 
   test("ordering together beats ordering separately", () => {
     // The reason the cart exists, as arithmetic: separately, each 20-piece
-    // run pays the under-24 print rate AND its own screens.
+    // run pays its own screens and its own (24-piece, never-pay-more) print
+    // figure; together they reach the 50-piece rate and burn one set.
+    // The saving was $105.00 before never-pay-more softened the separate
+    // runs' cliff; it is $75.50 now, and still the whole point.
     const together = quoteApparelCart(twoLines, FRONT_ONE_COLOR).total;
     const apart =
       quoteApparelCart([twoLines[0]], FRONT_ONE_COLOR).total +
       quoteApparelCart([twoLines[1]], FRONT_ONE_COLOR).total;
 
     assert.ok(together < apart, `${together} should beat ${apart}`);
-    assert.equal((apart - together).toFixed(2), "105.00");
+    assert.equal((apart - together).toFixed(2), "75.50");
   });
 
   test("the saving is named for the screen, not left implied", () => {

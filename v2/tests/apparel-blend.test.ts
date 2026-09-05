@@ -156,9 +156,11 @@ describe("real sizes replace the assumption with per-SKU pricing", () => {
 
 describe("the estimate composes through the real engine", () => {
   test("Stacey-shaped: 20 shirts, 3 colours, 1 location, dark garment", () => {
-    // Blended garment 4.10 (Gildan White figures for arithmetic's sake) —
-    // 20 shirts: print 8.00 base (under 24) + 2×0.65 extra inks + 0.75
-    // underbase = 10.05/shirt print; setup 3×1×25 = 75.
+    // Blended garment 4.10 (Gildan White figures for arithmetic's sake).
+    // 20 shirts sit under the 24 break, so never-pay-more (4 Sep) prints
+    // them at the 24-piece figure: 24 × (6.00 base + 2×0.65 inks + 0.75
+    // underbase = 8.05) = 193.20, against 20 × 10.05 = 201.00 at the
+    // under-24 rate. Garments stay 20 × 4.10; setup 3×1×25 = 75.
     const pricing = calculateApparelPricing({
       quantity: 20,
       garmentUnitPrice: 4.1,
@@ -168,9 +170,10 @@ describe("the estimate composes through the real engine", () => {
     });
 
     assert.equal(pricing.garmentTotal.toFixed(2), "82.00");
-    assert.equal(pricing.printTotal.toFixed(2), "201.00");
+    assert.equal(pricing.printTierQuantity, 24);
+    assert.equal(pricing.printTotal.toFixed(2), "193.20");
     assert.equal(pricing.setupTotal.toFixed(2), "75.00");
-    assert.equal(pricing.total.toFixed(2), "358.00");
+    assert.equal(pricing.total.toFixed(2), "350.20");
   });
 });
 

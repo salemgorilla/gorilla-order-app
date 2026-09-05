@@ -11,6 +11,7 @@ import {
   getSignDimensions,
   getSignProduct,
   getYardSignSizeKey,
+  SIGN_FAMILIES,
   type SignsDesign,
 } from "./signs";
 
@@ -62,6 +63,13 @@ export type SignsCartQuote = {
   note: string;
   hasQuotedExtras: boolean;
   suggestions: string[];
+  /**
+   * The order minimum this quote was lifted TO, when it was — $60 for signs,
+   * $45 for banners (signsPricingConfig.minimumOrder). Absent when the quote
+   * cleared it on its own. The summary card reads this to say why the total
+   * is what it is; the "Minimum order" line in `lines` carries the amount.
+   */
+  minimumApplied?: number;
   /**
    * Setup and finishing add-ons — the part of `total` that is fee rather
    * than goods, and therefore untaxed (lib/tax.ts). Carried on the quote so
@@ -164,14 +172,43 @@ export function quoteSignsCart(designs: SignsDesign[]): SignsCartQuote {
   // one day be given different arguments.
   const lines = buildCartLines(priced);
 
+  /**
+   * THE ORDER MINIMUM — Gabe, 2026-09-05. $60 for signs, $45 for banners,
+   * applied once to the whole quote after designs and setup are summed.
+   *
+   * Cart-level on purpose, not per design: two $46 yard-sign designs are a
+   * $92 order and clear it; one is $46 and does not. The family is design
+   * one's — the pipelines are hard-split, so a cart is all one family.
+   *
+   * The top-up is its own line so the customer sees WHY the total is $60
+   * (and so Printavo bills it as a row rather than burying it in a unit
+   * price). Its kind is "minimum": goods, taxed — see SignsPricingLine.
+   */
+  const family = getSignProduct(designs[0]?.productId).family;
+  const minimum = signsPricingConfig.minimumOrder[family];
+  const shortfall = round2(minimum - total);
+  const minimumApplied = shortfall > 0;
+
+  if (minimumApplied) {
+    lines.push({
+      label: `Minimum order (${SIGN_FAMILIES[family].label.toLowerCase()} start at $${minimum})`,
+      amount: shortfall,
+      kind: "minimum",
+      code: "MINIMUM",
+    });
+  }
+
+  const chargedTotal = minimumApplied ? minimum : total;
+
   return {
     priceable: true,
     designs: priced,
     lines,
     subtotal,
-    total,
+    total: chargedTotal,
+    ...(minimumApplied ? { minimumApplied: minimum } : {}),
     feeTotal: signsFeeTotal(lines),
-    unitPrice: quantity > 0 ? round2(total / quantity) : 0,
+    unitPrice: quantity > 0 ? round2(chargedTotal / quantity) : 0,
     quantity,
     note: signsPricingConfig.taxNote,
     hasQuotedExtras: priced.some((entry) => entry.pricing.hasQuotedExtras),

@@ -188,6 +188,21 @@ prices below target.
 
 **The same rule now applies to apparel printing** — §4.
 
+### Order minimums — Gabe, 2026-09-05
+
+| | |
+|---|---|
+| Sign orders (yard, rigid, poster, window) | **$60** |
+| Banner orders | **$45** |
+
+Applied once to the whole quote after designs and setup, before rush and
+tax. A quote under the floor is priced at it, with a "Minimum order" line
+making up the difference — **taxed as goods**, because it is the price of
+the signs, not a separately stated service. Cart-level: two $46 yard-sign
+designs are a $92 order and clear it; one is lifted to $60. Chosen as the
+answer to D10 (a 1′×2′ banner was $33 all in). `signsPricingConfig.
+minimumOrder`; `tests/signs-minimum.test.ts`.
+
 ### Everything else
 
 | | |
@@ -387,7 +402,7 @@ matrices assume. **Part of D9.**
 | D7 | Signs priced from two sources | Drift | **Reconciled here — website stale on 5 of 7 adders; Gabe to update Squarespace** |
 | D8 | App apparel print tiers: step-down cliff at 24/50/100/250 | Critical — dormant flow | **Corrected 2026-09-04** (never-pay-more) |
 | D9 | App print table ≠ Printavo matrix; app garment markup 40% vs matrix 130–150% | **Blocks the apparel flip** | **Open — Gabe's decision** |
-| D10 | 18 oz no-hem banner below hemmed 13 oz at small sizes | Observation | Open — Gabe's call |
+| D10 | 18 oz no-hem banner below hemmed 13 oz at small sizes | Observation | **Answered 2026-09-05 with order minimums** ($60 signs / $45 banners). The 2′×3′ inversion ($50 vs $54) still exists above the floor; Gabe chose the minimum over a credit clamp. |
 | D11 | Signs rush dropped from the Printavo payload (cart) / mis-SKU'd and taxed (one design) | Critical — was live 1 day | Corrected 2026-09-04 (#107) |
 | D12 | Apparel cart: one blended garment row, $0.41 short on a mixed cart | Latent — unreachable until the cart UI | Corrected 2026-09-04 (#109) |
 | D13 | Fees taxed on estimate and invoice | Ruling | Repriced 2026-09-04 (#108) — reference order $77.24 → $74.90 |
@@ -458,9 +473,8 @@ Proposal, not current state. Nothing here is committed to.
    matrix?** Blocks the flip.
 2. S4 for Printavo — does the matrix price include the blank?
 3. D7 — update the website's sign adders (and the price boards, #16).
-4. D10 — should the no-hem credit have a floor?
-5. D4 / D5 / D6 — DTF size tiers; embroidery gaps and the qty-6 cell.
-6. The flat 288→840 ladder — keep, or redesign the colour adder?
+4. D4 / D5 / D6 — DTF size tiers; embroidery gaps and the qty-6 cell.
+5. The flat 288→840 ladder — keep, or redesign the colour adder?
 
 *Sticker, sign and app-apparel figures read from the repo 2026-09-04. Printavo
 matrices and the website's adder list carried from the 22 Aug document and not

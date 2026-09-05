@@ -893,7 +893,15 @@ export function buildPrintavoQuotePlan(input: {
     (SIGNS_FEE_KINDS as readonly string[]).includes(str(line.kind, ""));
 
   const signsFeeLines = signsCart
-    ? [...signsLines.filter((l) => l.kind === "setup"), ...signsCartAddOnLines]
+    ? [
+        ...signsLines.filter((l) => l.kind === "setup"),
+        ...signsCartAddOnLines,
+        // The order-minimum top-up lives on the CART, not on any design, so
+        // the per-design sweep above would never see it — the same gap that
+        // dropped rush from a cart's invoice (#107). It is goods, so its
+        // `taxed` flag below comes out true, matching the estimate.
+        ...signsLines.filter((l) => l.kind === "minimum"),
+      ]
     : signsLines.slice(1).filter((l) => l.kind !== "rush");
 
   // The decal unit price excludes shipping — shipping becomes its own line

@@ -71,7 +71,10 @@ const CATALOG = {
             {
               sku: "B00760004",
               sizeName: "M",
-              markedUpPrice: 8.5,
+              // At the matrix's 150% base; the engine re-prices the blank
+              // per run size from priceByMarkup.
+              markedUpPrice: 15.18,
+              priceByMarkup: { "150": 15.18, "140": 14.57, "130": 13.96 },
               isAvailable: true,
               outOfStock: false,
             },

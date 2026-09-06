@@ -36,7 +36,7 @@ type Props = {
  * leaving the customer to email three times hunting for it.
  */
 function nextQuantityBreak(quantity: number): number | null {
-  const above = apparelPricingConfig.basePrintPrices
+  const above = apparelPricingConfig.tiers
     .map((tier) => tier.minQuantity)
     .filter((min) => min > quantity);
 

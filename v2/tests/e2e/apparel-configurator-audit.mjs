@@ -26,6 +26,7 @@ import { chromium } from "playwright";
 import fs from "node:fs";
 
 import { calculateApparelPricing } from "../../lib/apparel-pricing";
+import { garmentPriceByMarkup } from "../../lib/apparel-blend";
 import { quoteApparelCart } from "../../lib/apparel-cart";
 import { isStickerOrder } from "../../lib/sticker-repricing";
 
@@ -174,7 +175,9 @@ try {
   });
   check("all 60 Starter Tee colors render", colorButtons === 60, String(colorButtons));
 
-  // Color: White, sample size M ($3.49)
+  // Color: White, sample size M ($6.23 — the blank at the matrix's 150%
+  // base since 6 Sep; the grid shows that figure, the estimate re-prices
+  // it at the run's row)
   await clickColor(page, "White");
   await page.waitForTimeout(200);
   const sizeRow = await page.evaluate(() => {
@@ -183,8 +186,8 @@ try {
     );
     return h ? h.parentElement.innerText : "";
   });
-  check("the size row prices each size from its own SKU", /M\s*\n?\s*\$3\.49/.test(sizeRow), sizeRow.slice(0, 120));
-  check("the 2XL price difference is visible, as a price", /2XL\s*\n?\s*\$6\.30/.test(sizeRow));
+  check("the size row prices each size from its own SKU", /M\s*\n?\s*\$6\.23/.test(sizeRow), sizeRow.slice(0, 120));
+  check("the 2XL price difference is visible, as a price", /2XL\s*\n?\s*\$11\.25/.test(sizeRow));
 
   await page.evaluate(() => {
     const h = [...document.querySelectorAll("p")].find(
@@ -198,12 +201,16 @@ try {
 
   // ── BLEND MODE: before any size is entered ────────────────────────────
   // The rough count (defaults 24) gives the estimate a quantity; the
-  // garment component is the blended per-shirt price — Gildan 2000 White:
-  // base 3.49, +0.09×2.81 (2XL) +0.06×5.68 (3XL) = 4.0837 → 4.10 ceil-5¢.
+  // garment component is the blended per-shirt price at every markup the
+  // matrix uses (the engine picks the tier, then the blank) — Gildan 2000
+  // White at 150%: base 6.23, +0.09×5.02 (2XL) +0.06×10.15 (3XL) → 7.30.
+  const whiteTee = CATALOG.products
+    .find((p) => p.customerLabel === "Starter Tee")
+    .colors.find((c) => c.colorName === "White");
   {
     const expectBlend = calculateApparelPricing({
       quantity: 24,
-      garmentUnitPrice: 4.1,
+      garmentPriceByMarkup: garmentPriceByMarkup(whiteTee, null, 24),
       printLocations: ["Front"],
       inkColors: "1 color",
       hasUnderbase: false,
@@ -245,11 +252,10 @@ try {
   }
 
   // Engine comparison — EXACT basis (grid filled): M and L both price at
-  // 3.49, so the quantized per-shirt unit is 3.49 and these figures match
-  // the pre-blend era on purpose.
+  // 6.23 (150%), so the quantized per-shirt unit is 6.23.
   const expectA = calculateApparelPricing({
     quantity: 24,
-    garmentUnitPrice: 3.49,
+    garmentPriceByMarkup: garmentPriceByMarkup(whiteTee, { M: 12, L: 12 }, 24),
     printLocations: ["Front"],
     inkColors: "1 color",
     hasUnderbase: false,
@@ -266,7 +272,7 @@ try {
   await page.waitForTimeout(200);
   const expectB = calculateApparelPricing({
     quantity: 24,
-    garmentUnitPrice: 3.49,
+    garmentPriceByMarkup: garmentPriceByMarkup(whiteTee, { M: 12, L: 12 }, 24),
     printLocations: ["Front", "Back"],
     inkColors: "1 color",
     hasUnderbase: false,
@@ -400,12 +406,13 @@ try {
     const sup = p.supplier || {};
     check("payload: supplier SKU is White/M", sup.sku === "B00760006" || /^B0/.test(sup.sku ?? ""), String(sup.sku));
     console.log(`      supplier: ${sup.supplierProductName} style ${sup.catalogStyle} color ${sup.colorName} sample ${sup.sampleSize} sku ${sup.sku} @ $${sup.markedUpGarmentPrice}`);
-    check("payload: sample garment price rides along", sup.markedUpGarmentPrice === 3.49, String(sup.markedUpGarmentPrice));
+    check("payload: sample garment price rides along (150% base)", sup.markedUpGarmentPrice === 6.23, String(sup.markedUpGarmentPrice));
 
-    // Recompute the engine from what the payload itself claims
+    // Recompute the engine from what the payload itself claims: the M-24
+    // grid at every markup, the payload's own locations and ink.
     const expected = calculateApparelPricing({
       quantity: p.quantity,
-      garmentUnitPrice: sup.markedUpGarmentPrice,
+      garmentPriceByMarkup: garmentPriceByMarkup(whiteTee, { M: 24 }, 24),
       printLocations: p.printLocations,
       inkColors: p.inkColors,
       hasUnderbase: false, // White garment
@@ -509,12 +516,15 @@ try {
           inkColors: cOrder.product.inkColors,
           // A black hoodie in the run: the whole run is priced WITH the
           // underbase (lib/apparel-cart-lines.ts, anyGarmentNeedsUnderbase).
-          // The first run of this section recomputed with false and read a
-          // $27.00 gap — 36 pieces x $0.75 — which is the rule working.
+          // Under the matrix (6 Sep) that is ONE MORE COLOUR on every
+          // piece and one more screen — not a per-piece fee.
           hasUnderbase: lines.some((l) => l.colorName !== "White"),
         }
       );
-      check("cart: the payload states the underbase it charged", cOrder.pricing?.underbaseFeePerPiece === 0.75, String(cOrder.pricing?.underbaseFeePerPiece));
+      // One more than the ink picker says: the artwork's colours (auto-
+      // counted from the audit PNG) plus the white underbase.
+      const pickedInks = Number(String(cOrder.product?.inkColors ?? "1").match(/^(\d)/)?.[1] ?? 1);
+      check("cart: the payload counts the underbase as a colour", cOrder.pricing?.inkColorCount === pickedInks + 1, `${cOrder.pricing?.inkColorCount} vs picked ${pickedInks} + 1`);
       check(
         "cart: payload total equals the cart engine for its own lines",
         Math.abs((cOrder.pricing?.total ?? -1) - expected.total) < 0.005,

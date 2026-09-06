@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { fetchSsActivewearCatalog } from "../../../lib/ss-activewear";
+import { apparelPricingConfig } from "../../../lib/apparel-pricing-config";
 import {
   apparelCatalogItems,
   apparelCatalogStyles,
@@ -54,7 +55,7 @@ export async function GET(request: Request) {
       {
         source: "ss-activewear",
         generatedAt: new Date().toISOString(),
-        markupRate: Number(process.env.SS_MARKUP_RATE || 0.4),
+        markupRate: apparelPricingConfig.baseGarmentMarkup,
         products: [],
         error:
           error instanceof Error

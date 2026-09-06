@@ -1,3 +1,8 @@
+import {
+  apparelPricingConfig,
+  garmentMarkupKey,
+  garmentMarkups,
+} from "./apparel-pricing-config";
 type SsProduct = {
   sku?: string;
   styleID?: number;
@@ -19,6 +24,8 @@ type SsProduct = {
 };
 
 export type GorillaCatalogSize = {
+  /** See features/types.ts SsCatalogSize.priceByMarkup. */
+  priceByMarkup?: Record<string, number>;
   sku: string;
   sizeName: string;
   markedUpPrice: number;
@@ -90,15 +97,16 @@ function getRequiredEnv(name: string) {
   return value;
 }
 
+/**
+ * The blank markup is the PRICING MATRIX's now, not an environment
+ * variable. `SS_MARKUP_RATE` (0.4 by default, since the catalogue was
+ * built) is no longer read: the matrix carries a markup per run-size tier
+ * — 150%, 140%, 130% — and the catalogue serves every size at each of them
+ * (`priceByMarkup`), with the headline `markedUpPrice` at the base tier.
+ * Gabe, 2026-09-06: the Printavo matrix is the source of the app's price.
+ */
 function getMarkupRate() {
-  const rawRate = process.env.SS_MARKUP_RATE || "0.4";
-  const parsedRate = Number(rawRate);
-
-  if (Number.isNaN(parsedRate)) {
-    return 0.4;
-  }
-
-  return parsedRate;
+  return apparelPricingConfig.baseGarmentMarkup;
 }
 
 function getBasicAuthHeader() {
@@ -134,6 +142,17 @@ function getMarkedUpPrice(customerPrice: number | undefined, markupRate: number)
   }
 
   return roundCurrency(customerPrice * (1 + markupRate));
+}
+
+/** The size at every markup the matrix uses, from the UNROUNDED cost. */
+function getPriceByMarkup(customerPrice: number | undefined): Record<string, number> {
+  const prices: Record<string, number> = {};
+
+  for (const markup of garmentMarkups()) {
+    prices[garmentMarkupKey(markup)] = getMarkedUpPrice(customerPrice, markup);
+  }
+
+  return prices;
 }
 
 function sortSizes(a: GorillaCatalogSize, b: GorillaCatalogSize) {
@@ -228,6 +247,7 @@ function normalizeProducts(
       sku: product.sku || "",
       sizeName: product.sizeName || "Unknown Size",
       markedUpPrice,
+      priceByMarkup: getPriceByMarkup(Number(product.customerPrice || 0)),
       isAvailable,
       outOfStock: !isAvailable,
       ...(options.exposeWholesale

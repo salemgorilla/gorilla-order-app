@@ -1,4 +1,9 @@
-import type { SsCatalogColor } from "../features/types";
+import type { SsCatalogColor, SsCatalogSize } from "../features/types";
+import {
+  apparelPricingConfig,
+  garmentMarkupKey,
+  garmentMarkups,
+} from "./apparel-pricing-config";
 
 /**
  * The blended garment price — apparel's number before sizes are known.
@@ -35,9 +40,34 @@ export const ASSUMED_EXTENDED_MIX = [
 /** The sizes that share the style's base price. Everything above costs more. */
 const STANDARD_SIZES = ["S", "M", "L", "XL"];
 
-function priceOf(color: SsCatalogColor, sizeName: string): number | null {
+/**
+ * A size's price at a given blank markup.
+ *
+ * The catalogue serves `priceByMarkup` for every markup the matrix uses,
+ * computed server-side from the unrounded S&S price, so the browser never
+ * sees cost. `markedUpPrice` is the same figure at the matrix's base markup
+ * (150%) and is what the size grid shows before a run size exists.
+ *
+ * FALLBACK, for a colour that predates `priceByMarkup` (the committed
+ * fixtures, an old payload): re-derive from `markedUpPrice` by ratio. That
+ * can land a cent off the server's figure on some prices — fine for a
+ * fixture, which is why the live catalogue never takes this path.
+ */
+export function sizePriceAtMarkup(size: SsCatalogSize, markup: number): number {
+  const exact = size.priceByMarkup?.[garmentMarkupKey(markup)];
+  if (typeof exact === "number") return exact;
+
+  const base = apparelPricingConfig.baseGarmentMarkup;
+  return Math.round((size.markedUpPrice * (1 + markup)) / (1 + base) * 100) / 100;
+}
+
+function priceOf(
+  color: SsCatalogColor,
+  sizeName: string,
+  markup: number = apparelPricingConfig.baseGarmentMarkup
+): number | null {
   const size = color.sizes.find((s) => s.sizeName === sizeName);
-  return size ? size.markedUpPrice : null;
+  return size ? sizePriceAtMarkup(size, markup) : null;
 }
 
 /**
@@ -45,13 +75,16 @@ function priceOf(color: SsCatalogColor, sizeName: string): number | null {
  * first standard size, else the first size the colour has at all (a colour
  * sold only in extended sizes prices from what exists rather than nothing).
  */
-export function baseGarmentUnitPrice(color: SsCatalogColor): number {
+export function baseGarmentUnitPrice(
+  color: SsCatalogColor,
+  markup: number = apparelPricingConfig.baseGarmentMarkup
+): number {
   for (const name of ["M", ...STANDARD_SIZES]) {
-    const price = priceOf(color, name);
+    const price = priceOf(color, name, markup);
     if (price !== null) return price;
   }
 
-  return color.sizes[0]?.markedUpPrice ?? 0;
+  return color.sizes[0] ? sizePriceAtMarkup(color.sizes[0], markup) : 0;
 }
 
 /**
@@ -71,12 +104,15 @@ export function baseGarmentUnitPrice(color: SsCatalogColor): number {
  * mix shares because it is visible right here rather than buried in data
  * that claims to be a measurement.
  */
-export function blendedGarmentUnitPrice(color: SsCatalogColor): number {
-  const base = baseGarmentUnitPrice(color);
+export function blendedGarmentUnitPrice(
+  color: SsCatalogColor,
+  markup: number = apparelPricingConfig.baseGarmentMarkup
+): number {
+  const base = baseGarmentUnitPrice(color, markup);
 
   let blended = base;
   for (const { size, share } of ASSUMED_EXTENDED_MIX) {
-    const price = priceOf(color, size);
+    const price = priceOf(color, size, markup);
     if (price === null) continue;
 
     blended += share * Math.max(0, price - base);
@@ -93,14 +129,15 @@ export function blendedGarmentUnitPrice(color: SsCatalogColor): number {
  */
 export function exactGarmentTotal(
   color: SsCatalogColor,
-  sizeQuantities: Record<string, number>
+  sizeQuantities: Record<string, number>,
+  markup: number = apparelPricingConfig.baseGarmentMarkup
 ): number {
   let total = 0;
 
   for (const [sizeName, quantity] of Object.entries(sizeQuantities)) {
     if (!(quantity > 0)) continue;
 
-    const price = priceOf(color, sizeName);
+    const price = priceOf(color, sizeName, markup);
     if (price === null) continue;
 
     total += price * quantity;
@@ -127,11 +164,36 @@ export function exactGarmentTotal(
 export function garmentUnitPriceFromSizes(
   color: SsCatalogColor,
   sizeQuantities: Record<string, number>,
-  quantity: number
+  quantity: number,
+  markup: number = apparelPricingConfig.baseGarmentMarkup
 ): number {
-  const total = exactGarmentTotal(color, sizeQuantities);
+  const total = exactGarmentTotal(color, sizeQuantities, markup);
 
   return Math.ceil((total / Math.max(1, quantity)) * 100) / 100;
+}
+
+/**
+ * The blank's per-shirt price at EVERY markup the matrix uses — what the
+ * engine wants (ApparelPricingInput.garmentPriceByMarkup). Blended while no
+ * sizes are known; exact from the grid once they are. The engine picks the
+ * tier and, with it, which of these applies.
+ */
+export function garmentPriceByMarkup(
+  color: SsCatalogColor | null,
+  sizeQuantities: Record<string, number> | null,
+  quantity: number
+): Record<string, number> {
+  const prices: Record<string, number> = {};
+
+  for (const markup of garmentMarkups()) {
+    prices[garmentMarkupKey(markup)] = !color
+      ? 0
+      : sizeQuantities
+      ? garmentUnitPriceFromSizes(color, sizeQuantities, quantity, markup)
+      : blendedGarmentUnitPrice(color, markup);
+  }
+
+  return prices;
 }
 
 /**

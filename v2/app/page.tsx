@@ -92,9 +92,8 @@ import {
   type ExtraGarmentLine,
 } from "../lib/apparel-cart-lines";
 import {
-  blendedGarmentUnitPrice,
   describeAssumedMix,
-  garmentUnitPriceFromSizes,
+  garmentPriceByMarkup,
 } from "../lib/apparel-blend";
 import { pruneSizeQuantities } from "../lib/size-quantities";
 import { turnaroundLaneFor, turnaroundNote } from "../lib/turnaround";
@@ -605,15 +604,16 @@ export default function Home() {
      * contributes 0 exactly as before — printing and screens still price,
      * the garment is quoted by hand.
      */
-    const garmentUnit = !chosenSsColor
-      ? 0
-      : apparelEstimateBasis === "exact"
-      ? garmentUnitPriceFromSizes(
-          chosenSsColor,
-          sizeQuantities,
-          apparelQuote.quantity
-        )
-      : blendedGarmentUnitPrice(chosenSsColor);
+    // At EVERY markup the matrix uses: the engine picks the run's tier and,
+    // with it, which of these the blank is charged at. Blended until sizes
+    // exist, exact from the grid once they do; zero without a catalogue
+    // colour, exactly as before (printing and screens still price, the
+    // garment is quoted by hand).
+    const garmentPrices = garmentPriceByMarkup(
+      chosenSsColor,
+      apparelEstimateBasis === "exact" ? sizeQuantities : null,
+      apparelQuote.quantity
+    );
 
     /**
      * Priced through the CART engine as a cart of one.
@@ -633,7 +633,7 @@ export default function Home() {
           garmentLabel: selectedGarmentLabel,
           colorName: apparelQuote.garmentColor,
           catalogStyle: chosenSsProduct?.catalogStyle,
-          garmentUnitPrice: garmentUnit,
+          garmentPriceByMarkup: garmentPrices,
           quantity: apparelQuote.quantity,
         },
         // The "and also" garments, resolved against the live catalogue so
@@ -1297,9 +1297,13 @@ export default function Home() {
       return null;
     }
 
-    const underbaseCount = garmentColor === "White" ? 0 : 1;
+    // The artwork's colours only. The white underbase a dark garment needs
+    // is added by the ENGINE from `hasUnderbase` (one more colour, one more
+    // screen — the matrix model, 6 Sep). Adding it here too, as the
+    // pre-matrix engine wanted, would charge the same underbase twice.
+    void garmentColor;
 
-    return analysis.estimatedColorCount + underbaseCount;
+    return analysis.estimatedColorCount;
   }
 
   function formatInkColorOption(colorCount: number | null) {

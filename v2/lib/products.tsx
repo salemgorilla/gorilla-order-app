@@ -75,8 +75,26 @@ export const productCategories: ProductCategory[] = [
     // times in three vocabularies. The status line carries it now.
     description: "Screen printed tees, hoodies, crewnecks and hats.",
     segment: "decorated",
-    status: "request",
-    fulfilment: "Hand quote · usually same day",
+    /**
+     * LIVE since 2026-09-06 — Gabe: "Yes flip." The configurator prices
+     * garments from the S&S catalog and printing from the in-repo table
+     * (PRICING.md §4a; D9 decided the same week: "app pricing is the default
+     * for now"). It was `"request"` — a three-question hand-quote form —
+     * from 21 Aug until then, while the numbers were unconfirmed.
+     *
+     * The fulfilment line says ESTIMATE, not price, on purpose: the garment
+     * figure stands on an assumed size mix until sizes are entered, and the
+     * shop confirms blanks, artwork and print before anything is agreed
+     * (the handoff's language rule — never call it a price). And it must
+     * never say "pay online": apparel gets no payment link, and
+     * tests/product-fulfilment.test.ts checks that claim against
+     * isStickerOrder itself.
+     *
+     * Rollback is this one word back to "request" — the hand-quote form is
+     * still in the tree and page.tsx routes on the status.
+     */
+    status: "active",
+    fulfilment: "Instant estimate · we confirm, then invoice",
   },
   /**
    * Two large-format pipelines, not one (Gabe, 2026-08-23). "Banners & Signs"

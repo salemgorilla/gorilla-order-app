@@ -78,8 +78,12 @@ describe("every option says exactly one thing about itself", () => {
 
     assert.ok(apparel);
     assert.doesNotMatch(apparel.description, /quoted by hand/i);
-    assert.match(apparel.fulfilment, /hand quote/i);
-    assert.match(apparel.fulfilment, /same day/i);
+    // Since the 6 Sep flip the status line is the estimate promise, not the
+    // hand quote it was; the description must not repeat that either, and
+    // the line must never call the figure a price (the handoff's rule).
+    assert.doesNotMatch(apparel.description, /estimate/i);
+    assert.match(apparel.fulfilment, /estimate/i);
+    assert.doesNotMatch(apparel.fulfilment, /price/i);
   });
 });
 

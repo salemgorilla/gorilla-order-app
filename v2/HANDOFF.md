@@ -22,6 +22,18 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **D9 decided: app pricing is the default for now** — 2026-09-06, Gabe.
+  The in-repo apparel print table ($8/$6/$4.75/$4/$3.25 by run, +$0.65 a
+  colour, +$2.50 a location, $25 a screen, garment at S&S × 1.4, with
+  never-pay-more at the breaks) is what the app quotes; the Printavo
+  screen-print matrix is the shop's own record and is now the stale side.
+  This was the last thing gating the apparel flip in the readiness report.
+  STILL DORMANT until Gabe says flip: `status: "request"` in
+  lib/products.tsx → "active" is the whole change, and the rollback is one
+  revert. After the flip: one apparel test order reconciled ($252.76 —
+  24 Starter Tees, White, front, 1 colour, M-24; three Printavo lines, no
+  tax line).
+
 - **Rigid signs: the second side at a third less** — 2026-09-05, Gabe.
   Double-sided rigid was a flat +$8/sqft whatever the material; it is now
   the material's rate × (1 + 2/3) — PVC 1/8" $9 → $15.00 both sides,

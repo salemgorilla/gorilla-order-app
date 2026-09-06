@@ -321,14 +321,16 @@ second colour at 24 pieces; the app charges **+$0.65** (plus $25 for the
 screen). At 24 pieces × 3 colours the app prints for $7.30/pc + $75 screens;
 Printavo's matrix says $8.20/pc with screens published separately.
 
-Two systems, one product, different answers. **This is the decision the
-readiness report's "confirm the print-pricing numbers" was really asking,
-and it is a bigger question than yes/no:** which of these is what Gorilla
-charges? If the app's table is right, the Printavo matrix is stale and the
-shop is under-quoting by hand. If Printavo's is right, the app's table needs
-replacing before the flip — and the matrix's shape (the flat 288→840 ladder,
-the tenfold collapse of the colour adder) comes with it. Nothing ships either
-way until Gabe says which.
+Two systems, one product, different answers. **Decided 2026-09-06 — Gabe:
+"app pricing is the default for now."** The in-repo table (§4a) is what the
+app quotes; the Printavo matrix (§4b) is carried here as the shop's own
+record, not as the app's source. Consequences: the matrix is the thing that
+is now stale relative to what the website will quote, and a hand quote from
+it will come in under the app for the same job — worth knowing at the
+counter. "For now" is load-bearing: the table is one file
+(`lib/apparel-pricing-config.ts`), and swapping it for the matrix's shape
+later is a config change plus a deliberate price-sheet regeneration, not a
+rebuild.
 
 **S4, answered for the app:** the garment is priced separately (S&S price
 × markup) and the print table is decoration-only. Whether the *Printavo*
@@ -404,7 +406,7 @@ matrices assume. **Part of D9.**
 | D6 | Embroidery qty 6 backwards cell | Minor | **Open** |
 | D7 | Signs priced from two sources | Drift | **Built 2026-09-05** — corners, holes, velcro are selectable untaxed services; custom size / double-sided / stakes stay as the app has them ("the app's, right now"). Website still to update on those three. |
 | D8 | App apparel print tiers: step-down cliff at 24/50/100/250 | Critical — dormant flow | **Corrected 2026-09-04** (never-pay-more) |
-| D9 | App print table ≠ Printavo matrix; app garment markup 40% vs matrix 130–150% | **Blocks the apparel flip** | **Open — Gabe's decision** |
+| D9 | App print table ≠ Printavo matrix; app garment markup 40% vs matrix 130–150% | Was blocking the flip | **Decided 2026-09-06: app pricing is the default for now.** The matrix is the stale side. |
 | D10 | 18 oz no-hem banner below hemmed 13 oz at small sizes | Observation | **Answered 2026-09-05 with order minimums** ($60 signs / $45 banners). The 2′×3′ inversion ($50 vs $54) still exists above the floor; Gabe chose the minimum over a credit clamp. |
 | D11 | Signs rush dropped from the Printavo payload (cart) / mis-SKU'd and taxed (one design) | Critical — was live 1 day | Corrected 2026-09-04 (#107) |
 | D12 | Apparel cart: one blended garment row, $0.41 short on a mixed cart | Latent — unreachable until the cart UI | Corrected 2026-09-04 (#109) |
@@ -472,9 +474,10 @@ Proposal, not current state. Nothing here is committed to.
 
 ## Open questions, in order of what they block
 
-1. **D9 — which apparel price is Gorilla's: the app's table or the Printavo
-   matrix?** Blocks the flip.
-2. S4 for Printavo — does the matrix price include the blank?
+1. ~~D9~~ — decided: the app's table, for now. What remains is the flip
+   itself (readiness report) and one apparel test order reconciled after it.
+2. S4 for Printavo — does the matrix price include the blank? (Only matters
+   if the matrix ever becomes the app's source.)
 3. D7 — update the website's three stale adders (and the price boards, #16).
 4. D4 / D5 / D6 — DTF size tiers; embroidery gaps and the qty-6 cell.
 5. The flat 288→840 ladder — keep, or redesign the colour adder?

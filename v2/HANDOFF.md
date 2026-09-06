@@ -22,6 +22,24 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **The website's adders are services now** — 2026-09-05, Gabe: "if the
+  user selects that service, that cost should be added, and non-taxable";
+  per sign; velcro by placement; and for the three that collide with
+  earlier rulings, "the app's, right now". Built: ROUNDED CORNERS and
+  HOLES at $5 per sign on yard and rigid signs (checkboxes, unticked by
+  default — rigid used to default to a free "Drilled Holes" finishing,
+  which is gone so the service is never charged for a default nobody
+  chose); VELCRO on banners at $1.50 per linear foot of the edges chosen
+  (chips: top / middle / bottom / sides / all — width, width, width,
+  2 × height, 3 × width + 2 × height). Every line is kind "addOn", so
+  untaxed on the estimate and taxed:false on the invoice, on both Printavo
+  paths. The spec carries `signAddOns` and `velcro`, so the server
+  reprices the same sign (tests/signs-services.test.ts round-trips it).
+  NOT built, deliberately: custom size $20, double-sided $7 flat, step
+  stake $2 — the app's $0 / per-sqft / $2.50 stand. Verified in Chromium:
+  ten yard signs with corners +$50; a 3' x 6' banner with velcro all
+  round +$36 (24 ft), the line untaxed.
+
 - **Order minimums on signs and banners** — 2026-09-05, Gabe's numbers:
   sign orders start at $60, banner orders at $45. Applied ONCE to the whole
   quote (lib/signs-cart.ts) after designs and setup, before rush and tax,

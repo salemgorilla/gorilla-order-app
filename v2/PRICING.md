@@ -217,25 +217,28 @@ minimumOrder`; `tests/signs-minimum.test.ts`.
 | Rigid, per sqft | PVC ⅛" / Corrugated ¼" $9.00 · Dibond ⅛", PVC ¼", AlumaCorr 0.2", Aluminum 040, Corrugated ½" $11.00 · PVC ½", AlumaCorr 0.4", Aluminum 080, Dibond ¼" $13.50 |
 | Rigid finishing | "Drilled Holes" / "No Holes" — **no charge either way** |
 
-### D7 — the website's adders, reconciled
+### D7 — the website's adders, reconciled and (partly) built
 
 The 22 Aug doc listed what `gorillasalem.com` publishes and said "worth
-reconciling; if they already disagree, that is a live bug." They disagree on
-five of seven. The app is authoritative (§1); **the website is stale**:
+reconciling." Gabe's ruling, 5 Sep: **"if the user selects that service,
+that cost should be added, and non-taxable"** — per sign; velcro by
+placement (top, middle, bottom, sides, all). And on the three that collide
+with earlier rulings: **"the app's, right now."**
 
-| Website says | App charges | |
+| Website says | App, since 5 Sep | |
 |---|---|---|
 | Setup fee $15.00 | $15 per design | ✓ |
-| Custom size $20.00 | **$0** | website stale (Gabe removed it 22 Aug) |
-| Double sided $7.00 | +$8.00/sqft, or the yard-sign column | different basis, different number |
-| Rounded corners $5.00 | not offered | website lists something the app cannot sell |
-| Holes $5.00 | **$0** | website stale |
-| Step stake $2.00 | **$2.50** | website stale (the 2 Aug raise) |
-| Velcro $1.50/ft | not offered | website lists something the app cannot sell |
+| Rounded corners $5.00 | **$5 per sign**, yard and rigid, opt-in | built — untaxed fee line |
+| Holes $5.00 | **$5 per sign**, yard and rigid, opt-in | built — was a free "Drilled Holes" finishing on rigid; now a service, unticked by default |
+| Velcro $1.50/ft | **$1.50 per linear ft** of the edges chosen, banners | built — top/middle/bottom = width; sides = 2 × height; all = 3 × width + 2 × height |
+| Custom size $20.00 | $0 | app stands (Gabe removed it 22 Aug) |
+| Double sided $7.00 | +$8.00/sqft, or the yard-sign column | app stands |
+| Step stake $2.00 | $2.50 | app stands (the 2 Aug raise) |
 
-This is Gabe's Squarespace to fix, alongside the in-shop price boards (task
-#16). Until then a customer can read one price on the website and be quoted
-another by the app for the same sign.
+`signsPricingConfig.signAddOns` / `.velcro`; `tests/signs-services.test.ts`
+pins the figures, the untaxed treatment on both Printavo paths, and the
+server repricing the same selections. The website still needs its three
+stale figures corrected (task #42), alongside the price boards (#16).
 
 ### D10 — one thing the invariant sweep noticed
 
@@ -399,7 +402,7 @@ matrices assume. **Part of D9.**
 | D4 | DTF size blindness | Structural | **Open** — pricing decision |
 | D5 | Embroidery stitch-tier gaps | Coverage | **Open** |
 | D6 | Embroidery qty 6 backwards cell | Minor | **Open** |
-| D7 | Signs priced from two sources | Drift | **Reconciled here — website stale on 5 of 7 adders; Gabe to update Squarespace** |
+| D7 | Signs priced from two sources | Drift | **Built 2026-09-05** — corners, holes, velcro are selectable untaxed services; custom size / double-sided / stakes stay as the app has them ("the app's, right now"). Website still to update on those three. |
 | D8 | App apparel print tiers: step-down cliff at 24/50/100/250 | Critical — dormant flow | **Corrected 2026-09-04** (never-pay-more) |
 | D9 | App print table ≠ Printavo matrix; app garment markup 40% vs matrix 130–150% | **Blocks the apparel flip** | **Open — Gabe's decision** |
 | D10 | 18 oz no-hem banner below hemmed 13 oz at small sizes | Observation | **Answered 2026-09-05 with order minimums** ($60 signs / $45 banners). The 2′×3′ inversion ($50 vs $54) still exists above the floor; Gabe chose the minimum over a credit clamp. |
@@ -472,7 +475,7 @@ Proposal, not current state. Nothing here is committed to.
 1. **D9 — which apparel price is Gorilla's: the app's table or the Printavo
    matrix?** Blocks the flip.
 2. S4 for Printavo — does the matrix price include the blank?
-3. D7 — update the website's sign adders (and the price boards, #16).
+3. D7 — update the website's three stale adders (and the price boards, #16).
 4. D4 / D5 / D6 — DTF size tiers; embroidery gaps and the qty-6 cell.
 5. The flat 288→840 ladder — keep, or redesign the colour adder?
 

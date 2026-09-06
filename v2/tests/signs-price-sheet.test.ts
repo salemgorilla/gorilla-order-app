@@ -50,6 +50,8 @@ import { signsPricingConfig } from "../lib/signs-pricing-config";
  *           no-hem credit, and every finishing add-on.
  *   poster  three sizes x two quantities.
  *   rigid   all eleven materials, plus sizes and double-sided on PVC 1/8".
+ *   services  rounded corners and holes per sign (yard, rigid), velcro by
+ *           placement (banner) — Gabe's 5 Sep ruling on the website's adders.
  *
  * ── WHAT IS NOT COVERED ───────────────────────────────────────────────────
  * Tax — signs quote pre-tax and say so (`taxNote`). Shipping — signs have
@@ -110,6 +112,16 @@ banner | 5   | 72x36   | 18 oz Heavy Duty Vinyl    | single | Hemmed + Grommets 
 banner | 1   | 96x48   | 18 oz Heavy Duty Vinyl    | single | Hemmed + Grommets  | -                         | 415.00
 banner | 5   | 96x48   | 18 oz Heavy Duty Vinyl    | single | Hemmed + Grommets  | -                         | 2015.00
 banner | 1   | 96x24   | 18 oz Heavy Duty Vinyl    | single | Hemmed + Grommets  | -                         | 215.00
+yard   | 10  | 18x24   | Coroplast                 | single | Signs Only         | roundedCorners            | 200.00
+yard   | 10  | 18x24   | Coroplast                 | single | Signs Only         | roundedCorners+holes      | 250.00
+yard   | 1   | 18x24   | Coroplast                 | single | With Step Stakes   | holes                     | 53.50
+rigid  | 4   | 24x18   | PVC 1/8"                  | single | Standard           | holes                     | 143.00
+rigid  | 4   | 24x18   | PVC 1/8"                  | double | Standard           | roundedCorners+holes      | 259.00
+banner | 1   | 72x36   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | velcro:top                | 186.00
+banner | 1   | 72x36   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | velcro:sides              | 186.00
+banner | 1   | 72x36   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | velcro:all                | 213.00
+banner | 5   | 72x36   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | velcro:all                | 1005.00
+banner | 1   | 96x48   | 18 oz Heavy Duty Vinyl    | single | Hemmed + Grommets  | polePockets+velcro:bottom | 442.00
 banner | 5   | 96x24   | 18 oz Heavy Duty Vinyl    | single | Hemmed + Grommets  | -                         | 1015.00
 banner | 1   | 48x24   | Mesh Vinyl (windy areas)  | single | Hemmed + Grommets  | -                         | 87.00
 banner | 5   | 48x24   | Mesh Vinyl (windy areas)  | single | Hemmed + Grommets  | -                         | 375.00
@@ -249,15 +261,26 @@ function priceOf(row: Row) {
     doubleSided: row.doubleSided,
     stepStakes: row.finishing === "With Step Stakes",
     finishing: row.finishing,
-    bannerAddOns: row.addOns,
+    // The add-ons column carries three kinds of token since 5 Sep: banner
+    // finishing keys (polePockets…), per-sign services on yard and rigid
+    // (roundedCorners, holes) and a velcro placement (velcro:top).
+    bannerAddOns: row.addOns.filter(
+      (key) => !key.startsWith("velcro:") && !SIGN_SERVICE_KEYS.includes(key)
+    ),
+    signAddOns: row.addOns.filter((key) => SIGN_SERVICE_KEYS.includes(key)),
+    velcro: row.addOns.find((key) => key.startsWith("velcro:"))?.slice("velcro:".length) ?? "",
   });
 }
+
+const SIGN_SERVICE_KEYS = Object.keys(signsPricingConfig.signAddOns);
 
 describe("the signs price sheet has not moved", () => {
   test("the sheet parsed, and covers the grid it claims to", () => {
     // A parser that silently matched nothing would make every test below pass
     // by iterating an empty list.
-    assert.equal(ROWS.length, 120);
+    // 120 on 2026-08-24, plus ten rows for the selectable services (rounded
+    // corners, holes, velcro) Gabe ruled on 2026-09-05.
+    assert.equal(ROWS.length, 130);
 
     assert.deepEqual(
       [...new Set(ROWS.map((r) => r.method))].sort(),
@@ -287,6 +310,14 @@ describe("the signs price sheet has not moved", () => {
     assert.ok(ROWS.some((r) => r.addOns.length > 0));
     assert.ok(ROWS.some((r) => r.finishing === "With Step Stakes"));
     assert.ok(ROWS.some((r) => r.finishing === "No Hem or Grommets"));
+    // The services: every key, and every velcro placement that prices
+    // differently (top/middle/bottom are the same footage).
+    for (const key of SIGN_SERVICE_KEYS) {
+      assert.ok(ROWS.some((r) => r.addOns.includes(key)), `no row for ${key}`);
+    }
+    for (const placement of ["top", "sides", "all", "bottom"]) {
+      assert.ok(ROWS.some((r) => r.addOns.includes(`velcro:${placement}`)), `no velcro:${placement} row`);
+    }
   });
 
   for (const row of ROWS) {

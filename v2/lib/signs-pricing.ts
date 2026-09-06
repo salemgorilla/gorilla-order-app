@@ -19,6 +19,10 @@ export type SignsPricingInput = {
   finishing?: string;
   /** Banner finishing add-on keys (see signsPricingConfig.banner.addOns). */
   bannerAddOns?: string[];
+  /** Yard and rigid: per-sign services (signsPricingConfig.signAddOns). */
+  signAddOns?: string[];
+  /** Banners: velcro placement key (signsPricingConfig.velcro.placements). */
+  velcro?: string;
 };
 
 export type SignsPricingLine = {
@@ -468,6 +472,57 @@ export function calculateSignsPricing(
     suggestions.push(
       "Banners this large usually need reinforcement (webbing or rope) — we'll confirm what's best."
     );
+  }
+
+  // ---- per-sign services on yard and rigid signs (Gabe, 2026-09-05) ----
+  // Untaxed, like every fee: kind "addOn" keeps them out of the taxable base
+  // on the estimate and off the taxed rows on the invoice.
+  if (
+    (input.method === "yard" || input.method === "rigid") &&
+    input.signAddOns?.length
+  ) {
+    for (const key of input.signAddOns) {
+      const service = cfg.signAddOns[key];
+      if (!service) continue;
+
+      const amount = service.perSign * quantity;
+      productTotal += amount;
+      lines.push({
+        label:
+          quantity > 1
+            ? `${service.label} (${quantity} × $${service.perSign})`
+            : service.label,
+        amount: round2(amount),
+        kind: "addOn",
+        code: `ADDON-${key.toUpperCase()}`,
+      });
+    }
+  }
+
+  // ---- velcro on banners: by the foot of the edges chosen ----
+  if (input.method === "banner" && input.velcro) {
+    const placement = cfg.velcro.placements[input.velcro];
+
+    if (placement) {
+      const widthFt = (input.widthInches || 0) / 12;
+      const heightFt = (input.heightInches || 0) / 12;
+      const feetEach = placement.widths * widthFt + placement.heights * heightFt;
+      const amount = feetEach * cfg.velcro.perLinearFoot * quantity;
+
+      if (amount > 0) {
+        productTotal += amount;
+        lines.push({
+          label: `${cfg.velcro.label} — ${placement.label.toLowerCase()} (${round2(
+            feetEach
+          )} linear ft × $${cfg.velcro.perLinearFoot}${
+            quantity > 1 ? ` × ${quantity}` : ""
+          })`,
+          amount: round2(amount),
+          kind: "addOn",
+          code: `ADDON-VELCRO-${input.velcro.toUpperCase()}`,
+        });
+      }
+    }
   }
 
   // ---- order-level fees ----

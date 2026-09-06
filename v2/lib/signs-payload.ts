@@ -79,6 +79,8 @@ export type SignsDesignSpec = {
   finishing: string;
   doubleSided: boolean;
   bannerAddOns: string[];
+  signAddOns: string[];
+  velcro: string;
   templateId: string | null;
   templateText: Record<string, string>;
 };
@@ -124,6 +126,11 @@ function describeDesign(
       finishing: design.finishing,
       doubleSided: design.doubleSided,
       bannerAddOns: design.bannerAddOns ?? [],
+      // The services (Gabe, 2026-09-05). In the spec so the server reprices
+      // the same sign the browser priced — a service the server could not
+      // see would quote one number and invoice another.
+      signAddOns: design.signAddOns ?? [],
+      velcro: design.velcro ?? "",
       templateId: design.templateId,
       templateText: design.templateText ?? {},
     },

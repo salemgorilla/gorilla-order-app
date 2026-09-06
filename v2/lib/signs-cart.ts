@@ -120,6 +120,8 @@ export function priceSignsDesign(design: SignsDesign): SignsPricingResult {
     stepStakes: design.finishing === "With Step Stakes",
     finishing: design.finishing,
     bannerAddOns: design.bannerAddOns,
+    signAddOns: design.signAddOns,
+    velcro: design.velcro,
   });
 }
 

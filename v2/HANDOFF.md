@@ -22,6 +22,18 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **Printavo's matrix now follows the app** — 2026-09-06, Gabe: "switch
+  to website pricing." The screen-print matrix in Printavo is to be
+  re-entered from the app's table so hand quotes equal the website:
+  rows at the app's breaks (1/24/50/100/250), each colour +$0.65,
+  product markup 40%, and five entry rules — never-pay-more done by hand
+  at the tier minimums, screens $25 per colour per location as a
+  separate line, a second location as $2.50/pc + screens (NOT a second
+  matrix hit), dark garments as +1 colour AND +$0.75/pc. Generated from
+  calculateApparelPricing, not typed; PRICING.md §4b, with the old matrix
+  retired to §4c for the record. Gabe enters it in Printavo; the "Printavo
+  Matrix" artifact is the page to type from.
+
 - **APPAREL IS LIVE** — 2026-09-06, Gabe: "Yes flip." lib/products.tsx
   status "request" → "active": the priced configurator replaces the
   three-question hand-quote form on production. The fulfilment line reads

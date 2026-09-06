@@ -283,9 +283,64 @@ moved, all just under a break, all downward; the diff is in
 These numbers are **Gabe's, still awaiting his confirmation** (readiness
 report, item 1).
 
-### 4b · In Printavo — carried from 22 Aug, not re-read
+### 4b · In Printavo — rewritten to match the app, 2026-09-06
 
-The shop's screen-print matrix, corrected 2026-08-22:
+Gabe, 6 Sep: **"switch to website pricing"** — the app's table (§4a) is the
+price, and Printavo's screen-print matrix is re-entered from it so a hand
+quote and the website cannot disagree. The rows below are generated from
+`calculateApparelPricing` (garment at $0, one location, no underbase), and
+`tests/pricing-invariants.test.ts` keeps them monotonic.
+
+**The matrix — print per piece, one location, by run size and colour count:**
+
+| Qty | 1c | 2c | 3c | 4c | 5c | 6c | 7c | Product markup |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 8.00 | 8.65 | 9.30 | 9.95 | 10.60 | 11.25 | 11.90 | 40% |
+| 24 | 6.00 | 6.65 | 7.30 | 7.95 | 8.60 | 9.25 | 9.90 | 40% |
+| 50 | 4.75 | 5.40 | 6.05 | 6.70 | 7.35 | 8.00 | 8.65 | 40% |
+| 100 | 4.00 | 4.65 | 5.30 | 5.95 | 6.60 | 7.25 | 7.90 | 40% |
+| 250 | 3.25 | 3.90 | 4.55 | 5.20 | 5.85 | 6.50 | 7.15 | 40% |
+
+Each colour adds $0.65 per piece; the app's picker stops at "5+", so 6c
+and 7c extend the same ladder and are optional to enter.
+
+**The five rules that make a hand quote equal the website:**
+
+1. **Tiers are the app's breaks** — 1 / 24 / 50 / 100 / 250 — not the old
+   11 rows. Step-down: 40 pieces price at the 24 row.
+2. **Never pay more, by hand.** The app prices 20–23 pieces at the 24-row
+   figure × 24, 45–49 at 50 × 50, 90–99 at 100 × 100, 225–249 at 250 × 250
+   (whenever that is cheaper). Printavo will not do this for you: quote
+   those counts at the next tier's minimum.
+3. **Screens are a separate line: $25 per colour per location.** The
+   matrix is print only.
+4. **A second location is NOT a second pass through the matrix.** It is
+   **$2.50 per piece** plus its own screens. (Front and back, 1 colour, 24
+   pieces: 24 × $6.00 + 24 × $2.50 + 2 × $25 = $254.00.)
+5. **Dark garments: count the underbase as a colour AND add $0.75 per
+   piece.** A 1-colour design on black at 48 pieces is the 2c cell ($5.40
+   at the 50 row, never-pay-more) plus $0.75 = $6.15 per piece, × 50, plus
+   2 screens = $357.50.
+
+**Product markup 40%**, to match `SS_MARKUP_RATE`. Assumes Printavo's
+markup is applied to the same S&S customer price the app reads — confirm
+on the first reconciled order (task #44).
+
+**Worked examples, engine figures:**
+
+| job | print | screens | total (garments extra) |
+|---|---|---|---|
+| 20 × 3c front | $7.30 × 24 = $175.20 | $75 | $250.20 |
+| 24 × 1c front | $6.00 × 24 = $144.00 | $25 | $169.00 |
+| 24 × 1c front + back | $8.50 × 24 = $204.00 | $50 | $254.00 |
+| 48 × 2c front, black | $6.15 × 50 = $307.50 | $50 | $357.50 |
+| 100 × 1c front | $4.00 × 100 = $400.00 | $25 | $425.00 |
+
+### 4c · The retired matrix — for the record only
+
+The screen-print matrix the shop quoted from until 6 Sep, corrected
+2026-08-22. **Do not quote from it.** Kept so a past quote can be
+explained.
 
 | Qty | 1c | 2c | 3c | 4c | 5c | 6c | 7c | Markup |
 |---|---|---|---|---|---|---|---|---|
@@ -301,40 +356,11 @@ The shop's screen-print matrix, corrected 2026-08-22:
 | 2496 | 1.05 | 1.15 | 1.25 | 1.35 | 1.45 | 1.55 | 1.65 | 130% |
 | 5001 | 1.00 | 1.10 | 1.12 | 1.15 | 1.17 | 1.20 | 1.22 | 130% |
 
-Published adders: additional screen $25, oversize screen $50, custom ink
-change $30. Not captured: additional location, repeat-screen charge,
-specialty inks, sleeve pricing, poly upcharge, fold-and-bag, minimums.
-
-### D9 — the two tables are not the same price
-
-Per piece, one colour, front only:
-
-| Run | App | Printavo | App is |
-|---|---|---|---|
-| 24 | $6.00 | $4.50 | +33% |
-| 48–50 | $4.75 (at 50) | $4.00 | +19% |
-| 100–144 | $4.00 | $3.00 (at 144) | +33% |
-| 250–288 | $3.25 | $2.50 (at 288) | +30% |
-
-And the colour adder runs the other way: Printavo charges **+$2.15** for a
-second colour at 24 pieces; the app charges **+$0.65** (plus $25 for the
-screen). At 24 pieces × 3 colours the app prints for $7.30/pc + $75 screens;
-Printavo's matrix says $8.20/pc with screens published separately.
-
-Two systems, one product, different answers. **Decided 2026-09-06 — Gabe:
-"app pricing is the default for now."** The in-repo table (§4a) is what the
-app quotes; the Printavo matrix (§4b) is carried here as the shop's own
-record, not as the app's source. Consequences: the matrix is the thing that
-is now stale relative to what the website will quote, and a hand quote from
-it will come in under the app for the same job — worth knowing at the
-counter. "For now" is load-bearing: the table is one file
-(`lib/apparel-pricing-config.ts`), and swapping it for the matrix's shape
-later is a config change plus a deliberate price-sheet regeneration, not a
-rebuild.
-
-**S4, answered for the app:** the garment is priced separately (S&S price
-× markup) and the print table is decoration-only. Whether the *Printavo*
-matrix includes the blank is still unconfirmed.
+Where the two disagreed, and why it mattered (D9, now closed): at 24
+pieces the retired matrix printed one colour for $4.50 against the app's
+$6.00, and charged +$2.15 for a second colour against the app's +$0.65; the
+blank carried 130–150% markup against the app's 40%. A hand quote from it
+came in under the website for the same job.
 
 ---
 
@@ -465,8 +491,9 @@ Proposal, not current state. Nothing here is committed to.
 - **S2 — DTF size tiers.** Unchanged; four tiers matching the vendor's nesting
   (to 4×4, 5×5, 8×10, 11×14). Decision D4 first.
 - **S3 — invariant checks in CI.** Done (§10).
-- **S4 — does the matrix include the blank?** Answered for the app (no);
-  open for Printavo. One sentence from the shop.
+- **S4 — does the matrix include the blank?** Answered: no, on both sides
+  now — §4b's matrix is print only, with screens and the blank as their own
+  lines, exactly as the app composes it.
 - **S5 — what must not happen.** Holds and is pinned: no apparel payment link
   (`isStickerOrder(priced apparel) === false`, by name); cost data server-side
   (the S&S markup is applied in the catalog route; the browser sees marked-up

@@ -326,8 +326,16 @@ export function calculateSignsPricing(
     const isSewnDouble = wantsDouble && bannerDouble?.method === "sewn";
     const takesDoubleSurcharge = wantsDouble && !isSewnDouble;
 
+    // Rigid: the second side at two thirds of the first (Gabe, 2026-09-05).
+    // Everything else that takes the surcharge (18 oz banners) adds the
+    // flat per-sqft figure.
+    const secondSidePerSqft =
+      input.method === "rigid"
+        ? round2(perSqft * cfg.rigid.secondSideFactor)
+        : cfg.doubleSidedPerSqft;
+
     const effectivePerSqft = takesDoubleSurcharge
-      ? perSqft + cfg.doubleSidedPerSqft
+      ? perSqft + secondSidePerSqft
       : perSqft;
 
     const totalSqft = sqftEach * quantity;
@@ -348,7 +356,10 @@ export function calculateSignsPricing(
 
     if (takesDoubleSurcharge) {
       lines.push({
-        label: `(includes +$${cfg.doubleSidedPerSqft}/sqft double-sided)`,
+        label:
+          input.method === "rigid"
+            ? `(includes the second side at $${secondSidePerSqft.toFixed(2)}/sqft — a third less than the first)`
+            : `(includes +$${cfg.doubleSidedPerSqft}/sqft double-sided)`,
         amount: 0,
       });
     }

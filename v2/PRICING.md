@@ -211,7 +211,7 @@ minimumOrder`; `tests/signs-minimum.test.ts`.
 | Custom size | **no charge** — a custom size costs the same as a standard one on every sign type |
 | Banner, per sqft | 13 oz $9.00 · 18 oz $12.50 · mesh $9.00 — hems and standard grommets included |
 | No-hem credit | 18 oz only: −$2.50 per linear ft of perimeter |
-| Double-sided | 18 oz: +$8.00/sqft · 13 oz: **sewn** — two panels + $11.00/linear ft · rigid: +$8.00/sqft · yard signs: own column |
+| Double-sided | 18 oz: +$8.00/sqft · 13 oz: **sewn** — two panels + $11.00/linear ft · **rigid: the second side at two thirds of the material's rate** (Gabe, 2026-09-05 — PVC ⅛″ $15.00/sqft both sides, Dibond ¼″ $22.50; replaced a flat +$8) · yard signs: own column |
 | Banner add-ons | pole pockets $15 flat · wind slits $6 flat · webbing/D-rings/rope $6/linear ft (Gorilla's own rates, excluded from the 2 Aug raise on purpose) |
 | Poster | $5.50/sqft |
 | Rigid, per sqft | PVC ⅛" / Corrugated ¼" $9.00 · Dibond ⅛", PVC ¼", AlumaCorr 0.2", Aluminum 040, Corrugated ½" $11.00 · PVC ½", AlumaCorr 0.4", Aluminum 080, Dibond ¼" $13.50 |
@@ -232,7 +232,7 @@ with earlier rulings: **"the app's, right now."**
 | Holes $5.00 | **$5 per sign**, yard and rigid, opt-in | built — was a free "Drilled Holes" finishing on rigid; now a service, unticked by default |
 | Velcro $1.50/ft | **$1.50 per linear ft** of the edges chosen, banners | built — top/middle/bottom = width; sides = 2 × height; all = 3 × width + 2 × height |
 | Custom size $20.00 | $0 | app stands (Gabe removed it 22 Aug) |
-| Double sided $7.00 | +$8.00/sqft, or the yard-sign column | app stands |
+| Double sided $7.00 | banners +$8.00/sqft; rigid second side at ⅔ of the first; yard-sign column | app stands (Gabe, 5 Sep: "app is the right prices") |
 | Step stake $2.00 | $2.50 | app stands (the 2 Aug raise) |
 
 `signsPricingConfig.signAddOns` / `.velcro`; `tests/signs-services.test.ts`

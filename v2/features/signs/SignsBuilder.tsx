@@ -380,6 +380,16 @@ export default function SignsBuilder({
                         design.material
                       ]?.constructionPerLinearFoot ?? 0
                     )} per linear foot to construct.`
+                  : product.pricingMethod === "rigid"
+                  ? // The second side at two thirds of the first (Gabe,
+                    // 2026-09-05), so the figure depends on the material.
+                    `The second side is a third less than the first — ${priceCopy(
+                      Math.round(
+                        (signsPricingConfig.rigid.perSqftByMaterial[design.material] ?? 0) *
+                          signsPricingConfig.rigid.secondSideFactor *
+                          100
+                      ) / 100
+                    )} per square foot on ${design.material}.`
                   : `Adds ${priceCopy(
                       signsPricingConfig.doubleSidedPerSqft
                     )} per square foot.`}

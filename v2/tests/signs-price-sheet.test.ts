@@ -116,7 +116,7 @@ yard   | 10  | 18x24   | Coroplast                 | single | Signs Only        
 yard   | 10  | 18x24   | Coroplast                 | single | Signs Only         | roundedCorners+holes      | 250.00
 yard   | 1   | 18x24   | Coroplast                 | single | With Step Stakes   | holes                     | 53.50
 rigid  | 4   | 24x18   | PVC 1/8"                  | single | Standard           | holes                     | 143.00
-rigid  | 4   | 24x18   | PVC 1/8"                  | double | Standard           | roundedCorners+holes      | 259.00
+rigid  | 4   | 24x18   | PVC 1/8"                  | double | Standard           | roundedCorners+holes      | 235.00
 banner | 1   | 72x36   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | velcro:top                | 186.00
 banner | 1   | 72x36   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | velcro:sides              | 186.00
 banner | 1   | 72x36   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | velcro:all                | 213.00
@@ -194,11 +194,11 @@ rigid  | 5   | 24x18   | Corrugated 1/4"           | single | Drilled Holes     
 rigid  | 1   | 24x18   | Corrugated 1/2"           | single | Drilled Holes      | -                         | 48.00
 rigid  | 5   | 24x18   | Corrugated 1/2"           | single | Drilled Holes      | -                         | 180.00
 rigid  | 2   | 18x12   | PVC 1/8"                  | single | Drilled Holes      | -                         | 42.00
-rigid  | 2   | 18x12   | PVC 1/8"                  | double | Drilled Holes      | -                         | 66.00
+rigid  | 2   | 18x12   | PVC 1/8"                  | double | Drilled Holes      | -                         | 60.00
 rigid  | 2   | 36x24   | PVC 1/8"                  | single | Drilled Holes      | -                         | 123.00
-rigid  | 2   | 36x24   | PVC 1/8"                  | double | Drilled Holes      | -                         | 219.00
+rigid  | 2   | 36x24   | PVC 1/8"                  | double | Drilled Holes      | -                         | 195.00
 rigid  | 2   | 96x48   | PVC 1/8"                  | single | Drilled Holes      | -                         | 591.00
-rigid  | 2   | 96x48   | PVC 1/8"                  | double | Drilled Holes      | -                         | 1103.00
+rigid  | 2   | 96x48   | PVC 1/8"                  | double | Drilled Holes      | -                         | 975.00
 `;
 
 type Row = {

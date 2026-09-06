@@ -119,8 +119,11 @@ describe("signs: every shape, rushed and not, quote === invoice", () => {
     finishing: "Drilled Holes",
   };
 
+  const RIGID_DOUBLE: SignsDesign = { ...RIGID, id: "rigid-double", doubleSided: true };
+
   const shapes: Array<[string, SignsDesign[]]> = [
     ["one yard sign order", [YARD]],
+    ["a double-sided rigid sign", [RIGID_DOUBLE]],
     ["yard signs with step stakes", [STAKED]],
     ["a banner", [BANNER]],
     ["a banner with finishing add-ons", [BANNER_ADDONS]],

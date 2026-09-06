@@ -22,6 +22,19 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **Rigid signs: the second side at a third less** — 2026-09-05, Gabe.
+  Double-sided rigid was a flat +$8/sqft whatever the material; it is now
+  the material's rate × (1 + 2/3) — PVC 1/8" $9 → $15.00 both sides,
+  Dibond 1/4" $13.50 → $22.50. Rigid only: 18 oz banners keep the flat
+  surcharge, 13 oz stays sewn, yard signs keep their column.
+  `signsPricingConfig.rigid.secondSideFactor`; tests/rigid-second-side.
+  test.ts pins every material's ratio and the banner non-change; the
+  quote-invoice sweep gained a double-sided rigid shape. Four price-sheet
+  rows moved (PVC 1/8" double: $17 → $15/sqft), listed in the commit.
+  Also confirmed by Gabe the same day: on custom size, double-sided and
+  step stakes, "app is the right prices" — the website's three figures
+  are the ones to update (task #42).
+
 - **The website's adders are services now** — 2026-09-05, Gabe: "if the
   user selects that service, that cost should be added, and non-taxable";
   per sign; velcro by placement; and for the three that collide with

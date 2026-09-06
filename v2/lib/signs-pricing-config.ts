@@ -222,8 +222,18 @@ export const signsPricingConfig = {
       'Dibond 1/4"': 13.5,
     } as Record<string, number>,
 
-    /** Added per square foot when printed both sides. */
-    doubleSidedPerSqft: 8,
+    /**
+     * The SECOND side of a rigid sign costs one third less than the first —
+     * Gabe, 2026-09-05. So a double-sided rigid sign is the material's rate
+     * times (1 + 2/3): PVC 1/8" at $9 prints both sides at $15.00/sqft,
+     * Dibond 1/4" at $13.50 at $22.50. Relative to the material, which the
+     * flat +$8/sqft it replaces was not — that made the cheap stock's second
+     * side dearer, proportionally, than the dear stock's.
+     *
+     * Rigid only. Banners keep their own double-sided rules (the 18 oz
+     * surcharge, the 13 oz sewn build); yard signs have their own column.
+     */
+    secondSideFactor: 2 / 3,
   },
 
   /**

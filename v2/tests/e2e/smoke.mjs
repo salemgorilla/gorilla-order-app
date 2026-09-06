@@ -248,7 +248,11 @@ try {
     await page.close();
   }
 
-  // ── Flow 3: APPAREL REQUEST, submitted — the hand-quote path ──────────
+  // ── Flow 3: APPAREL, configured and submitted — priced, never billed ──
+  // Live since the 6 Sep flip. The hand-quote form this used to drive is
+  // one status word away (lib/products.tsx) and comes back with it; what is
+  // pinned here is the configurator's money shape: a real estimate rides
+  // the payload, and it still never classifies as auto-billing.
   {
     const state = { catalogRequests: 0, quoteRaw: null };
     const page = await openPage(state);
@@ -258,10 +262,17 @@ try {
     check("catalog: fetched exactly once, on apparel selection", state.catalogRequests === 1, `${state.catalogRequests} requests`);
 
     await page.click('button:has-text("02")');
-    await page.click('button:has-text("Hats")');
-    await page.fill("#apparel-request-quantity", "25");
-    await page.fill("#apparel-request-notes", "25 black hats, front logo embroidery");
+    await page.waitForSelector("text=Garment Catalog");
+    await page.click('button:has-text("Starter Tee")');
+    await page.waitForTimeout(300);
     await page.locator("input[type=date]").first().fill(NEED_BY);
+    await page.click('button:has-text("03")');
+    await page.locator('input[type="file"]').first().setInputFiles({
+      name: "smoke-shirt.png",
+      mimeType: "image/png",
+      buffer: await makePng(page),
+    });
+    await page.waitForTimeout(900);
     await page.click('button:has-text("04")');
     await page.locator("input[id*=ame], input[name*=ame]").first().fill("Smoke Test");
     await page.locator("input[type=email]").first().fill("smoke@example.com");
@@ -269,17 +280,17 @@ try {
     await page.waitForTimeout(400);
 
     const review = await reviewText(page);
-    check("apparel: review shows the chosen garment", /Garment\s*\n?\s*Hats/.test(review));
-    check("apparel: review carries the notes verbatim", review.includes("front logo embroidery"));
+    check("apparel: review shows the chosen garment", review.includes("Starter Tee"));
     check(
-      "apparel: review never shows a catalog default",
-      !review.includes("Starter Tee"),
-      "the pinned product leaked into the request review"
+      "apparel: review shows an estimated dollar figure",
+      /Estimate\s*\n?\s*\$\d+\.\d{2}/.test(review),
+      JSON.stringify(review.slice(0, 160))
     );
+    check("apparel: review does not call it a price", !/\bPrice\b/.test(review));
 
     await page.click('button:has-text("Request Quote")');
     const confirmed = await page
-      .waitForSelector("text=25 Hats", { timeout: 8000 })
+      .waitForSelector("text=Quote Number", { timeout: 8000 })
       .then(() => true)
       .catch(() => false);
     check("apparel: confirmation renders after submit", confirmed);
@@ -288,16 +299,12 @@ try {
     check("apparel: payload captured", Boolean(order));
     if (order) {
       const product = order.product || {};
-      check("apparel: garmentType is the customer's chip", product.garmentType === "Hats");
-      check("apparel: request mode is a special order", product.specialOrder === true);
+      check("apparel: garmentType is the catalog label", product.garmentType === "Starter Tee", product.garmentType);
+      check("apparel: a configured order is not a special order", product.specialOrder === false);
+      check("apparel: the real SKU rides the payload", product.supplier?.sku === "B00760004", String(product.supplier?.sku));
+      check("apparel: a priced total rides the payload", Number(order.pricing?.total) > 0 && order.pricing?.quoteRequired === false);
       check(
-        "apparel: supplier names no unchosen SKU",
-        product.supplier?.sku === "Not selected",
-        String(product.supplier?.sku)
-      );
-      check("apparel: pricing requires a hand quote", order.pricing?.quoteRequired === true);
-      check(
-        "apparel: THE invariant, inverted — a hand quote must never auto-bill",
+        "apparel: THE invariant, inverted — a priced apparel order must never auto-bill",
         !isStickerOrder(order)
       );
     }

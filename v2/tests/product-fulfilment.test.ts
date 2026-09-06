@@ -97,21 +97,36 @@ describe("every card says what happens after submit", () => {
     const handQuote = productCategories.filter((p) =>
       /hand quote/i.test(p.fulfilment)
     );
-    const invoiced = productCategories.filter((p) =>
-      /invoice/i.test(p.fulfilment)
+    // Apparel, since the 6 Sep flip: an ESTIMATE the shop confirms, then
+    // invoices. Its own model — it is invoiced like signs but the figure is
+    // an estimate on an assumed size mix, and the handoff's language rule
+    // says never call it a price. Matched on "estimate" first so it does
+    // not also count as the invoiced model.
+    const estimated = productCategories.filter((p) =>
+      /estimate/i.test(p.fulfilment)
+    );
+    const invoiced = productCategories.filter(
+      (p) => /invoice/i.test(p.fulfilment) && !/estimate/i.test(p.fulfilment)
     );
 
-    // Three models, no card in two of them, no card in none.
+    // Four models, no card in two of them, no card in none. The hand-quote
+    // model has no card while apparel is live; it comes back with a one-word
+    // rollback, so the model stays named here rather than deleted.
     assert.equal(payOnline.length, 1);
-    assert.equal(handQuote.length, 1);
+    assert.equal(handQuote.length, 0);
+    assert.equal(estimated.length, 1);
     assert.equal(invoiced.length, 2);
     assert.equal(
-      payOnline.length + handQuote.length + invoiced.length,
+      payOnline.length + handQuote.length + estimated.length + invoiced.length,
       productCategories.length
     );
 
     // The two invoiced pipelines make the SAME promise in the SAME words.
     assert.equal(new Set(invoiced.map((p) => p.fulfilment)).size, 1);
+    // And the estimate never calls itself a price.
+    for (const product of estimated) {
+      assert.doesNotMatch(product.fulfilment, /price/i);
+    }
   });
 
   it("drops the wording that could not tell them apart", () => {

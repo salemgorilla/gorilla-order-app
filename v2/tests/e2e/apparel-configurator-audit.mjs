@@ -1,17 +1,16 @@
 /**
- * MANUAL configurator audit — NOT run by CI, and it cannot be: production
- * ships apparel as a request flow, so this driver only works after the
- * sign-off-day flip (lib/products.tsx, apparel status "request" -> "active")
- * is applied LOCALLY against a local server. It exists so that flip can be
- * re-verified in ten minutes whenever Gabe decides to turn the configurator
- * on:
+ * MANUAL configurator audit — NOT run by CI (too slow, and it is the full
+ * sign-off sweep rather than a smoke). The configurator has been LIVE since
+ * 2026-09-06 (lib/products.tsx, apparel status "active"), so this runs
+ * against any server with no local edit:
  *
- *   1. In lib/products.tsx set the apparel product's status to "active"
- *      (temporarily — production needs the same edit committed on the day).
- *   2. npm run dev  (or a production build on any port)
- *   3. npx tsx tests/e2e/apparel-configurator-audit.mjs
+ *   1. npm run dev  (or a production build on any port)
+ *   2. npx tsx tests/e2e/apparel-configurator-audit.mjs
  *      SMOKE_URL / SMOKE_CHROMIUM override the target and browser,
  *      exactly as for smoke.mjs.
+ *
+ * Until the flip it needed the status set to "active" locally first; if
+ * apparel is ever rolled back to "request", that step comes back.
  *
  * What it proves, against the REAL pricing engine and classifier imports:
  * the catalog loads lazily and renders whole (3 products, 60-colour grid),

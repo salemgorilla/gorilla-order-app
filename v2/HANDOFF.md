@@ -22,6 +22,22 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **APPAREL IS LIVE** — 2026-09-06, Gabe: "Yes flip." lib/products.tsx
+  status "request" → "active": the priced configurator replaces the
+  three-question hand-quote form on production. The fulfilment line reads
+  "Instant estimate · we confirm, then invoice" — ESTIMATE, never price
+  (the handoff's language rule), and never "pay online" (no payment link;
+  tests/product-fulfilment.test.ts checks the claim against isStickerOrder
+  itself). CI's smoke now drives the configurator (Starter Tee → artwork →
+  contact → review → submit; real SKU and a priced total in the payload;
+  still never auto-bills); the sign-off audit driver runs without a local
+  flip. Rollback is the one word back — the request form is still in the
+  tree and page.tsx routes on the status.
+  WHAT GABE OWES THE FLIP: one apparel test order reconciled against
+  Printavo — 24 Starter Tees, White, front, 1 colour, M-24: $252.76 on
+  screen, three Printavo lines (garments 24 × $3.49 = $83.76, printing
+  $144.00, screens $25.00), no tax line, Total Due $252.76. Void it after.
+
 - **D9 decided: app pricing is the default for now** — 2026-09-06, Gabe.
   The in-repo apparel print table ($8/$6/$4.75/$4/$3.25 by run, +$0.65 a
   colour, +$2.50 a location, $25 a screen, garment at S&S × 1.4, with

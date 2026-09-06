@@ -251,98 +251,18 @@ Gabe's call whether the credit needs a floor.
 
 ---
 
-## 4 · Apparel — two systems, and they disagree
+## 4 · Apparel — one system, the Printavo matrix
 
-### 4a · In the app (dormant) — first-hand
+### 4a · The price — the shop's screen-print matrix, in the app
 
-`lib/apparel-pricing-config.ts`:
+Gabe, 6 Sep: **"I need to use the latest matrix we created for Printavo as
+the source of our app pricing."** Confirmed markup included. So the 22 Aug
+corrected Printavo matrix IS `lib/apparel-pricing-config.ts` now, cell for
+cell, and the two-day-old formula table (§4c) is retired. Live since #118.
 
-```
-Print, per piece, by run size (step-down):
-   1+   $8.00     24+  $6.00     50+  $4.75    100+  $4.00    250+  $3.25
+**The matrix — print per piece, one location:**
 
-Per piece:   +$2.50 each extra location · +$0.65 each extra ink colour
-             +$0.75 white underbase on a non-white garment
-Setup:       $25 per colour per location (screens)
-Garment:     S&S customer price × (1 + SS_MARKUP_RATE), default 0.4 —
-             blended across an assumed size mix (9% 2XL, 6% 3XL) until
-             sizes are entered, then exact per SKU. lib/apparel-blend.ts.
-Tier lookup: step-down (200 pieces price at the 100 tier).
-```
-
-**Never-pay-more, applied 2026-09-04.** The step-down table had the cliff the
-22 Aug doc warns about, on the near side of every break: 23 shirts printed for
-$184 while 24 printed for $144. The invariant tests found it the first time
-they ran. The print charge now takes the better of "your count at your tier"
-and "the next tier's minimum at its rate" — exactly `getYardSignPrice`'s rule.
-The customer buys only the blanks they asked for; printing is charged at the
-better figure, and the screen says so. 40 of the 120 committed grid totals
-moved, all just under a break, all downward; the diff is in
-`tests/apparel-price-sheet.test.ts` with the reason.
-
-These numbers are **Gabe's, still awaiting his confirmation** (readiness
-report, item 1).
-
-### 4b · In Printavo — rewritten to match the app, 2026-09-06
-
-Gabe, 6 Sep: **"switch to website pricing"** — the app's table (§4a) is the
-price, and Printavo's screen-print matrix is re-entered from it so a hand
-quote and the website cannot disagree. The rows below are generated from
-`calculateApparelPricing` (garment at $0, one location, no underbase), and
-`tests/pricing-invariants.test.ts` keeps them monotonic.
-
-**The matrix — print per piece, one location, by run size and colour count:**
-
-| Qty | 1c | 2c | 3c | 4c | 5c | 6c | 7c | Product markup |
-|---|---|---|---|---|---|---|---|---|
-| 1 | 8.00 | 8.65 | 9.30 | 9.95 | 10.60 | 11.25 | 11.90 | 40% |
-| 24 | 6.00 | 6.65 | 7.30 | 7.95 | 8.60 | 9.25 | 9.90 | 40% |
-| 50 | 4.75 | 5.40 | 6.05 | 6.70 | 7.35 | 8.00 | 8.65 | 40% |
-| 100 | 4.00 | 4.65 | 5.30 | 5.95 | 6.60 | 7.25 | 7.90 | 40% |
-| 250 | 3.25 | 3.90 | 4.55 | 5.20 | 5.85 | 6.50 | 7.15 | 40% |
-
-Each colour adds $0.65 per piece; the app's picker stops at "5+", so 6c
-and 7c extend the same ladder and are optional to enter.
-
-**The five rules that make a hand quote equal the website:**
-
-1. **Tiers are the app's breaks** — 1 / 24 / 50 / 100 / 250 — not the old
-   11 rows. Step-down: 40 pieces price at the 24 row.
-2. **Never pay more, by hand.** The app prices 20–23 pieces at the 24-row
-   figure × 24, 45–49 at 50 × 50, 90–99 at 100 × 100, 225–249 at 250 × 250
-   (whenever that is cheaper). Printavo will not do this for you: quote
-   those counts at the next tier's minimum.
-3. **Screens are a separate line: $25 per colour per location.** The
-   matrix is print only.
-4. **A second location is NOT a second pass through the matrix.** It is
-   **$2.50 per piece** plus its own screens. (Front and back, 1 colour, 24
-   pieces: 24 × $6.00 + 24 × $2.50 + 2 × $25 = $254.00.)
-5. **Dark garments: count the underbase as a colour AND add $0.75 per
-   piece.** A 1-colour design on black at 48 pieces is the 2c cell ($5.40
-   at the 50 row, never-pay-more) plus $0.75 = $6.15 per piece, × 50, plus
-   2 screens = $357.50.
-
-**Product markup 40%**, to match `SS_MARKUP_RATE`. Assumes Printavo's
-markup is applied to the same S&S customer price the app reads — confirm
-on the first reconciled order (task #44).
-
-**Worked examples, engine figures:**
-
-| job | print | screens | total (garments extra) |
-|---|---|---|---|
-| 20 × 3c front | $7.30 × 24 = $175.20 | $75 | $250.20 |
-| 24 × 1c front | $6.00 × 24 = $144.00 | $25 | $169.00 |
-| 24 × 1c front + back | $8.50 × 24 = $204.00 | $50 | $254.00 |
-| 48 × 2c front, black | $6.15 × 50 = $307.50 | $50 | $357.50 |
-| 100 × 1c front | $4.00 × 100 = $400.00 | $25 | $425.00 |
-
-### 4c · The retired matrix — for the record only
-
-The screen-print matrix the shop quoted from until 6 Sep, corrected
-2026-08-22. **Do not quote from it.** Kept so a past quote can be
-explained.
-
-| Qty | 1c | 2c | 3c | 4c | 5c | 6c | 7c | Markup |
+| Qty | 1c | 2c | 3c | 4c | 5c | 6c | 7c | Blank markup |
 |---|---|---|---|---|---|---|---|---|
 | 1 | 21.00 | 41.00 | 61.00 | 71.00 | 80.00 | 91.00 | 101.00 | 150% |
 | 12 | 6.00 | 13.00 | 16.00 | 19.00 | 22.00 | 25.00 | 28.00 | 150% |
@@ -356,11 +276,54 @@ explained.
 | 2496 | 1.05 | 1.15 | 1.25 | 1.35 | 1.45 | 1.55 | 1.65 | 130% |
 | 5001 | 1.00 | 1.10 | 1.12 | 1.15 | 1.17 | 1.20 | 1.22 | 130% |
 
-Where the two disagreed, and why it mattered (D9, now closed): at 24
-pieces the retired matrix printed one colour for $4.50 against the app's
-$6.00, and charged +$2.15 for a second colour against the app's +$0.65; the
-blank carried 130–150% markup against the app's 40%. A hand quote from it
-came in under the website for the same job.
+**The rules beside it** (`lib/apparel-pricing.ts`), each a decision the
+matrix's own basis implies rather than a number invented here:
+
+| | |
+|---|---|
+| Tier lookup | step-down: 200 pieces price at the 144 row |
+| Never pay more | kept from 4 Sep: a bigger row's minimum never costs more than your count at your row; the blank markup follows the charged row |
+| Locations | each placement is its own pass through the matrix at the design's colour count — "cost is based on colour per print placement" |
+| Underbase | a white underbase on a dark garment is **one more colour**, nothing else |
+| Screens | $25 per colour per location, on top (the published adder) |
+| The blank | S&S customer price × (1 + the row's markup). The catalogue serves every size at 150 / 140 / 130% (`priceByMarkup`), computed server-side, so cost never reaches the browser. `SS_MARKUP_RATE` is no longer read. |
+| Above 250 | the matrix keeps stepping down to 5001; the app follows it |
+
+**What moved, 6 Sep** — every apparel figure. The reference order and the
+browser-verified anchors:
+
+| job | formula table (4–6 Sep) | matrix (now) |
+|---|---|---|
+| 24 Starter Tees, White, front 1c, M-24 — **runbook Order 0** | $252.76 | **$282.52** — 24 × $6.23 + $108.00 + $25.00 |
+| same, front + back | $337.76 | $415.52 |
+| Stacey: 20 black, 3c front | $341.20 | $434.80 |
+| Kurt: 1 white, front + back, 1c | $64.60 | $99.30 |
+| the blank: Gildan 2000 White M | $3.49 | $6.23 (150%) · $5.98 (140%) · $5.73 (130%) |
+
+Every one is pinned in `tests/apparel-price-sheet.test.ts` (318 literals,
+regenerated) and re-verified on screen the same day.
+
+### 4b · Printavo — nothing to enter
+
+The matrix in Printavo is the source now, so the "five-row matrix to type
+in" from the morning of 6 Sep is **superseded** — do not enter it. A hand
+quote from Printavo and the website agree by construction, provided the
+hand quote follows the same rules: never-pay-more at the row minimums,
+each placement its own matrix pass, the underbase counted as a colour,
+$25 a screen.
+
+### 4c · Retired — the formula table, for the record
+
+The app's price from 21 Aug to 6 Sep (confirmed "the default for now" on
+the 4th, replaced two days later):
+
+```
+Print per piece by run:  1+ $8.00 · 24+ $6.00 · 50+ $4.75 · 100+ $4.00 · 250+ $3.25
++$2.50 each extra location · +$0.65 each extra colour · +$0.75 underbase
+$25 per screen · blank at S&S × 1.4
+```
+
+Do not quote from it. Kept so a quote from that fortnight can be explained.
 
 ---
 

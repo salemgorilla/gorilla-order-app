@@ -43,7 +43,16 @@ export type QuoteConfirmation = {
 export type SsCatalogSize = {
   sku: string;
   sizeName: string;
+  /** At the matrix's base markup (150%) — what the size grid shows. */
   markedUpPrice: number;
+  /**
+   * The same size at every blank markup the matrix uses, keyed "150" /
+   * "140" / "130" (lib/apparel-pricing-config.ts garmentMarkupKey). Computed
+   * server-side from the unrounded S&S price; the estimate re-prices the
+   * blank at the chosen run size's markup from here. Absent on fixtures
+   * captured before 6 Sep — lib/apparel-blend.ts derives by ratio then.
+   */
+  priceByMarkup?: Record<string, number>;
   isAvailable: boolean;
   outOfStock: boolean;
 };

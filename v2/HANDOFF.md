@@ -22,6 +22,29 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **THE PRINTAVO MATRIX IS THE APP'S PRICE** — 2026-09-06, Gabe: "I need
+  to use the latest matrix we created for Printavo as the source of our
+  app pricing" — the 22 Aug corrected matrix, markup included. This
+  REVERSES the morning's D9 ("app pricing is the default for now") and
+  REPRICES EVERY APPAREL FIGURE on a flow that went live the same day:
+  runbook Order 0 is $282.52 now (was $252.76); Stacey's 20 black 3c
+  $434.80 (was $341.20); Kurt's single shirt $99.30 (was $64.60); the
+  Gildan 2000 White blank $6.23 at 150% (was $3.49 at 40%).
+  lib/apparel-pricing-config.ts IS the matrix, cell for cell, with a
+  blank markup per row; lib/apparel-pricing.ts holds the rules beside
+  it — step-down, never-pay-more (kept), each placement its own matrix
+  pass, the underbase as one more colour, $25 a screen. The catalogue
+  serves every size at 150/140/130% (`priceByMarkup`, computed
+  server-side from the unrounded S&S price; SS_MARKUP_RATE is no longer
+  read); page.tsx stopped adding the underbase to the ink count because
+  the engine adds it now. The committed catalog fixture was re-expressed
+  at the matrix's markups from its recovered cost (a cent's slack on
+  some sizes — fixtures only). 318 price-sheet literals regenerated
+  (115/120 grid rows, 191/191 blends), every hand pin rewritten with the
+  reason. Audit driver 49/49 and smoke 28/28 against the flipped build.
+  The "Printavo Screen-Print Matrix" artifact from the morning is
+  superseded — nothing to enter in Printavo; PRICING.md §4.
+
 - **Printavo's matrix now follows the app** — 2026-09-06, Gabe: "switch
   to website pricing." The screen-print matrix in Printavo is to be
   re-entered from the app's table so hand quotes equal the website:

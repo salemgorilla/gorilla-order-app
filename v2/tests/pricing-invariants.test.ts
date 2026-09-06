@@ -80,7 +80,7 @@ function assertStrictlyIncreasing(
 // ─── APPAREL: the in-repo screen-print tiers ───────────────────────────────
 
 describe("apparel print pricing: totals, not rates", () => {
-  const tiers = [...apparelPricingConfig.basePrintPrices]
+  const tiers = [...apparelPricingConfig.tiers]
     .map((tier) => tier.minQuantity)
     .sort((a, b) => a - b);
 

@@ -37,16 +37,16 @@ const line = (
 
 describe("THE INVARIANT: one line prices exactly as today", () => {
   /**
-   * The audit's standing example — 24 Starter Tees at $3.49, front, one
-   * colour — is $252.76 on the committed price sheet and was reconciled
-   * on screen in Chromium. A cart of one must not move it by a cent.
+   * 24 tees at a fixed $3.49 unit, front, one colour. Under the matrix
+   * (6 Sep) that prints at the 24 row's 1c cell, $4.50 × 24 = $108, plus
+   * one $25 screen: $216.76. A cart of one must not move it by a cent.
    */
-  test("24 tees at $3.49 is still $252.76", () => {
+  test("24 tees at $3.49 is $216.76, as one garment is", () => {
     const cart = quoteApparelCart([line("a", 3.49, 24)], FRONT_ONE_COLOR);
 
-    assert.equal(cart.total.toFixed(2), "252.76");
+    assert.equal(cart.total.toFixed(2), "216.76");
     assert.equal(cart.garmentTotal.toFixed(2), "83.76");
-    assert.equal(cart.printTotal.toFixed(2), "144.00");
+    assert.equal(cart.printTotal.toFixed(2), "108.00");
     assert.equal(cart.setupTotal.toFixed(2), "25.00");
   });
 
@@ -79,19 +79,19 @@ describe("several garments, one run", () => {
   const twoLines = [line("tee", 3.49, 20), line("hoodie", 14.0, 20)];
 
   test("the print tier is read from the COMBINED count", () => {
-    // 20 + 20 is a 40-piece run, tiered as one — not two under-24 runs at
-    // $8.00. This is what the press actually does.
+    // 20 + 20 is a 40-piece run, tiered as one — the matrix's 24 row
+    // ($4.50), not two 12-row runs at $6.00. This is what the press
+    // actually does.
     //
-    // Since 4 Sep the run also rides never-pay-more (lib/apparel-pricing):
-    // 40 sits under the 50 break, and 50 × $4.75 = $237.50 prints for less
-    // than 40 × $6.00 = $240.00, so the print is charged at the 50-piece
-    // figure. Was $6.00 / $240.00.
+    // Never-pay-more (4 Sep) still rides it: the 48 row's minimum, 48 ×
+    // $4.00 = $192, is dearer than 40 × $4.50 = $180, so the run stays on
+    // its own tier this time. Was $4.75 × 50 under the formula table.
     const cart = quoteApparelCart(twoLines, FRONT_ONE_COLOR);
 
     assert.equal(cart.quantity, 40);
-    assert.equal(cart.printTierQuantity, 50);
-    assert.equal(cart.printUnitPrice.toFixed(2), "4.75");
-    assert.equal(cart.printTotal.toFixed(2), "237.50");
+    assert.equal(cart.printTierQuantity, 40);
+    assert.equal(cart.printUnitPrice.toFixed(2), "4.50");
+    assert.equal(cart.printTotal.toFixed(2), "180.00");
   });
 
   test("setup is charged ONCE — the same screens print both", () => {
@@ -114,7 +114,7 @@ describe("several garments, one run", () => {
 
     // $349.80 garments + $237.50 print + $25 setup. Was $614.80 while the
     // print sat at the 40-piece figure — see the tier test above.
-    assert.equal(cart.total.toFixed(2), "612.30");
+    assert.equal(cart.total.toFixed(2), "554.80");
     assert.equal(
       (cart.garmentTotal + cart.printTotal + cart.setupTotal).toFixed(2),
       cart.total.toFixed(2)
@@ -133,7 +133,9 @@ describe("several garments, one run", () => {
       quoteApparelCart([twoLines[1]], FRONT_ONE_COLOR).total;
 
     assert.ok(together < apart, `${together} should beat ${apart}`);
-    assert.equal((apart - together).toFixed(2), "75.50");
+    // Apart, each 20-piece run prints at the 24 row's minimum (never pay
+    // more) and burns its own screen: $615.80 against $554.80 together.
+    assert.equal((apart - together).toFixed(2), "61.00");
   });
 
   test("the saving is named for the screen, not left implied", () => {
@@ -186,11 +188,12 @@ describe("empty and edge carts", () => {
 
     assert.equal(cart.lines.length, 1);
     assert.equal(cart.quantity, 24);
-    assert.equal(cart.total.toFixed(2), "252.76");
+    assert.equal(cart.total.toFixed(2), "216.76");
   });
 
   test("the next tier is named so the screen can offer it", () => {
-    assert.equal(combinedTierQuantity(quoteApparelCart([line("a", 4, 40)], FRONT_ONE_COLOR)), 50);
-    assert.equal(combinedTierQuantity(quoteApparelCart([line("a", 4, 400)], FRONT_ONE_COLOR)), null);
+    assert.equal(combinedTierQuantity(quoteApparelCart([line("a", 4, 40)], FRONT_ONE_COLOR)), 48);
+    assert.equal(combinedTierQuantity(quoteApparelCart([line("a", 4, 400)], FRONT_ONE_COLOR)), 840);
+    assert.equal(combinedTierQuantity(quoteApparelCart([line("a", 4, 6000)], FRONT_ONE_COLOR)), null);
   });
 });

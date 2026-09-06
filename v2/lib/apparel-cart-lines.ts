@@ -31,7 +31,7 @@
  * refuses to submit with one still blank.
  */
 import type { SsCatalogColor, SsCatalogProduct } from "../features/types";
-import { blendedGarmentUnitPrice } from "./apparel-blend";
+import { blendedGarmentUnitPrice, garmentPriceByMarkup } from "./apparel-blend";
 import type { ApparelCartLine } from "./apparel-cart";
 
 export type ExtraGarmentLine = {
@@ -98,6 +98,10 @@ export function resolveExtraGarmentLines(
       garmentLabel: product.customerLabel || product.displayName,
       colorName: color.colorName,
       catalogStyle: product.catalogStyle,
+      // At every markup: the cart picks the tier for the WHOLE run and, with
+      // it, which of these the blank is charged at. Extras stand on the
+      // assumed size mix — blended — see the header.
+      garmentPriceByMarkup: garmentPriceByMarkup(color, null, line.quantity),
       garmentUnitPrice: blendedGarmentUnitPrice(color),
       quantity: Math.floor(line.quantity),
     });

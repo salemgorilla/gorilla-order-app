@@ -1,5 +1,5 @@
-import { calculateApparelPricing } from "./apparel-pricing";
-import { apparelPricingConfig } from "./apparel-pricing-config";
+import { getInkColorCount, priceApparelRun } from "./apparel-pricing";
+import { apparelPricingConfig, garmentMarkupKey } from "./apparel-pricing-config";
 import { applyRush } from "./rush";
 import type { TurnaroundLane } from "./turnaround";
 
@@ -59,8 +59,20 @@ export type ApparelCartLine = {
    * has one answer whether the shirt came in on its own or in a cart.
    */
   catalogStyle?: string;
-  /** Clean 2dp per-shirt price for this line — blended or exact. */
-  garmentUnitPrice: number;
+  /**
+   * The blank at every markup the matrix uses (lib/apparel-blend.ts
+   * garmentPriceByMarkup) — the cart picks the run's tier and, with it,
+   * which of these each line is charged at. Clean 2dp units.
+   */
+  garmentPriceByMarkup?: Record<string, number>;
+  /**
+   * One per-shirt price regardless of tier — for callers without a
+   * catalogue colour (tests, the invoice sweep). Ignored when
+   * garmentPriceByMarkup is present. On the OUTPUT lines this is always
+   * set: the resolved unit at the charged markup, which is what Printavo
+   * bills the line at.
+   */
+  garmentUnitPrice?: number;
   quantity: number;
 };
 
@@ -71,7 +83,9 @@ export type ApparelCartPrintSpec = {
 };
 
 export type ApparelCartQuote = {
-  lines: Array<ApparelCartLine & { garmentTotal: number }>;
+  lines: Array<ApparelCartLine & { garmentUnitPrice: number; garmentTotal: number }>;
+  /** The blank markup the run was charged at (1.5 = 150%). */
+  garmentMarkup: number;
   /** Pieces across every line — what the print tier is read from. */
   quantity: number;
   garmentTotal: number;
@@ -123,6 +137,7 @@ export function quoteApparelCart(
     return {
       lines: [],
       quantity: 0,
+      garmentMarkup: apparelPricingConfig.baseGarmentMarkup,
       garmentTotal: 0,
       garmentUnitPrice: 0,
       underbaseFeePerPiece: 0,
@@ -148,42 +163,61 @@ export function quoteApparelCart(
    * garmentUnitPrice is passed as the weighted average of the lines, so
    * the engine's garmentTotal equals the sum of the lines' own totals.
    */
-  const garmentTotal = round2(
-    usable.reduce((sum, line) => sum + line.garmentUnitPrice * line.quantity, 0)
+  // Each line's blank at a given markup: its own 2dp unit, or the single
+  // figure it came with. Summed per line — never a cart-wide average, which
+  // is the "average of things that do not average" the invoice was fixed
+  // for (#109).
+  const unitAt = (line: ApparelCartLine, markup: number): number =>
+    line.garmentPriceByMarkup
+      ? line.garmentPriceByMarkup[garmentMarkupKey(markup)] ?? 0
+      : line.garmentUnitPrice ?? 0;
+
+  const locationCount = Math.max(1, print.printLocations.length);
+  const colors = Math.min(
+    getInkColorCount(print.inkColors) + (print.hasUnderbase ? 1 : 0),
+    apparelPricingConfig.maxColorsPerLocation
   );
 
-  const priced = calculateApparelPricing({
-    quantity: Math.max(1, quantity),
-    garmentUnitPrice: quantity > 0 ? garmentTotal / quantity : 0,
-    printLocations: print.printLocations,
-    inkColors: print.inkColors,
-    hasUnderbase: print.hasUnderbase,
+  // THE CORE, shared with the single-garment engine: the tier is chosen
+  // for the COMBINED count (20 tees and 20 hoodies is a 40-piece run, which
+  // is what the press does), never-pay-more included, and every line's
+  // blank is then charged at that tier's markup.
+  const run = priceApparelRun({
+    quantity,
+    locationCount,
+    colors,
+    garmentTotalAt: (markup) =>
+      usable.reduce((sum, line) => sum + unitAt(line, markup) * line.quantity, 0),
   });
+
+  const markup = run.tier.garmentMarkup;
 
   // Setup, per the rule: once for the quote, or once per garment line.
   const setupTotal = apparelCartRules.shareSetupAcrossLines
-    ? priced.setupTotal
-    : round2(priced.setupTotal * Math.max(1, usable.length));
+    ? run.setupTotal
+    : round2(run.setupTotal * Math.max(1, usable.length));
 
-  const total = round2(garmentTotal + priced.printTotal + setupTotal);
+  const total = round2(run.garmentTotal + run.printTotal + setupTotal);
 
   return {
     lines: usable.map((line) => ({
       ...line,
-      garmentTotal: round2(line.garmentUnitPrice * line.quantity),
+      garmentUnitPrice: unitAt(line, markup),
+      garmentTotal: round2(unitAt(line, markup) * line.quantity),
     })),
     quantity,
-    garmentTotal,
-    garmentUnitPrice: round2(garmentTotal / quantity),
-    underbaseFeePerPiece: priced.underbaseFeePerPiece,
-    printUnitPrice: priced.printUnitPrice,
-    printTotal: round2(priced.printTotal),
+    garmentMarkup: markup,
+    garmentTotal: run.garmentTotal,
+    garmentUnitPrice: round2(run.garmentTotal / quantity),
+    underbaseFeePerPiece: 0,
+    printUnitPrice: run.printUnitPrice,
+    printTotal: run.printTotal,
     setupTotal: round2(setupTotal),
     total,
     unitPrice: quantity > 0 ? round2(total / quantity) : 0,
-    inkColorCount: priced.inkColorCount,
-    locationCount: priced.locationCount,
-    printTierQuantity: priced.printTierQuantity,
+    inkColorCount: colors,
+    locationCount,
+    printTierQuantity: run.printTierQuantity,
   };
 }
 
@@ -206,7 +240,7 @@ export function describeCartSaving(quote: ApparelCartQuote): string | null {
 
 /** The tier the combined run reaches, for naming the lever on screen. */
 export function combinedTierQuantity(quote: ApparelCartQuote): number | null {
-  const tiers = apparelPricingConfig.basePrintPrices
+  const tiers = apparelPricingConfig.tiers
     .map((tier) => tier.minQuantity)
     .filter((min) => min > quote.quantity);
 

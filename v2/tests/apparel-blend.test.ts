@@ -77,13 +77,18 @@ describe("the blend, against the real production catalog", () => {
   );
 
   test("Gildan 2000 White: base is the standard-size price", () => {
-    assert.equal(baseGarmentUnitPrice(white), 3.49);
+    // At the matrix's base markup (150%) since 6 Sep: the $3.49 the
+    // catalogue served at 40% is $6.23 at 2.5 × cost, and the lower tiers
+    // are served alongside it.
+    assert.equal(baseGarmentUnitPrice(white), 6.23);
+    assert.equal(baseGarmentUnitPrice(white, 1.4), 5.98);
+    assert.equal(baseGarmentUnitPrice(white, 1.3), 5.73);
   });
 
   test("Gildan 2000 White blends to the hand-computed figure", () => {
-    // base 3.49; 2XL 6.30 (+2.81), 3XL 9.17 (+5.68)
-    // 3.49 + 0.09×2.81 + 0.06×5.68 = 4.0837 → ceil to 5¢ = 4.10
-    assert.equal(blendedGarmentUnitPrice(white), 4.1);
+    // base 6.23; 2XL 11.25 (+5.02), 3XL 16.38 (+10.15)
+    // 6.23 + 0.09×5.02 + 0.06×10.15 = 7.2908 → ceil to 5¢ = 7.30
+    assert.equal(blendedGarmentUnitPrice(white), 7.3);
   });
 
   test("every catalog colour blends to a clean 5-cent figure at or above base", () => {
@@ -156,11 +161,10 @@ describe("real sizes replace the assumption with per-SKU pricing", () => {
 
 describe("the estimate composes through the real engine", () => {
   test("Stacey-shaped: 20 shirts, 3 colours, 1 location, dark garment", () => {
-    // Blended garment 4.10 (Gildan White figures for arithmetic's sake).
-    // 20 shirts sit under the 24 break, so never-pay-more (4 Sep) prints
-    // them at the 24-piece figure: 24 × (6.00 base + 2×0.65 inks + 0.75
-    // underbase = 8.05) = 193.20, against 20 × 10.05 = 201.00 at the
-    // under-24 rate. Garments stay 20 × 4.10; setup 3×1×25 = 75.
+    // A fixed $4.10 garment unit (the legacy single figure) so this is the
+    // PRINT composition under the matrix: 3 colours plus the underbase is
+    // 4 colours; 20 shirts print at the 24 row's 4c cell ($9.70) × 24
+    // (never pay more); screens 4 × 1 × $25 = $100.
     const pricing = calculateApparelPricing({
       quantity: 20,
       garmentUnitPrice: 4.1,
@@ -170,10 +174,11 @@ describe("the estimate composes through the real engine", () => {
     });
 
     assert.equal(pricing.garmentTotal.toFixed(2), "82.00");
+    assert.equal(pricing.inkColorCount, 4, "the underbase is a colour");
     assert.equal(pricing.printTierQuantity, 24);
-    assert.equal(pricing.printTotal.toFixed(2), "193.20");
-    assert.equal(pricing.setupTotal.toFixed(2), "75.00");
-    assert.equal(pricing.total.toFixed(2), "350.20");
+    assert.equal(pricing.printTotal.toFixed(2), "232.80");
+    assert.equal(pricing.setupTotal.toFixed(2), "100.00");
+    assert.equal(pricing.total.toFixed(2), "414.80");
   });
 });
 

@@ -227,6 +227,40 @@ export const signsPricingConfig = {
   },
 
   /**
+   * SELECTABLE SERVICES — Gabe, 2026-09-05, from the website's adder list
+   * (PRICING.md, D7): "if the user selects that service, that cost should
+   * be added, and non-taxable." Per sign. Offered on yard and rigid signs;
+   * banners have velcro below. Every line these produce is kind "addOn",
+   * which is untaxed like every other fee (lib/tax.ts).
+   *
+   * Not here, on purpose: custom size ($20 on the website; $0 in the app
+   * since 22 Aug), double-sided ($7 flat on the website; per sqft here) and
+   * step stakes ($2 there; $2.50 here). Gabe: "the app's, right now."
+   */
+  signAddOns: {
+    roundedCorners: { label: "Rounded Corners", perSign: 5 },
+    holes: { label: "Holes", perSign: 5 },
+  } as Record<string, { label: string; perSign: number }>,
+
+  /**
+   * Velcro on banners: $1.50 per linear foot of the edge(s) it goes on.
+   * The customer picks where — top, middle, bottom, the two sides, or all
+   * of those — and the footage is that placement's edges of ONE banner,
+   * times the quantity. "Middle" is a strip across the width.
+   */
+  velcro: {
+    label: "Velcro",
+    perLinearFoot: 1.5,
+    placements: {
+      top: { label: "Top", widths: 1, heights: 0 },
+      middle: { label: "Middle", widths: 1, heights: 0 },
+      bottom: { label: "Bottom", widths: 1, heights: 0 },
+      sides: { label: "Sides", widths: 0, heights: 2 },
+      all: { label: "All of the above", widths: 3, heights: 2 },
+    } as Record<string, { label: string; widths: number; heights: number }>,
+  },
+
+  /**
    * Shown on every signs estimate, under the totals.
    *
    * It read "Tax not included." while the card directly above it printed an

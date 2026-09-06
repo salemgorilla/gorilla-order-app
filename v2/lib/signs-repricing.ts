@@ -82,6 +82,10 @@ export function repriceSigns(order: Record<string, unknown>) {
       bannerAddOns: Array.isArray(spec.bannerAddOns)
         ? spec.bannerAddOns.map(String)
         : [],
+      signAddOns: Array.isArray(spec.signAddOns)
+        ? spec.signAddOns.map(String)
+        : [],
+      velcro: (spec.velcro ? String(spec.velcro) : "") as SignsDesign["velcro"],
       templateId: spec.templateId ? String(spec.templateId) : null,
       templateText:
         spec.templateText && typeof spec.templateText === "object"

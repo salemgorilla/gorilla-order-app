@@ -1698,6 +1698,10 @@ export default function Home() {
         doubleSided: allowsDoubleSided(product, product.materials[0])
           ? current.doubleSided
           : false,
+        // Services belong to a product: holes on a banner or velcro on a
+        // yard sign would be a stale key pricing work nobody offered.
+        signAddOns: [],
+        velcro: "",
       },
       targetId
     );

@@ -1,9 +1,14 @@
 "use client";
 
+import Chip from "../../components/ui/Chip";
+
 import OptionSelector from "../../components/OptionSelector";
 import NumberField from "../../components/ui/NumberField";
 import { sanitizeSizeInches, snapQuantity } from "../../lib/units";
 import {
+  allowsSignAddOns,
+  SIGN_ADD_ONS,
+  VELCRO_PLACEMENTS,
   YARD_SIGN_HEIGHT_INCHES,
   YARD_SIGN_WIDTH_INCHES,
 } from "../../lib/signs";
@@ -205,12 +210,61 @@ export default function SignsBuilder({
         />
       )}
 
-      <OptionSelector
-        title="Finishing"
-        options={getFinishingOptions(product, design.material)}
-        selected={design.finishing}
-        onSelect={(finishing) => onUpdate({ finishing })}
-      />
+      {/* One option is not a choice: rigid signs went to a single "Standard"
+          finishing when holes became a paid service below. */}
+      {getFinishingOptions(product, design.material).length > 1 && (
+        <OptionSelector
+          title="Finishing"
+          options={getFinishingOptions(product, design.material)}
+          selected={design.finishing}
+          onSelect={(finishing) => onUpdate({ finishing })}
+        />
+      )}
+
+      {allowsSignAddOns(product) && (
+        <div>
+          <div className="mb-3">
+            <p className="eyebrow">Sign Add-Ons</p>
+            <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
+              Optional. Each is priced per sign, and none are added unless you
+              tick them.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            {SIGN_ADD_ONS.map((addOn) => {
+              const checked = design.signAddOns.includes(addOn.key);
+
+              return (
+                <label
+                  key={addOn.key}
+                  className="flex cursor-pointer items-start gap-3 border border-[var(--rule)] bg-[var(--shirt-blank)] p-4"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(event) => {
+                      const next = event.target.checked
+                        ? [...design.signAddOns, addOn.key]
+                        : design.signAddOns.filter((k) => k !== addOn.key);
+                      onUpdate({ signAddOns: next });
+                    }}
+                    className="mt-1 h-5 w-5 shrink-0 accent-[var(--gorilla-green)]"
+                  />
+                  <span>
+                    <span className="block text-fine font-semibold text-[var(--ink-black)]">
+                      {addOn.label}
+                    </span>
+                    <span className="mt-1 block text-fine font-medium leading-5 text-[var(--ink-muted)]">
+                      {addOn.detail}
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {product.pricingMethod === "banner" && (
         <div>
@@ -270,6 +324,32 @@ export default function SignsBuilder({
                 </label>
               );
             })}
+          </div>
+
+          {/* Velcro, by where it goes: the footage is that placement's edges.
+              A chip row rather than a checkbox because "velcro" alone does
+              not price — the shop needs to know which edges. */}
+          <div className="mt-6">
+            <h3 className="mb-1 text-value font-bold">Velcro</h3>
+            <p className="mb-3 text-fine font-medium text-[var(--ink-muted)]">
+              $1.50 per foot of the edges you choose. &ldquo;Middle&rdquo; is a
+              strip across the width.
+            </p>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <Chip
+                label="None"
+                selected={!design.velcro}
+                onSelect={() => onUpdate({ velcro: "" })}
+              />
+              {VELCRO_PLACEMENTS.map((placement) => (
+                <Chip
+                  key={placement}
+                  label={signsPricingConfig.velcro.placements[placement].label}
+                  selected={design.velcro === placement}
+                  onSelect={() => onUpdate({ velcro: placement })}
+                />
+              ))}
+            </div>
           </div>
         </div>
       )}

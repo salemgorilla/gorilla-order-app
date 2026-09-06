@@ -146,7 +146,12 @@ export const signProducts: SignProduct[] = [
       'Corrugated 1/4"',
       'Corrugated 1/2"',
     ],
-    finishing: ["Drilled Holes", "No Holes"],
+    // Holes used to be a finishing choice here, free either way. They are a
+    // paid service now ($5 per sign, Gabe 2026-09-05) and live with rounded
+    // corners under SIGN_ADD_ONS, unticked by default — so nobody is charged
+    // for a default they did not choose. One finishing option means the
+    // selector does not render.
+    finishing: ["Standard"],
     allowDoubleSided: true,
     allowStakes: false,
   },
@@ -183,6 +188,33 @@ export const signProducts: SignProduct[] = [
 export function getSignProduct(productId: string): SignProduct {
   return signProducts.find((p) => p.id === productId) || signProducts[0];
 }
+
+/**
+ * Per-sign services on yard and rigid signs — $5 each, per sign. Priced in
+ * lib/signs-pricing.ts from signsPricingConfig.signAddOns; the keys here
+ * must match those.
+ */
+export const SIGN_ADD_ONS = [
+  {
+    key: "roundedCorners",
+    label: "Rounded Corners",
+    detail: "Corners cut to a radius instead of square. $5 per sign.",
+  },
+  {
+    key: "holes",
+    label: "Holes",
+    detail: "Drilled for screws or zip ties. $5 per sign.",
+  },
+] as const;
+
+/** The products that offer SIGN_ADD_ONS. */
+export function allowsSignAddOns(product: SignProduct): boolean {
+  return product.pricingMethod === "yard" || product.pricingMethod === "rigid";
+}
+
+/** Where velcro can go on a banner, in the order the chips show. */
+export const VELCRO_PLACEMENTS = ["top", "middle", "bottom", "sides", "all"] as const;
+export type VelcroPlacement = (typeof VELCRO_PLACEMENTS)[number] | "";
 
 /** Banner finishing add-ons the customer can tick on. */
 export const BANNER_ADD_ONS = [
@@ -266,6 +298,10 @@ export const defaultSignsDesign = {
   finishing: "Hemmed + Grommets",
   doubleSided: false,
   bannerAddOns: [] as string[],
+  /** Per-sign services on yard and rigid signs — SIGN_ADD_ONS keys. */
+  signAddOns: [] as string[],
+  /** Velcro placement on a banner; "" for none. */
+  velcro: "" as VelcroPlacement,
   /**
    * A shop-authored template the customer personalised, or null when they are
    * uploading their own artwork. The two are alternatives — see
@@ -306,6 +342,8 @@ export function createSignsDesign(
     id: `sign-${designSequence}-${Math.random().toString(36).slice(2, 8)}`,
     templateText: {},
     bannerAddOns: [],
+    signAddOns: [],
+    velcro: "",
     artwork: { file: null },
     ...overrides,
   };

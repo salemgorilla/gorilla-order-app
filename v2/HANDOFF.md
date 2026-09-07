@@ -22,6 +22,29 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **Choosing a garment colour now looks like something happened** —
+  2026-09-07, Gabe: "when I press a color there is no indication, or not
+  one very visible, for me to know that the color has been chosen." The
+  whole selected state was a 1px border changing colour and the fill going
+  `bg-white/70` → `bg-white`: two signals, both colour, one of them a 30%
+  opacity step on an off-white page, across a grid of up to 84 cells. No
+  `aria-pressed` either, so assistive tech was told nothing — and
+  DESIGN-SYSTEM §2 says colour is never the only signal.
+
+  A colour swatch is the hard case for the house move: the cell IS a
+  colour, so a green border competes with the thing being chosen and a
+  green swatch would wear a green ring invisibly. So the state is now
+  carried by the product cards' own treatment — green border, SURFACE OK
+  tint fill, an explicit SELECTED badge — plus an ink-black ring on the
+  swatch itself, drawn as an `outline` so a 28px chip cannot nudge its row.
+  The badge takes the slot "Available" was in, so selecting cannot reflow
+  the grid. `cursor-pointer` was missing entirely, so every swatch read as
+  a control that does nothing.
+
+  tests/garment-color-selected.test.ts pins all of it, including that the
+  ring is ink rather than the brand green and that it is an outline rather
+  than a border. Verified in Chromium at 1300 and 390.
+
 - **The hero carries one live number** — 2026-09-07, Gabe, choosing between
   a randomised headline and a real one: "Make it real rather than random."
   The hero now ends with "ON THE PRESS THIS WEEK · 1,240 stickers · 96

@@ -1,49 +1,56 @@
-# Flying Monkey — the crest (round two)
+# Flying Monkey — the mark (round three)
 
-A monkey skull with a fan of five feathers a side. One ink with knockouts.
+A flying monkey, head-on, wings spread. One silhouette with knockouts.
 
-![crest](mark/fm-crest-1c-black.png)
+![mark](mark/fm-mark-1c-black.png)
 
-Round one (a constructed circle-and-bar mascot, then a segment-alphabet system)
-was rejected and is gone from this folder. It stays in git history only.
+## Why the earlier rounds were not it
 
-## What this is
+- **Round one** was a mascot built from circles and bars, then buried under a type
+  system. It read as clip art.
+- **Round two** was a winged skull. Research settled that one: the winged skull is
+  the Hells Angels' registered Death Head, and the club has sued Alexander McQueen,
+  Redbubble and Toys "R" Us over winged-skull merchandise. For a streetwear label
+  that is a category you cannot own and a letter you do not want.
 
-- **Drawn, not constructed.** The cranium, the inward-tilted sockets, the nasal
-  cavity and the arched tooth row are Bézier curves drawn by hand as a right half
-  and mirrored. Nothing is a circle.
-- **The wing is a fan.** Five feathers a side radiate from one hidden shoulder,
-  lengths 108 to 66, root widths 17 to 13, each tapering to 78% at a rounded tip.
-  The gaps between feathers open naturally toward the tips and close into a solid
-  shoulder at the root.
-- **The skull scowls.** Sockets are heavy at the outer top and drop toward the
-  nose. Canines are twice the incisor length. Under 3 in the back molar drops so
-  the row still prints clean.
-- **One ink.** Black on a light blank, or Cap Gold (Pantone 7406 C) on black. The
-  knockouts are the blank, so the same file prints both ways.
-- **Two cuts.** The crest for full front, full back and posters. The skull alone
-  for left chest, sleeve, pins and labels.
+## What a finished mark has, and what this one does
+
+The standard is the animal marks that survive as a blacked-out shape at 4 mm:
+Puma's leaping cat, Lacoste's crocodile, the Jumpman, the Bacardi bat.
+
+| Principle | Here |
+|---|---|
+| One silhouette, no outline | One ink. Knockouts are the blank, so the same file prints black on light or Cap Gold on black. |
+| Reads blacked out | At 4 mm the ears, the spread, the hanging arms and the tail curl still say winged monkey. |
+| A construction, not a style | The Bacardi bat's: symmetrical spread wings, a creature centred, and one asymmetry. |
+| One signature detail | The tail, curling under to the left. Always left. |
+| Where the menace lives | A skull-white heart face with hollow eyes and a row of teeth. Nothing else is dead. |
+| Not someone else's | Not the Death Head (skull), not BAPE (ape head). The body is the mark. |
+
+## Construction
+
+Six feathers a side, root widths 27 to 21, lengths 112 to 68, radiating from one
+hidden shoulder. Their bases overlap to the root so the wing is one body with
+scalloped tips. Torso is a chest over a belly. Arms are longer than legs, bent
+at the elbow, hands as mitts with a thumb. Feet turn out. Head with round ears
+over the wing line. Regenerate with `python3 build.py mark`.
 
 ## Files
 
 ```
 mark/
-  fm-crest-1c-black.svg      the crest, black, knockouts to the blank
-  fm-crest-1c-gold.svg       the crest, Cap Gold on black
-  fm-crest-1c-black-sm.svg   under 3 in: molar dropped
-  fm-skull-1c-black.svg      skull only
-  fm-skull-1c-gold.svg       skull only, Cap Gold
-  fm-crest-1c-black.png      1200 px preview
+  fm-mark-1c-black.svg   black, knockouts to the blank
+  fm-mark-1c-gold.svg    Cap Gold (Pantone 7406 C) on black
+  fm-mark-1c-black.png   1200 px preview
 sheet/
-  fm-crest-sheet.html / .png grounds, size ladder, placements
-build.py                     regenerates everything: python3 build.py mark
+  fm-mark-sheet.html / .png   grounds, size ladder, placements, the seen-before table
+build.py
 ```
 
-Placements: full front 12 in, 2.5 in from HPS. Left chest 3.5 in with the
-small cut. Plastisol, 156 mesh, no halftone.
+Placements: full front 12 in, 2.5 in from HPS. Left chest 3.5 in from the same
+file. Plastisol, 156 mesh, no halftone.
 
-## Deliberately not built yet
+## Still waiting on sign-off
 
-Wordmark, ephemera, unit names and the institution copy wait until the mark is
-agreed. When they come: two inks maximum, Winkie Black and Cap Gold, Space
-Grotesk for copy and JetBrains Mono for spec furniture.
+Wordmark, ephemera, unit names and copy come after the mark is agreed. Two inks
+maximum when they do: Winkie Black and Cap Gold.

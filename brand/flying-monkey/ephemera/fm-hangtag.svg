@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 350">
+<title>Flying Monkey — hangtag FM-CAP-26-TAG-1C</title>
+<rect x="0.5" y="0.5" width="199" height="349" fill="#F4F1EA" stroke="#111111" stroke-width="1"/>
+<circle cx="100" cy="22" r="5" fill="none" stroke="#111111" stroke-width="1"/>
+<g transform="translate(40 40) scale(0.5)"><g id="wings" fill="#111111"><path d="M152 96 L225.7 28.42 L235.17 38.73 L161.46 106.32 Z M165.52 110.74 L224.48 56.67 L233.94 66.99 L174.98 121.06 Z M179.03 125.48 L223.26 84.93 L232.72 95.25 L188.5 135.8 Z M152 96 L174.11 75.72 L210.61 115.52 L188.5 135.8 Z"/><path transform="translate(240 0) scale(-1 1)" d="M152 96 L225.7 28.42 L235.17 38.73 L161.46 106.32 Z M165.52 110.74 L224.48 56.67 L233.94 66.99 L174.98 121.06 Z M179.03 125.48 L223.26 84.93 L232.72 95.25 L188.5 135.8 Z M152 96 L174.11 75.72 L210.61 115.52 L188.5 135.8 Z"/></g>
+<path id="tail" fill="none" stroke="#111111" stroke-width="8" stroke-linecap="butt" d="M92 170 V196 A20 20 0 0 1 52 196 A10 10 0 0 1 72 196"/>
+<g id="head" fill="#111111"><circle cx="60" cy="102" r="20"/><circle cx="180" cy="102" r="20"/><circle cx="120" cy="120" r="60"/></g>
+<g id="face" fill="#F4F1EA"><circle cx="58" cy="102" r="10"/><circle cx="182" cy="102" r="10"/><circle cx="100" cy="132" r="30"/><circle cx="140" cy="132" r="30"/><circle cx="106" cy="108" r="20"/><circle cx="134" cy="108" r="20"/><path d="M86 108 H154 V132 H86 Z"/><path d="M100 132 H140 V162 H100 Z"/></g>
+<g id="eyes"><circle fill="#111111" cx="106" cy="112" r="10"/><rect fill="#F4F1EA" x="96" y="102" width="20" height="7"/><circle fill="#111111" cx="134" cy="112" r="10"/><rect fill="#F4F1EA" x="124" y="102" width="20" height="7"/></g>
+<g id="mouth"><rect fill="#111111" x="100" y="146" width="40" height="10"/></g>
+<g id="cap"><rect fill="#F4F1EA" x="100" y="36" width="40" height="30"/><rect fill="#111111" x="100" y="56" width="40" height="4"/><path fill="none" stroke="#111111" stroke-width="4" d="M140 36 L157.69 52.22"/><circle fill="#111111" cx="157.69" cy="52.22" r="5"/></g></g>
+<path stroke="#111111" stroke-width="1" d="M16 170 H184"/>
+<text x="16" y="196" font-family="'Space Grotesk', 'Suisse Int\'l', 'Neue Haas Grotesk', Helvetica, Arial, sans-serif" font-weight="700" font-size="26" fill="#111111" text-anchor="start" letter-spacing="-0.8" >FLYING</text>
+<text x="16" y="222" font-family="'Space Grotesk', 'Suisse Int\'l', 'Neue Haas Grotesk', Helvetica, Arial, sans-serif" font-weight="700" font-size="26" fill="#111111" text-anchor="start" letter-spacing="-0.8" >MONKEY</text>
+<text x="16" y="236" font-family="'JetBrains Mono', 'ABC Diatype Mono', 'Berkeley Mono', monospace" font-weight="500" font-size="7" fill="#111111" text-anchor="start" letter-spacing="0.8" >AIR SERVICES™</text>
+<path stroke="#111111" stroke-width="1" d="M16 246 H184"/>
+<text x="16" y="258" font-family="'JetBrains Mono', 'ABC Diatype Mono', 'Berkeley Mono', monospace" font-weight="700" font-size="8" fill="#111111" text-anchor="start" letter-spacing="0" >FM-AIR-26-FF-1C</text>
+<text x="184" y="258" font-family="'JetBrains Mono', 'ABC Diatype Mono', 'Berkeley Mono', monospace" font-weight="500" font-size="8" fill="#111111" text-anchor="end" letter-spacing="0" >COMMAND 01/03</text>
+<text x="16" y="270" font-family="'JetBrains Mono', 'ABC Diatype Mono', 'Berkeley Mono', monospace" font-weight="500" font-size="6.5" fill="#111111" text-anchor="start" letter-spacing="0" >CAP GOLD ON WINKIE BLACK</text>
+<text x="184" y="270" font-family="'JetBrains Mono', 'ABC Diatype Mono', 'Berkeley Mono', monospace" font-weight="500" font-size="6.5" fill="#111111" text-anchor="end" letter-spacing="0" >PLASTISOL · 156 MESH</text>
+<path stroke="#111111" stroke-width="1" d="M16 280 H184"/>
+<text x="16" y="292" font-family="'JetBrains Mono', 'ABC Diatype Mono', 'Berkeley Mono', monospace" font-weight="700" font-size="7" fill="#111111" text-anchor="start" letter-spacing="0" >THREE COMMANDS PER OWNER.</text>
+<text x="16" y="306" font-family="'JetBrains Mono', 'ABC Diatype Mono', 'Berkeley Mono', monospace" font-weight="500" font-size="6" fill="#111111" text-anchor="start" letter-spacing="0" >The Cap is held in-house.</text>
+<text x="16" y="314" font-family="'JetBrains Mono', 'ABC Diatype Mono', 'Berkeley Mono', monospace" font-weight="500" font-size="6" fill="#111111" text-anchor="start" letter-spacing="0" >Requests for a fourth command</text>
+<text x="16" y="322" font-family="'JetBrains Mono', 'ABC Diatype Mono', 'Berkeley Mono', monospace" font-weight="500" font-size="6" fill="#111111" text-anchor="start" letter-spacing="0" >are not acknowledged.</text>
+<path stroke="#111111" stroke-width="1" d="M16 330 H184"/>
+<text x="16" y="340" font-family="'JetBrains Mono', 'ABC Diatype Mono', 'Berkeley Mono', monospace" font-weight="500" font-size="5.5" fill="#111111" text-anchor="start" letter-spacing="0" >SALEM MA · 42.52°N 70.90°W</text>
+<text x="184" y="340" font-family="'JetBrains Mono', 'ABC Diatype Mono', 'Berkeley Mono', monospace" font-weight="500" font-size="5.5" fill="#111111" text-anchor="end" letter-spacing="0" >47 CANAL ST</text>
+</svg>

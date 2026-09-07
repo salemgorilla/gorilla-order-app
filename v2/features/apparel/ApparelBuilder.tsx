@@ -262,26 +262,62 @@ export default function ApparelBuilder({
                         type="button"
                         onClick={() => onSelectColor(color)}
                         disabled={color.outOfStock}
+                        /**
+                         * Reported by Gabe, 2026-09-07: "when I press a color
+                         * there is no indication, or not one very visible, to
+                         * know that the color has been chosen."
+                         *
+                         * He was right, and it was worse than invisible — it
+                         * was inaccessible. The entire selected state was a
+                         * 1px border changing colour and the fill going from
+                         * white/70 to white: two colour-only signals, one of
+                         * them at 30% opacity, in a grid of up to 84 cells.
+                         * There was no aria-pressed either, so assistive tech
+                         * was told nothing at all.
+                         *
+                         * This is the product cards' own treatment, one step
+                         * earlier in the same flow: green border, GREEN TINT
+                         * fill rather than white-on-white, and an explicit
+                         * SELECTED badge that survives greyscale and
+                         * colour-blindness. The border stays 1px on purpose —
+                         * the product card's note explains why a 1px→2px step
+                         * is avoided here: it shifts the layout.
+                         */
+                        aria-pressed={isSelected}
                         className={` border p-3 text-left transition ${
                           isSelected
-                            ? "border-[var(--gorilla-green)] bg-white"
+                            ? "border-[var(--gorilla-green)] bg-[var(--surface-ok)]"
                             : "border-[var(--rule)] bg-white/70 hover:bg-white"
                         } ${
                           color.outOfStock
                             ? "cursor-not-allowed opacity-50"
-                            : ""
+                            : "cursor-pointer"
                         }`}
                       >
                         <div className="flex items-center gap-2">
+                          {/* The chosen colour gets a ring on the swatch
+                              itself, drawn as an OUTLINE rather than a border
+                              so a 28px chip cannot nudge the row as it is
+                              selected. Ink, not green: the swatch may itself
+                              be green, and a green ring on a green swatch is
+                              no ring at all. */}
                           {color.swatchImage ? (
                             <img
                               src={color.swatchImage}
                               alt={color.colorName}
-                              className="h-7 w-7 border border-black/10 object-cover"
+                              className={`h-7 w-7 border border-black/10 object-cover ${
+                                isSelected
+                                  ? "outline outline-2 outline-offset-1 outline-[var(--ink-black)]"
+                                  : ""
+                              }`}
                             />
                           ) : (
                             <span
-                              className="h-7 w-7 border border-black/10"
+                              className={`h-7 w-7 border border-black/10 ${
+                                isSelected
+                                  ? "outline outline-2 outline-offset-1 outline-[var(--ink-black)]"
+                                  : ""
+                              }`}
                               style={{
                                 backgroundColor:
                                   color.colorHex || "#ffffff",
@@ -294,9 +330,21 @@ export default function ApparelBuilder({
                           </span>
                         </div>
 
-                        <p className="mt-2 text-spec font-medium text-[var(--ink-muted)]">
-                          {color.outOfStock ? "Out of stock" : "Available"}
-                        </p>
+                        {/* The status slot, reused rather than added to: the
+                            badge takes the line "Available" was on, so
+                            selecting a colour cannot reflow the grid. An
+                            out-of-stock colour is disabled and can never be
+                            the selected one, so the three states never
+                            collide. */}
+                        {isSelected ? (
+                          <span className="spec mt-2 inline-block bg-[var(--gorilla-green)] px-2 py-1 text-spec font-bold text-white">
+                            SELECTED
+                          </span>
+                        ) : (
+                          <p className="mt-2 text-spec font-medium text-[var(--ink-muted)]">
+                            {color.outOfStock ? "Out of stock" : "Available"}
+                          </p>
+                        )}
                       </button>
                     );
                   })}

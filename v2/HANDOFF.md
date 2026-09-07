@@ -22,6 +22,37 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **SIGNS AND BANNERS PAY ONLINE** — 2026-09-07, Gabe: "I want signs and
+  banners to have the same action as the stickers button. All 3 should be
+  'instant price - pay online'." They now raise a live payment link on
+  submit, with no human in the loop, exactly as stickers have. Apparel
+  does NOT and must not — it is an estimate off a supplier catalogue.
+
+  **`lib/auto-bill.ts` is the whole decision** and is a SECOND gate, not a
+  widening of `isStickerOrder()` — widening that one would reprice a banner
+  against the sticker table. Two clauses matter most: it bills only what the
+  SERVER repriced (`repriceSigns()` passes an old spec-less payload through
+  untouched, which would mean billing the browser's own number), and it
+  stops at a **$1,500 ceiling** (Gabe, same day, asked directly). Over the
+  ceiling the quote, the shop email and the Printavo record all still go
+  out; only the link is withheld and the shop invoices by hand. Every
+  refusal logs its reason against the GS- number.
+
+  **Shipping is the one thing the price does not cover.** Signs never carry
+  a shipping figure — the delivery step says "quoted separately". Asked
+  whether that was safe to bill against, Gabe: "Pickup and shipped items
+  will be paid in full before pickup or shipping out." So a shipped order
+  pays for its goods online and settles delivery before it leaves the shop.
+  Said in three places so nobody is surprised by a second bill: the banner
+  card, the confirmation screen, and Printavo's payment email.
+
+  Verified in Chromium: a yard-sign order reaches READY TO PAY on both
+  pickup and shipping, the shipped one carrying the delivery note, and all
+  three cards read "Instant price · pay online". 1,842 unit tests, smoke
+  28/28, apparel audit 49/49. NOT yet done: a real signs order reconciled
+  against the Printavo invoice — the money path changed, so per AGENTS.md
+  that reconciliation is owed before this is trusted (task #21).
+
 - **The apparel confirmation lists every garment** — 2026-09-07. Found
   by checking the class of the sticker bug fixed in #120: the apparel
   confirmation read `selectedGarmentLabel` + `apparelQuote.quantity`, so

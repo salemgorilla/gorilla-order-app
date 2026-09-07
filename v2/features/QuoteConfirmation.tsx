@@ -141,6 +141,22 @@ export default function QuoteConfirmationScreen({
   const payAmount = checkout?.amount;
   const canPayNow = Boolean(payUrl);
 
+  /**
+   * A signs order that is being SHIPPED pays for its goods here and settles
+   * delivery afterwards — lib/signs-cart.ts never prices shipping, and the
+   * delivery step says as much ("shipping quoted separately").
+   *
+   * Saying so on this screen is not decoration. Gabe's rule is that nothing
+   * leaves the shop until it is paid in full (2026-09-07), so there IS a
+   * second bill; a customer who pays and then receives one they were never
+   * warned about is a dispute. Only shown when there is actually something
+   * to pay — on an invoiced order the whole total is still to come.
+   */
+  const shippedSignsPayment =
+    canPayNow &&
+    isSignsSubmitted &&
+    String(order.production.deliveryMethod || "") === "Ship";
+
   return (
     // Marks "the order is sent" in the DOM. The kiosk watches for this to
     // switch to its shorter clear-down timer; the flow itself stays unaware a
@@ -168,7 +184,7 @@ export default function QuoteConfirmationScreen({
 
             <p className="mx-auto mt-5 max-w-2xl text-lede leading-8 text-[var(--ink-muted)]">
               {canPayNow
-                ? "Sticker pricing is set, so there's nothing to wait for. Pay below and we'll send a proof before anything goes to print."
+                ? "Your price is set, so there's nothing to wait for. Pay below and we'll send a proof before anything goes to print."
                 : "We received your quote request. Gorilla Salem will review your artwork, timeline, and details before production."}
             </p>
           </div>
@@ -192,6 +208,14 @@ export default function QuoteConfirmationScreen({
                 printing — if we can&rsquo;t print your artwork, you get a full
                 refund.
               </p>
+
+              {shippedSignsPayment && (
+                <p className="mt-3 text-fine font-medium leading-6 text-[var(--ink-muted)]">
+                  This covers the signs themselves. Delivery is quoted
+                  separately — we&rsquo;ll work out the shipping and send that
+                  before anything leaves the shop.
+                </p>
+              )}
 
               <p className="spec mt-2 text-spec text-[var(--ink-muted)]">
                 Payment link also emailed to you

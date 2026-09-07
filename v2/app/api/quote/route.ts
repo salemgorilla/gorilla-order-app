@@ -17,12 +17,13 @@ import { buildOrderConfirmation } from "../../../lib/order-confirmation";
 import { reorderUrl } from "../../../lib/reorder";
 import { describeRepricing } from "../../../lib/repricing-note";
 import { repriceSigns } from "../../../lib/signs-repricing";
+import { decideSignsAutoBill, isSignsOrder } from "../../../lib/auto-bill";
 import { getEmailError } from "../../../lib/validation";
 import { subscribeToNewsletter } from "../../../lib/newsletter";
 import { describeKioskSource, readKioskSession } from "../../../lib/kiosk";
 import {
   createPrintavoQuote,
-  createStickerCheckout,
+  createCheckout,
 } from "../../../lib/printavo";
 
 // Cap the artwork we attach to an email. Big print files (large AI/PDF/PNG)
@@ -735,9 +736,39 @@ export async function POST(request: Request) {
       );
     }
 
-    // Stickers check out on their own. Every other flow still waits for the
-    // shop, because only stickers are fully priced with nothing to review.
+    // Stickers check out on their own, and since 7 Sep so do signs and
+    // banners — Gabe: "All 3 should be instant price - pay online". Apparel
+    // still waits for the shop: its garment prices come from a supplier
+    // catalogue that can be stale or out of stock, so there IS something to
+    // review before a card is taken.
+    //
+    // Two gates, deliberately not one. Stickers are classified by
+    // isStickerOrder() because that ALSO decides what gets repriced against
+    // the sticker table; signs are decided by lib/auto-bill.ts against their
+    // own reprice. Widening the sticker gate to cover signs would auto-bill
+    // them at sticker prices, which is the worse bug.
     const isStickers = isStickerOrder(pricedOrder);
+
+    const signsAutoBill = decideSignsAutoBill({
+      order: pricedOrder,
+      // The server's own recompute, never the browser's claim. `repriced` is
+      // false when the payload carried no spec to rebuild from, and that
+      // alone withholds the link — see lib/auto-bill.ts.
+      repriced: signsPriced.repriced,
+      unpriceable: signsPriced.unpriceable,
+      serverTotal: signsPriced.serverTotal,
+      kioskSession: Boolean(kioskSession),
+      printavoCreated: Boolean(printavo.created && printavo.quoteId),
+    });
+
+    // Every signs order that does NOT bill says why, once, in the log. A sign
+    // that quietly stops self-checking-out is otherwise invisible until a
+    // customer asks where their payment link went.
+    if (isSignsOrder(pricedOrder) && !signsAutoBill.bill) {
+      console.log(
+        `SIGNS ORDER ${quoteNumber} — no payment link: ${signsAutoBill.reason}.`
+      );
+    }
 
     let checkout = null;
 
@@ -779,16 +810,24 @@ export async function POST(request: Request) {
       );
     }
 
-    if (
+    const stickersAutoBill =
       !kioskSession &&
       !priced.unpriceable &&
       isStickers &&
-      printavo.created &&
-      printavo.quoteId
-    ) {
-      checkout = await createStickerCheckout({
-        quoteId: printavo.quoteId,
+      Boolean(printavo.created && printavo.quoteId);
+
+    if (stickersAutoBill || signsAutoBill.bill) {
+      checkout = await createCheckout({
+        quoteId: printavo.quoteId as string,
         publicUrl: printavo.publicUrl || "",
+        flow: signsAutoBill.bill ? "signs" : "stickers",
+        // Shipped signs pay for the goods now and settle delivery before the
+        // order leaves the shop. The email has to say so.
+        shipped:
+          String(
+            (order.production as Record<string, unknown> | undefined)
+              ?.deliveryMethod || ""
+          ) === "Ship",
         // Carries the tracking link in the payment email. This is the same
         // string lookupOrderStatus matches against the Printavo nickname.
         quoteNumber,
@@ -798,10 +837,12 @@ export async function POST(request: Request) {
           ) || undefined,
       });
 
+      const label = signsAutoBill.bill ? "SIGNS" : "STICKER";
+
       console.log(
         checkout.ready
-          ? `STICKER CHECKOUT READY for ${quoteNumber}: ${checkout.payUrl}`
-          : `STICKER CHECKOUT UNAVAILABLE for ${quoteNumber}: ${checkout.error}`
+          ? `${label} CHECKOUT READY for ${quoteNumber}: ${checkout.payUrl}`
+          : `${label} CHECKOUT UNAVAILABLE for ${quoteNumber}: ${checkout.error}`
       );
     }
 

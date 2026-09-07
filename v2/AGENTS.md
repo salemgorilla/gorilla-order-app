@@ -13,16 +13,35 @@ The app is in `v2/`. The repo root holds a dead v1 static site — ignore it.
 
 ## The one that matters most
 
-**Stickers auto-bill with no human in the loop.** A submitted sticker quote
-emails the shop and creates a live payable link the customer can pay
-immediately. Nothing between the browser and someone's card is reviewed.
+**Stickers, signs and banners auto-bill with no human in the loop.** A
+submitted quote in any of those three emails the shop and creates a live
+payable link the customer can pay immediately. Nothing between the browser and
+someone's card is reviewed. Apparel does not: it is an estimate priced off a
+supplier catalogue that can be stale, so the shop confirms it first.
 
-`isStickerOrder()` in `lib/sticker-repricing.ts` (called from
-`app/api/quote/route.ts`) decides which submissions get
-that treatment. It used to classify by *absence* — no supplier, no garmentType,
-no signType — so any new flow that forgot a field silently became a sticker
-order and charged someone a price nobody set. It now also requires the product
-type to say "sticker". Do not weaken that.
+**Two gates, and they must stay separate.**
+
+`isStickerOrder()` in `lib/sticker-repricing.ts` decides which submissions are
+stickers. It used to classify by *absence* — no supplier, no garmentType, no
+signType — so any new flow that forgot a field silently became a sticker order
+and charged someone a price nobody set. It now also requires the product type
+to say "sticker". Do not weaken that, and in particular **do not widen it to
+cover signs**: it decides repricing as well as billing, so a signs payload
+inside it would be repriced against the sticker table and billed a
+per-square-inch vinyl price for a banner.
+
+`lib/auto-bill.ts` decides signs and banners (Gabe, 2026-09-07: "All 3 should
+be 'instant price - pay online'"). Read it before touching that path; every
+clause in it is a way this goes wrong. Two are worth repeating here:
+
+- **It bills only what the SERVER repriced.** `repriceSigns()` passes a
+  payload through untouched when it carries no `spec` to rebuild from. That
+  was harmless while the shop read the figure before invoicing; with a link
+  being raised it would mean billing a number the browser supplied. No
+  reprice, no link.
+- **$1,500 ceiling** (Gabe, same day). Above it the quote, the email and the
+  Printavo record all still go out — only the payment link is withheld and the
+  shop invoices by hand. It is a blast radius, not a pricing rule.
 
 `buildQuotePayload` must keep synthesising a `product` object. A payload
 without it returns false from `isStickerOrder()` and stickers silently stop

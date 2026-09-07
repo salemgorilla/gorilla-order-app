@@ -40,9 +40,9 @@ Working and verified:
 - **The Republic register, applied — MERGED as #120, live** —
   2026-09-07, Gabe: "Use this design guide to influence the look ui and
   UX for our app" (the tDR aesthetic agent definition). Built as PR #120
-  on `claude/order-form-progress-steps-qq0itz` and deliberately left
-  unmerged because Gabe was mid-test on production when it landed; merge
-  on his nod. What it is: the guide's move for a real print shop is the
+  on `claude/order-form-progress-steps-qq0itz`, held unmerged while Gabe
+  was mid-test on production, then merged on his "Ok" the same day and
+  confirmed READY on Vercel. What it is: the guide's move for a real print shop is the
   WipEout one — the institution's own data as the design — and the app's
   real data is its SKU grammar, its address and its pricing config, so
   the change puts those on screen and invents nothing. `lib/sku.ts` now

@@ -730,17 +730,39 @@ export default function Home() {
     }
 
     if (isApparelSelected) {
+      /**
+       * THE RUN, not the first garment.
+       *
+       * `apparelQuote.quantity` is the configurator's own count — the primary
+       * garment alone. `apparelPricing` is the whole cart. Reading one against
+       * the other made the bar describe a 42-piece order as "24 × Basic Tee ·
+       * $32.90 each": the total was right, but the label named one garment and
+       * the per-piece divided the WHOLE cart by the FIRST line's count.
+       *
+       * Reported as "the items are not added to the quote", which is exactly
+       * how it read — a customer adds hoodies, the label still says 24 tees,
+       * and the only honest conclusion is that the hoodies went nowhere. They
+       * had not: every one of them was in the total.
+       *
+       * So the label names the cart, the way the sticker and signs branches
+       * either side of this one already do, and the per-piece comes from the
+       * engine — `unitPrice` is total ÷ the run, the same figure the
+       * confirmation screen and the copied quote print, so the three cannot
+       * disagree.
+       */
+      const lines = apparelPricing.lines.length;
+      const run = apparelPricing.quantity;
+
       return {
-        label: `${apparelQuote.quantity} × ${
-          selectedGarmentLabel || "Apparel"
-        }`,
+        label:
+          lines > 1
+            ? `${lines} garments · ${run.toLocaleString()} pieces`
+            : `${apparelQuote.quantity} × ${selectedGarmentLabel || "Apparel"}`,
         total: apparelPricing.total,
         priceable: !apparelQuote.specialOrder,
         detail: apparelQuote.specialOrder
           ? "Special order — we'll quote it"
-          : `$${(apparelPricing.total / Math.max(1, apparelQuote.quantity)).toFixed(
-              2
-            )} each`,
+          : `$${apparelPricing.unitPrice.toFixed(2)} each`,
       };
     }
 
@@ -2850,7 +2872,10 @@ ${customerSection}
 APPAREL DETAILS
 Product: T-Shirts & Apparel
 Garment Type: ${apparelQuote.garmentType}
-Quantity: ${apparelQuote.quantity.toLocaleString()}${
+Quantity: ${(apparelPricing.lines.length > 1
+        ? apparelPricing.quantity
+        : apparelQuote.quantity
+      ).toLocaleString()}${
         // The request flow asks three questions: garment, count, and a free
         // notes box. Colour, locations and ink are form DEFAULTS there —
         // nobody answered them — and the notes are the request itself, so
@@ -2868,7 +2893,15 @@ Your Request: ${apparelQuote.specialOrderNotes.trim() || "Not provided"}`
             // internal note, nowhere customer-reachable.
             `
 Garment: ${selectedGarmentLabel || apparelQuote.garmentType}
-Garment Color: ${apparelQuote.garmentColor}
+Garment Color: ${apparelQuote.garmentColor}${
+        // Every garment on a cart. Without it this record named the first
+        // one and silently dropped the rest — the same way the estimate bar
+        // did, and the shop pastes this into Printavo and into emails.
+        apparelPricing.lines.length > 1
+          ? `
+All Garments: ${describeGarmentLines(apparelPricing.lines)}`
+          : ""
+      }
 Print Locations: ${apparelQuote.printLocations.join(", ")}
 Ink Colors: ${apparelQuote.inkColors}
 Size Breakdown: ${apparelQuote.sizeBreakdown || "Not entered yet"}`

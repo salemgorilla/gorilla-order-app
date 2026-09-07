@@ -22,6 +22,30 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **"The items are not added to the quote"** — 2026-09-07, Gabe, on the
+  apparel cart. They WERE added: every extra garment was in the total. What
+  was wrong was every word around it. The sticky estimate bar took its
+  label and its per-piece divisor from `apparelQuote.quantity` — the
+  configurator's own count, the FIRST garment alone — while taking the
+  total from the whole cart. A 42-piece order across three garments read
+  "24 × Basic Tee · $32.90 each" against $789.70. The correct per-piece is
+  $18.80; $32.90 is the whole cart divided by the first line. Adding twelve
+  hoodies and still reading "24 × Basic Tee" leaves one honest conclusion,
+  which is the one Gabe drew.
+
+  The bar now names the cart the way the sticker and signs branches either
+  side of it already did ("3 garments · 42 pieces") and takes the per-piece
+  from `apparelPricing.unitPrice` — total ÷ the run, the same figure the
+  confirmation and the copied quote print, so the three cannot disagree.
+  The copied quote had the same shape of bug in its header: quantity and
+  garment named the first line only. It now carries the run and an
+  "All Garments" line, matching the shop email.
+
+  tests/estimate-bar-cart.test.ts pins the arithmetic (and asserts the two
+  divisors differ by enough that the bug could not hide). Verified by
+  re-driving the exact reproduction: 24 tees + 12 hoodies + 6 tees now
+  reads "3 garments · 42 pieces · $18.80 each".
+
 - **"Starter Tee" is now "Basic Tee"** — 2026-09-07, Gabe. One string:
   `label` in lib/apparel-catalog.ts, which the /api/ss-catalog route maps to
   `customerLabel`, so every surface follows from there. No SKU moved — the

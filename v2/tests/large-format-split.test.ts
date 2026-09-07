@@ -166,7 +166,10 @@ describe("step 1 offers two large-format cards", () => {
     );
     for (const card of band) {
       assert.equal(card.status, "active");
-      assert.match(card.fulfilment, /invoice/i);
+      // Both pay online since 7 Sep — Gabe: "All 3 should be instant price -
+      // pay online". The gate that keeps this promise is lib/auto-bill.ts,
+      // and tests/product-fulfilment.test.ts holds the card against it.
+      assert.match(card.fulfilment, /pay online/i);
     }
   });
 

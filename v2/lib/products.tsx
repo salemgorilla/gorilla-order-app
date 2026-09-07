@@ -112,12 +112,25 @@ export const productCategories: ProductCategory[] = [
     status: "active",
     // The Beta badge is gone. It told a buyer "this returns a real price" and
     // "this is unfinished" in the same breath, on the one card that already
-    // does the hard thing. The pricing is real — it is confirmed and invoiced
-    // rather than charged, which is what the fulfilment line says.
-    note: "Real price now — we send an invoice instead of taking a card.",
-    // Priced online like stickers, but never self-billed — large format does
-    // not pass isStickerOrder(), so no payment link is ever raised.
-    fulfilment: "Instant price · we invoice",
+    // does the hard thing.
+    //
+    // Shipping is the one thing this price does not cover — the delivery step
+    // says so, and so does the confirmation. Stated on the card too, because
+    // a customer choosing between products should know before they invest
+    // five steps, not at the end.
+    note: "Pay online. Delivery, if you need it, is quoted separately.",
+    /**
+     * Pays online, same as stickers — Gabe, 2026-09-07: "All 3 should be
+     * instant price - pay online."
+     *
+     * This is a PROMISE, and lib/auto-bill.ts is what keeps it: a signs order
+     * the server could reprice, under the $1,500 ceiling, raises a live
+     * payment link with no human in the loop. Over the ceiling, or on a
+     * payload the server could not re-derive, the shop invoices by hand
+     * instead — so the line can be true for the orders this shop actually
+     * takes without the ceiling case making it a lie.
+     */
+    fulfilment: "Instant price · pay online",
   },
   {
     id: "signs",
@@ -126,8 +139,8 @@ export const productCategories: ProductCategory[] = [
       "Yard signs, rigid signs, posters and window graphics.",
     segment: "large-format",
     status: "active",
-    // No note: the invoicing model is explained once for the segment, on the
+    // No note: the delivery caveat is explained once for the segment, on the
     // card above. The same sentence twice in adjacent cards reads as a bug.
-    fulfilment: "Instant price · we invoice",
+    fulfilment: "Instant price · pay online",
   },
 ];

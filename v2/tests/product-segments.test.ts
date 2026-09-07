@@ -140,42 +140,63 @@ describe("the group survives the visual split", () => {
   });
 });
 
-describe("only the pay-online path is coloured", () => {
-  test("exactly one product's status line earns the green", () => {
-    // The colour is driven off /pay online/, which
-    // tests/product-fulfilment.test.ts already pins to isStickerOrder() — the
-    // server function that decides which flow actually takes money. So the
-    // green cannot drift away from the thing it is claiming.
+describe("only the pay-online paths are coloured", () => {
+  test("the green marks self-billing, and only self-billing", () => {
+    /**
+     * The colour is driven off /pay online/, which
+     * tests/product-fulfilment.test.ts pins to the SERVER functions that
+     * decide which flows actually take money — isStickerOrder() and
+     * decideSignsAutoBill(). So the green cannot drift away from the thing
+     * it is claiming.
+     *
+     * Three cards earn it since 7 Sep, not one (Gabe: "All 3 should be
+     * instant price - pay online"). What the colour means is unchanged —
+     * "you can pay for this right now" — and the one card without it is the
+     * one flow that genuinely cannot: apparel, an estimate the shop confirms
+     * against a supplier catalogue before invoicing.
+     */
     const claiming = productCategories.filter((p) =>
       /pay online/i.test(p.fulfilment)
     );
 
-    assert.equal(claiming.length, 1);
-    assert.equal(claiming[0].id, "stickers");
-    assert.equal(claiming[0].segment, "decorated");
+    assert.deepEqual(claiming.map((p) => p.id).sort(), [
+      "banners",
+      "signs",
+      "stickers",
+    ]);
+
+    const quiet = productCategories.filter(
+      (p) => !/pay online/i.test(p.fulfilment)
+    );
+
+    assert.deepEqual(quiet.map((p) => p.id), ["apparel"]);
   });
 
-  test("the band's own status line stays muted", () => {
-    const signs = productCategories.find((p) => p.id === "signs");
+  test("apparel's status line stays muted, and never says price", () => {
+    // The handoff's standing language rule: apparel is an ESTIMATE. It is
+    // the one card that must not read as money settled.
+    const apparel = productCategories.find((p) => p.id === "apparel");
 
-    assert.ok(signs);
-    assert.doesNotMatch(signs.fulfilment, /pay online/i);
-    assert.match(signs.fulfilment, /invoice/i);
+    assert.ok(apparel);
+    assert.doesNotMatch(apparel.fulfilment, /pay online/i);
+    assert.match(apparel.fulfilment, /estimate/i);
   });
 
-  test("the band explains the invoicing model once", () => {
+  test("the band explains its delivery caveat once", () => {
     /**
      * ONCE means once for the segment, not once per card. The band holds two
-     * pipelines since the split, both invoiced the same way — the note sits
-     * on the first card and the second stays quiet, because the same
-     * sentence twice in adjacent cards reads as a bug.
+     * pipelines since the split, and since 7 Sep both pay online — what the
+     * note now carries is the one thing that price does NOT cover, which is
+     * shipping (lib/auto-bill.ts says why that is safe). The note sits on the
+     * first card and the second stays quiet, because the same sentence twice
+     * in adjacent cards reads as a bug.
      */
     const noted = productCategories.filter(
       (p) => p.segment === "large-format" && p.note
     );
 
     assert.equal(noted.length, 1, "the segment's note appears " + noted.length + " times");
-    assert.match(noted[0].note ?? "", /invoice/i);
+    assert.match(noted[0].note ?? "", /separately/i);
 
     // The cards have no room for a second line and do not get one.
     for (const product of productCategories.filter(

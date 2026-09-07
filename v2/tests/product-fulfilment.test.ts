@@ -3,6 +3,11 @@ import { describe, it } from "node:test";
 
 import { productCategories } from "../lib/products";
 import { isStickerOrder } from "../lib/sticker-repricing";
+import { decideSignsAutoBill } from "../lib/auto-bill";
+import { createSignsDesign } from "../lib/signs";
+import { quoteSignsCart } from "../lib/signs-cart";
+import { buildSignsPayloadParts } from "../lib/signs-payload";
+import { repriceSigns } from "../lib/signs-repricing";
 
 /**
  * What each product card promises about what happens after submit.
@@ -16,14 +21,47 @@ import { isStickerOrder } from "../lib/sticker-repricing";
  * returns a number in a minute — was the card with nothing marking it out.
  *
  * ── WHY THIS FILE IS NOT JUST A COPY CHECK ────────────────────────────────
- * "Pay online" is a promise about the SERVER. isStickerOrder() is what
- * actually decides whether a submission gets a payment link, so the promise
- * is asserted against that function rather than against a comment. A card
- * that offered online payment for a flow which cannot raise a link would be
- * a lie told at the exact moment someone is deciding to trust the thing.
+ * "Pay online" is a promise about the SERVER, so it is asserted against the
+ * functions that actually decide whether a submission gets a payment link,
+ * never against a comment. A card that offered online payment for a flow
+ * which cannot raise a link would be a lie told at the exact moment someone
+ * is deciding to trust the thing.
+ *
+ * Since 7 Sep there are TWO such functions, because there are two gates:
+ * isStickerOrder() for stickers, decideSignsAutoBill() for signs and banners
+ * (Gabe: "All 3 should be instant price - pay online"). A card is allowed to
+ * claim online payment exactly when one of them says yes.
+ *
+ * ── AND WHY THE PAYLOADS ARE THE REAL ONES ────────────────────────────────
+ * The signs fixtures here are built by buildSignsPayloadParts and repriced by
+ * repriceSigns — the same construction the browser posts and the route runs.
+ * A hand-written fixture is a test that can pass while the shipped payload
+ * behaves differently, which is the failure signs-cart-not-a-sticker.test.ts
+ * was written for.
  */
 
 const PAYS_ONLINE = /pay online/i;
+
+/** A real signs payload, built the way the browser builds it. */
+function signsPayload(productId: string, overrides = {}) {
+  const designs = [
+    createSignsDesign({
+      productId,
+      quantity: 3,
+      customWidthInches: 24,
+      customHeightInches: 18,
+      material: productId === "vinyl-banner" ? "13 oz Scrim Vinyl" : "Coroplast",
+      finishing: productId === "vinyl-banner" ? "Hemmed + Grommets" : "Signs Only",
+      ...overrides,
+    }),
+  ];
+
+  return {
+    customer: { customerName: "Dana", email: "dana@example.com" },
+    production: { deliveryMethod: "Pickup" },
+    ...buildSignsPayloadParts(designs, quoteSignsCart(designs)),
+  };
+}
 
 /** A payload shaped the way the browser really posts each flow. */
 function orderFor(id: string) {
@@ -46,14 +84,12 @@ function orderFor(id: string) {
     };
   }
 
-  if (id === "signs") {
-    return {
-      customer,
-      production,
-      product: { type: "Banners & Signs", signType: "18oz", quantity: 3 },
-      pricing: { total: 200 },
-    };
-  }
+  // Each large-format card gets ITS OWN product. `banners` used to fall
+  // through to the apparel payload below, so that card's promise was being
+  // checked against a garment order — it passed because both answers were
+  // "no link", and would have gone on passing once one of them changed.
+  if (id === "signs") return signsPayload("yard-sign");
+  if (id === "banners") return signsPayload("vinyl-banner");
 
   return {
     customer,
@@ -109,20 +145,26 @@ describe("every card says what happens after submit", () => {
       (p) => /invoice/i.test(p.fulfilment) && !/estimate/i.test(p.fulfilment)
     );
 
-    // Four models, no card in two of them, no card in none. The hand-quote
-    // model has no card while apparel is live; it comes back with a one-word
-    // rollback, so the model stays named here rather than deleted.
-    assert.equal(payOnline.length, 1);
+    // Four models, no card in two of them, no card in none. Since 7 Sep the
+    // invoiced model has no card either: stickers, banners and signs all pay
+    // online, and apparel is the estimate. Both empty models stay NAMED here
+    // rather than deleted — each comes back with a one-line rollback (a
+    // fulfilment string, or the auto-bill ceiling set to 0), and a model with
+    // no name is one nobody remembers to check.
+    assert.equal(payOnline.length, 3);
     assert.equal(handQuote.length, 0);
     assert.equal(estimated.length, 1);
-    assert.equal(invoiced.length, 2);
+    assert.equal(invoiced.length, 0);
     assert.equal(
       payOnline.length + handQuote.length + estimated.length + invoiced.length,
       productCategories.length
     );
 
-    // The two invoiced pipelines make the SAME promise in the SAME words.
-    assert.equal(new Set(invoiced.map((p) => p.fulfilment)).size, 1);
+    // The three self-billing pipelines make the SAME promise in the SAME
+    // words. They are one model, so wording them differently would tell a
+    // customer they were choosing between things that differ when they do
+    // not.
+    assert.equal(new Set(payOnline.map((p) => p.fulfilment)).size, 1);
     // And the estimate never calls itself a price.
     for (const product of estimated) {
       assert.doesNotMatch(product.fulfilment, /price/i);
@@ -137,31 +179,43 @@ describe("every card says what happens after submit", () => {
 });
 
 describe("a card may only promise online payment if the server would raise one", () => {
-  it("exactly one product claims it", () => {
+  it("three products claim it — stickers, banners and signs", () => {
     const claiming = productCategories.filter((p) =>
       PAYS_ONLINE.test(p.fulfilment)
     );
 
-    assert.equal(
-      claiming.length,
-      1,
-      `expected one pay-online product, got ${claiming.map((p) => p.title).join(", ")}`
+    assert.deepEqual(
+      claiming.map((p) => p.id).sort(),
+      ["banners", "signs", "stickers"],
+      `unexpected pay-online set: ${claiming.map((p) => p.title).join(", ")}`
     );
   });
 
-  it("and it is the one isStickerOrder actually accepts", () => {
-    // The promise checked against the function that decides it, not against
-    // the comment next to it.
+  it("and each is one the SERVER would actually raise a link for", () => {
+    // The promise checked against the functions that decide it, not against
+    // the comments next to them. Whichever gate owns the flow has to say yes.
     for (const product of productCategories) {
       const claimsOnlinePayment = PAYS_ONLINE.test(product.fulfilment);
-      const serverWouldBill = isStickerOrder(orderFor(product.id) as never);
+      const order = orderFor(product.id) as Record<string, unknown>;
+
+      const repriced = repriceSigns(order);
+      const serverWouldBill =
+        isStickerOrder(order as never) ||
+        decideSignsAutoBill({
+          order: repriced.order,
+          repriced: repriced.repriced,
+          unpriceable: repriced.unpriceable,
+          serverTotal: repriced.serverTotal,
+          kioskSession: false,
+          printavoCreated: true,
+        }).bill;
 
       assert.equal(
         claimsOnlinePayment,
         serverWouldBill,
         `${product.title} claims ${
           claimsOnlinePayment ? "" : "no "
-        }online payment, but isStickerOrder says ${serverWouldBill}`
+        }online payment, but the server says ${serverWouldBill}`
       );
     }
   });

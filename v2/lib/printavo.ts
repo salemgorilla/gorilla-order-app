@@ -521,7 +521,7 @@ export async function createPaymentRequest(input: {
   }
 }
 
-export type StickerCheckoutResult = {
+export type CheckoutResult = {
   /** True when the customer can pay right now, unassisted. */
   ready: boolean;
   payUrl?: string;
@@ -542,20 +542,32 @@ export type StickerCheckoutResult = {
  * the old "we'll follow up" path instead of a pay button. Never throw from
  * here — a payment hiccup must not fail a submission.
  */
-export async function createStickerCheckout(input: {
+export async function createCheckout(input: {
   quoteId: string;
   publicUrl: string;
   customerEmail?: string;
+  /**
+   * Which pipeline is billing. Only the wording changes: a customer paying
+   * for a banner should not be emailed about stickers, and a shipped signs
+   * order has to be told that delivery is billed separately (lib/auto-bill.ts
+   * says why that is safe). The AMOUNT is Printavo's in both cases.
+   */
+  flow?: "stickers" | "signs";
+  /** True when the customer chose shipping rather than pickup. */
+  shipped?: boolean;
   /**
    * The `GS-` number, so the payment email can carry a tracking link that
    * prefills it. lookupOrderStatus matches on this appearing in the Printavo
    * order's `nickname`, so it is the same string the customer must type.
    */
   quoteNumber?: string;
-}): Promise<StickerCheckoutResult> {
+}): Promise<CheckoutResult> {
   if (!input.quoteId || !input.publicUrl) {
     return { ready: false, error: "No Printavo quote to bill against." };
   }
+
+  const signs = input.flow === "signs";
+  const what = signs ? "order" : "sticker quote";
 
   try {
     const request = await createPaymentRequest({
@@ -564,12 +576,22 @@ export async function createStickerCheckout(input: {
       // total Printavo computed. The app deliberately does not pass a figure
       // it derived itself.
       to: input.customerEmail ? [input.customerEmail] : undefined,
-      subject: "Your Gorilla Salem sticker quote — ready to pay",
+      subject: `Your Gorilla Salem ${what} — ready to pay`,
       body:
         "Thanks for your order.\n\n" +
-        "Your stickers are priced and ready to pay using the link below. " +
+        `Your ${signs ? "signs are" : "stickers are"} priced and ready to pay ` +
+        "using the link below. " +
         "Once you pay we'll send a proof before anything goes to print — if " +
         "we can't print your artwork, you get a full refund.\n\n" +
+        // Said here as well as on screen. A customer who pays this link and
+        // then receives a second bill they were never warned about is a
+        // dispute; the shop's rule is that nothing ships until it is paid in
+        // full (Gabe, 2026-09-07), so the second step has to be predictable.
+        (signs && input.shipped
+          ? "This covers your signs. Delivery is quoted separately — we'll " +
+            "work out the shipping and send that before anything leaves the " +
+            "shop.\n\n"
+          : "") +
         // For a sticker order that bills, this is the message that carries
         // the tracking link. Everything else now gets it from our own
         // confirmation email instead — see lib/order-confirmation.ts, which

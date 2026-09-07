@@ -1971,3 +1971,86 @@ export async function lookupOrderStatus(input: {
     };
   }
 }
+
+
+/**
+ * Recent invoiced work, for the hero's "on the press this week" line.
+ *
+ * ── WHAT THIS READS, AND WHAT IT DOES NOT ─────────────────────────────────
+ * Invoices only. A quote is a conversation; counting it would put jobs on the
+ * hero that never happened. Returns raw nodes — lib/press-activity.ts does
+ * every judgement about what counts, so the honesty rules live in one place
+ * with their tests rather than half here.
+ *
+ * ── THE SHAPE IS THE ONE THE APP WRITES ───────────────────────────────────
+ * `lineItemGroups { lineItems }` is not a guess: createPrintavoQuote writes
+ * through lineItemGroupCreate, and the note above `lookupOrderStatus` records
+ * that the published schema has been wrong for this integration before while
+ * the live one was right. The `orders(query:)` connection and the Quote /
+ * Invoice inline fragments are already proven against the live account.
+ *
+ * What is NOT proven is `createdAt` and the line-item field names on a READ.
+ * So this never throws and never half-succeeds: any shape it does not
+ * recognise comes back as an error string, the hero renders exactly as it
+ * does without it, and /api/press?secret= returns the raw response so the
+ * shape can be settled in one look instead of a deploy each time.
+ */
+export async function fetchRecentInvoicesForPress(input: { first?: number } = {}): Promise<{
+  orders: AnyRecord[];
+  error?: string;
+  /** The raw response, for the admin probe only. Never served publicly. */
+  raw?: unknown;
+}> {
+  if (!isConfigured()) {
+    return { orders: [], error: "Printavo is not configured." };
+  }
+
+  try {
+    const data = await printavoRequest<{ invoices?: { nodes?: AnyRecord[] } }>(
+      `query GorillaPressActivity($first: Int!) {
+         invoices(first: $first, sortOn: CREATED_AT_DESC) {
+           nodes {
+             id
+             createdAt
+             lineItemGroups(first: 10) {
+               nodes {
+                 lineItems(first: 25) {
+                   nodes { itemNumber quantity }
+                 }
+               }
+             }
+           }
+         }
+       }`,
+      { first: Math.min(50, Math.max(1, input.first ?? 40)) }
+    );
+
+    const nodes = data.invoices?.nodes;
+
+    if (!Array.isArray(nodes)) {
+      return {
+        orders: [],
+        error: "Printavo answered without an invoices.nodes list.",
+        raw: data,
+      };
+    }
+
+    // Flatten the two connections into the shape press-activity expects. A
+    // node missing either connection contributes nothing rather than throwing.
+    const orders = nodes.map((node) => ({
+      createdAt: node.createdAt,
+      lineItems: (
+        ((node.lineItemGroups as AnyRecord)?.nodes as AnyRecord[]) || []
+      ).flatMap(
+        (group) => ((group?.lineItems as AnyRecord)?.nodes as AnyRecord[]) || []
+      ),
+    }));
+
+    return { orders, raw: data };
+  } catch (error) {
+    return {
+      orders: [],
+      error: error instanceof Error ? error.message : "Unknown Printavo error.",
+    };
+  }
+}

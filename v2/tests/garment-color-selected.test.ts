@@ -29,11 +29,22 @@ const builder = readFileSync(
   "utf8"
 );
 
-/** The colour grid's button, sliced out so nothing else can satisfy these. */
-const swatch = builder.slice(
-  builder.indexOf("Garment Color"),
-  builder.indexOf("</button>", builder.indexOf("Garment Color"))
-);
+/** Each control sliced out, so no assertion can be satisfied by a sibling. */
+function panel(from: string, to: string) {
+  const start = builder.indexOf(from);
+  const end = builder.indexOf(to, start);
+  const slice = builder.slice(start, end);
+
+  if (start < 0 || end < 0 || !slice) {
+    throw new Error(`could not slice ${from} -> ${to}`);
+  }
+
+  return slice;
+}
+
+const swatch = panel("Garment Color", "</button>");
+const garmentCard = panel("filteredSsProducts.map", "</button>");
+const sizeCard = panel("Garment Prices by Size", "</button>");
 
 describe("the selected colour says so to assistive tech", () => {
   test("the swatch is a toggle button", () => {
@@ -84,5 +95,70 @@ describe("the states cannot collide", () => {
     // cursor-pointer was missing entirely: every swatch, chosen or not, read
     // as a control that does nothing.
     assert.match(swatch, /cursor-pointer/);
+  });
+});
+
+
+describe("the garment and size choices got the same treatment", () => {
+  /**
+   * Gabe, 2026-09-07, after the colour fix: "do the same highlight method for
+   * the garment choices too."
+   *
+   * All three lived in one file with the identical defect — white-on-white/70
+   * and a 1px border changing colour — so all three were fixed together. A
+   * panel that says "chosen" three different ways, or two ways and one
+   * silence, is the inconsistency the report was about.
+   */
+  for (const [name, markup] of [
+    ["the garment card", garmentCard],
+    ["the size card", sizeCard],
+  ] as const) {
+    test(`${name} announces its state`, () => {
+      assert.match(markup, /aria-pressed=\{isSelected\}/);
+    });
+
+    test(`${name} says it without relying on colour`, () => {
+      assert.match(markup, /SELECTED/);
+    });
+
+    test(`${name} fill actually changes`, () => {
+      assert.match(markup, /bg-\[var\(--surface-ok\)\]/);
+      assert.doesNotMatch(
+        markup,
+        /isSelected\s*\n?\s*\?\s*"border-\[var\(--gorilla-green\)\] bg-white"/,
+        "back to the white-on-white state that could not be seen"
+      );
+    });
+
+    test(`${name} looks pressable`, () => {
+      assert.match(markup, /cursor-pointer/);
+    });
+  }
+
+  test("the size grid reserves its badge slot, so choosing cannot reflow it", () => {
+    /**
+     * The sizes sit in a grid. A word appearing inside one cell grows every
+     * cell in its row and shuffles the others under the pointer — so the slot
+     * is always rendered and merely empty, the same trick StepNav uses for
+     * its status glyph. Verified in a browser: the grid's height moved 0px.
+     */
+    assert.match(sizeCard, /aria-hidden/);
+    assert.match(sizeCard, /h-4/);
+    assert.match(sizeCard, /isSelected \? "SELECTED" : ""/);
+  });
+
+  test("the category filter is a toggle too", () => {
+    const chips = panel("apparelCategories.map", "</button>");
+    assert.match(chips, /aria-pressed=\{isSelected\}/);
+  });
+
+  test("no weak selected state is left anywhere in the builder", () => {
+    // The sweep that found the other two. If this pattern comes back, it is
+    // a control nobody can tell they have pressed.
+    assert.doesNotMatch(
+      builder,
+      /"border-\[var\(--gorilla-green\)\] bg-white"/,
+      "a control went back to signalling selection with white on white"
+    );
   });
 });

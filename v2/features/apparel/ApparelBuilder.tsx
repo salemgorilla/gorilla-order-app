@@ -171,7 +171,10 @@ export default function ApparelBuilder({
                       key={category}
                       type="button"
                       onClick={() => onSelectCategory(category)}
-                      className={` px-4 py-2 text-fine font-bold transition ${
+                      // A filter, not a choice of garment — but still a
+                      // toggle, and it was not announcing its state.
+                      aria-pressed={isSelected}
+                      className={` cursor-pointer px-4 py-2 text-fine font-bold transition ${
                         isSelected
                           ? "bg-[var(--gorilla-green)] text-white"
                           : "bg-white text-[var(--gorilla-green)] hover:bg-[var(--surface-ok)]"
@@ -195,9 +198,23 @@ export default function ApparelBuilder({
                       key={product.id}
                       type="button"
                       onClick={() => onSelectProduct(product)}
-                      className={` border p-4 text-left transition ${
+                      /**
+                       * Same treatment as the colour swatches below and the
+                       * product cards a step earlier — Gabe, 2026-09-07:
+                       * "do the same highlight method for the garment choices
+                       * too."
+                       *
+                       * It had the identical defect: white-on-white/70 and a
+                       * 1px border changing colour, with no aria-pressed. No
+                       * ring on the thumbnail though, and that is deliberate.
+                       * The swatch gets one because the swatch IS the thing
+                       * being chosen; here the photograph only illustrates a
+                       * card, and ringing it would point at the wrong object.
+                       */
+                      aria-pressed={isSelected}
+                      className={` cursor-pointer border p-4 text-left transition ${
                         isSelected
-                          ? "border-[var(--gorilla-green)] bg-white"
+                          ? "border-[var(--gorilla-green)] bg-[var(--surface-ok)]"
                           : "border-[var(--rule)] bg-white/70 hover:bg-white"
                       }`}
                     >
@@ -227,9 +244,21 @@ export default function ApparelBuilder({
                               </p>
                             </div>
 
-                            <span className=" bg-[var(--shirt-blank)] px-3 py-1 text-spec font-bold uppercase tracking-eyebrow text-[var(--gorilla-green)]">
-                              {product.colors.length} colors
-                            </span>
+                            {/* The badge leads the right-hand cluster, in the
+                                same place the product cards put theirs. The
+                                row already wraps, so adding it cannot crush
+                                the colour count beside it. */}
+                            <div className="flex shrink-0 flex-wrap items-center gap-2">
+                              {isSelected && (
+                                <span className="spec bg-[var(--gorilla-green)] px-2 py-1 text-spec font-bold text-white">
+                                  SELECTED
+                                </span>
+                              )}
+
+                              <span className=" bg-[var(--shirt-blank)] px-3 py-1 text-spec font-bold uppercase tracking-eyebrow text-[var(--gorilla-green)]">
+                                {product.colors.length} colors
+                              </span>
+                            </div>
                           </div>
 
                           {thumbnailColor?.colorName && (
@@ -369,14 +398,18 @@ export default function ApparelBuilder({
                         type="button"
                         onClick={() => onSelectSize(size)}
                         disabled={size.outOfStock}
+                        // Same defect as its two siblings above, so the same
+                        // fix — otherwise this panel would carry two ways of
+                        // saying "chosen" and one way of saying nothing.
+                        aria-pressed={isSelected}
                         className={` border p-3 text-center transition ${
                           isSelected
-                            ? "border-[var(--gorilla-green)] bg-white"
+                            ? "border-[var(--gorilla-green)] bg-[var(--surface-ok)]"
                             : "border-[var(--rule)] bg-white/70 hover:bg-white"
                         } ${
                           size.outOfStock
                             ? "cursor-not-allowed opacity-50"
-                            : ""
+                            : "cursor-pointer"
                         }`}
                       >
                         <p className="text-fine font-bold text-[var(--ink-black)]">
@@ -385,6 +418,18 @@ export default function ApparelBuilder({
                         <p className="mt-1 text-spec font-bold text-[var(--ink-muted)]">
                           ${size.markedUpPrice.toFixed(2)}
                         </p>
+
+                        {/* A RESERVED slot, always rendered — the StepNav
+                            glyph trick. These cells sit in a grid, so a word
+                            appearing in one would grow every cell in its row
+                            and shuffle the sizes under the pointer. Empty and
+                            present costs four pixels and moves nothing. */}
+                        <span
+                          aria-hidden
+                          className="spec mt-1 block h-4 text-spec font-bold text-[var(--gorilla-green)]"
+                        >
+                          {isSelected ? "SELECTED" : ""}
+                        </span>
                       </button>
                     );
                   })}

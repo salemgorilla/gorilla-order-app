@@ -45,6 +45,22 @@ Working and verified:
   ring is ink rather than the brand green and that it is an outline rather
   than a border. Verified in Chromium at 1300 and 390.
 
+  **Then the same for the garment cards and the size buttons** — Gabe, same
+  day: "do the same highlight method for the garment choices too." All three
+  controls lived in ApparelBuilder.tsx with the IDENTICAL weak state, so a
+  sweep for `border-[var(--gorilla-green)] bg-white` found them together and
+  the test now fails if that pattern returns anywhere in the file. The
+  category filter chips gained `aria-pressed` as well.
+
+  Two deliberate differences from the swatch. The garment card gets no ring
+  on its thumbnail: the swatch IS the thing being chosen, while the
+  photograph only illustrates a card, and ringing it would point at the
+  wrong object. And the size buttons carry their badge in a RESERVED,
+  always-rendered slot — they sit in a grid, so a word appearing in one cell
+  would grow every cell in its row and shuffle the sizes under the pointer.
+  Same trick StepNav uses for its status glyph. Measured in the browser: the
+  grid's height moved 0px on selection.
+
 - **The hero carries one live number** — 2026-09-07, Gabe, choosing between
   a randomised headline and a real one: "Make it real rather than random."
   The hero now ends with "ON THE PRESS THIS WEEK · 1,240 stickers · 96

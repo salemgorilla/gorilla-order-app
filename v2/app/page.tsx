@@ -3117,6 +3117,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         selectedGarmentLabel={selectedGarmentLabel}
         selectedSsColor={selectedSsColor}
         catalogStyle={chosenSsProduct?.catalogStyle}
+        garmentLines={apparelPricing.lines}
         apparelPricing={apparelPricing}
         unitPrice={unitPrice}
         copyStatus={copyStatus}

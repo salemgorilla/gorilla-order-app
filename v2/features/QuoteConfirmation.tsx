@@ -16,7 +16,7 @@ import {
   getSignSizeLabel,
   type SignsQuote,
 } from "../lib/signs";
-import { apparelSku, decalSku, signSku } from "../lib/sku";
+import { apparelLineSku, apparelSku, decalSku, signSku } from "../lib/sku";
 
 type Props = {
   quoteConfirmation: QuoteConfirmation | null;
@@ -42,6 +42,19 @@ type Props = {
   selectedSsColor: SsCatalogColor | null;
   /** The configured garment's S&S style — its invoice code (lib/sku.ts). */
   catalogStyle?: string;
+  /**
+   * Every garment in the apparel quote, the same list the review card
+   * shows. A cart of two garments used to be confirmed back as its FIRST
+   * garment carrying the COMBINED count — "44 Starter Tee" for 24 tees and
+   * 20 hoodies — on a screen that, for apparel, is the customer's only
+   * copy of what they sent.
+   */
+  garmentLines?: Array<{
+    garmentLabel: string;
+    colorName: string;
+    quantity: number;
+    catalogStyle?: string;
+  }>;
   apparelPricing: ApparelPricingResult;
   unitPrice: number;
   copyStatus: "idle" | "copied" | "error";
@@ -65,6 +78,7 @@ export default function QuoteConfirmationScreen({
   selectedGarmentLabel,
   selectedSsColor,
   catalogStyle,
+  garmentLines = [],
   apparelPricing,
   unitPrice,
   copyStatus,
@@ -366,6 +380,31 @@ export default function QuoteConfirmationScreen({
                       "Details to be confirmed with Gorilla Salem"}
                   </p>
                 </>
+              ) : // Condition order matters to tests/apparel-request-truth,
+                // which slices this file on "isApparelSubmitted ? (" to find
+                // the request branch above; keep that string at the end.
+                garmentLines.length > 1 && isApparelSubmitted ? (
+                // A cart: every garment with its own count and code, the
+                // way the review card lists them and the invoice rows them.
+                // The print spec is shared, so it is stated once below.
+                <div className="mt-2 space-y-3">
+                  {garmentLines.map((line, index) => (
+                    <div key={`${line.garmentLabel}-${line.colorName}-${index}`}>
+                      <p className="text-value font-bold text-[var(--ink-black)]">
+                        {line.quantity.toLocaleString()} {line.garmentLabel}
+                      </p>
+                      <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
+                        {line.colorName}
+                      </p>
+                      <p className="spec mt-1 text-spec text-[var(--ink-muted)]">
+                        {apparelLineSku(line, index)}
+                      </p>
+                    </div>
+                  ))}
+                  <p className="border-t border-[var(--rule-faint)] pt-3 text-fine font-medium text-[var(--ink-muted)]">
+                    {apparelQuote.inkColors} • {apparelQuote.printLocations.join(", ")}
+                  </p>
+                </div>
               ) : isApparelSubmitted ? (
                 <>
                   <p className="mt-2 text-value font-bold text-[var(--ink-black)]">

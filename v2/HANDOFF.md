@@ -22,12 +22,27 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
-- **The Republic register, applied — ON A BRANCH, NOT MERGED** —
+- **The apparel confirmation lists every garment** — 2026-09-07. Found
+  by checking the class of the sticker bug fixed in #120: the apparel
+  confirmation read `selectedGarmentLabel` + `apparelQuote.quantity`, so
+  a cart of 24 tees and 20 hoodies was confirmed back as "44 Starter
+  Tee" — on the only copy an apparel customer gets. It now takes
+  `garmentLines` (the same list the review card shows) and prints each
+  garment with its count, colour and invoice code; the shared print spec
+  once, under a hairline. Driven in Chromium with a two-line cart:
+  review, confirmation and payload all carry both lines.
+  tests/confirmation-garment-lines.test.ts holds the prop rendered AND
+  passed. Note for the next person: tests/apparel-request-truth slices
+  QuoteConfirmation.tsx on the literal "isApparelSubmitted ? (", so the
+  cart branch's condition is written `garmentLines.length > 1 &&
+  isApparelSubmitted` to keep that string last.
+
+- **The Republic register, applied — MERGED as #120, live** —
   2026-09-07, Gabe: "Use this design guide to influence the look ui and
   UX for our app" (the tDR aesthetic agent definition). Built as PR #120
-  on `claude/order-form-progress-steps-qq0itz` and deliberately left
-  unmerged because Gabe was mid-test on production when it landed; merge
-  on his nod. What it is: the guide's move for a real print shop is the
+  on `claude/order-form-progress-steps-qq0itz`, held unmerged while Gabe
+  was mid-test on production, then merged on his "Ok" the same day and
+  confirmed READY on Vercel. What it is: the guide's move for a real print shop is the
   WipEout one — the institution's own data as the design — and the app's
   real data is its SKU grammar, its address and its pricing config, so
   the change puts those on screen and invents nothing. `lib/sku.ts` now

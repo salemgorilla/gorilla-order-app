@@ -22,6 +22,39 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **The hero carries one live number** — 2026-09-07, Gabe, choosing between
+  a randomised headline and a real one: "Make it real rather than random."
+  The hero now ends with "ON THE PRESS THIS WEEK · 1,240 stickers · 96
+  garments · 45 signs", counted from the shop's own invoiced work.
+
+  **lib/press-activity.ts holds the honesty rules and its tests.** Invoices
+  only, never quotes — a quote is a conversation. Fees, rush, shipping and
+  order minimums are not pieces; the first cut matched fees by substring,
+  missed GORILLA-APPAREL-PRINT and counted the print charge as 48 more
+  garments, which is why the fee list is now explicit AND why
+  tests/press-activity drives the REAL Printavo plans: a new fee kind fails
+  the test rather than quietly inflating the hero. Under 50 pieces the line
+  is withheld entirely — there is no quiet-week copy, because a shop
+  announcing three stickers reads worse than one saying nothing. Nothing
+  identifies a customer: counts and nouns, and the summary object is
+  asserted to carry no other field.
+
+  **It can never break the page.** Fetched after mount, because page.tsx is
+  a client component Next prerenders at build and a value differing between
+  the two renders is a hydration error. /api/press answers 200 with
+  `{ line: null }` on every failure and logs the reason; the hero treats a
+  quiet week, an unconfigured Printavo and an outage identically. Cached 15
+  minutes in module scope so the hero does not call Printavo per visit.
+
+  **ONE THING IS NOT PROVEN AND NEEDS GABE.** `lineItemGroups { lineItems }`
+  is the shape createPrintavoQuote WRITES, and the orders connection is
+  proven live — but `createdAt` and the line-item field names on a READ are
+  not, and the house rule (see the note above lookupOrderStatus) is that
+  Printavo shapes get confirmed, not guessed. So the line will show nothing
+  until confirmed. **`/api/press?secret=<ADMIN_SECRET>`** returns what
+  Printavo actually answered plus what the aggregation made of it — one look
+  settles it. 1,881 tests, smoke 28/28, audit 49/49.
+
 - **"The items are not added to the quote"** — 2026-09-07, Gabe, on the
   apparel cart. They WERE added: every extra garment was in the total. What
   was wrong was every word around it. The sticky estimate bar took its

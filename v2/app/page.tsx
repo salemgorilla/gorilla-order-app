@@ -270,6 +270,41 @@ export default function Home() {
    * rest, priced together as one run. See lib/apparel-cart-lines.ts.
    */
   const [extraGarmentLines, setExtraGarmentLines] = useState<ExtraGarmentLine[]>([]);
+
+  /**
+   * What the shop actually printed this week — Gabe, 2026-09-07, choosing
+   * this over a randomised headline: "Make it real rather than random."
+   *
+   * Fetched AFTER mount, never during render. This page is a client component
+   * that Next prerenders to static HTML at build, so a value that differs
+   * between the server's HTML and the browser's first render is a hydration
+   * error. Rendering nothing until the number arrives sidesteps that
+   * completely, and costs nothing: the line is additive, so its absence is
+   * the page as it already looks.
+   *
+   * Null forever on a quiet week, an unconfigured Printavo, or an outage —
+   * /api/press decides which, and treats all three the same on purpose.
+   */
+  const [pressLine, setPressLine] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch("/api/press")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        const line = typeof data?.line === "string" ? data.line.trim() : "";
+        if (line) setPressLine(line);
+      })
+      // Swallowed deliberately. A decoration on the hero may never surface an
+      // error to a customer trying to buy stickers.
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [ssCatalogStatus, setSsCatalogStatus] = useState<
     "idle" | "loading" | "loaded" | "error"
   >("idle");
@@ -3497,6 +3532,23 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               </span>
             ))}
           </div>
+
+          {/* The one live number on the page.
+              Last in the hero on purpose: it arrives after mount, so anything
+              above it would shift as it lands. Here it pushes only the step
+              bar, and the headline and the price never move under a reader.
+              Absent entirely when there is nothing worth saying — there is no
+              "quiet week" copy, because a shop announcing that it printed
+              three stickers is worse than a shop saying nothing. */}
+          {pressLine && (
+            <p className="spec mt-6 text-spec text-[var(--ink-muted)]">
+              <span className="font-bold uppercase tracking-eyebrow text-[var(--ink-black)]">
+                On the press this week
+              </span>
+              {" · "}
+              {pressLine}
+            </p>
+          )}
         </div>
         )}
 

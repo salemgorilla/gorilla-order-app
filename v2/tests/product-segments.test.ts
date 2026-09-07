@@ -119,9 +119,19 @@ describe("the split is on how the work is made", () => {
     assert.doesNotMatch(page, /grid gap-4 md:grid-cols-3/);
   });
 
-  test("the large-format band is labelled and full width", () => {
+  test("the large-format segment is labelled, and its cards match the others", () => {
+    /**
+     * The band used to be full width — a different SHAPE for a different
+     * kind of thing. By 7 Sep it was not a different kind of thing: signs
+     * and banners pay online exactly as stickers do, and Gabe asked for the
+     * four cards uniform. The segment keeps its rule-label (large format IS
+     * a different department); the cards no longer claim a second
+     * distinction the business does not make.
+     */
     assert.match(page, /Large format/);
-    assert.match(page, /flex w-full min-h-\[44px\]/);
+    assert.doesNotMatch(page, /flex w-full min-h-\[44px\]/);
+    // Both segments render through the one component.
+    assert.equal((page.match(/<ProductCard/g) || []).length, 2);
   });
 });
 
@@ -133,10 +143,15 @@ describe("the group survives the visual split", () => {
     assert.match(page, /id=\{currentStepId === "product" \? "product-heading" : undefined\}/);
   });
 
-  test("the band is a toggle button like the cards", () => {
-    // Two aria-pressed usages on this screen: the cards and the band.
-    const pressed = page.match(/aria-pressed=\{isSelected\}/g) || [];
-    assert.ok(pressed.length >= 2, `found ${pressed.length} aria-pressed toggles`);
+  test("every option is a toggle button", () => {
+    // One component draws all four cards, so one aria-pressed covers them —
+    // and page.tsx must no longer carry a hand-built card of its own.
+    const card = readFileSync(
+      new URL("../components/ProductCard.tsx", import.meta.url),
+      "utf8"
+    );
+    assert.match(card, /aria-pressed=\{isSelected\}/);
+    assert.doesNotMatch(page, /product\.fulfilment/);
   });
 });
 

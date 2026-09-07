@@ -22,6 +22,22 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **The four product cards are one component** — 2026-09-07, Gabe: "Make
+  the 'INSTANT PRICE · PAY ONLINE' consistent colour and placement across
+  all options. Also, make the format similar to keep them looking uniform."
+  They were two hand-built shapes: stickers/apparel a two-up grid with the
+  status line LAST and green when the flow takes payment; banners/signs
+  full-width bands with the line TOP-RIGHT beside the SELECTED badge and
+  always muted — so after #122 the same words were green on one card and
+  grey on two. components/ProductCard.tsx now draws all four; the
+  large-format pair keeps its "Large format" rule-label (a real department
+  split) but sits in the same two-up grid with the same frame, the status
+  line last and `mt-auto` so the four lines share a baseline. Green means
+  "takes a card", muted means "the shop confirms first", on every card.
+  Measured in Chromium at 1300 and 390: identical widths, status line 21px
+  above the bottom on all four, three lines at #2e7d32 and apparel muted.
+  tests/product-segments now asserts page.tsx carries no hand-built card.
+
 - **Choosing a garment colour now looks like something happened** —
   2026-09-07, Gabe: "when I press a color there is no indication, or not
   one very visible, for me to know that the color has been chosen." The

@@ -13,4 +13,11 @@ export const SHOP = {
   state: "Massachusetts",
   stateCode: "MA",
   email: "quote@gorillasalem.com",
+  /**
+   * The industry code on the shop's filings. 323111 is "Commercial Printing
+   * (except Screen and Books)" — Gabe, 2026-09-07, from the paperwork. The
+   * tDR guide had guessed 323113 (screen printing); the number on the forms
+   * is the number on the page, or it is costume.
+   */
+  naics: "323111",
 } as const;

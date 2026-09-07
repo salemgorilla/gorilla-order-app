@@ -4386,7 +4386,8 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 Custom printing, local service, real people reviewing every job.
               </p>
               <p className="spec mt-3 text-spec text-[var(--ink-muted)]">
-                {SHOP.street} · {SHOP.city}, {SHOP.state} ·{" "}
+                {SHOP.street} · {SHOP.city}, {SHOP.state} · NAICS {SHOP.naics}{" "}
+                ·{" "}
                 <a
                   className="underline decoration-1 underline-offset-2 transition-colors duration-[120ms] ease-linear hover:text-[var(--gorilla-green)]"
                   href={`mailto:${SHOP.email}`}

@@ -285,7 +285,7 @@ put the real data on screen:
 | Datum | Where it lives | Where the customer meets it |
 |---|---|---|
 | `GORILLA-*` item numbers | `lib/sku.ts` — the one spelling; `lib/printavo.ts` builds every invoice row from it | "Invoice line" on every design in the review card; a mono line under each design on the confirmation ticket; the family (`GORILLA-DECAL` / `-SIGN` / `-APPAREL`) as the review card's chip |
-| The address | `lib/shop.ts` | Header ("Quote desk / 47 Canal Street · Salem, MA"), hero eyebrow, footer, pickup notice |
+| The address and the industry code | `lib/shop.ts` | Header ("Quote desk / 47 Canal Street · Salem, MA"), hero eyebrow, footer (with NAICS 323111), pickup notice |
 | Minimums and the tax rate | `lib/signs-pricing-config.ts`, `lib/tax.ts` | The three terms under the price anchor and the footer's one line of terms — read live, so they cannot lag the config |
 | The reference sticker's SKU and material | `lib/reference-quote.ts` + `SKU.DECAL` | The mono line inside the price anchor |
 
@@ -305,7 +305,10 @@ it. Printed on Canal Street." is two things the app can prove. Copy that
 could head any quote tool in the category ("made simple") was the failure
 the guide names first, and it is gone.
 
-**Not done, on purpose:** the guide mentions a founding year and a NAICS
-code. Neither is in the repo, so neither is on screen — provenance is only
-furniture if it is true. Gabe supplies them or they stay off.
+**The NAICS code is the filed one, not the guide's.** The guide guessed
+323113 (screen printing); Gabe's paperwork says 323111, Commercial Printing
+(except Screen and Books), and the paperwork wins (Gabe, 2026-09-07). The
+founding year the guide also mentions is not in the repo and is not on
+screen — provenance is only furniture if it is true. Gabe supplies it or
+it stays off.
 

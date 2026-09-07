@@ -22,6 +22,20 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **"Starter Tee" is now "Basic Tee"** — 2026-09-07, Gabe. One string:
+  `label` in lib/apparel-catalog.ts, which the /api/ss-catalog route maps to
+  `customerLabel`, so every surface follows from there. No SKU moved — the
+  invoice codes key on the S&S style ("39"), not the label, so a Gildan 2000
+  still files under GORILLA-APPAREL-39 and Printavo history stays continuous.
+  Swept through the tests, the committed catalog fixture and the smoke's
+  inline one so they stay faithful snapshots. Verified in Chromium: the
+  garment catalogue reads Basic Tee and no surface still says Starter.
+
+  **Entries above this one still say "Starter Tee" and are left alone** —
+  they are a dated record of what happened, and rewriting them would make
+  the reconciliations they quote unverifiable. Same garment throughout:
+  Gildan 2000 Ultra Cotton, S&S style 39.
+
 - **The shop email says whether the customer was charged** — 2026-09-07,
   found by pressure-testing the change above rather than by a report. The
   shop email is built and sent BEFORE Printavo is called and before any

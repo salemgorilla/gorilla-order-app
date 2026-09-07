@@ -52,7 +52,7 @@ const CATALOG: SsCatalogProduct[] = [
     brandName: "Gildan",
     styleName: "5000",
     displayName: "Gildan 5000",
-    customerLabel: "Starter Tee",
+    customerLabel: "Basic Tee",
     customerCategory: "T-Shirts",
     catalogStyle: "5000",
     catalogNotes: "",
@@ -257,10 +257,10 @@ describe("the sentence the shop reads", () => {
   test("every garment, count first, dot-separated", () => {
     assert.equal(
       describeGarmentLines([
-        { garmentLabel: "Starter Tee", colorName: "White", quantity: 24 },
+        { garmentLabel: "Basic Tee", colorName: "White", quantity: 24 },
         { garmentLabel: "Heavy Hoodie", colorName: "Black", quantity: 12 },
       ]),
-      "24 × Starter Tee / White · 12 × Heavy Hoodie / Black"
+      "24 × Basic Tee / White · 12 × Heavy Hoodie / Black"
     );
   });
 });

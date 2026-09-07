@@ -17,7 +17,7 @@
  *     change to the mix table, the rounding, or the base-size rule moves
  *     this whole section visibly.
  *  3. THE ENGINE GRID — totals across quantity tiers, ink counts,
- *     locations and underbase at a fixed $4.10 garment unit (Starter Tee
+ *     locations and underbase at a fixed $4.10 garment unit (Basic Tee
  *     White's blended figure), including every tier boundary from both
  *     sides (23/24, 49/50, 99/100, 249/250).
  */
@@ -50,7 +50,7 @@ function colorOf(label: string, colorName: string) {
 describe("ANCHORS — figures the browser has shown, re-verified 6 Sep 2026", () => {
   // Stacey Beer's scenario, driven in Chromium against the dev server with
   // the catalog fixture: every figure below appeared ON SCREEN and matched
-  // the engine to the cent when first written (31 Aug). Black Starter Tee
+  // the engine to the cent when first written (31 Aug). Black Basic Tee
   // blended to 4.55 then.
   //
   // REPRICED 6 Sep 2026, deliberately and entirely: Gabe made the shop's
@@ -65,7 +65,7 @@ describe("ANCHORS — figures the browser has shown, re-verified 6 Sep 2026", ()
   test("Stacey: 20 black shirts, 3 colors, front = $434.80", () => {
     const r = calculateApparelPricing({
       quantity: 20,
-      garmentPriceByMarkup: garmentPriceByMarkup(colorOf("Starter Tee", "Black"), null, 20),
+      garmentPriceByMarkup: garmentPriceByMarkup(colorOf("Basic Tee", "Black"), null, 20),
       printLocations: ["Front"],
       inkColors: "3 colors",
       hasUnderbase: false,
@@ -103,7 +103,7 @@ describe("ANCHORS — figures the browser has shown, re-verified 6 Sep 2026", ()
     // and two screens on one $7.30 shirt.
     const r = calculateApparelPricing({
       quantity: 1,
-      garmentPriceByMarkup: garmentPriceByMarkup(colorOf("Starter Tee", "White"), null, 1),
+      garmentPriceByMarkup: garmentPriceByMarkup(colorOf("Basic Tee", "White"), null, 1),
       printLocations: ["Front", "Back"],
       inkColors: "1 color",
       hasUnderbase: false,
@@ -116,7 +116,7 @@ describe("ANCHORS — figures the browser has shown, re-verified 6 Sep 2026", ()
     // is 6.23; 24 × $4.50 print + one $25 screen. THE RUNBOOK'S ORDER 0.
     const r = calculateApparelPricing({
       quantity: 24,
-      garmentPriceByMarkup: garmentPriceByMarkup(colorOf("Starter Tee", "White"), { M: 12, L: 12 }, 24),
+      garmentPriceByMarkup: garmentPriceByMarkup(colorOf("Basic Tee", "White"), { M: 12, L: 12 }, 24),
       printLocations: ["Front"],
       inkColors: "1 color",
       hasUnderbase: false,
@@ -275,66 +275,66 @@ const BLEND_SHEET: [string, number][] = [
   ["Classic Hoodie / Sport Grey", 27.60],
   ["Classic Hoodie / Violet", 27.60],
   ["Classic Hoodie / White", 27.60],
-  ["Starter Tee / Antique Cherry Red", 8.15],
-  ["Starter Tee / Antique Irish Green", 8.15],
-  ["Starter Tee / Antique Royal", 8.15],
-  ["Starter Tee / Ash", 8.15],
-  ["Starter Tee / Azalea", 8.15],
-  ["Starter Tee / Black", 8.15],
-  ["Starter Tee / Blue Dusk", 8.15],
-  ["Starter Tee / Cardinal Red", 8.15],
-  ["Starter Tee / Carolina Blue", 8.15],
-  ["Starter Tee / Charcoal", 8.15],
-  ["Starter Tee / Cherry Red", 8.15],
-  ["Starter Tee / Cornsilk", 8.15],
-  ["Starter Tee / Daisy", 8.15],
-  ["Starter Tee / Dark Chocolate", 8.15],
-  ["Starter Tee / Dark Heather", 8.15],
-  ["Starter Tee / Forest", 8.15],
-  ["Starter Tee / Galapagos Blue", 8.15],
-  ["Starter Tee / Gold", 8.15],
-  ["Starter Tee / Heather Cardinal", 8.15],
-  ["Starter Tee / Heather Indigo", 8.15],
-  ["Starter Tee / Heather Navy", 8.15],
-  ["Starter Tee / Heather Sapphire", 8.15],
-  ["Starter Tee / Heliconia", 8.15],
-  ["Starter Tee / Ice Grey", 8.15],
-  ["Starter Tee / Indigo Blue", 8.15],
-  ["Starter Tee / Iris", 8.15],
-  ["Starter Tee / Irish Green", 8.15],
-  ["Starter Tee / Jade Dome", 8.15],
-  ["Starter Tee / Kelly", 8.15],
-  ["Starter Tee / Light Blue", 8.15],
-  ["Starter Tee / Light Pink", 8.15],
-  ["Starter Tee / Lime", 8.15],
-  ["Starter Tee / Maroon", 8.15],
-  ["Starter Tee / Metro Blue", 8.15],
-  ["Starter Tee / Military Green", 8.15],
-  ["Starter Tee / Mint Green", 8.15],
-  ["Starter Tee / Natural", 7.30],
-  ["Starter Tee / Navy", 8.15],
-  ["Starter Tee / Olive", 8.15],
-  ["Starter Tee / Orange", 8.15],
-  ["Starter Tee / Orchid", 8.15],
-  ["Starter Tee / PFD White", 7.85],
-  ["Starter Tee / Pistachio", 8.15],
-  ["Starter Tee / Prairie Dust", 8.15],
-  ["Starter Tee / Purple", 8.15],
-  ["Starter Tee / Red", 8.15],
-  ["Starter Tee / Royal", 8.15],
-  ["Starter Tee / Safety Green", 8.15],
-  ["Starter Tee / Safety Orange", 8.15],
-  ["Starter Tee / Safety Pink", 8.15],
-  ["Starter Tee / Sand", 8.15],
-  ["Starter Tee / Sapphire", 8.15],
-  ["Starter Tee / Sky", 8.15],
-  ["Starter Tee / Sport Grey", 8.15],
-  ["Starter Tee / Stone Blue", 8.15],
-  ["Starter Tee / Tan", 8.15],
-  ["Starter Tee / Tangerine", 8.15],
-  ["Starter Tee / Texas Orange", 8.15],
-  ["Starter Tee / Vegas Gold", 8.15],
-  ["Starter Tee / White", 7.30],];
+  ["Basic Tee / Antique Cherry Red", 8.15],
+  ["Basic Tee / Antique Irish Green", 8.15],
+  ["Basic Tee / Antique Royal", 8.15],
+  ["Basic Tee / Ash", 8.15],
+  ["Basic Tee / Azalea", 8.15],
+  ["Basic Tee / Black", 8.15],
+  ["Basic Tee / Blue Dusk", 8.15],
+  ["Basic Tee / Cardinal Red", 8.15],
+  ["Basic Tee / Carolina Blue", 8.15],
+  ["Basic Tee / Charcoal", 8.15],
+  ["Basic Tee / Cherry Red", 8.15],
+  ["Basic Tee / Cornsilk", 8.15],
+  ["Basic Tee / Daisy", 8.15],
+  ["Basic Tee / Dark Chocolate", 8.15],
+  ["Basic Tee / Dark Heather", 8.15],
+  ["Basic Tee / Forest", 8.15],
+  ["Basic Tee / Galapagos Blue", 8.15],
+  ["Basic Tee / Gold", 8.15],
+  ["Basic Tee / Heather Cardinal", 8.15],
+  ["Basic Tee / Heather Indigo", 8.15],
+  ["Basic Tee / Heather Navy", 8.15],
+  ["Basic Tee / Heather Sapphire", 8.15],
+  ["Basic Tee / Heliconia", 8.15],
+  ["Basic Tee / Ice Grey", 8.15],
+  ["Basic Tee / Indigo Blue", 8.15],
+  ["Basic Tee / Iris", 8.15],
+  ["Basic Tee / Irish Green", 8.15],
+  ["Basic Tee / Jade Dome", 8.15],
+  ["Basic Tee / Kelly", 8.15],
+  ["Basic Tee / Light Blue", 8.15],
+  ["Basic Tee / Light Pink", 8.15],
+  ["Basic Tee / Lime", 8.15],
+  ["Basic Tee / Maroon", 8.15],
+  ["Basic Tee / Metro Blue", 8.15],
+  ["Basic Tee / Military Green", 8.15],
+  ["Basic Tee / Mint Green", 8.15],
+  ["Basic Tee / Natural", 7.30],
+  ["Basic Tee / Navy", 8.15],
+  ["Basic Tee / Olive", 8.15],
+  ["Basic Tee / Orange", 8.15],
+  ["Basic Tee / Orchid", 8.15],
+  ["Basic Tee / PFD White", 7.85],
+  ["Basic Tee / Pistachio", 8.15],
+  ["Basic Tee / Prairie Dust", 8.15],
+  ["Basic Tee / Purple", 8.15],
+  ["Basic Tee / Red", 8.15],
+  ["Basic Tee / Royal", 8.15],
+  ["Basic Tee / Safety Green", 8.15],
+  ["Basic Tee / Safety Orange", 8.15],
+  ["Basic Tee / Safety Pink", 8.15],
+  ["Basic Tee / Sand", 8.15],
+  ["Basic Tee / Sapphire", 8.15],
+  ["Basic Tee / Sky", 8.15],
+  ["Basic Tee / Sport Grey", 8.15],
+  ["Basic Tee / Stone Blue", 8.15],
+  ["Basic Tee / Tan", 8.15],
+  ["Basic Tee / Tangerine", 8.15],
+  ["Basic Tee / Texas Orange", 8.15],
+  ["Basic Tee / Vegas Gold", 8.15],
+  ["Basic Tee / White", 7.30],];
 
 describe("THE BLEND SHEET — 191 colours, one committed figure each", () => {
   const byKey = new Map<string, { label: string; color: unknown }>();
@@ -364,7 +364,7 @@ describe("THE BLEND SHEET — 191 colours, one committed figure each", () => {
 });
 
 /**
- * Engine totals at a fixed $4.10 garment unit (Starter Tee White's blended
+ * Engine totals at a fixed $4.10 garment unit (Basic Tee White's blended
  * figure). Label: quantity @ inks, locations, underbase. Tier boundaries
  * are pinned from both sides.
  */

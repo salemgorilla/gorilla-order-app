@@ -166,14 +166,14 @@ try {
   await page.click('div.mb-4 >> button:has-text("All")').catch(() => page.click('button:has-text("All")'));
   await page.waitForTimeout(200);
 
-  // Product: Starter Tee (60 colors)
-  await page.click('button:has-text("Starter Tee")');
+  // Product: Basic Tee (60 colors)
+  await page.click('button:has-text("Basic Tee")');
   await page.waitForTimeout(300);
   const colorButtons = await page.evaluate(() => {
     const h = [...document.querySelectorAll("p")].find((p) => p.textContent === "Garment Color");
     return h ? h.parentElement.querySelectorAll("button").length : 0;
   });
-  check("all 60 Starter Tee colors render", colorButtons === 60, String(colorButtons));
+  check("all 60 Basic Tee colors render", colorButtons === 60, String(colorButtons));
 
   // Color: White, sample size M ($6.23 — the blank at the matrix's 150%
   // base since 6 Sep; the grid shows that figure, the estimate re-prices
@@ -205,7 +205,7 @@ try {
   // matrix uses (the engine picks the tier, then the blank) — Gildan 2000
   // White at 150%: base 6.23, +0.09×5.02 (2XL) +0.06×10.15 (3XL) → 7.30.
   const whiteTee = CATALOG.products
-    .find((p) => p.customerLabel === "Starter Tee")
+    .find((p) => p.customerLabel === "Basic Tee")
     .colors.find((c) => c.colorName === "White");
   {
     const expectBlend = calculateApparelPricing({
@@ -318,7 +318,7 @@ try {
   await page.screenshot({ path: S + "/audit-phantom.png", fullPage: false });
 
   // ── back to a clean, orderable state and submit ───────────────────────
-  await page.click('button:has-text("Starter Tee")');
+  await page.click('button:has-text("Basic Tee")');
   await page.waitForTimeout(300);
   await clickColor(page, "White");
   await page.waitForTimeout(200);
@@ -369,7 +369,7 @@ try {
     }
     return el ? el.innerText : "";
   });
-  check("review names the garment", review.includes("Starter Tee"));
+  check("review names the garment", review.includes("Basic Tee"));
   check("review names the color", review.includes("White"));
   check("review carries the size breakdown", review.includes("M-12, L-12"), review.slice(0, 300));
   check("review shows quantity 24", /Quantity\s*\n?\s*24/.test(review));
@@ -398,7 +398,7 @@ try {
   if (order) {
     const p = order.product || {};
     check("payload: type is apparel", p.type === "T-Shirts & Apparel");
-    check("payload: garmentType from catalog label", p.garmentType === "Starter Tee", p.garmentType);
+    check("payload: garmentType from catalog label", p.garmentType === "Basic Tee", p.garmentType);
     check("payload: color is the chosen one", p.garmentColor === "White", p.garmentColor);
     check("payload: quantity is the grid total", p.quantity === 24, String(p.quantity));
     check("payload: sizeBreakdown matches the grid", p.sizeBreakdown === "M-12, L-12", p.sizeBreakdown);
@@ -449,7 +449,7 @@ try {
     await c.waitForTimeout(600);
     await c.click('button:has-text("02")');
     await c.waitForSelector("text=Garment Catalog");
-    await c.click('button:has-text("Starter Tee")');
+    await c.click('button:has-text("Basic Tee")');
     await c.waitForTimeout(300);
     await clickColor(c, "White");
     await c.locator("input[type=date]").first().fill(NEED_BY);
@@ -479,7 +479,7 @@ try {
     const afterFilled = await estimatedTotalOnSummary(c);
     check("cart: the estimate moved once the line was finished", afterFilled !== null && afterFilled > before, `${before} -> ${afterFilled}`);
     const summary = await summaryText(c);
-    check("cart: the summary lists both garments", /24 × Starter Tee \/ White/.test(summary) && /12 × Classic Hoodie \/ Black/.test(summary), summary.slice(0, 200));
+    check("cart: the summary lists both garments", /24 × Basic Tee \/ White/.test(summary) && /12 × Classic Hoodie \/ Black/.test(summary), summary.slice(0, 200));
     // innerText applies the eyebrow's text-transform, so match case-blind.
     check("cart: the summary counts 36 pieces", /36 pieces/i.test(summary), summary.slice(0, 120));
     await c.screenshot({ path: S + "/audit-cart.png", fullPage: true });
@@ -504,7 +504,7 @@ try {
       const lines = cOrder.pricing?.lines ?? [];
       check("cart: payload carries two garment lines", lines.length === 2, JSON.stringify(lines.map((l) => [l.garmentLabel, l.colorName, l.quantity])));
       check("cart: product.quantity is the whole run", cOrder.product?.quantity === 36, String(cOrder.product?.quantity));
-      check("cart: payload names every garment for the shop", cOrder.product?.garmentLines === "24 × Starter Tee / White · 12 × Classic Hoodie / Black", cOrder.product?.garmentLines);
+      check("cart: payload names every garment for the shop", cOrder.product?.garmentLines === "24 × Basic Tee / White · 12 × Classic Hoodie / Black", cOrder.product?.garmentLines);
       const hoodie = (CATALOG.products || CATALOG).find((p) => p.customerLabel === "Classic Hoodie");
       check("cart: the hoodie line carries its S&S style for the SKU", Boolean(hoodie) && lines[1]?.catalogStyle === hoodie.catalogStyle, `${lines[1]?.catalogStyle} vs catalog ${hoodie?.catalogStyle}`);
 
@@ -543,7 +543,7 @@ try {
     await m.waitForTimeout(600);
     await m.click('button:has-text("02")');
     await m.waitForSelector("text=Garment Catalog");
-    await m.click('button:has-text("Starter Tee")');
+    await m.click('button:has-text("Basic Tee")');
     await m.waitForTimeout(400);
     const overflow = await m.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth

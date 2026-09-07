@@ -199,7 +199,7 @@ describe("apparel: the style is the code", () => {
 
   test("a cart files each garment line under its own code", () => {
     const lines = [
-      { id: "l1", garmentLabel: "Starter Tee", colorName: "White", catalogStyle: "5000", garmentUnitPrice: 3.49, quantity: 20 },
+      { id: "l1", garmentLabel: "Basic Tee", colorName: "White", catalogStyle: "5000", garmentUnitPrice: 3.49, quantity: 20 },
       { id: "l2", garmentLabel: "Classic Hoodie", colorName: "Black", garmentUnitPrice: 14.87, quantity: 20 },
     ];
     const cart = quoteApparelCart(lines, print);

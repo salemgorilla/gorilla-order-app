@@ -4,7 +4,7 @@
  * Found 2026-09-07, the same day the sticker version of this bug was fixed:
  * the apparel confirmation read `selectedGarmentLabel` and
  * `apparelQuote.quantity` alone, so a cart of 24 tees and 20 hoodies was
- * confirmed back as "44 Starter Tee". For signs and apparel this screen is
+ * confirmed back as "44 Basic Tee". For signs and apparel this screen is
  * the customer's ONLY copy of what they sent — there is no email to repeat
  * it in — so it has to list every line, the way the review card and the
  * Printavo invoice do.

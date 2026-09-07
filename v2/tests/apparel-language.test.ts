@@ -25,7 +25,7 @@ const apparelOrder = {
   production: { deliveryMethod: "Pickup", needBy: "2026-10-05", deadlineType: "Flexible" },
   product: {
     type: "T-Shirts & Apparel",
-    garmentType: "Starter Tee",
+    garmentType: "Basic Tee",
     quantity: 24,
     garmentColor: "White",
     printLocations: ["Front"],
@@ -35,7 +35,7 @@ const apparelOrder = {
     specialOrderNotes: "",
     supplier: {
       source: "S&S Activewear",
-      productName: "Starter Tee",
+      productName: "Basic Tee",
       supplierProductName: "Gildan 2000",
       catalogStyle: "39",
       colorName: "White",
@@ -73,7 +73,7 @@ describe("the quote email never prices the blank", () => {
   });
 
   it("still describes the garment the shop is quoting", () => {
-    assert.match(body, /Starter Tee/);
+    assert.match(body, /Basic Tee/);
     assert.match(body, /White/);
   });
 

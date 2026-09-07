@@ -150,3 +150,46 @@ export function decideSignsAutoBill(input: {
 
   return { bill: true, reason: "priced by the server, under the ceiling" };
 }
+
+/**
+ * What the SHOP's copy of the quote should say about payment.
+ *
+ * ── THE GAP THIS CLOSES ───────────────────────────────────────────────────
+ * The shop email is sent BEFORE Printavo is called and before any payment
+ * link is raised (app/api/quote/route.ts), so it cannot report what happened.
+ * While stickers were the only self-billing flow that was tolerable: they
+ * always bill, so "sticker order" and "will be paid" meant the same thing.
+ *
+ * Signs broke that. A $1,800 banner order is over the ceiling, so no link
+ * goes out — and the shop's email looked exactly like the $200 one that did
+ * bill. The shop would be waiting on a payment nobody had been asked for.
+ *
+ * So the email says which bucket the order is in, and says it from the SAME
+ * decision the route bills from rather than a second copy that can drift.
+ * Returns null when there is nothing worth saying — an apparel estimate has
+ * always been invoiced and a line on every one of those is noise, not news.
+ */
+export function shopPaymentNote(input: {
+  order: Record<string, unknown>;
+  /** The signs decision, for a signs order. Ignored for other flows. */
+  signs: AutoBillDecision | null;
+  /** True when this is a sticker order that will self-check-out. */
+  stickers: boolean;
+  /** repriceStickers().unpriceable — a sticker design with no usable size. */
+  stickersUnpriceable: boolean;
+}): string | null {
+  if (input.signs && isSignsOrder(input.order)) {
+    return input.signs.bill
+      ? "Charged automatically — the customer gets a payment link as soon as this reaches Printavo."
+      : `NOT charged — ${input.signs.reason}. Invoice this one by hand.`;
+  }
+
+  // Stickers get a line only when they are the EXCEPTION. They bill on every
+  // ordinary order, so saying so each time is noise; saying nothing when one
+  // silently did not is how a job gets printed for free.
+  if (input.stickers && input.stickersUnpriceable) {
+    return "NOT charged — a design has no usable size, so nothing was priced. Invoice this one by hand.";
+  }
+
+  return null;
+}

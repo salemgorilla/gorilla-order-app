@@ -17,7 +17,11 @@ import { buildOrderConfirmation } from "../../../lib/order-confirmation";
 import { reorderUrl } from "../../../lib/reorder";
 import { describeRepricing } from "../../../lib/repricing-note";
 import { repriceSigns } from "../../../lib/signs-repricing";
-import { decideSignsAutoBill, isSignsOrder } from "../../../lib/auto-bill";
+import {
+  decideSignsAutoBill,
+  isSignsOrder,
+  shopPaymentNote,
+} from "../../../lib/auto-bill";
 import { getEmailError } from "../../../lib/validation";
 import { subscribeToNewsletter } from "../../../lib/newsletter";
 import { describeKioskSource, readKioskSession } from "../../../lib/kiosk";
@@ -658,6 +662,45 @@ export async function POST(request: Request) {
     console.log("GORILLA SALEM QUOTE REQUEST");
     console.log(JSON.stringify(quoteRecord, null, 2));
 
+    /**
+     * Whether this order may bill — decided HERE, above the shop email, so
+     * that email can say which orders the shop still has to invoice by hand.
+     *
+     * `printavoCreated: true` is not a claim that Printavo answered; it has
+     * not been called yet. It says "nothing about the ORDER stops this", and
+     * the real Printavo result is ANDed in at the checkout call below. Passing
+     * true here cannot raise a link on its own — the only thing that raises
+     * one is the condition further down, which requires a real quote id.
+     *
+     * One decision, read by two surfaces. The shop email and the payment link
+     * cannot disagree about whether an order was charged, which is the
+     * "several surfaces, two answers" failure this repo keeps paying for.
+     */
+    // Stickers check out on their own, and since 7 Sep so do signs and
+    // banners — Gabe: "All 3 should be instant price - pay online". Apparel
+    // still waits for the shop: its garment prices come from a supplier
+    // catalogue that can be stale or out of stock, so there IS something to
+    // review before a card is taken.
+    //
+    // Two gates, deliberately not one. Stickers are classified by
+    // isStickerOrder() because that ALSO decides what gets repriced against
+    // the sticker table; signs are decided by lib/auto-bill.ts against their
+    // own reprice. Widening the sticker gate to cover signs would auto-bill
+    // them at sticker prices, which is the worse bug.
+    const signsAutoBill = decideSignsAutoBill({
+      order: pricedOrder,
+      // The server's own recompute, never the browser's claim. `repriced` is
+      // false when the payload carried no spec to rebuild from, and that
+      // alone withholds the link — see lib/auto-bill.ts.
+      repriced: signsPriced.repriced,
+      unpriceable: signsPriced.unpriceable,
+      serverTotal: signsPriced.serverTotal,
+      kioskSession: Boolean(kioskSession),
+      printavoCreated: true,
+    });
+
+    const isStickers = isStickerOrder(pricedOrder);
+
     // Email the quote to the shop (best-effort — never blocks the customer).
     const notification = await sendQuoteEmail({
       quoteNumber,
@@ -666,6 +709,13 @@ export async function POST(request: Request) {
       artworkAnalysis,
       // Null on the overwhelming majority of orders, where the two agreed.
       repricing,
+      // "Charged automatically", or why not and what to do about it.
+      paymentNote: shopPaymentNote({
+        order: pricedOrder,
+        signs: signsAutoBill,
+        stickers: isStickers,
+        stickersUnpriceable: priced.unpriceable,
+      }),
       // Every design's file plus our proof of each cut, so the shop can
       // compare what was sent against what was approved — design by design.
       attachments: [
@@ -736,37 +786,20 @@ export async function POST(request: Request) {
       );
     }
 
-    // Stickers check out on their own, and since 7 Sep so do signs and
-    // banners — Gabe: "All 3 should be instant price - pay online". Apparel
-    // still waits for the shop: its garment prices come from a supplier
-    // catalogue that can be stale or out of stock, so there IS something to
-    // review before a card is taken.
-    //
-    // Two gates, deliberately not one. Stickers are classified by
-    // isStickerOrder() because that ALSO decides what gets repriced against
-    // the sticker table; signs are decided by lib/auto-bill.ts against their
-    // own reprice. Widening the sticker gate to cover signs would auto-bill
-    // them at sticker prices, which is the worse bug.
-    const isStickers = isStickerOrder(pricedOrder);
-
-    const signsAutoBill = decideSignsAutoBill({
-      order: pricedOrder,
-      // The server's own recompute, never the browser's claim. `repriced` is
-      // false when the payload carried no spec to rebuild from, and that
-      // alone withholds the link — see lib/auto-bill.ts.
-      repriced: signsPriced.repriced,
-      unpriceable: signsPriced.unpriceable,
-      serverTotal: signsPriced.serverTotal,
-      kioskSession: Boolean(kioskSession),
-      printavoCreated: Boolean(printavo.created && printavo.quoteId),
-    });
+    // The Printavo half of both gates: there has to be something to bill
+    // against. Kept out of decideSignsAutoBill's early call above, which
+    // answers the ORDER-level question before Printavo has been reached.
+    const printavoReady = Boolean(printavo.created && printavo.quoteId);
 
     // Every signs order that does NOT bill says why, once, in the log. A sign
     // that quietly stops self-checking-out is otherwise invisible until a
-    // customer asks where their payment link went.
-    if (isSignsOrder(pricedOrder) && !signsAutoBill.bill) {
+    // customer asks where their payment link went. Printavo failing is
+    // reported one branch up, so it is named here rather than repeated.
+    if (isSignsOrder(pricedOrder) && !(signsAutoBill.bill && printavoReady)) {
       console.log(
-        `SIGNS ORDER ${quoteNumber} — no payment link: ${signsAutoBill.reason}.`
+        `SIGNS ORDER ${quoteNumber} — no payment link: ${
+          signsAutoBill.bill ? "the quote never reached Printavo" : signsAutoBill.reason
+        }.`
       );
     }
 
@@ -811,12 +844,9 @@ export async function POST(request: Request) {
     }
 
     const stickersAutoBill =
-      !kioskSession &&
-      !priced.unpriceable &&
-      isStickers &&
-      Boolean(printavo.created && printavo.quoteId);
+      !kioskSession && !priced.unpriceable && isStickers && printavoReady;
 
-    if (stickersAutoBill || signsAutoBill.bill) {
+    if (printavoReady && (stickersAutoBill || signsAutoBill.bill)) {
       checkout = await createCheckout({
         quoteId: printavo.quoteId as string,
         publicUrl: printavo.publicUrl || "",

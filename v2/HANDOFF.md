@@ -22,6 +22,34 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **The shop email says whether the customer was charged** — 2026-09-07,
+  found by pressure-testing the change above rather than by a report. The
+  shop email is built and sent BEFORE Printavo is called and before any
+  payment link is raised, so it cannot report what happened. That was
+  survivable while stickers were the only self-billing flow — they bill on
+  every ordinary order, so "sticker order" meant "will be paid". Signs
+  ended it: a banner over the $1,500 ceiling raises no link, and its email
+  looked exactly like the one that did, so the shop would be waiting on a
+  payment nobody had been asked for on a job it had already started.
+
+  `shopPaymentNote()` in lib/auto-bill.ts writes the line, from the SAME
+  decision the route bills from — one decision, two surfaces, so the email
+  and the link cannot disagree. Signs always get a line ("Charged
+  automatically", or "NOT charged — <reason>. Invoice this one by hand.");
+  stickers get one only when they are the exception (a design with no usable
+  size); apparel gets none, because nothing changed for it and a line on
+  every estimate is noise. A kiosk order keeps its own more precise line and
+  never renders two.
+
+  The decision moved above the shop email to make this possible. It is
+  called once with `printavoCreated: true` — not a claim that Printavo
+  answered, but "nothing about the ORDER stops this" — and the real Printavo
+  result is ANDed in at the checkout call. Verified against the REAL route
+  in Chromium, no stub: a 10-sign order logged "no payment link: the quote
+  never reached Printavo" (dev has no credentials, so the AND worked), and a
+  400-sign order logged "$4415.00 is over the $1500 auto-bill ceiling —
+  invoice this one by hand". 1,851 tests, smoke 28/28, audit 49/49.
+
 - **SIGNS AND BANNERS PAY ONLINE** — 2026-09-07, Gabe: "I want signs and
   banners to have the same action as the stickers button. All 3 should be
   'instant price - pay online'." They now raise a live payment link on

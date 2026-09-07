@@ -8,6 +8,9 @@ import {
   useSyncExternalStore,
 } from "react";
 import { SALES_TAX, getSignsTotals, getStickerTotals } from "../lib/tax";
+import { getTrackUrl } from "../lib/order-status";
+import { SHOP } from "../lib/shop";
+import { SKU } from "../lib/sku";
 import { looksLikeEmailAddress } from "../lib/email-address";
 
 import Header from "../components/Header";
@@ -3113,6 +3116,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         apparelQuote={apparelQuote}
         selectedGarmentLabel={selectedGarmentLabel}
         selectedSsColor={selectedSsColor}
+        catalogStyle={chosenSsProduct?.catalogStyle}
         apparelPricing={apparelPricing}
         unitPrice={unitPrice}
         copyStatus={copyStatus}
@@ -3370,17 +3374,30 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
           {/* Same rule as .eyebrow above it in the cascade: this is a hand-
               rolled eyebrow and was the one bit of alarm ink on an otherwise
               monochrome hero. A location is not a warning. */}
+          {/* Provenance as the section marker: the institution, its street,
+              its city. The strings come from lib/shop.ts, so this, the
+              header and the pickup notice cannot say three different
+              addresses. */}
           <p className="eyebrow">
-            Printed Locally in Salem, MA
+            {SHOP.name} · {SHOP.street} · {SHOP.city}, {SHOP.state}
           </p>
 
+          {/* Two declaratives about how the shop works, in the shop's own
+              voice, in place of "Custom print quotes made simple" — a line
+              that could have headed any quote tool in the category. Both
+              halves are facts about this app: the estimate updates as the
+              form is filled, and the shop is on Canal Street. */}
           <h1 className="mt-3 max-w-4xl text-hero font-bold tracking-display text-[var(--ink-black)]">
-            Custom print quotes made simple.
+            Priced as you build it. Printed on Canal&nbsp;Street.
           </h1>
 
+          {/* Deadpan and true. The pricing block the browser shows is the
+              one buildPrintavoQuotePlan invoices from (tests/quote-invoice-
+              sweep holds them equal), and every flow proofs before print. */}
           <p className="mt-5 max-w-2xl text-lede leading-8 text-[var(--ink-muted)]">
-            Choose your details, upload your artwork, and get a live estimate or
-            quote request before sending it to Gorilla Salem.
+            Stickers, signs and garments, worked out by the same engine that
+            writes the invoice. A person checks every proof before anything
+            prints.
           </p>
 
           {/* The price anchor — the step-01 brief's highest-leverage item.
@@ -3406,7 +3423,13 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   </span>
                 </p>
               </div>
-              <p className="mt-2 text-fine font-medium text-[var(--ink-muted)]">
+              {/* The line as the invoice will file it: the sticker SKU and
+                  the material. Real furniture — GORILLA-DECAL is the item
+                  number a one-design sticker order carries in Printavo. */}
+              <p className="spec mt-3 text-spec text-[var(--ink-muted)]">
+                {SKU.DECAL} &middot; {REFERENCE_STICKER.material}
+              </p>
+              <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
                 Setup included &middot; no art fees &middot; proof before print
               </p>
             </div>
@@ -3419,17 +3442,24 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               or CONFIRMED. They are marketing claims, not states, and a
               customer learning the colour vocabulary from this screen was
               being taught it wrong before they reached a single control. */}
+          {/* Terms, not claims. These were three marketing lines
+              ("Hand-printed locally"); they are now three facts a customer
+              would otherwise learn on step 5, each read live from the
+              config that prices the order — the minimums from
+              lib/signs-pricing-config.ts, the rate from lib/tax.ts — so the
+              chip cannot say $50 after the minimum moves to $60. Mono,
+              because they are values. */}
           <div className="mt-6 flex flex-wrap gap-3">
             {[
-              "Hand-printed locally",
-              "Salem, Massachusetts",
-              "Real proof review before production",
-            ].map((claim) => (
+              "Stickers: setup included",
+              `Signs from $${signsPricingConfig.minimumOrder.signs} · banners from $${signsPricingConfig.minimumOrder.banners}`,
+              `${SHOP.stateCode} sales tax ${SALES_TAX.ratePercent}% on stickers and signs · never on setup or rush`,
+            ].map((term) => (
               <span
-                key={claim}
-                className="border border-[var(--rule)] bg-white px-4 py-2 text-fine font-semibold text-[var(--ink-muted)]"
+                key={term}
+                className="spec border border-[var(--rule)] bg-white px-4 py-2 text-spec font-medium text-[var(--ink-muted)]"
               >
-                {claim}
+                {term}
               </span>
             ))}
           </div>
@@ -4184,6 +4214,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               signsFeeTotal={signsPricing.feeTotal}
               selectedGarmentLabel={selectedGarmentLabel}
               selectedSsColor={selectedSsColor}
+              catalogStyle={chosenSsProduct?.catalogStyle}
               isReady={currentValidationErrors.length === 0}
             />
 
@@ -4338,26 +4369,59 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
           </section>
         )}
 
-        <footer className="mt-12 border border-[var(--rule)] bg-white p-6 text-center">
-          <p className="eyebrow">
-            Gorilla Salem
-          </p>
-          <p className="mt-2 text-value font-bold text-[var(--ink-black)]">
-            {/* Footer copy, shown on every step in every flow — including step
-                one, where nothing has been ordered, quoted or paid for. Says
-                "every job" rather than naming a transaction stage it cannot
-                know, and keeps the promise it was making: a human looks at
-                the work. */}
-            Custom printing, local service, real people reviewing every job.
-          </p>
-          <p className="mt-2 text-fine font-medium text-[var(--ink-muted)]">
-            Salem, Massachusetts •{" "}
+        {/* The colophon. Left-aligned like everything else in the register
+            (it was the one centred block on the page), with the institution
+            on the left and the one thing a returning customer wants on the
+            right: the tracker. */}
+        <footer className="mt-12 border border-[var(--rule)] bg-white p-6">
+          <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-5">
+            <div>
+              <p className="eyebrow">{SHOP.name}</p>
+              <p className="mt-2 text-value font-bold text-[var(--ink-black)]">
+                {/* Shown on every step in every flow — including step one,
+                    where nothing has been ordered, quoted or paid for. Says
+                    "every job" rather than naming a transaction stage it
+                    cannot know, and keeps the promise it was making: a
+                    human looks at the work. */}
+                Custom printing, local service, real people reviewing every job.
+              </p>
+              <p className="spec mt-3 text-spec text-[var(--ink-muted)]">
+                {SHOP.street} · {SHOP.city}, {SHOP.state} ·{" "}
+                <a
+                  className="underline decoration-1 underline-offset-2 transition-colors duration-[120ms] ease-linear hover:text-[var(--gorilla-green)]"
+                  href={`mailto:${SHOP.email}`}
+                >
+                  {SHOP.email}
+                </a>
+              </p>
+            </div>
+
+            {/* /track keys on the GS- number from the confirmation email.
+                Same silhouette as "Back to the beginning" in the step bar:
+                bordered, ink inversion on hover, 44px tall. */}
             <a
-              className="underline decoration-1 underline-offset-2 transition-colors duration-[120ms] ease-linear hover:text-[var(--gorilla-green)]"
-              href="mailto:quote@gorillasalem.com"
+              href={getTrackUrl()}
+              className={[
+                "inline-flex min-h-[44px] items-center gap-2",
+                "border border-[var(--rule)] bg-[var(--paper)] px-4 py-2",
+                "text-fine font-bold text-[var(--ink-black)]",
+                "transition-colors duration-[120ms] ease-linear",
+                "hover:border-[var(--ink-black)] hover:bg-[var(--ink-black)] hover:text-[var(--paper)]",
+                "active:translate-x-[2px] active:translate-y-[2px]",
+              ].join(" ")}
             >
-              quote@gorillasalem.com
+              Track an order
+              <span className="spec text-spec font-medium">GS-</span>
             </a>
+          </div>
+
+          {/* The terms, stated once, on every step. Every figure is read
+              from the same modules that price the order. */}
+          <p className="spec mt-5 border-t border-[var(--rule-faint)] pt-4 text-spec text-[var(--ink-muted)]">
+            Estimates are worked out by the engine that writes the invoice.{" "}
+            {SHOP.stateCode} sales tax {SALES_TAX.ratePercent}% applies to
+            stickers and signs; setup and rush are never taxed. A person
+            checks every proof before it prints.
           </p>
         </footer>
       </div>

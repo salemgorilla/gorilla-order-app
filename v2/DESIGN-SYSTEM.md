@@ -33,7 +33,7 @@ into a component — add a token instead.
 | `--gorilla-green` | `#2e7d32` | Brand. Never replace. |
 | `--gorilla-green-dark` | `#1b5e20` | Hover/pressed step |
 | `--green-bright` | `#5dbb63` | Ink-on-black surfaces only |
-| `--rush-red` | `#b23a2e` | Rush, late, error. Never decorative. Section eyebrows and product availability lines used to carry it and no longer do — an alarm ink on every section is not an alarm. |
+| `--rush-red` | `#b23a2e` | Rush, late, error. Never decorative. Section eyebrows and product availability lines used to carry it and no longer do — an alarm ink on every section is not an alarm. On 2026-09-07 the last four holdouts went too: LABS in the wordmark, the submit button, the confirmation eyebrows and its Gmail button. The alarm ink now appears only where something is late, wrong, or about to be removed. |
 | `--rush-red-dark` | `#8c2c22` | Hover/pressed step |
 | `--surface-ok` / `--surface-warn` / `--surface-rush` | pale tints | Status panels |
 
@@ -269,3 +269,43 @@ in the quote route. Moving that earlier would put a number on screen from step
 one, but it would also make the browser the source of a value Printavo keys
 on, burn numbers on abandoned quotes, and touch the checkout path — which
 means a Printavo reconciliation. Not worth it for furniture.
+
+---
+
+## 8. Republic, applied — 2026-09-07
+
+Gabe's tDR aesthetic guide (the "Republic desk" agent definition) was
+applied to the app. Its rule for a real business is that the agent governs
+craft and world-building around a fixed identity, never replacement, and
+its rule for a print shop is the WipEout one: **the mark encodes a datum**,
+and the institution's own data is the design. So the pass added no logo,
+no new ink, no new type and no new ticket grammar — §7 still stands. It
+put the real data on screen:
+
+| Datum | Where it lives | Where the customer meets it |
+|---|---|---|
+| `GORILLA-*` item numbers | `lib/sku.ts` — the one spelling; `lib/printavo.ts` builds every invoice row from it | "Invoice line" on every design in the review card; a mono line under each design on the confirmation ticket; the family (`GORILLA-DECAL` / `-SIGN` / `-APPAREL`) as the review card's chip |
+| The address | `lib/shop.ts` | Header ("Quote desk / 47 Canal Street · Salem, MA"), hero eyebrow, footer, pickup notice |
+| Minimums and the tax rate | `lib/signs-pricing-config.ts`, `lib/tax.ts` | The three terms under the price anchor and the footer's one line of terms — read live, so they cannot lag the config |
+| The reference sticker's SKU and material | `lib/reference-quote.ts` + `SKU.DECAL` | The mono line inside the price anchor |
+
+`tests/sku-agreement.test.ts` drives the real payload composition through
+`buildPrintavoQuotePlan` and holds the review's codes equal to the invoice's
+item numbers, and fails on a literal `"GORILLA-` in any component. The
+review card is the one place the customer can lay the screen beside the
+invoice and match it line for line; that is the whole point, and it is only
+true while the codes come from one file.
+
+**Era:** post-typographic. The number is the picture — the estimate stub,
+the price anchor, the quote number — and type is the structure. Nothing
+iconographic was added.
+
+**Voice:** deadpan, first person plural, facts only. "Priced as you build
+it. Printed on Canal Street." is two things the app can prove. Copy that
+could head any quote tool in the category ("made simple") was the failure
+the guide names first, and it is gone.
+
+**Not done, on purpose:** the guide mentions a founding year and a NAICS
+code. Neither is in the repo, so neither is on screen — provenance is only
+furniture if it is true. Gabe supplies them or they stay off.
+

@@ -31,7 +31,12 @@ export default function SubmitButton({
       onClick={onSubmit}
       disabled={inactive}
       className={[
-        "w-full border-2 border-[var(--rush-red)] bg-[var(--rush-red)] py-5",
+        // GORILLA GREEN, the owned ink, like "Continue to details" one step
+        // up and "Pay now" one screen on. This was RUSH RED — the alarm ink
+        // as the primary commit action, so the one colour the system
+        // reserves for "late" and "error" was also the colour of the button
+        // that sends the order. "Never decorative" includes CTAs.
+        "w-full border-2 border-[var(--gorilla-green)] bg-[var(--gorilla-green)] py-5",
         "text-lede font-bold text-white",
         "transition-colors duration-[120ms] ease-linear",
         inactive
@@ -42,7 +47,7 @@ export default function SubmitButton({
             // absent.
             "cursor-not-allowed opacity-60"
           : // Ink inversion, same as every other affordance in the app.
-            "cursor-pointer hover:bg-[var(--paper)] hover:text-[var(--rush-red)] active:translate-x-[2px] active:translate-y-[2px]",
+            "cursor-pointer hover:bg-[var(--paper)] hover:text-[var(--gorilla-green-dark)] active:translate-x-[2px] active:translate-y-[2px]",
       ].join(" ")}
     >
       {isLoading ? (

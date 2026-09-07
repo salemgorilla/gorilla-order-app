@@ -284,8 +284,8 @@ describe("rush is LABOUR, so it is not taxed (Gabe, 2026-09-04)", () => {
       "utf8"
     );
     const rushLine = source.slice(
-      source.indexOf('itemNumber: "GORILLA-RUSH"'),
-      source.indexOf('itemNumber: "GORILLA-RUSH"') + 500
+      source.indexOf('itemNumber: SKU.RUSH'),
+      source.indexOf('itemNumber: SKU.RUSH') + 500
     );
 
     assert.match(rushLine, /taxed: false/);

@@ -52,8 +52,8 @@ Working and verified:
   sticker design of a cart. Verified in Chromium at 1300 and 390 (no
   horizontal scroll), smoke 28/28. NAICS is on the footer as 323111 —
   Gabe, 2026-09-07, from the filings, NOT the guide's 323113 guess. The
-  founding year is still not in the repo and not on screen; the hero and
-  lede wording is his to edit.
+  footer eyebrow reads "est. 2003" (Gabe, same day). Both in lib/shop.ts.
+  The hero and lede wording is his to edit.
 
 - **THE PRINTAVO MATRIX IS THE APP'S PRICE** — 2026-09-06, Gabe: "I need
   to use the latest matrix we created for Printavo as the source of our

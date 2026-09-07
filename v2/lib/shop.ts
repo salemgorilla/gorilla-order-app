@@ -20,4 +20,6 @@ export const SHOP = {
    * is the number on the page, or it is costume.
    */
   naics: "323111",
+  /** The year the shop opened — Gabe, 2026-09-07. */
+  established: 2003,
 } as const;

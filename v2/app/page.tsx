@@ -4376,7 +4376,9 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         <footer className="mt-12 border border-[var(--rule)] bg-white p-6">
           <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-5">
             <div>
-              <p className="eyebrow">{SHOP.name}</p>
+              <p className="eyebrow">
+                {SHOP.name} · est. {SHOP.established}
+              </p>
               <p className="mt-2 text-value font-bold text-[var(--ink-black)]">
                 {/* Shown on every step in every flow — including step one,
                     where nothing has been ordered, quoted or paid for. Says

@@ -285,7 +285,7 @@ put the real data on screen:
 | Datum | Where it lives | Where the customer meets it |
 |---|---|---|
 | `GORILLA-*` item numbers | `lib/sku.ts` — the one spelling; `lib/printavo.ts` builds every invoice row from it | "Invoice line" on every design in the review card; a mono line under each design on the confirmation ticket; the family (`GORILLA-DECAL` / `-SIGN` / `-APPAREL`) as the review card's chip |
-| The address and the industry code | `lib/shop.ts` | Header ("Quote desk / 47 Canal Street · Salem, MA"), hero eyebrow, footer (with NAICS 323111), pickup notice |
+| The address, the industry code, the year | `lib/shop.ts` | Header ("Quote desk / 47 Canal Street · Salem, MA"), hero eyebrow, footer ("est. 2003", NAICS 323111), pickup notice |
 | Minimums and the tax rate | `lib/signs-pricing-config.ts`, `lib/tax.ts` | The three terms under the price anchor and the footer's one line of terms — read live, so they cannot lag the config |
 | The reference sticker's SKU and material | `lib/reference-quote.ts` + `SKU.DECAL` | The mono line inside the price anchor |
 
@@ -308,7 +308,7 @@ the guide names first, and it is gone.
 **The NAICS code is the filed one, not the guide's.** The guide guessed
 323113 (screen printing); Gabe's paperwork says 323111, Commercial Printing
 (except Screen and Books), and the paperwork wins (Gabe, 2026-09-07). The
-founding year the guide also mentions is not in the repo and is not on
-screen — provenance is only furniture if it is true. Gabe supplies it or
-it stays off.
+founding year is 2003 (Gabe, same day) and sits in the footer eyebrow as
+"est. 2003". Both live in `lib/shop.ts` — provenance is only furniture if
+it is true, and these two were kept off screen until Gabe supplied them.
 

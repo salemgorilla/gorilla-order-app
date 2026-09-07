@@ -16,6 +16,7 @@ import {
   getSignSizeLabel,
   type SignsQuote,
 } from "../lib/signs";
+import { apparelSku, decalSku, signSku } from "../lib/sku";
 
 type Props = {
   quoteConfirmation: QuoteConfirmation | null;
@@ -39,6 +40,8 @@ type Props = {
   apparelQuote: ApparelQuote;
   selectedGarmentLabel: string;
   selectedSsColor: SsCatalogColor | null;
+  /** The configured garment's S&S style — its invoice code (lib/sku.ts). */
+  catalogStyle?: string;
   apparelPricing: ApparelPricingResult;
   unitPrice: number;
   copyStatus: "idle" | "copied" | "error";
@@ -61,6 +64,7 @@ export default function QuoteConfirmationScreen({
   apparelQuote,
   selectedGarmentLabel,
   selectedSsColor,
+  catalogStyle,
   apparelPricing,
   unitPrice,
   copyStatus,
@@ -138,7 +142,7 @@ export default function QuoteConfirmationScreen({
               ✓
             </div>
 
-            <p className="mt-8 text-fine font-bold uppercase tracking-eyebrow text-[var(--rush-red)]">
+            <p className="mt-8 text-fine font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
               {canPayNow ? "Ready to pay" : "Quote Received"}
             </p>
 
@@ -286,7 +290,7 @@ export default function QuoteConfirmationScreen({
 
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             <div className=" border border-[var(--rule)] p-5">
-              <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--rush-red)]">
+              <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
                 Customer
               </p>
 
@@ -306,7 +310,7 @@ export default function QuoteConfirmationScreen({
             </div>
 
             <div className=" border border-[var(--rule)] p-5">
-              <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--rush-red)]">
+              <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
                 {isApparelSubmitted
                   ? "Apparel Details"
                   : isSignsSubmitted
@@ -318,7 +322,7 @@ export default function QuoteConfirmationScreen({
                 // Every design, not just the first. A customer who ordered a
                 // banner and two yard signs has to see all three back, or the
                 // confirmation is confirming something they did not send.
-                <div className="space-y-4">
+                <div className="mt-2 space-y-4">
                   {signsQuote.designs.map((design, index) => (
                     <div key={design.id}>
                       {signsQuote.designs.length > 1 && (
@@ -336,6 +340,12 @@ export default function QuoteConfirmationScreen({
                       <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
                         {design.finishing} •{" "}
                         {design.doubleSided ? "Double-sided" : "Single-sided"}
+                      </p>
+                      {/* The code this line carries on the invoice — the
+                          same one the review screen showed, from the same
+                          function. */}
+                      <p className="spec mt-1 text-spec text-[var(--ink-muted)]">
+                        {signSku(getSignProduct(design.productId).label)}
                       </p>
                     </div>
                   ))}
@@ -369,24 +379,45 @@ export default function QuoteConfirmationScreen({
                   <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
                     {apparelQuote.printLocations.join(", ")}
                   </p>
+                  {catalogStyle && (
+                    <p className="spec mt-1 text-spec text-[var(--ink-muted)]">
+                      {apparelSku(catalogStyle)}
+                    </p>
+                  )}
                 </>
               ) : (
-                <>
-                  <p className="mt-2 text-value font-bold text-[var(--ink-black)]">
-                    {order.items[0].quantity.toLocaleString()} stickers
-                  </p>
-                  <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
-                    {order.items[0].size} • {order.items[0].shape}
-                  </p>
-                  <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
-                    {order.items[0].material}
-                  </p>
-                </>
+                // Every design, as the signs branch above already does. This
+                // read order.items[0] alone, so a three-design sticker cart
+                // was confirmed back as its first design — on the screen
+                // whose job is to say what was sent.
+                <div className="mt-2 space-y-4">
+                  {order.items.map((item, index) => (
+                    <div key={item.id}>
+                      {order.items.length > 1 && (
+                        <p className="spec text-spec uppercase tracking-eyebrow text-[var(--ink-muted)]">
+                          Design {String(index + 1).padStart(2, "0")}
+                        </p>
+                      )}
+                      <p className="mt-2 text-value font-bold text-[var(--ink-black)]">
+                        {item.quantity.toLocaleString()} stickers
+                      </p>
+                      <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
+                        {item.size} • {item.shape}
+                      </p>
+                      <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
+                        {item.material}
+                      </p>
+                      <p className="spec mt-1 text-spec text-[var(--ink-muted)]">
+                        {decalSku(index, order.items.length)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
 
             <div className=" border border-[var(--rule)] p-5">
-              <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--rush-red)]">
+              <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
                 Estimate
               </p>
 
@@ -510,7 +541,10 @@ export default function QuoteConfirmationScreen({
               href={emailHref}
               target="_blank"
               rel="noopener noreferrer"
-              className=" bg-[var(--rush-red)] px-6 py-4 text-center font-bold text-white transition hover:bg-[var(--rush-red-dark)]"
+              // INK BLACK with the house inversion, not RUSH RED: an email
+              // draft is not an alarm, and the alarm ink on a button teaches
+              // the customer it means "press me" instead of "late".
+              className="border-2 border-[var(--ink-black)] bg-[var(--ink-black)] px-6 py-4 text-center font-bold text-[var(--paper)] transition-colors duration-[120ms] ease-linear hover:bg-[var(--paper)] hover:text-[var(--ink-black)]"
             >
               Open Gmail Draft
             </a>

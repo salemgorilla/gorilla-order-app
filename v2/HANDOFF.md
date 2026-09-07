@@ -22,6 +22,39 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **The Republic register, applied — ON A BRANCH, NOT MERGED** —
+  2026-09-07, Gabe: "Use this design guide to influence the look ui and
+  UX for our app" (the tDR aesthetic agent definition). Built as PR #120
+  on `claude/order-form-progress-steps-qq0itz` and deliberately left
+  unmerged because Gabe was mid-test on production when it landed; merge
+  on his nod. What it is: the guide's move for a real print shop is the
+  WipEout one — the institution's own data as the design — and the app's
+  real data is its SKU grammar, its address and its pricing config, so
+  the change puts those on screen and invents nothing. `lib/sku.ts` now
+  owns every `GORILLA-*` code (lib/printavo.ts builds its item numbers
+  from it, byte-identical — the 87 money tests did not move) and the
+  review card and confirmation ticket print the exact code each line will
+  carry on the invoice; `tests/sku-agreement.test.ts` holds the two equal
+  through the real payload composition, and fails on any hand-typed
+  `"GORILLA-` in a component. `lib/shop.ts` is the address, read by the
+  header ("Quote desk / 47 Canal Street · Salem, MA"), the hero eyebrow,
+  the footer and the pickup notice. Hero copy is two facts in place of
+  "Custom print quotes made simple": "Priced as you build it. Printed on
+  Canal Street." with a lede that says the estimate comes from the engine
+  that writes the invoice. The three marketing chips are three terms read
+  live from config (setup included; signs from $60 / banners from $45;
+  MA tax 6.25% on stickers and signs, never on setup or rush). The footer
+  is left-aligned, carries the address and a "Track an order" link to
+  /track. Four alarm-ink holdouts the system's own "never decorative"
+  rule forbade are fixed: LABS in the wordmark, the submit button, the
+  confirmation eyebrows and its Gmail button are GORILLA GREEN or ink
+  now. Also fixed on the way: the confirmation confirmed only the FIRST
+  sticker design of a cart. Verified in Chromium at 1300 and 390 (no
+  horizontal scroll), smoke 28/28. NAICS is on the footer as 323111 —
+  Gabe, 2026-09-07, from the filings, NOT the guide's 323113 guess. The
+  footer eyebrow reads "est. 2003" (Gabe, same day). Both in lib/shop.ts.
+  The hero and lede wording is his to edit.
+
 - **THE PRINTAVO MATRIX IS THE APP'S PRICE** — 2026-09-06, Gabe: "I need
   to use the latest matrix we created for Printavo as the source of our
   app pricing" — the 22 Aug corrected matrix, markup included. This

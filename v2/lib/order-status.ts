@@ -1,3 +1,5 @@
+import { SHOP } from "./shop";
+
 /**
  * Turning a Printavo status into something a customer should read.
  *
@@ -105,7 +107,7 @@ const CUSTOMER_FACING: Record<string, Entry> = {
   },
   "Lab Order Completed - Ready For Local Pickup": {
     label: "Ready for pickup in Salem",
-    detail: "Come and get it — 47 Canal Street, Salem MA.",
+    detail: `Come and get it — ${SHOP.street}, ${SHOP.city} ${SHOP.stateCode}.`,
     stage: "ready",
     step: 4,
   },

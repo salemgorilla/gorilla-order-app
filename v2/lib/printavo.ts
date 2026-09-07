@@ -1,6 +1,14 @@
 import { isTaxableFlow, SALES_TAX } from "./tax";
 import { SIGNS_FEE_KINDS } from "./signs-pricing";
 import { getTrackUrl } from "./order-status";
+import {
+  SKU,
+  apparelLineSku,
+  apparelSku,
+  decalSku,
+  signFeeSku,
+  signSku,
+} from "./sku";
 
 // Pushes each submitted quote into Printavo as a DRAFT/UNCONFIRMED quote.
 //
@@ -595,30 +603,10 @@ export async function createStickerCheckout(input: {
   }
 }
 
-/**
- * The Printavo item number for a sign, derived from what it IS.
- *
- * One function so a one-design quote and a cart cannot file the same product
- * under two different SKUs — which is precisely what happened when the cart
- * numbered its rows by position. Printavo's records are the shop's records:
- * "how many yard signs did we sell this quarter" is only answerable if the
- * same sign always lands in the same place.
+/*
+ * signSku / skuPart moved to lib/sku.ts so the review screen can show the
+ * same codes this file bills under. Nothing here changed shape.
  */
-function signSku(signType: string) {
-  return `GORILLA-SIGN-${skuPart(signType)}`;
-}
-
-/**
- * A name, as an item number fragment: upper case, single dashes, no edges.
- * Shared so every SKU in this file is built the same way — the sign SKU, the
- * signs fee SKUs and the apparel cart's garment rows.
- */
-function skuPart(name: string) {
-  return name
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
 
 /**
  * One sticker spec, as production reads it.
@@ -1395,11 +1383,13 @@ export function buildPrintavoQuotePlan(input: {
               // product: the description carries the story, the item number
               // names the thing and holds still. `catalogStyle` when the
               // line knows its S&S style, the garment label otherwise.
-              itemNumber: `GORILLA-APPAREL-${
-                skuPart(str(line.catalogStyle, "")) ||
-                skuPart(str(line.garmentLabel, "")) ||
-                `LINE-${index + 1}`
-              }`,
+              itemNumber: apparelLineSku(
+                {
+                  catalogStyle: str(line.catalogStyle, ""),
+                  garmentLabel: str(line.garmentLabel, ""),
+                },
+                index
+              ),
               // Exact to the cent, never total/quantity.
               price: money(num(line.garmentUnitPrice)),
               quantity: lineQuantity,
@@ -1461,7 +1451,7 @@ export function buildPrintavoQuotePlan(input: {
               // shop could not tell apart (CART-PLAN bug 3). The number is the
               // design's cart position — the same number the shop email's
               // block and the design-N-*.png attachment use.
-              itemNumber: `GORILLA-DECAL-${index + 1}`,
+              itemNumber: decalSku(index, stickerItems.length),
               price: Number((linePrice / itemQuantity).toFixed(4)),
               quantity: itemQuantity,
               sizes: [{ size: "size_other", count: itemQuantity }],
@@ -1473,8 +1463,8 @@ export function buildPrintavoQuotePlan(input: {
               itemNumber: signs
                 ? signSku(str(product.signType, "NA"))
                 : apparel
-                ? `GORILLA-APPAREL-${str(supplier.catalogStyle, "NA")}`
-                : "GORILLA-DECAL",
+                ? apparelSku(str(supplier.catalogStyle, ""))
+                : decalSku(0, 1),
               price: unitPrice,
               quantity,
               // Apparel: map the real size breakdown onto Printavo's size enums
@@ -1498,7 +1488,7 @@ export function buildPrintavoQuotePlan(input: {
       shippingPrice > 0
         ? {
             description: "Shipping",
-            itemNumber: "GORILLA-SHIPPING",
+            itemNumber: SKU.SHIPPING,
             price: money(shippingPrice),
           }
         : null,
@@ -1540,7 +1530,7 @@ export function buildPrintavoQuotePlan(input: {
                     )}-piece rate, $${num(pricing.printUnitPrice).toFixed(2)} each`
                   : `${quantity} x $${num(pricing.printUnitPrice).toFixed(2)}`
               }`,
-              itemNumber: "GORILLA-APPAREL-PRINT",
+              itemNumber: SKU.APPAREL_PRINT,
               price: money(pricing.printTotal),
               // Printing is service, and apparel is exempt besides.
               taxed: false,
@@ -1551,7 +1541,7 @@ export function buildPrintavoQuotePlan(input: {
         ? [
             {
               description: "Screens / setup",
-              itemNumber: "GORILLA-APPAREL-SETUP",
+              itemNumber: SKU.APPAREL_SETUP,
               price: money(pricing.setupTotal),
               taxed: false,
             },
@@ -1572,7 +1562,7 @@ export function buildPrintavoQuotePlan(input: {
                 production.needBy,
                 "the agreed date"
               )}`,
-              itemNumber: "GORILLA-RUSH",
+              itemNumber: SKU.RUSH,
               price: money(pricing.rushFee),
               // Labour, not goods: MA does not tax separately stated
               // labour, and the estimate excludes it from the taxable base
@@ -1600,7 +1590,7 @@ export function buildPrintavoQuotePlan(input: {
                 stickerItems.length > 1
                   ? `Setup and artwork prep (${stickerItems.length} designs)`
                   : "Setup and artwork prep",
-              itemNumber: "GORILLA-DECAL-SETUP",
+              itemNumber: SKU.DECAL_SETUP,
               price: money(pricing.setupPrice),
               /**
                * Untaxed as of 2026-09-04 — all fees are (Gabe). This one
@@ -1635,16 +1625,16 @@ export function buildPrintavoQuotePlan(input: {
        */
       ...signsFeeLines.map((l) => ({
         description: str(l.label, "Fee"),
-        itemNumber: `GORILLA-SIGN-${
+        itemNumber: signFeeSku(
           str(l.code, "") ||
-          // Only reached by a line that predates `code` — kept so an old
-          // payload still produces something rather than a bare prefix.
-          str(l.label, "FEE")
-            .toUpperCase()
-            .replace(/[^A-Z0-9]+/g, "-")
-            .slice(0, 24)
-            .replace(/-$/, "")
-        }`,
+            // Only reached by a line that predates `code` — kept so an old
+            // payload still produces something rather than a bare prefix.
+            str(l.label, "FEE")
+              .toUpperCase()
+              .replace(/[^A-Z0-9]+/g, "-")
+              .slice(0, 24)
+              .replace(/-$/, "")
+        ),
         price: money(l.amount),
         /**
          * On a ONE-design quote this list is `lines.slice(1)`, which is

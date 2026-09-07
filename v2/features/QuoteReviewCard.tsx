@@ -10,6 +10,13 @@ import {
   getSignSizeLabel,
   type SignsQuote,
 } from "../lib/signs";
+import {
+  SKU_FAMILY,
+  apparelLineSku,
+  apparelSku,
+  decalSku,
+  signSku,
+} from "../lib/sku";
 
 type Props = {
   isApparelSelected: boolean;
@@ -40,9 +47,34 @@ type Props = {
     garmentLabel: string;
     colorName: string;
     quantity: number;
+    catalogStyle?: string;
   }>;
+  /**
+   * The S&S style of the configured garment — what a one-garment apparel
+   * order files under on the invoice (lib/sku.ts). Undefined until the
+   * catalog has answered, and the code says so rather than inventing one.
+   */
+  catalogStyle?: string;
   isReady: boolean;
 };
+
+/**
+ * A spec row: the same label/value pair as every other row on this card,
+ * with the value in mono because it is a code, not a word. Every code here
+ * is the item number the Printavo invoice will carry for that line —
+ * tests/sku-agreement.test.ts holds the two equal — so a customer can lay
+ * this screen beside the invoice and match them line for line.
+ */
+function CodeRow({ code }: { code: string }) {
+  return (
+    <div className="flex justify-between gap-4">
+      <span>Invoice line</span>
+      <span className="spec text-right text-spec font-bold text-[var(--ink-black)]">
+        {code}
+      </span>
+    </div>
+  );
+}
 
 export default function QuoteReviewCard({
   isApparelSelected,
@@ -57,6 +89,7 @@ export default function QuoteReviewCard({
   selectedGarmentLabel,
   selectedSsColor,
   garmentLines = [],
+  catalogStyle,
   isReady,
 }: Props) {
   // Shared with the summary, the confirmation screen and the sticky bar.
@@ -79,8 +112,18 @@ export default function QuoteReviewCard({
           </p>
         </div>
 
-        <span className=" bg-[var(--shirt-blank)] px-4 py-2 text-spec font-bold uppercase tracking-eyebrow text-[var(--gorilla-green)]">
-          {isApparelSelected ? "Apparel" : isSignsSelected ? "Signs" : "Stickers"}
+        {/* The SKU family this order files under — GORILLA-DECAL, -SIGN or
+            -APPAREL — in place of the word for it. Mono, because it is the
+            prefix every line below shares on the invoice, and in ink rather
+            than green: green means SELECTED or CONFIRMED everywhere else on
+            this screen, and a chip is neither. */}
+        <span className="spec border border-[var(--rule)] bg-[var(--shirt-blank)] px-4 py-2 text-spec font-bold text-[var(--ink-black)]">
+          <span className="sr-only">Files under </span>
+          {isApparelSelected
+            ? SKU_FAMILY.apparel
+            : isSignsSelected
+            ? SKU_FAMILY.signs
+            : SKU_FAMILY.stickers}
         </span>
       </div>
 
@@ -131,6 +174,10 @@ export default function QuoteReviewCard({
                     </span>
                   </div>
                 ))}
+
+                <CodeRow
+                  code={signSku(getSignProduct(design.productId).label)}
+                />
               </div>
             ))}
 
@@ -199,6 +246,9 @@ export default function QuoteReviewCard({
                   {garmentLines.map((line, index) => (
                     <span key={`${line.garmentLabel}-${line.colorName}-${index}`} className="block">
                       {line.quantity} × {line.garmentLabel} / {line.colorName}
+                      <span className="spec block text-spec font-medium text-[var(--ink-muted)]">
+                        {apparelLineSku(line, index)}
+                      </span>
                     </span>
                   ))}
                 </span>
@@ -225,6 +275,12 @@ export default function QuoteReviewCard({
                     {apparelQuote.quantity.toLocaleString()}
                   </span>
                 </div>
+
+                {/* Only once the catalog has named the style. Before that
+                    the invoice would file under GORILLA-APPAREL-NA, which
+                    is a real fallback but not a thing to show a customer as
+                    their code. */}
+                {catalogStyle && <CodeRow code={apparelSku(catalogStyle)} />}
               </>
             )}
 
@@ -301,6 +357,8 @@ export default function QuoteReviewCard({
                     </span>
                   </div>
                 ))}
+
+                <CodeRow code={decalSku(index, order.items.length)} />
               </div>
             ))}
 

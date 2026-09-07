@@ -7,8 +7,8 @@
  * was survivable: they bill on every ordinary order, so "sticker order" and
  * "will be paid" meant the same thing and the email did not have to say it.
  *
- * Signs ended that on 7 Sep. A banner order over the $1,500 ceiling raises no
- * link, and its email looked exactly like the $200 one that did — so the shop
+ * Signs ended that on 7 Sep. A banner order over the ceiling raises no link,
+ * and its email looked exactly like the $200 one that did — so the shop
  * would be waiting on a payment nobody had been asked for, on a job it had
  * already started. This file holds the line that closes it.
  *
@@ -19,10 +19,12 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
 import {
-  SIGNS_AUTO_BILL_CEILING,
+  SELF_CHECKOUT_CEILING,
   decideSignsAutoBill,
+  decideStickersAutoBill,
   shopPaymentNote,
 } from "../lib/auto-bill";
+import { repriceStickers } from "../lib/sticker-repricing";
 import { buildCustomerLines, buildQuoteEmail } from "../lib/email";
 import { createSignsDesign, type SignsDesign } from "../lib/signs";
 import { quoteSignsCart } from "../lib/signs-cart";
@@ -69,8 +71,7 @@ function noteFor(order: Record<string, unknown>, serverTotal?: number) {
       kioskSession: false,
       printavoCreated: true,
     }),
-    stickers: false,
-    stickersUnpriceable: false,
+    stickers: null,
   });
 }
 
@@ -83,7 +84,7 @@ describe("a signs order says which bucket it is in", () => {
   });
 
   test("one over the ceiling says invoice it by hand, and why", () => {
-    const note = noteFor(signsOrder(), SIGNS_AUTO_BILL_CEILING + 500);
+    const note = noteFor(signsOrder(), SELF_CHECKOUT_CEILING + 500);
 
     assert.ok(note);
     assert.match(note, /NOT charged/);
@@ -111,7 +112,7 @@ describe("a signs order says which bucket it is in", () => {
 describe("the note reaches the shop's actual email", () => {
   test("both the text and the HTML carry it", () => {
     const order = signsOrder();
-    const note = noteFor(order, SIGNS_AUTO_BILL_CEILING + 500);
+    const note = noteFor(order, SELF_CHECKOUT_CEILING + 500);
 
     assert.ok(note);
 
@@ -160,37 +161,95 @@ describe("a kiosk order keeps its own, more precise line", () => {
 });
 
 describe("stickers get a line only when they are the exception", () => {
-  const stickerOrder = {
-    customer: CUSTOMER,
-    production: { deliveryMethod: "Pickup" },
-    product: { type: "Custom Stickers", quantity: 100 },
-  };
+  /** A sticker cart in the shape the browser posts, priced by the server. */
+  function stickerOrder(item: Record<string, unknown>) {
+    return {
+      customer: CUSTOMER,
+      production: { deliveryMethod: "Pickup" },
+      product: { type: "Custom Stickers", ...item },
+      items: [{ id: "d1", ...item }],
+      pricing: { total: 0 },
+    };
+  }
+
+  /** The route's own composition for stickers: reprice, decide, note. */
+  function stickerNoteFor(
+    order: Record<string, unknown>,
+    overrides: Partial<Parameters<typeof decideStickersAutoBill>[0]> = {}
+  ) {
+    const priced = repriceStickers(order);
+
+    return shopPaymentNote({
+      order: priced.order,
+      signs: null,
+      stickers: decideStickersAutoBill({
+        order: priced.order,
+        unpriceable: priced.unpriceable,
+        serverTotal: priced.serverTotal,
+        kioskSession: false,
+        printavoCreated: true,
+        ...overrides,
+      }),
+    });
+  }
+
+  const ordinary = stickerOrder({
+    quantity: 100,
+    widthInches: 3,
+    heightInches: 3,
+    material: "Matte",
+    shape: "Die Cut",
+  });
 
   test("an ordinary sticker order stays quiet", () => {
     // They bill on every ordinary order. Saying so each time is noise, and
     // noise is what stops anyone reading the line that matters.
-    assert.equal(
-      shopPaymentNote({
-        order: stickerOrder,
-        signs: null,
-        stickers: true,
-        stickersUnpriceable: false,
-      }),
-      null
-    );
+    assert.equal(stickerNoteFor(ordinary), null);
   });
 
   test("one nothing could be priced from says invoice it by hand", () => {
-    const note = shopPaymentNote({
-      order: stickerOrder,
-      signs: null,
-      stickers: true,
-      stickersUnpriceable: true,
+    // No dimensions and no size label: material prices at $0, so the total
+    // is the setup fee alone — the case that once raised a $25 link for a
+    // thousand stickers.
+    const note = stickerNoteFor(stickerOrder({ quantity: 1000 }));
+
+    assert.ok(note);
+    assert.match(note, /NOT charged/);
+    assert.match(note, /no usable size/i);
+    assert.match(note, /invoice this one by hand/i);
+  });
+
+  test("one over the ceiling says so, in the same words as a sign", () => {
+    // The gap the ceiling closes for stickers: before it, the shop email on
+    // a five-figure sticker cart looked exactly like the $60 one, and both
+    // had billed. Now the big one does not bill, and the email says why.
+    const note = stickerNoteFor(ordinary, {
+      serverTotal: SELF_CHECKOUT_CEILING + 500,
     });
 
     assert.ok(note);
     assert.match(note, /NOT charged/);
+    assert.match(note, /ceiling/i);
     assert.match(note, /invoice this one by hand/i);
+  });
+
+  test("the note is never written for a non-sticker order", () => {
+    // Handing a sticker decision in for an apparel payload must not print
+    // a sticker line on an estimate. Same guard as the signs branch.
+    assert.equal(
+      shopPaymentNote({
+        order: {
+          product: {
+            type: "T-Shirts & Apparel",
+            garmentType: "T-Shirts",
+            supplier: { productName: "Gildan 5000" },
+          },
+        },
+        signs: null,
+        stickers: { bill: false, reason: "not a sticker order" },
+      }),
+      null
+    );
   });
 });
 
@@ -206,8 +265,7 @@ describe("apparel says nothing, because nothing changed for it", () => {
           },
         },
         signs: null,
-        stickers: false,
-        stickersUnpriceable: false,
+        stickers: null,
       }),
       null
     );

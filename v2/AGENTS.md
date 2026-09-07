@@ -30,18 +30,25 @@ cover signs**: it decides repricing as well as billing, so a signs payload
 inside it would be repriced against the sticker table and billed a
 per-square-inch vinyl price for a banner.
 
-`lib/auto-bill.ts` decides signs and banners (Gabe, 2026-09-07: "All 3 should
-be 'instant price - pay online'"). Read it before touching that path; every
-clause in it is a way this goes wrong. Two are worth repeating here:
+`lib/auto-bill.ts` holds the two auto-bill DECISIONS — `decideSignsAutoBill()`
+for signs and banners (Gabe, 2026-09-07: "All 3 should be 'instant price -
+pay online'") and `decideStickersAutoBill()` for stickers, which only READS
+`isStickerOrder()` and never redefines it. Read the file before touching that
+path; every clause in it is a way this goes wrong. Two are worth repeating
+here:
 
 - **It bills only what the SERVER repriced.** `repriceSigns()` passes a
   payload through untouched when it carries no `spec` to rebuild from. That
   was harmless while the shop read the figure before invoicing; with a link
   being raised it would mean billing a number the browser supplied. No
   reprice, no link.
-- **$1,500 ceiling** (Gabe, same day). Above it the quote, the email and the
-  Printavo record all still go out — only the payment link is withheld and the
-  shop invoices by hand. It is a blast radius, not a pricing rule.
+- **One $5,000 ceiling, `SELF_CHECKOUT_CEILING`, read by BOTH gates** (Gabe,
+  same day — it replaced a $1,500 signs-only ceiling set that morning, and
+  gave stickers a ceiling for the first time). Above it the quote, the shop
+  email and the Printavo record all still go out — only the payment link is
+  withheld, the shop email says "NOT charged — over the ceiling", and the shop
+  invoices by hand. It is a blast radius, not a pricing rule. Never give
+  either flow its own copy of the number.
 
 `buildQuotePayload` must keep synthesising a `product` object. A payload
 without it returns false from `isStickerOrder()` and stickers silently stop

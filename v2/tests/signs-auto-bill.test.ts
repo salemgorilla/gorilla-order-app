@@ -15,7 +15,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
 import {
-  SIGNS_AUTO_BILL_CEILING,
+  SELF_CHECKOUT_CEILING,
   decideSignsAutoBill,
   isSignsOrder,
 } from "../lib/auto-bill";
@@ -215,20 +215,26 @@ describe("nothing bills at a figure the server did not compute", () => {
 });
 
 describe("Gabe's ceiling", () => {
-  test("it is $1,500", () => {
-    assert.equal(SIGNS_AUTO_BILL_CEILING, 1500);
+  /**
+   * $1,500 on signs alone for a few hours on 7 Sep, then ONE ceiling for
+   * everything that self-checks-out, at $5,000. The constant is shared with
+   * stickers on purpose (stickers-auto-bill.test.ts pins that side): a
+   * ceiling only one flow honours has a hole in it.
+   */
+  test("it is $5,000", () => {
+    assert.equal(SELF_CHECKOUT_CEILING, 5000);
   });
 
   test("at the ceiling, it still bills", () => {
     const decision = decideFor([banner()], {
-      serverTotal: SIGNS_AUTO_BILL_CEILING,
+      serverTotal: SELF_CHECKOUT_CEILING,
     });
     assert.equal(decision.bill, true, decision.reason);
   });
 
   test("a cent over it, the shop invoices by hand", () => {
     const decision = decideFor([banner()], {
-      serverTotal: SIGNS_AUTO_BILL_CEILING + 0.01,
+      serverTotal: SELF_CHECKOUT_CEILING + 0.01,
     });
 
     assert.equal(decision.bill, false);
@@ -238,7 +244,7 @@ describe("Gabe's ceiling", () => {
   test("a genuinely large order is over it", () => {
     // Not a contrived number: a wall of banners, priced by the real engine.
     const decision = decideFor([
-      banner({ quantity: 40, customWidthInches: 96, customHeightInches: 48 }),
+      banner({ quantity: 120, customWidthInches: 96, customHeightInches: 48 }),
     ]);
 
     assert.equal(decision.bill, false, "a four-figure order billed unattended");

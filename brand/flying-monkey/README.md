@@ -4,6 +4,11 @@ A winged monkey skull in a pillbox cap, built from five radii and one angle, for
 streetwear brand that talks about itself like an air-freight company. The horror is
 carried by the stare and the teeth; everything else is the system.
 
+**Edition 02** takes the WipEout move literally: each wing is a 7-segment **3**
+sheared to Salem's latitude, and the wordmark and readout are drawn in a segment
+alphabet whose every diagonal is that same angle. See *The bounce* below for what
+was taken from current work and what was refused.
+
 Register: **Republic.** Era: **post-iconographic** — the mark and the owned colour
 do the work; type is spec furniture.
 
@@ -54,7 +59,9 @@ constraint**, **#5 production constraint**.
 - **Constraint set.** Every curve is a circular arc with radius in
   **{5, 10, 20, 30, 60}** on a 24-unit grid (240 viewBox). `build.py` asserts this
   and refuses any other radius.
-- **Three feathers per wing** — one per command the Golden Cap grants.
+- **Three feathers per wing** — one per command the Golden Cap grants. In Edition 02
+  the three feathers are equal (3 × 84) on one 30-unit spine, so each wing is a
+  7-segment **3** sheared to 42.52°. Rotate the wing flat and it reads as the digit.
 - **The cap on the crown** — the fleet holds its own cap now. Tassel cord hangs at
   the datum angle, the only element in motion.
 - **The tail** is the single asymmetry, drawn from the same R20/R10 as ears and eyes.
@@ -65,11 +72,20 @@ constraint**, **#5 production constraint**.
 
 ## Type
 
-- Display: **Space Grotesk 700**, all caps, tracking −4%. Standing in for Suisse
+- **The segment alphabet (drawn).** Wordmark, readout, unit names, the departure
+  board, labels. One grammar: a 12 × 11 cell, stroke 2, edges at 0° / 90°, and every
+  diagonal at 42.52°. The cell is wider than tall because atan(11/12) = 42.51°: the
+  face is extended because the datum makes it extended. K, M, N, R, V, X, Y and the
+  prime marks carry the angle. WipEout built its wordmark from partial 7-segment
+  8s; this is the same trick with a different number in it. Display only, never
+  below 7 units cap height. Authorship move #3.
+- **The readout.** `42°31′12″N` is 42.52° written as degrees, minutes, seconds, the
+  way WipEout wrote lap times with ′ ″. It is the wing angle spelled out.
+- Copy: **Space Grotesk 700**, all caps, tracking −4%. Standing in for Suisse
   Int'l — it is already the house face in the order app.
 - Mono: **JetBrains Mono** for every code, dimension and coordinate. Standing in for
   ABC Diatype Mono.
-- Two families. No third.
+- One drawn face, two families. No third.
 
 ## Inks
 
@@ -82,6 +98,20 @@ constraint**, **#5 production constraint**.
 Thread references for embroidery are matched at digitizing against Black C and
 7406 C. None are invented here.
 
+## The bounce — tDR against what is winning now
+
+What Edition 02 took from current work, and what it refused. Every "taken" is a
+system move; every "refused" is a styling move.
+
+| Now | Taken | Refused |
+|---|---|---|
+| **Mascots are back and character IP is the asset** (the 2026 branding story) | The head is built to be an object first and a print second: `fm-head-*.svg` | Warmth. The stare stays. |
+| **Collectible mascots** (Pop Mart's Labubu; Bearbrick before it) win on a silhouette that survives as a 1.25 in pin and a 6 in vinyl | Head-only cut, pin card `FM-GND-26-PIN-2C` | The blind box. Three commands a year is the only scarcity mechanic. |
+| **Deadpan corporate horror** (Liquid Death; Duolingo's dead owl) proves macabre and institutional can be the same voice | The departure board `FM-CAP-26-PST-1C` and the Cap Office voice | The wink. Nothing on the board is a joke; row 04 is a rule. |
+| **Guerrilla scarcity** (Corteiz: one mark, quotable rules) is a system, not a style | One mark everywhere, one owned colour, a rule you can quote | A colourway per unit. WipEout gave each team a colour; Flying Monkey is one team. |
+| **The WipEout revival** (30 years, Sept 2025; *WipEout Futurism*, Thames & Hudson) means the look is being mined as a filter | The encoding trick only: the wing is a digit, the readout is a lap time, the alphabet's diagonal is the latitude | Katakana, fake sponsors, chrome, gradients. |
+| **Salem** already has a mascot: the witch | Flying Monkey is the contractor that flies for it. Real latitude, real address, public-domain book | 1692. It stays out of the mark on purpose. |
+
 ## Files
 
 ```
@@ -92,14 +122,20 @@ mark/
   fm-mark-1c-black-sm.svg   under-4-inch cut (teeth closed, cord 4u)
   fm-mark-1c-gold-sm.svg    under-4-inch cut, Cap Gold
   fm-mark-construction.svg  the radius set and the 42.52° callout
+  fm-head-2c.svg            head only, two inks — pins, figures, plush
+  fm-head-1c-gold.svg       head only, Cap Gold on black
+  fm-wordmark.svg           FLYING / MONKEY in the segment alphabet
+  fm-readout.svg            42°31′12″N
   fm-mark-2c.png            1200 px preview
 ephemera/
   fm-hangtag.svg            2 × 3.5 in, 1C black on Kansas board       FM-CAP-26-TAG-1C
   fm-service-notice.svg     3 in round, 1C gold on black vinyl         FM-CAP-26-STK-1C
   fm-neck-label.svg         60 × 25 mm woven, gold weft on black       FM-AIR-26-LBL-1C
+  fm-departure-board.svg    18 × 24 in poster, 1C gold on black        FM-CAP-26-PST-1C
+  fm-pin-card.svg           3 × 4 in backing card, head only, 2C       FM-GND-26-PIN-2C
 sheet/
   fm-proof-sheet.html       the system on one page (loads Space Grotesk / JetBrains Mono from Google Fonts)
-  fm-proof-sheet.png        rendered, 1600 × 3870
+  fm-proof-sheet.png        rendered, 1600 × 5330
 build.py                    regenerates everything: python3 build.py .
 ```
 
@@ -119,8 +155,9 @@ CONTEXT FAILS
 - none
 
 NOTES
-- The wordmark is set type, not a drawn letterform. Authorship lives in the mark;
-  a drawn Y ligature is the next edition if the wordmark needs to stand alone.
+- Edition 02 closes the Edition 01 note: the wordmark is now drawn, from the same
+  angle as the mark.
+- K is 8 units wide, not 12, because its arms must hold 42.52°. Stated, not hidden.
 - Thread refs deliberately left to digitizing rather than invented.
 - The tee silhouettes on the sheet are mockup furniture, not brand assets.
 
@@ -130,5 +167,6 @@ designed for that separation and it is the one that has to be right.
 
 Is this tDR or a tDR filter?  Strip the styling and the concept survives: a
 brand that is an air service with a three-command limit, a mark whose wing is a
-latitude, codes that decode to press facts. tDR.
+digit at a latitude, a face whose diagonal is the same latitude, codes that decode
+to press facts, a board that publishes the rule. tDR.
 ```

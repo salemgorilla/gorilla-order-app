@@ -105,10 +105,20 @@ function line(label: string, value: string) {
 export function buildCustomerLines(input: {
   customer: AnyRecord;
   kiosk?: { mode?: string; staffName?: string } | null;
+  /**
+   * Whether this order will be charged automatically, from
+   * shopPaymentNote() in lib/auto-bill.ts. Null when there is nothing worth
+   * saying. A kiosk order ignores it — the kiosk line below is the same
+   * fact said more precisely, and two Payment rows on one email is a bug.
+   */
+  paymentNote?: string | null;
 }) {
   const customer = input.customer;
 
   return [
+    ...(!input.kiosk && input.paymentNote
+      ? [line("Payment", input.paymentNote)]
+      : []),
     ...(input.kiosk
       ? [
           line(
@@ -214,6 +224,8 @@ export function buildQuoteEmail(input: {
   proofs?: { designId: string; filename: string }[];
   /** Background-removed artwork, by design id. The original is attached too. */
   knockouts?: { designId: string; filename: string }[];
+  /** Whether this order self-bills — see shopPaymentNote in lib/auto-bill. */
+  paymentNote?: string | null;
   /** Set when the order was taken on the shop's own terminal. */
   kiosk?: { mode: "self" | "staff"; staffName: string } | null;
   /** True when the browser had proofs it could not fit in the request body. */
@@ -834,7 +846,11 @@ export function buildQuoteEmail(input: {
     `CUSTOMER`,
     // `customer` here is order.customer; the HTML builder receives it already
     // unwrapped. Passing it explicitly keeps both callers on the one function.
-    ...buildCustomerLines({ customer, kiosk: input.kiosk }),
+    ...buildCustomerLines({
+      customer,
+      kiosk: input.kiosk,
+      paymentNote: input.paymentNote,
+    }),
     ``,
     apparel ? `APPAREL DETAILS` : signs ? `SIGNS DETAILS` : `STICKER DETAILS`,
     ...productLines,
@@ -868,6 +884,7 @@ export function buildQuoteEmail(input: {
     quoteNumber,
     submittedAt,
     apparel,
+    paymentNote: input.paymentNote,
     detailsLabel: apparel
       ? "Apparel Details"
       : signs
@@ -984,6 +1001,7 @@ function buildHtml(input: {
   apparel: boolean;
   detailsLabel: string;
   customer: AnyRecord;
+  paymentNote?: string | null;
   productLines: string[];
   estimateLines: string[];
   addOnLines: string[];
@@ -1054,6 +1072,8 @@ export async function sendQuoteEmail(input: {
   proofsDropped?: boolean;
   /** Forwarded to buildQuoteEmail; null whenever the two prices agreed. */
   repricing?: RepricingNote | null;
+  /** Whether this order self-bills — see shopPaymentNote in lib/auto-bill. */
+  paymentNote?: string | null;
 }): Promise<QuoteEmailResult> {
   const provider = getEmailProvider();
 

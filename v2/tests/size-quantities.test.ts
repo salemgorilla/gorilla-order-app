@@ -3,7 +3,7 @@
  *
  * The size grid's rows derive from the selected COLOR's size run, but the
  * typed counts live in their own state. Before the prune, switching from a
- * Starter Tee (M-12, L-12 entered) to a colour S&S stocks only in
+ * Basic Tee (M-12, L-12 entered) to a colour S&S stocks only in
  * XS/3XL/4XL left the badge saying "24 shirts" over a grid of three zero
  * rows: the counts still totalled, still validated (quantity IS the grid
  * total, so the reconciliation flag is honestly always true), and would

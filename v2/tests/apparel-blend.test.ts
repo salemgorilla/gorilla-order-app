@@ -70,7 +70,7 @@ describe("the assumption is Gabe's, as literal figures", () => {
 
 describe("the blend, against the real production catalog", () => {
   const starterTee = CATALOG.products.find(
-    (p: { customerLabel: string }) => p.customerLabel === "Starter Tee"
+    (p: { customerLabel: string }) => p.customerLabel === "Basic Tee"
   );
   const white = starterTee.colors.find(
     (c: { colorName: string }) => c.colorName === "White"
@@ -193,7 +193,7 @@ describe("THE THING THAT MUST NOT HAPPEN (handoff Task 4)", () => {
     const pricedApparelOrder = {
       product: {
         type: "T-Shirts & Apparel",
-        garmentType: "Starter Tee",
+        garmentType: "Basic Tee",
         quantity: 24,
         garmentColor: "White",
         printLocations: ["Front"],
@@ -202,7 +202,7 @@ describe("THE THING THAT MUST NOT HAPPEN (handoff Task 4)", () => {
         specialOrder: false,
         supplier: {
           source: "S&S Activewear",
-          productName: "Starter Tee",
+          productName: "Basic Tee",
           catalogStyle: "39",
           sku: "B00760004",
         },

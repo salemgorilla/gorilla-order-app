@@ -63,7 +63,7 @@ const UNVERIFIED_CHEST: GarmentZone = {
 };
 
 export const garmentZones: Record<string, StyleZones> = {
-  // Starter Tee — Gildan 2000 Ultra Cotton
+  // Basic Tee — Gildan 2000 Ultra Cotton
   "39": {
     front: { ...UNVERIFIED_CHEST },
     back: { ...UNVERIFIED_CHEST },

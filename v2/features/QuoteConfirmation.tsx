@@ -45,7 +45,7 @@ type Props = {
   /**
    * Every garment in the apparel quote, the same list the review card
    * shows. A cart of two garments used to be confirmed back as its FIRST
-   * garment carrying the COMBINED count — "44 Starter Tee" for 24 tees and
+   * garment carrying the COMBINED count — "44 Basic Tee" for 24 tees and
    * 20 hoodies — on a screen that, for apparel, is the customer's only
    * copy of what they sent.
    */

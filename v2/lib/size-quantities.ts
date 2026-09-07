@@ -5,7 +5,7 @@
  * for a size the new colour does not come in falls out of the grid while
  * still counting toward the total.
  *
- * Found by driving the live catalog: type M-12, L-12 on a Starter Tee, then
+ * Found by driving the live catalog: type M-12, L-12 on a Basic Tee, then
  * switch to BELLA+CANVAS Heather Marmalade — which S&S stocks only in XS,
  * 3XL and 4XL. The grid shows three rows, all zero; the badge still says
  * "24 shirts"; and the payload would carry a size breakdown the chosen

@@ -440,7 +440,7 @@ export default function Home() {
    * defaults are nobody's choice. While the catalog was dark the difference
    * was invisible (selectedSs* were null and everything fell through to the
    * customer's own words); the day the key went live, every request-mode
-   * surface reading them started claiming "Starter Tee · White" for a
+   * surface reading them started claiming "Basic Tee · White" for a
    * customer who asked for hats. The review card, the confirmation, the
    * payload's supplier block and the quote-details text all read THESE;
    * ApparelBuilder keeps the raw values because pinning is its job.
@@ -826,7 +826,7 @@ export default function Home() {
         setSsProducts(data.products);
         setSsCatalogStatus("loaded");
 
-        // Pin the Starter Tee rather than taking products[0]. The catalog is
+        // Pin the Basic Tee rather than taking products[0]. The catalog is
         // sorted by displayName, so index 0 is an alphabetical accident — the
         // customer landed on whichever garment happened to sort first.
         const firstProduct =
@@ -867,7 +867,7 @@ export default function Home() {
         // this write would rename whatever the customer picks to the first
         // catalog product and hand them a colour nobody chose. (Invisible
         // while the catalog was dark; the day the key worked, every request
-        // quote became a "Starter Tee".)
+        // quote became a "Basic Tee".)
         if (!apparelIsRequestFlow && (firstProduct || firstColor)) {
           setApparelQuoteState((current) => ({
             ...current,

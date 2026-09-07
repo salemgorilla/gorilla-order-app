@@ -53,7 +53,7 @@ const CATALOG = {
       brandName: "Gildan",
       styleName: "2000",
       displayName: "Gildan 2000 Ultra Cotton",
-      customerLabel: "Starter Tee",
+      customerLabel: "Basic Tee",
       customerCategory: "T-Shirts",
       catalogStyle: "39",
       catalogNotes: "",
@@ -266,7 +266,7 @@ try {
 
     await page.click('button:has-text("02")');
     await page.waitForSelector("text=Garment Catalog");
-    await page.click('button:has-text("Starter Tee")');
+    await page.click('button:has-text("Basic Tee")');
     await page.waitForTimeout(300);
     await page.locator("input[type=date]").first().fill(NEED_BY);
     await page.click('button:has-text("03")');
@@ -283,7 +283,7 @@ try {
     await page.waitForTimeout(400);
 
     const review = await reviewText(page);
-    check("apparel: review shows the chosen garment", review.includes("Starter Tee"));
+    check("apparel: review shows the chosen garment", review.includes("Basic Tee"));
     check(
       "apparel: review shows an estimated dollar figure",
       /Estimate\s*\n?\s*\$\d+\.\d{2}/.test(review),
@@ -302,7 +302,7 @@ try {
     check("apparel: payload captured", Boolean(order));
     if (order) {
       const product = order.product || {};
-      check("apparel: garmentType is the catalog label", product.garmentType === "Starter Tee", product.garmentType);
+      check("apparel: garmentType is the catalog label", product.garmentType === "Basic Tee", product.garmentType);
       check("apparel: a configured order is not a special order", product.specialOrder === false);
       check("apparel: the real SKU rides the payload", product.supplier?.sku === "B00760004", String(product.supplier?.sku));
       check("apparel: a priced total rides the payload", Number(order.pricing?.total) > 0 && order.pricing?.quoteRequired === false);

@@ -18,7 +18,7 @@ import { buildPrintavoQuotePlan } from "../lib/printavo";
  * The morning Gabe's key went live, a customer who picked "Hats" and typed
  * "25 black hats, front logo embroidery" reviewed as:
  *
- *     Garment   Starter Tee
+ *     Garment   Basic Tee
  *     Color     White
  *
  * — the pinned defaults, on the screen that says "Check everything before
@@ -27,7 +27,7 @@ import { buildPrintavoQuotePlan } from "../lib/printavo";
  * further and WROTE the first product's name into the quote state itself.
  *
  * Verified by driving the request flow in Chromium against the production
- * catalog JSON (84/47/60 colors): before, review said "Starter Tee ·
+ * catalog JSON (84/47/60 colors): before, review said "Basic Tee ·
  * White"; after, "Hats" with the notes, and the supplier block says "Not
  * selected" — exactly what it said the day before the key worked.
  *

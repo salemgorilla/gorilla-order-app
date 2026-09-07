@@ -13,7 +13,7 @@ export type ApparelCatalogItem = {
 // the manufacturer model number.
 export const apparelCatalogItems: ApparelCatalogItem[] = [
   {
-    label: "Starter Tee",
+    label: "Basic Tee",
     category: "T-Shirts",
     style: "39",
     notes: "Gildan 2000 Ultra Cotton — budget-friendly staple tee.",

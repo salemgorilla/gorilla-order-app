@@ -35,6 +35,14 @@ type Props = {
    * call sites that never pass it are unaffected.
    */
   error?: string | null;
+  /**
+   * Greys the box out and stops it taking input — for a number that is now
+   * DERIVED from somewhere else on the page, the way an apparel line's
+   * rough count retires once its size grid holds anything. Say why in a
+   * line of copy beside it: a dead field with no explanation reads as a
+   * bug. Defaults to false, so existing call sites are unchanged.
+   */
+  disabled?: boolean;
 };
 
 /**
@@ -56,6 +64,7 @@ export default function NumberField({
   snap,
   onChange,
   error = null,
+  disabled = false,
 }: Props) {
   // While focused the field shows exactly what was typed, so a half-finished
   // "1." or "0.7" is not rewritten under the cursor.
@@ -81,6 +90,7 @@ export default function NumberField({
           inputMode="decimal"
           min={min}
           step={step}
+          disabled={disabled}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
           value={draft ?? (value || "")}
@@ -108,7 +118,7 @@ export default function NumberField({
             error
               ? "border-2 border-[var(--rush-red)]"
               : "border border-[var(--rule)] hover:border-[var(--ink-black)]"
-          } ${unit ? "pr-10" : ""}`}
+          } ${unit ? "pr-10" : ""} disabled:cursor-not-allowed disabled:opacity-50`}
         />
 
         {unit && (

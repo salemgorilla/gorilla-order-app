@@ -22,6 +22,65 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **Every garment gets a size breakdown, not just the first one** —
+  2026-09-08, Gabe: "When I added another garment in the apparel button,
+  there was no way to enter the size breakdown. Can you make sure that each
+  step is consistent."
+
+  The configurator asked for sizes with a grid; an added garment asked for a
+  rough count and nothing else. One question, two answers, on one screen —
+  and it cost more than tidiness:
+
+  - The hoodies were priced on the ASSUMED size mix while the tees were
+    priced from real SKUs, so one order stood on two footings.
+  - **Every garment row on a cart's Printavo invoice was filed under
+    `size_other`** — including the tees, whose breakdown the customer HAD
+    typed. The multi-line branch reads sizes off the line, and no line had
+    any. Enter S/M/L/XL, add a second garment, watch those rows vanish.
+
+  The grid is now ONE component (`features/apparel/SizeBreakdownGrid.tsx`)
+  mounted by the configurator and by every added garment, so the two cannot
+  drift apart again. A line holds its own `sizeQuantities`, and
+  `extraLineQuantity()` is the single spelling of "the grid wins once it
+  holds anything" — the same rule the first garment has followed since its
+  grid became its quantity. A colour or garment change prunes counts the new
+  colour is not stocked in (`applyExtraLineUpdate`); that mattered more here
+  than for the first garment, because the LINE'S COUNT IS THE GRID TOTAL, so
+  a stranded row would silently order shirts nobody can buy.
+
+  Everything downstream now carries sizes per garment: the Printavo row, the
+  shop email's All Garments line, the customer's copyable record, the review
+  card, the summary card and the confirmation. The single "Size Breakdown"
+  row is hidden on a cart rather than showing the first garment's counts
+  under a label that reads as the whole order's — the shop orders blanks off
+  that email.
+
+  Three related things found by driving it, all fixed here:
+
+  - The pricing note asserted "added garments use an assumed size mix" on
+    every cart. It is derived from the lines now (`describeQuoteSizeBasis`),
+    and can say exact, assumed, or which garments are which.
+  - Set the configured garment to 0 and put 12 hoodies on a line: the review
+    card described the TEE, at quantity 0, beside a $397 estimate for
+    hoodies. `shouldListGarments()` replaces the `lines.length > 1` test on
+    all three surfaces. The count rule also names the garment it wants
+    ("Enter how many Premium Soft Tee you need") instead of "Enter roughly
+    how many you need" at someone who had just typed 12.
+  - The size grid sat three sections below the rough count it overrides,
+    after the print questions. It now sits directly under it, which is the
+    layout an added garment always had.
+
+  Verified in Chromium: a real two-garment order built through the UI, sizes
+  entered on both, driven to the payload and the confirmation; the
+  zero-primary case; 390px with no overflow and no undersized targets.
+  1,981 tests pass (35 new in tests/per-line-sizes.test.ts), tsc clean,
+  eslint clean, smoke and apparel audit green.
+
+  **NOT yet done: one real cart order reconciled against the Printavo
+  invoice** — specifically that each garment row carries its own S/M/L
+  counts. The size rows are the part no test can prove, because the shape
+  Printavo stores is only visible in Printavo.
+
 - **Over $4,999.99 asks for a 50% deposit, not a refusal** — 2026-09-07,
   Gabe: "All orders over $4999.99 should ask for 50% deposit, and the
   remaining balance is due before or upon shipping or pickup."

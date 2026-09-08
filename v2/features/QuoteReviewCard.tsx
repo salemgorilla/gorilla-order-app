@@ -18,6 +18,7 @@ import {
   decalSku,
   signSku,
 } from "../lib/sku";
+import { shouldListGarments } from "../lib/apparel-cart-lines";
 
 type Props = {
   isApparelSelected: boolean;
@@ -49,6 +50,8 @@ type Props = {
     colorName: string;
     quantity: number;
     catalogStyle?: string;
+    /** "M-12, L-6" — this garment's own sizes, when it has them. */
+    sizeBreakdown?: string;
   }>;
   /**
    * The S&S style of the configured garment — what a one-garment apparel
@@ -93,6 +96,14 @@ export default function QuoteReviewCard({
   catalogStyle,
   isReady,
 }: Props) {
+  /**
+   * List every garment, or describe the configured one? See
+   * shouldListGarments — "more than one line" is not the same question,
+   * and the difference showed as a tee at quantity 0 beside a hoodie
+   * estimate.
+   */
+  const listGarments = shouldListGarments(garmentLines, apparelQuote.quantity);
+
   // Shared with the summary, the confirmation screen and the sticky bar.
   const stickerTotals = getStickerTotals(order.pricing);
   const signsTotals =
@@ -238,7 +249,7 @@ export default function QuoteReviewCard({
           </>
         ) : isApparelSelected ? (
           <>
-            {garmentLines.length > 1 ? (
+            {listGarments ? (
               // A cart: every garment, so the customer checks the order they
               // built rather than its first line.
               <div className="flex justify-between gap-4">
@@ -247,6 +258,12 @@ export default function QuoteReviewCard({
                   {garmentLines.map((line, index) => (
                     <span key={`${line.garmentLabel}-${line.colorName}-${index}`} className="block">
                       {line.quantity} × {line.garmentLabel} / {line.colorName}
+                      {/* Each garment's own sizes, beside the garment they
+                          belong to. The single "Sizes" row below names only
+                          the first garment and is hidden on a cart. */}
+                      <span className="block text-fine font-medium text-[var(--ink-muted)]">
+                        {(line.sizeBreakdown || "").trim() || "Sizes not entered"}
+                      </span>
                       <span className="spec block text-spec font-medium text-[var(--ink-muted)]">
                         {apparelLineSku(line, index)}
                       </span>
@@ -285,12 +302,18 @@ export default function QuoteReviewCard({
               </>
             )}
 
-            <div className="flex justify-between gap-4">
-              <span>Sizes</span>
-              <span className="text-right font-bold text-[var(--ink-black)]">
-                {apparelQuote.sizeBreakdown || "Not complete"}
-              </span>
-            </div>
+            {/* One garment: one Sizes row. On a cart the sizes sit with
+                each garment above — a single row there would show the first
+                garment's breakdown under a heading that reads as the whole
+                order's. */}
+            {listGarments ? null : (
+              <div className="flex justify-between gap-4">
+                <span>Sizes</span>
+                <span className="text-right font-bold text-[var(--ink-black)]">
+                  {apparelQuote.sizeBreakdown || "Not complete"}
+                </span>
+              </div>
+            )}
 
             <div className="flex justify-between gap-4">
               <span>Print Locations</span>

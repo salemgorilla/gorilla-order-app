@@ -1238,7 +1238,12 @@ export function buildPrintavoQuotePlan(input: {
             : str(product.printLocations, "TBD")
         }`,
         `Ink: ${str(product.inkColors, "TBD")}`,
-        `Sizes: ${str(product.sizeBreakdown, "Not provided")}`,
+        // A cart's sizes ride with each garment on the GARMENTS line above,
+        // and each invoice ROW carries its own size counts. One "Sizes:"
+        // here would be the first garment's, read as the whole order's.
+        ...(str(product.garmentLines)
+          ? []
+          : [`Sizes: ${str(product.sizeBreakdown, "Not provided")}`]),
         // The blank-ordering details live HERE and only here — the quote
         // email dropped them (Gabe, 31 Aug) because it is the surface the
         // shop replies to customers from, and these four facts price the
@@ -1457,9 +1462,29 @@ export function buildPrintavoQuotePlan(input: {
               // Exact to the cent, never total/quantity.
               price: money(num(line.garmentUnitPrice)),
               quantity: lineQuantity,
-              // Per-line size counts arrive with the cart UI; until then the
-              // line states its count and nothing it does not know.
-              sizes: [{ size: "size_other", count: lineQuantity }],
+              /**
+               * THIS line's sizes, mapped onto Printavo's enums.
+               *
+               * Until 8 Sep every row in a cart was one `size_other` bucket,
+               * because only the first garment had a size grid and its
+               * breakdown lived on `product.sizeBreakdown` — a whole-quote
+               * field the per-line branch cannot use without spreading one
+               * garment's sizes across all of them. So a customer who typed
+               * S/M/L/XL for their tees and then added hoodies watched the
+               * S/M/L/XL rows disappear from the invoice.
+               *
+               * Now each line carries its own, and the same rule the single
+               * -line branch has always used applies per line: trust the
+               * breakdown only when it accounts for that line exactly.
+               */
+              sizes: (() => {
+                const parsed = parseSizeBreakdown(str(line.sizeBreakdown));
+                const parsedTotal = parsed.reduce((sum, s) => sum + s.count, 0);
+
+                return parsed.length > 0 && parsedTotal === lineQuantity
+                  ? parsed
+                  : [{ size: "size_other", count: lineQuantity }];
+              })(),
             };
           })
         : signsDesigns.length > 1

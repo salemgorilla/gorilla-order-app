@@ -18,6 +18,7 @@ import {
   type SignsQuote,
 } from "../lib/signs";
 import { apparelLineSku, apparelSku, decalSku, signSku } from "../lib/sku";
+import { shouldListGarments } from "../lib/apparel-cart-lines";
 
 type Props = {
   quoteConfirmation: QuoteConfirmation | null;
@@ -55,6 +56,8 @@ type Props = {
     colorName: string;
     quantity: number;
     catalogStyle?: string;
+    /** "M-12, L-6" — this garment's own sizes, when it has them. */
+    sizeBreakdown?: string;
   }>;
   apparelPricing: ApparelPricingResult;
   unitPrice: number;
@@ -92,6 +95,9 @@ export default function QuoteConfirmationScreen({
   // sticky estimate bar. See getQuoteTotals in lib/tax — four surfaces showed
   // this figure and only one of them had tax.
   const stickerTotals = getStickerTotals(order.pricing);
+
+  /** List the garments, or describe the configured one — shouldListGarments. */
+  const listGarments = shouldListGarments(garmentLines, apparelQuote.quantity);
 
   /**
    * Tax-inclusive, like every other surface — and like the sticker branch
@@ -431,7 +437,7 @@ export default function QuoteConfirmationScreen({
               ) : // Condition order matters to tests/apparel-request-truth,
                 // which slices this file on "isApparelSubmitted ? (" to find
                 // the request branch above; keep that string at the end.
-                garmentLines.length > 1 && isApparelSubmitted ? (
+                listGarments && isApparelSubmitted ? (
                 // A cart: every garment with its own count and code, the
                 // way the review card lists them and the invoice rows them.
                 // The print spec is shared, so it is stated once below.
@@ -443,6 +449,11 @@ export default function QuoteConfirmationScreen({
                       </p>
                       <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
                         {line.colorName}
+                        {/* This garment's own sizes, confirmed back beside
+                            the garment they were entered for. */}
+                        {(line.sizeBreakdown || "").trim()
+                          ? ` • ${line.sizeBreakdown}`
+                          : ""}
                       </p>
                       <p className="spec mt-1 text-spec text-[var(--ink-muted)]">
                         {apparelLineSku(line, index)}

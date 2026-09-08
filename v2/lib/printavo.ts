@@ -1961,6 +1961,182 @@ export function nicknameMatchesQuoteNumber(
  */
 const ORDER_SEARCH_PAGE_SIZE = 10;
 
+/**
+ * One order, with everything the reconciliation harness compares.
+ *
+ * ── WHAT IS PROVEN AND WHAT IS NOT ────────────────────────────────────────
+ * `orders(query:)` with the Quote/Invoice inline fragments is proven —
+ * lookupOrderStatus has run it against the live account since /track
+ * shipped. `total` and `amountOutstanding` are proven: createPaymentRequest
+ * bills against them on every sticker order that has ever been paid.
+ *
+ * `customerNote` and the line-item shape on a READ are NOT proven. The app
+ * writes line items through lineItemGroupCreate and has never read them
+ * back (fetchRecentInvoicesForPress carries the same caveat, and its shape
+ * is still unconfirmed). So this asks for them in the shape the app writes,
+ * NEVER throws on a shape it does not recognise, and returns the raw
+ * response so one run settles it instead of one deploy per guess.
+ *
+ * A harness that cried wolf about its own query would be worse than none:
+ * the one thing it must never do is make a correct invoice look wrong.
+ */
+export type ReconcileQuoteResult = {
+  found: boolean;
+  error?: string;
+  quoteNumber: string;
+  visualId?: string;
+  id?: string;
+  total?: number;
+  amountOutstanding?: number;
+  customerNote?: string;
+  lineItems?: Array<{
+    description?: string;
+    itemNumber?: string;
+    price?: number;
+    quantity?: number;
+    sizes?: Array<{ size?: string; count?: number }>;
+  }>;
+  /** Everything Printavo sent, for settling the shape. */
+  raw?: unknown;
+};
+
+export async function fetchQuoteForReconciliation(
+  quoteNumber: string
+): Promise<ReconcileQuoteResult> {
+  const wanted = quoteNumber.trim().toUpperCase();
+
+  if (!isConfigured()) {
+    return {
+      found: false,
+      quoteNumber: wanted,
+      error:
+        "Printavo is not configured. Set PRINTAVO_EMAIL and PRINTAVO_TOKEN.",
+    };
+  }
+
+  if (!wanted) {
+    return { found: false, quoteNumber: wanted, error: "No quote number given." };
+  }
+
+  try {
+    // Step one, the proven query: find the order by its GS- number.
+    const search = await printavoRequest<{ orders: { nodes: AnyRecord[] } }>(
+      `query GorillaReconcileSearch($q: String!, $first: Int!) {
+         orders(query: $q, first: $first) {
+           nodes {
+             ... on Quote    { id visualId nickname }
+             ... on Invoice  { id visualId nickname }
+           }
+         }
+       }`,
+      { q: wanted, first: ORDER_SEARCH_PAGE_SIZE }
+    );
+
+    // Printavo's search is fuzzy — confirm the number really is in the
+    // nickname rather than trusting whatever it decided was close. Same
+    // guard as lookupOrderStatus, and for the same reason.
+    const match = (search.orders?.nodes || []).find((node) =>
+      nicknameMatchesQuoteNumber(str(node.nickname), wanted)
+    );
+
+    if (!match?.id) {
+      return {
+        found: false,
+        quoteNumber: wanted,
+        error: `No Printavo order carries ${wanted} in its nickname.`,
+        raw: search,
+      };
+    }
+
+    /**
+     * Step two, the unproven one. Asked as its own request so a shape
+     * failure here still leaves the id and visual id in hand — enough for
+     * a human to open the record and finish by eye.
+     */
+    let detail: AnyRecord | null = null;
+    let detailError: string | undefined;
+
+    try {
+      const data = await printavoRequest<{ quote?: AnyRecord }>(
+        `query GorillaReconcileDetail($id: ID!) {
+           quote(id: $id) {
+             id
+             visualId
+             total
+             amountOutstanding
+             customerNote
+             lineItemGroups(first: 10) {
+               nodes {
+                 lineItems(first: 50) {
+                   nodes {
+                     description
+                     itemNumber
+                     price
+                     quantity
+                     sizes { size count }
+                   }
+                 }
+               }
+             }
+           }
+         }`,
+        { id: str(match.id) }
+      );
+
+      detail = (data.quote as AnyRecord) || null;
+    } catch (error) {
+      // The shape, not the order. Report it and keep going with what the
+      // search already proved.
+      detailError =
+        error instanceof Error ? error.message : "Unknown Printavo error.";
+    }
+
+    const groups =
+      ((detail?.lineItemGroups as AnyRecord)?.nodes as AnyRecord[]) || null;
+
+    const lineItems = groups
+      ? groups.flatMap((group) => {
+          const rows = ((group?.lineItems as AnyRecord)?.nodes as AnyRecord[]) || [];
+
+          return rows.map((row) => ({
+            description: str(row.description),
+            itemNumber: str(row.itemNumber),
+            price: num(row.price),
+            quantity: num(row.quantity),
+            sizes: Array.isArray(row.sizes)
+              ? (row.sizes as AnyRecord[]).map((size) => ({
+                  size: str(size.size),
+                  count: num(size.count),
+                }))
+              : undefined,
+          }));
+        })
+      : undefined;
+
+    return {
+      found: true,
+      quoteNumber: wanted,
+      id: str(match.id),
+      visualId: str(match.visualId),
+      total: detail?.total !== undefined ? num(detail.total) : undefined,
+      amountOutstanding:
+        detail?.amountOutstanding !== undefined
+          ? num(detail.amountOutstanding)
+          : undefined,
+      customerNote: detail?.customerNote ? str(detail.customerNote) : undefined,
+      lineItems,
+      error: detailError,
+      raw: { search, detail },
+    };
+  } catch (error) {
+    return {
+      found: false,
+      quoteNumber: wanted,
+      error: error instanceof Error ? error.message : "Unknown Printavo error.",
+    };
+  }
+}
+
 export async function lookupOrderStatus(input: {
   quoteNumber: string;
   email: string;

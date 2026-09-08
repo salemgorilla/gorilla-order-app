@@ -7,6 +7,29 @@ next session will act on it.
 
 Read this first, then `AGENTS.md` and `DESIGN-SYSTEM.md`.
 
+## Reconciled — every billed-figure change, against a real Printavo invoice
+
+**The empty rows are the point.** AGENTS.md: a pricing change ends with one
+real order reconciled against the Printavo invoice, to the cent — never with
+a passing test. This table is where that gets recorded, so the gap is
+visible rather than remembered.
+
+**THE MERGE RULE: no PR that changes a billed figure merges until the
+previous billed-figure change has a row here.** If that blocks the queue,
+the queue is correctly blocked. (Judgement, not a hook — CI cannot tell a
+billed figure from a comment. The rule is only worth as much as the next
+session's willingness to honour it, which is why it is written where the
+next session reads first.)
+
+Run it: `npm run reconcile -- GS-XXXXXXXX-XXXXX` with PRINTAVO_EMAIL and
+PRINTAVO_TOKEN set. It reads only. Never pay a test quote; void it after.
+
+| Quote | Date | Flow | Covers | Result |
+|---|---|---|---|---|
+| _(none yet)_ | | signs | #112 #113 #114 #122 #129 #133 | **owed** — GS-20260908-TT40U is a real auto-billed sign sitting in Printavo now |
+| _(none yet)_ | | stickers | #108 #129 #133 | **owed** — reference order 100 × 3" pickup, expect $55.60 |
+| _(none yet)_ | | apparel | #98 #132 #134 | **owed** — one catalogue garment, and one CART so the per-line size rows can be seen |
+
 ## Live right now — 2026-08-25 evening, `main` @ `954686e`
 
 `main` is deployed to https://labs.gorillasalem.com (Vercel, production branch
@@ -21,6 +44,49 @@ guess**: `/api/artwork-upload` and `/api/printavo-test` report the commit
 the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
+
+- **`npm run reconcile` — the Printavo comparison as one command** —
+  2026-09-08.
+
+  AGENTS.md has always said a pricing change ends with one real order
+  reconciled against the Printavo invoice, never with a passing test. That
+  was honoured by hand — open the shop email, open Printavo, read across —
+  and it is slow enough that between 4 and 8 Sep SEVEN billed-figure changes
+  shipped without one (#108 fee tax basis, #112 minimums, #113 services,
+  #114 second side, #122 signs billing at all, #129 ceiling, #133 deposit).
+  It did not stop being important; it stopped being cheap.
+
+  `npm run reconcile -- GS-XXXXXXXX-XXXXX` reads the order back out of
+  Printavo and prints its total beside the app's own figure, exiting
+  non-zero on any drift. **There is no database** — so the app's figure
+  comes from the "WEBSITE ESTIMATE / Total:" line createPrintavoQuote writes
+  into the Printavo customer note. One record carries both sides, and one
+  API call fetches them. READ ONLY: no quote created, no payment requested,
+  nothing voided.
+
+  Checks, in the order they cost money: total, outstanding (the field
+  createPaymentRequest actually bills), shipping, whether the line items sum
+  above the total, and whether garment rows carry real size counts (the
+  thing #134 fixed, which only a read-back can prove).
+
+  **A blind spot reports `????` and exits 0.** `total` and
+  `amountOutstanding` are proven fields — createPaymentRequest bills them
+  live — but `customerNote` and the line-item shape on a READ are not. A
+  harness that failed on its own unproven query would be muted inside a
+  week, which is exactly how the manual reconciliation stopped happening.
+  `--raw` dumps Printavo's reply so the first real run settles the shape.
+
+  HANDOFF gained a `## Reconciled` table with the merge rule: no PR that
+  changes a billed figure merges until the previous one has a row. The rows
+  are empty on purpose.
+
+  Verified by running the real command against a stubbed Printavo: a
+  matching invoice passes and exits 0; two cents of drift fails both the
+  total and the outstanding check, names which way, and exits 1. 2,020 tests
+  pass (28 new), tsc clean, eslint clean.
+
+  **It has never been run against the live account.** The first real run is
+  also the test of its query shape.
 
 - **"Configured" now means an upload will actually work** — 2026-09-08.
 

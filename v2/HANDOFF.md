@@ -45,6 +45,61 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **Signs got an escape hatch, eleven hours too late for Jake Pardee** —
+  2026-09-08.
+
+  #122 made signs and banners auto-bill on the morning of 7 Sep. That night
+  the first real one arrived: a Rigid Sign, 6" x 7", PVC, rounded corners,
+  $60.00 — with the notes *"Looking to do a clear acrylic version of this
+  design for my recording console… Would like to discuss how to make this
+  happen!"* The list has no acrylic. He picked PVC to get through the form,
+  and the app raised a live payment link for a sign he does not want.
+
+  The engine priced it perfectly. **A correct price for the wrong product**
+  — the failure `isStickerOrder()` was hardened against, which is why this
+  is a refusal and not a cap.
+
+  `components/SpecialOrderEscape.tsx` is now the one control, mounted by
+  apparel (which has had one since it was a hand-quote flow) and by signs.
+  An EXPLICIT control, never a heuristic on the notes field: scanning for
+  "acrylic" withholds a link from someone who mentions a material in
+  passing and charges the one who describes something impossible in words
+  nobody listed. Default off — a flow where it starts ticked stops taking
+  payments and nobody notices.
+
+  Ticked: `decideSignsAutoBill` refuses with a reason naming it, the shop
+  email says "NOT charged — special order" from that same decision (#123's
+  rule), the payload carries `total: 0, quoteRequired: true` exactly as
+  apparel's does, and every screen says "Quoted by hand" via one derived
+  `signsPriceable`. Stickers share the gate clause too — no sticker surface
+  offers the control, so it changes nothing today, but the rule now belongs
+  to lib/auto-bill.ts rather than to one flow.
+
+  Also here: **the order minimum, on the screen with the pay button.**
+  $37.37 of Jake's $60.00 was the minimum pad on a $22.63 sign, and the only
+  place that was said was the shop's own email. The summary card explains it
+  while you build; the confirmation now does too.
+
+  **TWO REAL BUGS, both found by driving it and neither visible in a diff:**
+
+  - `repriceSigns()` REBUILDS `product` from the design specs, so it erased
+    the escape before lib/auto-bill.ts ever saw it. The whole feature would
+    have shipped doing nothing. It now carries the flag through, with a note
+    on why that one client-supplied field is safe to trust: it can only
+    WITHHOLD a link, never cause a charge.
+  - Four setters wrote `setSignsQuote({ designs: … })`, replacing the whole
+    quote with an object that has only designs — fine while `designs` was
+    all a quote had, fatal for the first order-level answer. The symptom was
+    maddening: the flag survived stepping between 02 and 04 and died on an
+    artwork upload, because THAT setter rebuilt the quote. All four spread
+    the quote now, and a test greps for the shape.
+
+  Verified in Chromium, Jake's exact configuration, both ways: without the
+  escape it prices at $60 and the confirmation names the minimum; with it,
+  the payload carries the flag and his words, `total: 0`, and no dollar
+  figure appears anywhere on the confirmation. 2,037 tests pass (17 new),
+  tsc clean, eslint clean, smoke and apparel audit green.
+
 - **`npm run reconcile` — the Printavo comparison as one command** —
   2026-09-08.
 

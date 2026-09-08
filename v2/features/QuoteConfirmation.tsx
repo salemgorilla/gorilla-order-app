@@ -37,6 +37,12 @@ type Props = {
   signsQuote: SignsQuote;
   /** Null when the signs job could not be priced online. */
   signsTotal: number | null;
+  /**
+   * The order minimum, when it padded this quote — $37.37 of Jake Pardee's
+   * $60.00 was the pad on a $22.63 sign, and the only place that was said
+   * was the shop's own email. He was looking at a pay button.
+   */
+  signsMinimumApplied?: number;
   /** Setup, add-ons and rush — fees, so untaxed. See QuoteReviewCard. */
   signsFeeTotal: number;
   apparelQuote: ApparelQuote;
@@ -76,6 +82,7 @@ export default function QuoteConfirmationScreen({
   apparelEstimateBasis,
   isSignsSubmitted,
   signsQuote,
+  signsMinimumApplied,
   signsTotal,
   signsFeeTotal,
   apparelQuote,
@@ -530,6 +537,19 @@ export default function QuoteConfirmationScreen({
                         Includes estimated {SALES_TAX.label}
                       </p>
                     )}
+                    {/* The order minimum, where the money is. The summary
+                        card explains it while they are building; this screen
+                        is the one with a pay button on it, and a customer
+                        paying $60 for a $22 sign should see why BEFORE they
+                        pay, not when they ask. */}
+                    {signsMinimumApplied !== undefined &&
+                      signsMinimumApplied > 0 && (
+                        <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
+                          Includes our ${signsMinimumApplied.toFixed(2)} order
+                          minimum — adding to this order costs nothing until
+                          you pass it.
+                        </p>
+                      )}
                     <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
                       Estimate — confirmed before production
                     </p>

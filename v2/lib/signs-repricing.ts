@@ -97,7 +97,31 @@ export function repriceSigns(order: Record<string, unknown>) {
 
   const cart = quoteSignsCart(designs);
   const family = getSignProduct(designs[0].productId).family;
-  const rebuilt = buildSignsPayloadParts(designs, cart, family);
+
+  /**
+   * THE CUSTOMER'S OWN "this isn't listed", CARRIED THROUGH THE REPRICE.
+   *
+   * This function REBUILDS `product` from the design specs, so anything the
+   * browser put there that is not derivable from a spec is dropped — and
+   * `product.specialOrder` is exactly that. lib/auto-bill.ts reads the
+   * REPRICED order, so without this the escape hatch would arrive at the
+   * money gate erased and every special order would still raise a live
+   * payment link. It would have shipped doing nothing. (Caught by driving
+   * the real route composition in a test, not by reading this file.)
+   *
+   * `fileName` two fields below is preserved for the same reason: it is a
+   * customer input, not a price.
+   *
+   * SAFE TO TRUST FROM THE BROWSER. Every other field here is re-derived
+   * precisely because a client-supplied number could bill someone. This one
+   * can only ever WITHHOLD a payment link — the failure direction that
+   * costs a follow-up email, never a wrong charge.
+   */
+  const incomingProduct = (order.product || {}) as Record<string, unknown>;
+  const rebuilt = buildSignsPayloadParts(designs, cart, family, {
+    specialOrder: incomingProduct.specialOrder === true,
+    specialOrderNotes: String(incomingProduct.specialOrderNotes || ""),
+  });
 
   const serverTotal = cart.priceable ? cart.total : 0;
   const clientClaimedPriceable = !clientPricing.quoteRequired && clientTotal > 0;

@@ -167,6 +167,7 @@ import ApparelCartLines from "../features/apparel/ApparelCartLines";
 import ApparelRequestBuilder from "../features/apparel/ApparelRequestBuilder";
 import ApparelSummaryCard from "../features/apparel/ApparelSummaryCard";
 import SignsBuilder from "../features/signs/SignsBuilder";
+import SpecialOrderEscape from "../components/SpecialOrderEscape";
 import SignsDelivery from "../features/signs/SignsDelivery";
 import SignsSummaryCard from "../features/signs/SignsSummaryCard";
 import SignsPreviewCard from "../features/signs/SignsPreviewCard";
@@ -737,6 +738,23 @@ export default function Home() {
   );
 
   /**
+   * Does this signs quote have a PRICE to show anyone?
+   *
+   * Two ways it does not, and every customer-facing surface has to agree
+   * about both: the engine could not price the configuration, or the
+   * customer said their material/size/finish is not on the list. The second
+   * is Jake Pardee's order — a PVC sign the engine priced perfectly, for a
+   * customer who wants clear acrylic. A correct price for the wrong product
+   * is worse than no price, because he can pay it.
+   *
+   * One flag, read by the estimate bar, the review card, the summary card,
+   * the copyable record and the confirmation — the same discipline as
+   * shouldListGarments. Five surfaces reading `signsPricing.priceable`
+   * directly is five chances for one of them to keep showing $60.
+   */
+  const signsPriceable = signsPricing.priceable && !signsQuote.specialOrder;
+
+  /**
    * What is wrong with each added garment line, resolved against the
    * catalogue here because the validator does not know the catalogue.
    */
@@ -774,11 +792,11 @@ export default function Home() {
             : `${designs[0].quantity} × ${product.label}`,
         // Tax-inclusive. Signs carry no shipping component, so the base is
         // the total less its fee lines — see getSignsTotals.
-        total: signsPricing.priceable
+        total: signsPriceable
           ? getSignsTotals(signsPricing).estimatedTotal
           : 0,
-        priceable: signsPricing.priceable,
-        detail: signsPricing.priceable
+        priceable: signsPriceable,
+        detail: signsPriceable
           ? designs.length > 1
             ? `Setup $${(
                 signsPricingConfig.setupFee * designs.length
@@ -866,6 +884,8 @@ export default function Home() {
     signsFamily,
     signsQuote,
     signsPricing,
+    // Whether there is a figure to show at all — a special order has none.
+    signsPriceable,
     apparelQuote,
     apparelPricing,
     selectedGarmentLabel,
@@ -1574,6 +1594,12 @@ export default function Home() {
       // three signs in it has three files. Functional form for the same
       // reason as setOrder below: this runs after an await.
       setSignsQuote((prev) => ({
+        // SPREAD THE QUOTE, not just its designs. A signs quote carries
+        // order-level answers too — the "my material isn't listed" escape —
+        // and replacing the object with { designs } silently drops them.
+        // That is how the escape came to survive step navigation and die on
+        // an artwork upload, which is a bug nothing but running it finds.
+        ...prev,
         designs: prev.designs.map((design) =>
           design.id === targetId ? { ...design, artwork: { file } } : design
         ),
@@ -1687,11 +1713,14 @@ export default function Home() {
   ) {
     const targetId = designId ?? signsQuote.designs[0]?.id;
 
-    setSignsQuote({
-      designs: signsQuote.designs.map((design) =>
+    // Spread the quote — see the note in the artwork setter. Order-level
+    // answers must survive an edit to one design.
+    setSignsQuote((quote) => ({
+      ...quote,
+      designs: quote.designs.map((design) =>
         design.id === targetId ? repairSignsDesign({ ...design, ...updates }) : design
       ),
-    });
+    }));
   }
 
   /**
@@ -1741,11 +1770,12 @@ export default function Home() {
    * the moment the design appears rather than surfacing at review.
    */
   function addSignsDesign() {
-    setSignsQuote({
+    setSignsQuote((quote) => ({
+      ...quote,
       // The family's own default, never the bare one — "Add another" inside
       // the Signs pipeline must not hand the customer a banner.
-      designs: [...signsQuote.designs, createSignsDesignForFamily(signsFamily)],
-    });
+      designs: [...quote.designs, createSignsDesignForFamily(signsFamily)],
+    }));
   }
 
   function removeSignsDesign(designId: string) {
@@ -1762,9 +1792,10 @@ export default function Home() {
 
     setSignsDesignPreviews(({ [designId]: _removed, ...rest }) => rest);
 
-    setSignsQuote({
-      designs: signsQuote.designs.filter((design) => design.id !== designId),
-    });
+    setSignsQuote((quote) => ({
+      ...quote,
+      designs: quote.designs.filter((design) => design.id !== designId),
+    }));
   }
 
   function handleSignProductSelect(productId: string, designId?: string) {
@@ -1859,7 +1890,14 @@ export default function Home() {
     return getSignsFieldErrorsFor(
       signsQuote.designs.map(signsDesignInput),
       order,
-      turnaroundLane
+      turnaroundLane,
+      undefined,
+      // A special order with an empty box withholds the link AND leaves the
+      // shop nothing to quote from.
+      {
+        specialOrder: signsQuote.specialOrder,
+        specialOrderNotes: signsQuote.specialOrderNotes,
+      }
     );
   }
 
@@ -1884,7 +1922,12 @@ export default function Home() {
         templateTextErrors: signsTemplateTextErrorsLive[design.id] || {},
       })),
       order,
-      turnaroundLane
+      turnaroundLane,
+      undefined,
+      {
+        specialOrder: signsQuote.specialOrder,
+        specialOrderNotes: signsQuote.specialOrderNotes,
+      }
     );
   }
 
@@ -1975,7 +2018,13 @@ export default function Home() {
       // file, and the double-charge it caught.
       return {
         ...orderEnvelope,
-        ...buildSignsPayloadParts(signsQuote.designs, signsPricing, signsFamily),
+        ...buildSignsPayloadParts(signsQuote.designs, signsPricing, signsFamily, {
+          // The customer's own "this isn't listed". lib/auto-bill.ts reads it
+          // off the payload and withholds the payment link — see the Jake
+          // Pardee note there for the order that made it necessary.
+          specialOrder: signsQuote.specialOrder,
+          specialOrderNotes: signsQuote.specialOrderNotes,
+        }),
       };
     }
 
@@ -2920,7 +2969,7 @@ ${timelineSection}
 
 ESTIMATE
 ${
-  signsPricing.priceable
+  signsPriceable
     ? `${signsPricing.lines
         .filter((l) => l.amount !== 0)
         .map((l) => `${l.label}: $${l.amount.toFixed(2)}`)
@@ -3243,7 +3292,10 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         apparelEstimateBasis={apparelEstimateBasis}
         isSignsSubmitted={isSignsSubmitted}
         signsQuote={signsQuote}
-        signsTotal={signsPricing.priceable ? signsPricing.total : null}
+        signsTotal={signsPriceable ? signsPricing.total : null}
+        // Named on the screen with the pay button, not only in the
+        // shop's email. See the prop's note in QuoteConfirmation.
+        signsMinimumApplied={signsPricing.minimumApplied}
         signsFeeTotal={signsPricing.feeTotal}
         apparelQuote={apparelQuote}
         selectedGarmentLabel={selectedGarmentLabel}
@@ -3352,7 +3404,22 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     <SignsSummaryCard
       signsQuote={signsQuote}
       production={order.production}
-      pricing={signsPricing}
+      /**
+       * A special order has no price to show, so the card is handed a
+       * quote that says so rather than being asked to know about the
+       * escape itself. `priceable: false` is a state it already renders —
+       * "Priced by hand" — and reusing it keeps ONE way of saying that.
+       */
+      pricing={
+        signsPriceable
+          ? signsPricing
+          : {
+              ...signsPricing,
+              priceable: false,
+              reason:
+                "Special order — Gorilla Salem will price this by hand and reply.",
+            }
+      }
     />
   ) : isApparelRequest ? (
     // ApparelSummaryCard is a price breakdown. There is no price here, and a
@@ -3811,6 +3878,22 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                       adds ${signsPricingConfig.setupFee} setup
                     </span>
                   </button>
+
+                  {/* Once, not per design: the escape is about the ORDER.
+                      A cart where one design bills and another does not
+                      would raise a link for part of an order. */}
+                  <SpecialOrderEscape
+                    idPrefix="signs-special-order"
+                    checked={Boolean(signsQuote.specialOrder)}
+                    notes={signsQuote.specialOrderNotes || ""}
+                    examples="A material we don't list (acrylic, aluminium, mesh), a size the form won't take, mounting or finishing that isn't here, or anything custom."
+                    placeholder="e.g. clear acrylic, 6 x 7 inches, with a second matching piece to go over it"
+                    consequence="Heads up: special orders don't get an online price or a payment link. Everything you filled in above still comes through — Gorilla Salem will price it and reply."
+                    error={fieldErrors.specialOrderNotes}
+                    onChange={(updates) =>
+                      setSignsQuote((quote) => ({ ...quote, ...updates }))
+                    }
+                  />
 
                   {/* Once, not per design. Three signs in a quote still ship
                       together. */}
@@ -4291,7 +4374,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               apparelPricing={apparelPricing}
               garmentLines={apparelPricing.lines}
               signsQuote={signsQuote}
-              signsTotal={signsPricing.priceable ? signsPricing.total : null}
+              signsTotal={signsPriceable ? signsPricing.total : null}
               signsFeeTotal={signsPricing.feeTotal}
               selectedGarmentLabel={selectedGarmentLabel}
               selectedSsColor={selectedSsColor}

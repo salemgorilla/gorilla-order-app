@@ -84,23 +84,32 @@ export default function ProductCard({ product, isSelected, onSelect }: Props) {
         {product.description}
       </p>
 
-      {product.note && (
-        // Not font-bold, deliberately: everything on this screen is 700,
-        // which flattens the hierarchy, and this is where that is unwound.
-        <p className="mt-2 text-fine text-[var(--ink-muted)]">{product.note}</p>
-      )}
+      {/* The card's two spec lines, kept together and pinned to the bottom.
+          `mt-auto` on the PAIR rather than on one of them, so both sit on the
+          same baseline as their neighbours in a row however long a
+          description runs.
 
-      {/* What happens after submit, not how finished the flow is. LAST in
-          every card, so the eye finds it in the same place on all four.
-          `mt-auto` pins it to the bottom edge when a neighbour in the same
-          grid row is taller, so the four lines sit on one baseline. */}
-      <p
-        className={`mt-auto pt-4 text-spec font-bold uppercase tracking-eyebrow ${
-          takesPayment ? "text-[var(--gorilla-green)]" : "text-[var(--ink-muted)]"
-        }`}
-      >
-        {product.status === "coming-soon" ? "Coming soon" : product.fulfilment}
-      </p>
+          Shipping above, in mono, because it is a fact and one of them
+          carries a real postage figure — the register the hero's terms chips
+          already use. The fulfilment promise below it, in the uppercase
+          marker register, because that is the line the eye is looking for. */}
+      <div className="mt-auto pt-4">
+        <p className="spec text-spec text-[var(--ink-muted)]">
+          {product.shipping}
+        </p>
+
+        {/* What happens after submit, not how finished the flow is. LAST in
+            every card, so the eye finds it in the same place on all four. */}
+        <p
+          className={`mt-2 text-spec font-bold uppercase tracking-eyebrow ${
+            takesPayment
+              ? "text-[var(--gorilla-green)]"
+              : "text-[var(--ink-muted)]"
+          }`}
+        >
+          {product.status === "coming-soon" ? "Coming soon" : product.fulfilment}
+        </p>
+      </div>
     </button>
   );
 }

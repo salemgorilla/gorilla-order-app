@@ -688,7 +688,9 @@ export async function POST(request: Request) {
     // the sticker table; signs are decided by lib/auto-bill.ts against their
     // own reprice. Widening the sticker gate to cover signs would auto-bill
     // them at sticker prices, which is the worse bug. What the two DO share
-    // is the ceiling: one SELF_CHECKOUT_CEILING, read by both decisions.
+    // is the money rule: one FULL_PAYMENT_CEILING and one DEPOSIT_FRACTION,
+    // read by both decisions, so an order over $4,999.99 is asked for half
+    // whichever of the two flows it came through.
     const signsAutoBill = decideSignsAutoBill({
       order: pricedOrder,
       // The server's own recompute, never the browser's claim. `repriced` is
@@ -867,13 +869,21 @@ export async function POST(request: Request) {
     }
 
     // Both decisions were made above the shop email, with Printavo assumed;
-    // the real Printavo result is ANDed in here, once, for both. The ceiling
-    // is inside each decision, so an order over it never reaches this call.
+    // the real Printavo result is ANDed in here, once, for both. An order
+    // over the ceiling DOES reach this call — it bills a deposit rather than
+    // being refused — so the flag below is what makes the difference.
     if (printavoReady && (stickersAutoBill.bill || signsAutoBill.bill)) {
       checkout = await createCheckout({
         quoteId: printavo.quoteId as string,
         publicUrl: printavo.publicUrl || "",
         flow: signsAutoBill.bill ? "signs" : "stickers",
+        // Over the full-payment ceiling the customer is asked for half now
+        // and the balance before the job leaves the shop (Gabe, 2026-09-07).
+        // Read off whichever gate said yes, so the email, the link and the
+        // shop's copy cannot disagree about which it is.
+        deposit: signsAutoBill.bill
+          ? signsAutoBill.deposit
+          : stickersAutoBill.deposit,
         // Shipped signs pay for the goods now and settle delivery before the
         // order leaves the shop. The email has to say so.
         shipped:

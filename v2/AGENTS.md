@@ -42,15 +42,17 @@ here:
   was harmless while the shop read the figure before invoicing; with a link
   being raised it would mean billing a number the browser supplied. No
   reprice, no link.
-- **One $5,000 ceiling, `SELF_CHECKOUT_CEILING`, read by BOTH gates** (Gabe,
-  same day: "I would offer this for certain orders under $5,000" — bigger or
-  more complicated is quoted in Printavo by hand, so the number is where the
-  self-serve product stops. It replaced a $1,500 signs-only ceiling set that
-  morning, and gave stickers a ceiling for the first time). Above it the
-  quote, the shop email and the Printavo record all still go out — only the
-  payment link is withheld, the shop email says "NOT charged — over the
-  ceiling", and the shop invoices by hand. Never give either flow its own
-  copy of the number.
+- **One ceiling, `FULL_PAYMENT_CEILING` ($4,999.99), read by BOTH gates**, and
+  above it a `DEPOSIT_FRACTION` (50%) rather than a refusal (Gabe, same day:
+  "All orders over $4999.99 should ask for 50% deposit, and the remaining
+  balance is due before or upon shipping or pickup"). It replaced a $1,500
+  signs-only ceiling set that morning, then a $5,000 withhold-the-link one
+  set that afternoon, and it gave stickers a ceiling for the first time. Over
+  it the customer still pays online — they pay half, the shop email says a
+  deposit was taken and there is a balance to collect, and the rest is
+  settled before the job leaves the building. The deposit is taken as a
+  FRACTION of Printavo's own `amountOutstanding`, never of a total this app
+  computed. Never give either flow its own copy of either number.
 
 `buildQuotePayload` must keep synthesising a `product` object. A payload
 without it returns false from `isStickerOrder()` and stickers silently stop

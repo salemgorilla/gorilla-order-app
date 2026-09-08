@@ -19,7 +19,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
 import {
-  SELF_CHECKOUT_CEILING,
+  FULL_PAYMENT_CEILING,
   decideSignsAutoBill,
   decideStickersAutoBill,
   shopPaymentNote,
@@ -83,12 +83,16 @@ describe("a signs order says which bucket it is in", () => {
     assert.match(note, /charged automatically/i);
   });
 
-  test("one over the ceiling says invoice it by hand, and why", () => {
-    const note = noteFor(signsOrder(), SELF_CHECKOUT_CEILING + 500);
+  test("one over the ceiling says a deposit was taken, and what is left", () => {
+    // The rule changed on 7 Sep: over the ceiling is no longer a refusal, so
+    // this line stopped saying "NOT charged" and started telling the shop
+    // there is a balance to collect.
+    const note = noteFor(signsOrder(), FULL_PAYMENT_CEILING + 500);
 
     assert.ok(note);
-    assert.match(note, /NOT charged/);
-    assert.match(note, /invoice this one by hand/i);
+    assert.doesNotMatch(note, /NOT charged/);
+    assert.match(note, /deposit requested/i);
+    assert.match(note, /collect the balance/i);
     // The number, so the shop does not have to work out which rule fired.
     assert.match(note, /ceiling/i);
   });
@@ -112,7 +116,7 @@ describe("a signs order says which bucket it is in", () => {
 describe("the note reaches the shop's actual email", () => {
   test("both the text and the HTML carry it", () => {
     const order = signsOrder();
-    const note = noteFor(order, SELF_CHECKOUT_CEILING + 500);
+    const note = noteFor(order, FULL_PAYMENT_CEILING + 500);
 
     assert.ok(note);
 
@@ -127,8 +131,8 @@ describe("the note reaches the shop's actual email", () => {
     // Read from the rendered email, not from the input object — the failure
     // worth catching is a note that is computed and then never threaded
     // through to one of the two bodies.
-    assert.match(email.text, /NOT charged/);
-    assert.match(email.html, /NOT charged/);
+    assert.match(email.text, /deposit requested/i);
+    assert.match(email.html, /deposit requested/i);
   });
 
   test("and an email without one gains no Payment row", () => {
@@ -220,17 +224,39 @@ describe("stickers get a line only when they are the exception", () => {
   });
 
   test("one over the ceiling says so, in the same words as a sign", () => {
-    // The gap the ceiling closes for stickers: before it, the shop email on
-    // a five-figure sticker cart looked exactly like the $60 one, and both
-    // had billed. Now the big one does not bill, and the email says why.
+    // A deposit IS an exception, so it earns a line: before the ceiling, the
+    // shop email on a five-figure sticker cart looked exactly like the $60
+    // one, and both had been charged in full. Now the big one takes half and
+    // the email tells the shop there is a balance to collect.
     const note = stickerNoteFor(ordinary, {
-      serverTotal: SELF_CHECKOUT_CEILING + 500,
+      serverTotal: FULL_PAYMENT_CEILING + 500,
     });
 
     assert.ok(note);
-    assert.match(note, /NOT charged/);
+    assert.doesNotMatch(note, /NOT charged/);
+    assert.match(note, /deposit requested/i);
     assert.match(note, /ceiling/i);
-    assert.match(note, /invoice this one by hand/i);
+    assert.match(note, /collect the balance/i);
+
+    // Word for word the sign's line, from the shared decision — the shop
+    // reads one sentence for one rule, whatever it ordered.
+    const signs = decideSignsAutoBill({
+      order: { product: { type: "Vinyl Banners", signType: "Vinyl Banner" } },
+      repriced: true,
+      unpriceable: false,
+      serverTotal: FULL_PAYMENT_CEILING + 500,
+      kioskSession: false,
+      printavoCreated: true,
+    });
+
+    assert.equal(
+      note,
+      shopPaymentNote({
+        order: { product: { type: "Vinyl Banners", signType: "Vinyl Banner" } },
+        signs,
+        stickers: null,
+      })
+    );
   });
 
   test("the note is never written for a non-sticker order", () => {
@@ -246,7 +272,7 @@ describe("stickers get a line only when they are the exception", () => {
           },
         },
         signs: null,
-        stickers: { bill: false, reason: "not a sticker order" },
+        stickers: { bill: false, deposit: false, reason: "not a sticker order" },
       }),
       null
     );

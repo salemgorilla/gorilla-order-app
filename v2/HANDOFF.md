@@ -22,6 +22,40 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **Ink is a question per placement now** — 2026-09-07, Gabe: "Each
+  location should offer options for print color amount. An order could be:
+  Front is 2 color, back is 1." One count covered the whole order, so a
+  two-colour front FORCED the back to two colours: the customer paid for a
+  screen nobody burned ($25) and a print rate one column too far along the
+  matrix, on every job with an uneven design.
+
+  `inkColorsByLocation` is a SPARSE map on the quote — a location with no
+  entry uses the order-level `inkColors`, so an order that never touches
+  this prices exactly as before and a payload written before the field
+  existed still prices correctly. `locationColorCounts()` resolves it;
+  `priceApparelRun` now takes `colorsByLocation: number[]` in place of
+  `locationCount` + `colors`.
+
+  **The generalisation is exact, not approximate.** The old engine computed
+  `perPiece(colors) × locations` and `colors × locations × $25`; the new one
+  sums per location, which is the same arithmetic when the counts match.
+  471 money tests — the 66-row price sheet, the invariants, money-path and
+  the invoice sweep — passed UNCHANGED, and tests/per-location-ink asserts
+  the equivalence directly rather than trusting it.
+
+  The underbase is per placement, because a dark shirt printed front and
+  back burns two of them. Capped per location, which is what
+  maxColorsPerLocation always meant. Note "5+ colors" parses to 5, so with
+  an underbase that is 6, NOT the cap — the cap is only reachable from a
+  payload.
+
+  Driven in Chromium: front only $328.60, both at 1 colour $461.60, front 2
+  / back 1 $538.20, both at 2 colours $614.80. The mixed order sits between
+  and saves $76.60 against the old forced-uniform price. The payload,
+  review card, summary and Printavo description read "Front 2 colors · Back
+  1 color" when placements differ and the exact old string when they do
+  not. 1,920 tests, smoke 28/28, audit 49/49.
+
 - **Every product card says how it ships** — 2026-09-07, Gabe: "We offer
   shipping on all products, so you can include that detail for all 4
   buttons." `shipping` is now a REQUIRED field on ProductCategory, in a

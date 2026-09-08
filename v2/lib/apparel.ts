@@ -32,6 +32,15 @@ export const defaultApparelQuote = {
   garmentColor: "White",
   printLocations: ["Front"],
   inkColors: "1 color",
+  /**
+   * Colours for ONE placement, when it differs from `inkColors` above.
+   *
+   * Gabe, 2026-09-07: "Front is 2 color, back is 1." Sparse deliberately —
+   * a location with no entry uses the order-level value, so a customer who
+   * never opens this pays exactly what they always did, and a payload
+   * written before the field existed still prices correctly.
+   */
+  inkColorsByLocation: {} as Record<string, string>,
   sizeBreakdown: "",
   /**
    * The customer needs something outside the simple menu (a different garment,

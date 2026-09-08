@@ -167,11 +167,12 @@ export const productCategories: ProductCategory[] = [
      * instant price - pay online."
      *
      * This is a PROMISE, and lib/auto-bill.ts is what keeps it: a signs order
-     * the server could reprice, under the $1,500 ceiling, raises a live
-     * payment link with no human in the loop. Over the ceiling, or on a
-     * payload the server could not re-derive, the shop invoices by hand
-     * instead — so the line can be true for the orders this shop actually
-     * takes without the ceiling case making it a lie.
+     * the server could reprice, under the $5,000 self-checkout ceiling,
+     * raises a live payment link with no human in the loop. Over the
+     * ceiling, or on a payload the server could not re-derive, the shop
+     * invoices by hand instead — so the line can be true for the orders this
+     * shop actually takes without the ceiling case making it a lie. Stickers
+     * make the same promise under the same ceiling.
      */
     fulfilment: "Instant price · pay online",
   },

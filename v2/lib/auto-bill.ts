@@ -8,10 +8,11 @@
  * every rule below exists because of a way it can go wrong.
  *
  * Stickers have always self-checked-out: `isStickerOrder()` in
- * lib/sticker-repricing.ts is their gate and is deliberately NOT touched from
- * here — widening it would let a signs payload be repriced against the
- * sticker table, which is a different and worse bug. Signs and banners get
- * their own gate, in this file, and the two never share a code path.
+ * lib/sticker-repricing.ts is their classifier. It is READ from here, never
+ * redefined and never widened — widening it would let a signs payload be
+ * repriced against the sticker table, which is a different and worse bug.
+ * Signs and banners get their own classifier, in this file. Each flow's
+ * decision is its own function below; what they share is the ceiling.
  *
  * ── SIGNS AND BANNERS PAY ONLINE — Gabe, 2026-09-07 ───────────────────────
  * "I want signs and banners to have the same action as the stickers button.
@@ -34,15 +35,32 @@
  *
  * ── THE CEILING — Gabe, 2026-09-07 ────────────────────────────────────────
  * Asked whether an unattended card payment should have a ceiling, Gabe chose
- * one at $1,500. Above it the quote still goes through, the shop still gets
- * its email and Printavo still gets the record — only the payment link is
- * withheld, and the shop invoices by hand. It is a blast radius, not a
- * pricing rule: a mistyped 50-foot banner cannot take four figures off
- * somebody before anyone has looked at it.
+ * one. Above it the quote still goes through, the shop still gets its email
+ * and Printavo still gets the record — only the payment link is withheld,
+ * and the shop invoices by hand. It is a blast radius, not a pricing rule: a
+ * mistyped 50-foot banner cannot take four figures off somebody before
+ * anyone has looked at it.
+ *
+ * It started the same day as a $1,500 ceiling on signs alone. Later that day
+ * Gabe set one line for the whole self-serve app: "I would offer this for
+ * certain orders under $5,000." Bigger or more complicated than that is
+ * quoted in Printavo by hand — so this is not only a safety cap, it is where
+ * the self-serve product stops and the shop's own quoting begins.
+ *
+ * Stickers came under it for the first time; until then a sticker cart of
+ * any size raised a live link. Both gates read the same constant below, so
+ * the number cannot drift between them; a ceiling that only one flow honours
+ * is a ceiling with a hole in it.
  */
 
-/** Above this, a signs order is invoiced by hand. Gabe, 2026-09-07. */
-export const SIGNS_AUTO_BILL_CEILING = 1500;
+import { isStickerOrder } from "./sticker-repricing";
+
+/**
+ * Above this, an order that would otherwise self-check-out is invoiced by
+ * hand instead. Gabe, 2026-09-07. Read by BOTH gates — never give either
+ * flow its own copy.
+ */
+export const SELF_CHECKOUT_CEILING = 5000;
 
 /**
  * True for the signs and banners pipeline, decided POSITIVELY.
@@ -141,11 +159,78 @@ export function decideSignsAutoBill(input: {
     return { bill: false, reason: `server total is ${input.serverTotal}` };
   }
 
-  if (input.serverTotal > SIGNS_AUTO_BILL_CEILING) {
+  if (input.serverTotal > SELF_CHECKOUT_CEILING) {
+    return { bill: false, reason: overCeiling(input.serverTotal) };
+  }
+
+  return { bill: true, reason: "priced by the server, under the ceiling" };
+}
+
+/** The one wording for the one rule, so the log and the email read alike. */
+function overCeiling(serverTotal: number) {
+  return `$${serverTotal.toFixed(2)} is over the $${SELF_CHECKOUT_CEILING} self-checkout ceiling — invoice this one by hand`;
+}
+
+/**
+ * The stickers auto-bill decision, as one pure function.
+ *
+ * Stickers have self-checked-out since the app went live, and until 7 Sep
+ * the decision was a boolean in the route: not a kiosk, priceable, a sticker
+ * order, Printavo answered. It had no ceiling — a 10,000-sticker cart raised
+ * a live link for whatever it came to — and the shop email could not say
+ * why one had not billed. Lifted here so it reads the SAME ceiling as signs
+ * and feeds the SAME email line, and so every refusal carries a reason.
+ *
+ * WHAT IS DELIBERATELY NOT HERE: isStickerOrder() itself. It lives in
+ * lib/sticker-repricing.ts because it also decides what gets repriced
+ * against the sticker table, and it is only READ from this file — never
+ * widened. There is also no `repriced` clause, unlike signs: repriceStickers
+ * never passes a sticker order through, so a sticker total is always the
+ * server's own figure.
+ *
+ *   unpriceable   repriceStickers() put $0 on at least one design — no
+ *                 usable size — so the total is the setup fee alone. Nothing
+ *                 bills at a price nobody set.
+ *   total > 0     A zero or negative total is a bug, not a free order.
+ *   ceiling       Gabe's blast radius, shared with signs.
+ *   kiosk         Payment is taken at the counter; a link emailed to an
+ *                 address typed on a shared machine reaches a stranger.
+ *   printavo      Nothing to bill against if the quote never landed.
+ */
+export function decideStickersAutoBill(input: {
+  order: Record<string, unknown>;
+  /** repriceStickers().unpriceable — a design with no usable size. */
+  unpriceable: boolean;
+  /** The SERVER's total, never the browser's. */
+  serverTotal: number;
+  kioskSession: boolean;
+  printavoCreated: boolean;
+}): AutoBillDecision {
+  if (!isStickerOrder(input.order)) {
+    return { bill: false, reason: "not a sticker order" };
+  }
+
+  if (input.kioskSession) {
+    return { bill: false, reason: "kiosk order — payment is taken at the counter" };
+  }
+
+  if (!input.printavoCreated) {
+    return { bill: false, reason: "no Printavo quote to bill against" };
+  }
+
+  if (input.unpriceable) {
     return {
       bill: false,
-      reason: `$${input.serverTotal.toFixed(2)} is over the $${SIGNS_AUTO_BILL_CEILING} auto-bill ceiling — invoice this one by hand`,
+      reason: "a design has no usable size, so nothing was priced",
     };
+  }
+
+  if (!(input.serverTotal > 0)) {
+    return { bill: false, reason: `server total is ${input.serverTotal}` };
+  }
+
+  if (input.serverTotal > SELF_CHECKOUT_CEILING) {
+    return { bill: false, reason: overCeiling(input.serverTotal) };
   }
 
   return { bill: true, reason: "priced by the server, under the ceiling" };
@@ -173,10 +258,8 @@ export function shopPaymentNote(input: {
   order: Record<string, unknown>;
   /** The signs decision, for a signs order. Ignored for other flows. */
   signs: AutoBillDecision | null;
-  /** True when this is a sticker order that will self-check-out. */
-  stickers: boolean;
-  /** repriceStickers().unpriceable — a sticker design with no usable size. */
-  stickersUnpriceable: boolean;
+  /** The stickers decision, for a sticker order. Ignored for other flows. */
+  stickers: AutoBillDecision | null;
 }): string | null {
   if (input.signs && isSignsOrder(input.order)) {
     return input.signs.bill
@@ -186,9 +269,13 @@ export function shopPaymentNote(input: {
 
   // Stickers get a line only when they are the EXCEPTION. They bill on every
   // ordinary order, so saying so each time is noise; saying nothing when one
-  // silently did not is how a job gets printed for free.
-  if (input.stickers && input.stickersUnpriceable) {
-    return "NOT charged — a design has no usable size, so nothing was priced. Invoice this one by hand.";
+  // silently did not is how a job gets printed for free. Since the ceiling
+  // covers stickers, "over the ceiling" is one of those exceptions, and the
+  // reason is the same decision's, so the email and the link cannot disagree.
+  if (input.stickers && isStickerOrder(input.order)) {
+    return input.stickers.bill
+      ? null
+      : `NOT charged — ${input.stickers.reason}. Invoice this one by hand.`;
   }
 
   return null;

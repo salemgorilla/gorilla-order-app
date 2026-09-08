@@ -19,6 +19,7 @@ import { describeRepricing } from "../../../lib/repricing-note";
 import { repriceSigns } from "../../../lib/signs-repricing";
 import {
   decideSignsAutoBill,
+  decideStickersAutoBill,
   isSignsOrder,
   shopPaymentNote,
 } from "../../../lib/auto-bill";
@@ -686,7 +687,8 @@ export async function POST(request: Request) {
     // isStickerOrder() because that ALSO decides what gets repriced against
     // the sticker table; signs are decided by lib/auto-bill.ts against their
     // own reprice. Widening the sticker gate to cover signs would auto-bill
-    // them at sticker prices, which is the worse bug.
+    // them at sticker prices, which is the worse bug. What the two DO share
+    // is the ceiling: one SELF_CHECKOUT_CEILING, read by both decisions.
     const signsAutoBill = decideSignsAutoBill({
       order: pricedOrder,
       // The server's own recompute, never the browser's claim. `repriced` is
@@ -701,6 +703,16 @@ export async function POST(request: Request) {
 
     const isStickers = isStickerOrder(pricedOrder);
 
+    const stickersAutoBill = decideStickersAutoBill({
+      order: pricedOrder,
+      // repriceStickers() never passes a sticker order through, so this is
+      // always the server's own figure — the one the link is raised for.
+      unpriceable: priced.unpriceable,
+      serverTotal: priced.serverTotal,
+      kioskSession: Boolean(kioskSession),
+      printavoCreated: true,
+    });
+
     // Email the quote to the shop (best-effort — never blocks the customer).
     const notification = await sendQuoteEmail({
       quoteNumber,
@@ -713,8 +725,7 @@ export async function POST(request: Request) {
       paymentNote: shopPaymentNote({
         order: pricedOrder,
         signs: signsAutoBill,
-        stickers: isStickers,
-        stickersUnpriceable: priced.unpriceable,
+        stickers: stickersAutoBill,
       }),
       // Every design's file plus our proof of each cut, so the shop can
       // compare what was sent against what was approved — design by design.
@@ -803,6 +814,18 @@ export async function POST(request: Request) {
       );
     }
 
+    // The same line for stickers, now that they too can be refused by the
+    // ceiling. The kiosk and unpriceable cases below keep their own, more
+    // specific lines as well — this one exists so that NO sticker order can
+    // fail to bill without the reason being in the log.
+    if (isStickers && !(stickersAutoBill.bill && printavoReady)) {
+      console.log(
+        `STICKER ORDER ${quoteNumber} — no payment link: ${
+          stickersAutoBill.bill ? "the quote never reached Printavo" : stickersAutoBill.reason
+        }.`
+      );
+    }
+
     let checkout = null;
 
     /**
@@ -843,10 +866,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const stickersAutoBill =
-      !kioskSession && !priced.unpriceable && isStickers && printavoReady;
-
-    if (printavoReady && (stickersAutoBill || signsAutoBill.bill)) {
+    // Both decisions were made above the shop email, with Printavo assumed;
+    // the real Printavo result is ANDed in here, once, for both. The ceiling
+    // is inside each decision, so an order over it never reaches this call.
+    if (printavoReady && (stickersAutoBill.bill || signsAutoBill.bill)) {
       checkout = await createCheckout({
         quoteId: printavo.quoteId as string,
         publicUrl: printavo.publicUrl || "",

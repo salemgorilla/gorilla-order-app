@@ -22,6 +22,44 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **One $5,000 self-checkout ceiling, for stickers as well as signs** —
+  2026-09-07, Gabe: "I would offer this for certain orders under $5,000" —
+  bigger or more complicated than that is quoted in Printavo by hand. So the
+  number is where the self-serve product stops, not only a safety cap. The
+  morning's $1,500 ceiling covered signs and banners only; stickers, the flow
+  that has taken cards unattended the longest, had no ceiling at all — a
+  10,000-sticker cart raised a live link for whatever it came to.
+
+  `SELF_CHECKOUT_CEILING` in lib/auto-bill.ts replaces
+  `SIGNS_AUTO_BILL_CEILING`, and BOTH gates read it — the sticker decision
+  is now `decideStickersAutoBill()` beside the signs one, lifted out of the
+  boolean in the route, so a refusal carries a reason and the shop email
+  can say it. `isStickerOrder()` is only read from there, never redefined.
+
+  Over the line: the quote, the shop email and the Printavo record still go
+  out; only the payment link is withheld, the shop email says "NOT charged —
+  $X is over the $5000 self-checkout ceiling — invoice this one by hand",
+  and the route logs the same sentence against the GS- number. Apparel is
+  untouched — still no payment link, still an estimate.
+
+  tests/stickers-auto-bill.test.ts is the sticker half of the pressure,
+  mirroring signs-auto-bill.test.ts, and pins that the two gates refuse a
+  cent-over order with the SAME reason string, so neither can grow a ceiling
+  of its own. Real figures from the engine: 10,000 3" stickers are $2,905
+  and still bill; 10,000 5" are $8,025 and do not. tsc clean, eslint clean,
+  1,915 tests pass (16 new).
+
+  **NOT yet done: one real sticker order reconciled against the Printavo
+  invoice to the cent** (never pay it; void it after). The money path
+  changed, so per AGENTS.md that reconciliation is owed before this is
+  trusted — same debt as the signs one below. Also still open, in order:
+  (1) customer-facing copy for the over-ceiling case — the confirmation
+  screen should say "we'll invoice you by hand", today only the shop email
+  knows; (2) the proofing gate in CART-PLAN.md; (3) an apparel payment link
+  under the ceiling, which needs Gabe's explicit decision because
+  tests/product-fulfilment.test.ts enforces that apparel never says "pay
+  online".
+
 - **Ink is a question per placement now** — 2026-09-07, Gabe: "Each
   location should offer options for print color amount. An order could be:
   Front is 2 color, back is 1." One count covered the whole order, so a

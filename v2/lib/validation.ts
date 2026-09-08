@@ -498,6 +498,13 @@ export function getApparelFieldErrors(
     specialOrderNotes: string;
     quantity: number;
     printLocations: string[];
+    /**
+     * The configured garment's customer-facing name, when the catalogue has
+     * answered — "Premium Soft Tee". Optional: the fallback garment list and
+     * the request flow have no catalogue label, and the message falls back
+     * to the words it has always used.
+     */
+    garmentLabel?: string;
   },
   order: {
     customer: { customerName: string; email: string };
@@ -577,7 +584,21 @@ export function getApparelFieldErrors(
    * anything is charged, so the shop chases sizes exactly as it always has.
    */
   if (!(apparelQuote.quantity > 0)) {
-    errors.quantity = "Enter roughly how many you need.";
+    /**
+     * Named when there are other garments on the quote.
+     *
+     * The count this rule reads is the CONFIGURED garment's — the one the
+     * builder above configures — and added garments have their own. So a
+     * customer who typed 12 hoodies on a line and left the tee at zero was
+     * told "Enter roughly how many you need", pointed at a box they could
+     * reasonably think they had already answered. The garment's name is
+     * what makes it a different question rather than the same one asked
+     * twice. (Found by driving it, 8 Sep, alongside the missing per-line
+     * size grid.)
+     */
+    errors.quantity = apparelQuote.garmentLabel
+      ? `Enter how many ${apparelQuote.garmentLabel} you need.`
+      : "Enter roughly how many you need.";
   }
 
   // A blank or half-filled extra garment: the customer pressed "add" and

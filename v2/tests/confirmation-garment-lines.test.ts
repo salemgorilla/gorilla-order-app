@@ -25,7 +25,17 @@ const page = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
 
 describe("the apparel confirmation lists every garment line", () => {
   test("the component renders the lines, each with its invoice code", () => {
-    assert.match(confirmation, /garmentLines\.length > 1 && isApparelSubmitted/);
+    // The condition was `garmentLines.length > 1` until 8 Sep, when driving
+    // the builder showed that test has a hole: a quote whose ONLY priced
+    // garment is an added one has one line, and the single-garment branch
+    // then describes the configured garment nobody ordered. The rule moved
+    // into shouldListGarments so it could be tested as a rule — see
+    // tests/per-line-sizes.test.ts — rather than as a string in this file.
+    assert.match(confirmation, /listGarments && isApparelSubmitted/);
+    assert.match(
+      confirmation,
+      /const listGarments = shouldListGarments\(garmentLines, apparelQuote\.quantity\)/
+    );
     assert.match(confirmation, /garmentLines\.map\(/);
     assert.match(confirmation, /apparelLineSku\(line, index\)/);
   });

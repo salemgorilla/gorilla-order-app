@@ -1,6 +1,7 @@
 "use client";
 
 import OptionSelector from "../../components/OptionSelector";
+import SizeBreakdownGrid from "./SizeBreakdownGrid";
 import { apparelCatalog, type ApparelQuote } from "../../lib/apparel";
 import type { ArtworkAnalysis } from "../../lib/artwork";
 import type { FieldErrors } from "../../lib/validation";
@@ -25,9 +26,6 @@ type Props = {
 
   sizeOptionsForBreakdown: string[];
   sizeQuantities: Record<string, number>;
-  sizeQuantityTotal: number;
-  sizeBreakdownFromButtons: string;
-  sizeBreakdownMatchesQuantity: boolean;
 
   /** Only populated after a failed submit; empty until then. */
   fieldErrors?: FieldErrors;
@@ -72,9 +70,6 @@ export default function ApparelBuilder({
   selectedSsSize,
   sizeOptionsForBreakdown,
   sizeQuantities,
-  sizeQuantityTotal,
-  sizeBreakdownFromButtons,
-  sizeBreakdownMatchesQuantity,
   fieldErrors,
   onSelectCategory,
   onSelectProduct,
@@ -515,6 +510,31 @@ export default function ApparelBuilder({
         )}
       </div>
 
+      {/* The SAME control every added garment gets — see
+          SizeBreakdownGrid for why it is one component and not two.
+
+          Directly under the rough count, because it REPLACES it. It used to
+          sit at the bottom of the step, three sections below the box it
+          overrides and after the print questions — so a customer answered
+          "how many", answered two unrelated questions, then met a second
+          way to answer the first one. An added garment always had the two
+          together (there was nowhere else to put them), which is the layout
+          both now use. */}
+      <SizeBreakdownGrid
+        title="Size Breakdown"
+        description="Optional for the estimate — enter your sizes and the price becomes exact. We confirm sizes before printing either way."
+        sizes={sizeOptionsForBreakdown.map((sizeName) => ({
+          sizeName,
+          isAvailable:
+            selectedSsColor?.sizes.find((size) => size.sizeName === sizeName)
+              ?.isAvailable ?? true,
+        }))}
+        quantities={sizeQuantities}
+        onStep={onUpdateSizeQuantity}
+        onSet={onSetSizeQuantity}
+        onReset={onResetSizeBreakdown}
+      />
+
       <div data-invalid={fieldErrors?.printLocations ? "true" : undefined}>
         <div className="mb-3">
           <p className="eyebrow">
@@ -727,134 +747,6 @@ export default function ApparelBuilder({
         </div>
       )}
 
-      <div className=" border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="eyebrow">
-              Size Breakdown
-            </p>
-            <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
-              Optional for the estimate — enter your sizes and the price
-              becomes exact. We confirm sizes before printing either way.
-            </p>
-          </div>
-
-          <span
-            className={` px-4 py-2 text-fine font-bold ${
-              sizeBreakdownMatchesQuantity
-                ? "bg-[var(--gorilla-green)] text-white"
-                : "bg-white text-[var(--rush-red)]"
-            }`}
-          >
-            {/* Just the total. "12 / 12" was reconciliation feedback for a
-                second number that no longer exists. */}
-            {sizeQuantityTotal} {sizeQuantityTotal === 1 ? "shirt" : "shirts"}
-          </span>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          {sizeOptionsForBreakdown.map((sizeName) => {
-            const quantity = sizeQuantities[sizeName] || 0;
-            const sizeRecord = selectedSsColor?.sizes.find(
-              (size) => size.sizeName === sizeName
-            );
-            const isAvailable = sizeRecord?.isAvailable ?? true;
-            // Adding is capped only by stock now. It used to also stop at the
-            // separately chosen quantity — with quantity derived from this
-            // grid, that test is always false and would freeze every + button.
-            const canAdd = isAvailable;
-
-            return (
-              <div
-                key={sizeName}
-                className={` border bg-white p-4 ${
-                  isAvailable
-                    ? "border-[var(--rule)]"
-                    : "border-[var(--rule)] opacity-50"
-                }`}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-value font-bold text-[var(--ink-black)]">
-                      {sizeName}
-                    </p>
-
-                    <p className="mt-1 text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
-                      {isAvailable ? "Available" : "Out of stock"}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => onUpdateSizeQuantity(sizeName, -1)}
-                      disabled={quantity === 0}
-                      className="grid h-10 w-10 place-items-center bg-[var(--shirt-blank)] text-lede font-bold text-[var(--gorilla-green)] transition hover:bg-[var(--surface-ok)] disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      −
-                    </button>
-
-                    <input
-                      type="number"
-                      min={0}
-                      inputMode="numeric"
-                      value={quantity}
-                      onFocus={(event) => event.target.select()}
-                      onChange={(event) =>
-                        onSetSizeQuantity(sizeName, Number(event.target.value))
-                      }
-                      aria-label={`${sizeName} quantity`}
-                      className="h-10 w-16 bg-[var(--shirt-blank)] px-2 text-center text-value font-bold text-[var(--ink-black)] outline-none focus:ring-2 focus:ring-[var(--gorilla-green)]"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() => onUpdateSizeQuantity(sizeName, 1)}
-                      disabled={!canAdd}
-                      className="grid h-10 w-10 place-items-center bg-[var(--gorilla-green)] text-lede font-bold text-white transition hover:bg-[var(--gorilla-green-dark)] disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="mt-4 bg-white p-4">
-          <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
-            Current Breakdown
-          </p>
-
-          <p className="mt-2 text-fine font-bold text-[var(--ink-black)]">
-            {sizeBreakdownFromButtons || "No sizes selected yet"}
-          </p>
-
-          {!sizeBreakdownMatchesQuantity && (
-            <p className="mt-2 text-fine font-bold leading-6 text-[var(--rush-red)]">
-              Add or remove sizes until the total equals{" "}
-              {apparelQuote.quantity}.
-            </p>
-          )}
-
-          {sizeBreakdownMatchesQuantity && sizeQuantityTotal > 0 && (
-            <p className="mt-2 text-fine font-bold leading-6 text-[var(--gorilla-green)]">
-              Priced from your sizes.
-            </p>
-          )}
-
-          {sizeQuantityTotal > 0 && (
-            <button
-              type="button"
-              onClick={onResetSizeBreakdown}
-              className="mt-3 bg-[var(--shirt-blank)] px-4 py-2 text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)] transition hover:bg-[var(--shirt-blank)]"
-            >
-              Reset Sizes
-            </button>
-          )}
-        </div>
-      </div>
     </>
   );
 }

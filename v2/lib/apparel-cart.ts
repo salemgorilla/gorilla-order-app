@@ -74,6 +74,17 @@ export type ApparelCartLine = {
    */
   garmentUnitPrice?: number;
   quantity: number;
+  /**
+   * "M-12, L-6" — this garment's own sizes, when the customer entered them.
+   *
+   * Per LINE, not per quote. Until 8 Sep only the first garment had a size
+   * grid, so a cart's hoodies had no sizes to carry and every row on the
+   * Printavo invoice was filed under `size_other` — including the tees,
+   * whose breakdown the customer HAD typed. Gabe found the missing grid
+   * from the other end: "When I added another garment in the apparel
+   * button, there was no way to enter the size breakdown."
+   */
+  sizeBreakdown?: string;
 };
 
 export type ApparelCartPrintSpec = {

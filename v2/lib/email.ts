@@ -342,7 +342,14 @@ export function buildQuoteEmail(input: {
           : str(product.printLocations, "Not specified")
       ),
       line("Ink Colors", str(product.inkColors, "Not specified")),
-      line("Size Breakdown", str(product.sizeBreakdown, "Not entered")),
+      // On a cart the sizes ride WITH each garment on the All Garments row
+      // above, because every garment has its own grid (Gabe, 8 Sep). One
+      // "Size Breakdown" row there would show the first garment's counts
+      // under a label the shop reads as the whole order's — and the shop
+      // orders blanks off this email.
+      ...(str(product.garmentLines)
+        ? []
+        : [line("Size Breakdown", str(product.sizeBreakdown, "Not entered"))]),
       ...(product.specialOrder
         ? [
             line("*** SPECIAL ORDER ***", "Needs a hand quote"),

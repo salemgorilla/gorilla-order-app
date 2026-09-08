@@ -6,6 +6,7 @@ import { describeAssumedMix } from "../../lib/apparel-blend";
 import type { ApparelPricingResult } from "../../lib/apparel-pricing";
 import { apparelPricingConfig } from "../../lib/apparel-pricing-config";
 import type { ArtworkAnalysis } from "../../lib/artwork";
+import { shouldListGarments } from "../../lib/apparel-cart-lines";
 
 type Props = {
   apparelQuote: ApparelQuote;
@@ -28,6 +29,8 @@ type Props = {
     colorName: string;
     quantity: number;
     garmentTotal: number;
+    /** "M-12, L-6" — this garment's own sizes, when it has them. */
+    sizeBreakdown?: string;
   }>;
 };
 
@@ -51,7 +54,10 @@ export default function ApparelSummaryCard({
   artworkAnalysis,
   garmentLines = [],
 }: Props) {
-  const isCart = garmentLines.length > 1;
+  // See shouldListGarments: not simply "more than one line" — a quote
+  // whose only priced garment is an ADDED one has to list it, or the card
+  // describes the configured garment nobody ordered.
+  const isCart = shouldListGarments(garmentLines, apparelQuote.quantity);
   // The run: every garment on a cart, the configurator's count otherwise.
   const runQuantity = isCart
     ? garmentLines.reduce((sum, line) => sum + line.quantity, 0)
@@ -79,6 +85,14 @@ export default function ApparelSummaryCard({
                   <span className="text-[var(--ink-black)]">
                     <span className="spec font-bold">{line.quantity}</span> ×{" "}
                     {line.garmentLabel} / {line.colorName}
+                    {/* This garment's own sizes. The Size Breakdown panel
+                        below is the FIRST garment's and is hidden on a
+                        cart, where every garment has its own. */}
+                    {(line.sizeBreakdown || "").trim() && (
+                      <span className="block text-fine font-medium text-[var(--ink-muted)]">
+                        {line.sizeBreakdown}
+                      </span>
+                    )}
                   </span>
                   <span className="spec text-right font-bold text-[var(--ink-black)]">
                     ${line.garmentTotal.toFixed(2)}
@@ -143,14 +157,19 @@ export default function ApparelSummaryCard({
         )}
       </div>
 
-      <div className="mt-5 bg-[var(--shirt-blank)] p-4">
-        <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
-          Size Breakdown
-        </p>
-        <p className="mt-2 text-fine font-bold text-[var(--ink-black)]">
-          {apparelQuote.sizeBreakdown || "Not entered yet"}
-        </p>
-      </div>
+      {/* One garment: one panel. On a cart each garment carries its own
+          sizes in the list above, and a single panel here would show the
+          first garment's under a heading that reads as the whole order's. */}
+      {!isCart && (
+        <div className="mt-5 bg-[var(--shirt-blank)] p-4">
+          <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
+            Size Breakdown
+          </p>
+          <p className="mt-2 text-fine font-bold text-[var(--ink-black)]">
+            {apparelQuote.sizeBreakdown || "Not entered yet"}
+          </p>
+        </div>
+      )}
 
       {/* A special order has no price to panel. The engine still returns a
           figure, but it is printing and screens over a garment the catalogue

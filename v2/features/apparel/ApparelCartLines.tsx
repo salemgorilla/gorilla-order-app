@@ -3,13 +3,19 @@
 import NumberField from "../../components/ui/NumberField";
 import { describeAssumedMix } from "../../lib/apparel-blend";
 import {
+  extraLineHasSizes,
+  extraLineQuantity,
   findExtraLineColor,
   findExtraLineProduct,
   type ExtraGarmentLine,
 } from "../../lib/apparel-cart-lines";
-import { blendedGarmentUnitPrice } from "../../lib/apparel-blend";
+import {
+  blendedGarmentUnitPrice,
+  garmentUnitPriceFromSizes,
+} from "../../lib/apparel-blend";
 import type { FieldErrors } from "../../lib/validation";
 import type { SsCatalogProduct } from "../types";
+import SizeBreakdownGrid from "./SizeBreakdownGrid";
 
 type Props = {
   lines: ExtraGarmentLine[];
@@ -22,6 +28,12 @@ type Props = {
   onAdd: () => void;
   onUpdate: (id: string, updates: Partial<ExtraGarmentLine>) => void;
   onRemove: (id: string) => void;
+  /** −/+ one of a size on one line. */
+  onStepSize: (id: string, sizeName: string, change: number) => void;
+  /** A typed count for one size on one line. */
+  onSetSize: (id: string, sizeName: string, value: number) => void;
+  /** Clear one line's whole grid. */
+  onResetSizes: (id: string) => void;
 };
 
 /**
@@ -48,6 +60,9 @@ export default function ApparelCartLines({
   onAdd,
   onUpdate,
   onRemove,
+  onStepSize,
+  onSetSize,
+  onResetSizes,
 }: Props) {
   const selectClass = (invalid: boolean) =>
     [
@@ -77,7 +92,18 @@ export default function ApparelCartLines({
             const product = findExtraLineProduct(line, products);
             const color = findExtraLineColor(line, products);
             const error = lineErrors[line.id];
-            const unit = color ? blendedGarmentUnitPrice(color) : 0;
+            const quantity = extraLineQuantity(line);
+            const hasSizes = extraLineHasSizes(line);
+            const sizes = line.sizeQuantities || {};
+            // What this line's shirts actually cost: exact from its own
+            // grid once it has one, blended before that. The same two
+            // footings the first garment has always had, said in the same
+            // words — see the basis note under the figure.
+            const unit = !color
+              ? 0
+              : hasSizes
+              ? garmentUnitPriceFromSizes(color, sizes, quantity)
+              : blendedGarmentUnitPrice(color);
 
             return (
               <section
@@ -175,17 +201,32 @@ export default function ApparelCartLines({
                     </select>
                   </label>
 
+                  {/* The rough count, and it retires the moment the grid
+                      below holds anything — exactly as the first garment's
+                      does. Two live answers to one question is the
+                      "breakdown must total 24" failure this flow already
+                      removed once. */}
                   <NumberField
                     id={`apparel-line-${line.id}-quantity`}
                     label="How many"
-                    value={line.quantity}
+                    value={hasSizes ? quantity : line.quantity}
                     min={0}
                     step={1}
+                    disabled={hasSizes}
                     snap={(value) => Math.max(0, Math.round(value))}
-                    onChange={(quantity) => onUpdate(line.id, { quantity })}
-                    error={error && color && !(line.quantity > 0) ? error : undefined}
+                    onChange={(next) => onUpdate(line.id, { quantity: next })}
+                    error={error && color && !(quantity > 0) ? error : undefined}
                   />
                 </div>
+
+                {hasSizes && (
+                  // The same sentence the first garment shows when its grid
+                  // takes over, so the two behave alike AND read alike.
+                  <p className="mt-2 text-fine font-medium leading-5 text-[var(--ink-muted)]">
+                    Counting your entered sizes below — clear them to type a
+                    rough total again.
+                  </p>
+                )}
 
                 {/* One message per line, in the row: what to do next. The
                     quantity field shows its own when that is the problem. */}
@@ -195,17 +236,59 @@ export default function ApparelCartLines({
                   </p>
                 )}
 
-                {color && line.quantity > 0 && (
+                {/* This line's own size grid — the SAME control the first
+                    garment gets (SizeBreakdownGrid). Gabe, 8 Sep: "there was
+                    no way to enter the size breakdown" on an added garment.
+                    It needs a colour first: the rows ARE that colour's size
+                    run, and S&S does not stock every style in every size. */}
+                {color && (
+                  <div className="mt-4 border-t border-[var(--rule)] pt-4">
+                    <p className="eyebrow">Size Breakdown</p>
+                    <p className="mb-3 mt-1 text-fine font-medium text-[var(--ink-muted)]">
+                      Optional — enter sizes for this garment and its price
+                      becomes exact. We confirm sizes before printing either
+                      way.
+                    </p>
+
+                    <SizeBreakdownGrid
+                      compact
+                      labelPrefix={`${
+                        product?.customerLabel || product?.displayName || "Garment"
+                      } ${color.colorName}`}
+                      sizes={color.sizes.map((size) => ({
+                        sizeName: size.sizeName,
+                        isAvailable: size.isAvailable,
+                      }))}
+                      quantities={sizes}
+                      onStep={(sizeName, change) =>
+                        onStepSize(line.id, sizeName, change)
+                      }
+                      onSet={(sizeName, value) =>
+                        onSetSize(line.id, sizeName, value)
+                      }
+                      onReset={() => onResetSizes(line.id)}
+                    />
+                  </div>
+                )}
+
+                {color && quantity > 0 && (
                   <p className="mt-3 text-fine font-medium text-[var(--ink-muted)]">
                     About{" "}
                     <span className="spec font-bold text-[var(--ink-black)]">
                       ${unit.toFixed(2)}
                     </span>{" "}
-                    per garment before printing —{" "}
-                    {/* Only the first letter drops case: the sizes in the
-                        sentence are "2XL", not "2xl". */}
-                    {describeAssumedMix().charAt(0).toLowerCase() +
-                      describeAssumedMix().slice(1)}
+                    per garment before printing
+                    {hasSizes ? (
+                      <> — priced from your sizes.</>
+                    ) : (
+                      <>
+                        {" — "}
+                        {/* Only the first letter drops case: the sizes in the
+                            sentence are "2XL", not "2xl". */}
+                        {describeAssumedMix().charAt(0).toLowerCase() +
+                          describeAssumedMix().slice(1)}
+                      </>
+                    )}
                   </p>
                 )}
               </section>

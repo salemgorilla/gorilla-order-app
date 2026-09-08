@@ -90,10 +90,15 @@ import {
 import { quoteApparelCart, withApparelRush } from "../lib/apparel-cart";
 import {
   anyGarmentNeedsUnderbase,
+  applyExtraLineUpdate,
   describeGarmentLines,
+  describeQuoteSizeBasis,
   extraGarmentLineErrors,
   newExtraGarmentLine,
+  resetExtraLineSizes,
   resolveExtraGarmentLines,
+  setExtraLineSize,
+  stepExtraLineSize,
   type ExtraGarmentLine,
 } from "../lib/apparel-cart-lines";
 import {
@@ -585,10 +590,6 @@ export default function Home() {
       .join(", ");
   }, [sizeQuantities]);
 
-  // Kept true: the two can no longer diverge. Retained so the summary card and
-  // builder props do not need rewiring in the same change.
-  const sizeBreakdownMatchesQuantity = true;
-
   const apparelCategories = useMemo(() => {
     const categories = ssProducts
       .map((product) => product.customerCategory)
@@ -675,6 +676,12 @@ export default function Home() {
           catalogStyle: chosenSsProduct?.catalogStyle,
           garmentPriceByMarkup: garmentPrices,
           quantity: apparelQuote.quantity,
+          // The first garment's own sizes, carried on the LINE and not only
+          // on the quote. In a cart, lib/printavo.ts files each row's size
+          // counts from its line — a whole-quote field would spread the
+          // tees' breakdown across the hoodies, so the primary's has to
+          // ride here or the invoice loses it (which it did until 8 Sep).
+          sizeBreakdown: sizeBreakdownFromButtons,
         },
         // The "and also" garments, resolved against the live catalogue so
         // the figure is always today's. Empty until the customer adds one,
@@ -713,9 +720,21 @@ export default function Home() {
     apparelQuote.garmentColor,
     artworkAnalysis?.estimatedColorCount,
     chosenSsProduct?.catalogStyle,
+    sizeBreakdownFromButtons,
     extraGarmentLines,
     ssProducts,
   ]);
+
+  /**
+   * The basis across the WHOLE quote, which a cart can answer three ways:
+   * every garment on its own sizes, none of them, or some of each. Kept
+   * separate from apparelEstimateBasis above, which is the FIRST garment's
+   * basis and is what decides how that garment is priced.
+   */
+  const quoteSizeBasis = useMemo(
+    () => describeQuoteSizeBasis(apparelPricing.lines),
+    [apparelPricing.lines]
+  );
 
   /**
    * What is wrong with each added garment line, resolved against the
@@ -1873,7 +1892,10 @@ export default function Home() {
   // this binds them to the component's state. See getApparelFieldErrors there.
   function getApparelFieldErrors(): FieldErrors {
     return getApparelFieldErrorsFor(
-      apparelQuote,
+      // The garment's NAME rides along so the count rule can say which
+      // garment it means — a quote can carry several now, each with its own
+      // count. See the quantity rule in lib/validation.ts.
+      { ...apparelQuote, garmentLabel: selectedGarmentLabel },
       order,
       sizeQuantityTotal,
       undefined,
@@ -1884,7 +1906,7 @@ export default function Home() {
   function getApparelValidationErrors() {
     // The sentences live in lib/validation.ts, like the other two flows.
     return getApparelValidationSummary(
-      apparelQuote,
+      { ...apparelQuote, garmentLabel: selectedGarmentLabel },
       order,
       sizeQuantityTotal,
       undefined,
@@ -2025,17 +2047,34 @@ export default function Home() {
           : {
               ...apparelPricing,
               quoteRequired: false,
-              // The shop reads this to know what the customer's figure stood
-              // on: an assumed size mix, or their entered breakdown.
-              note:
-                apparelEstimateBasis === "exact"
-                  ? apparelPricing.lines.length > 1
-                    ? // Only line one has a size grid; the added garments
-                      // stand on the blend. Said so, or the shop reads
-                      // "from the size breakdown" as covering the hoodies.
-                      `Estimate priced from the customer's size breakdown for the first garment; added garments use an assumed size mix — ${describeAssumedMix().toLowerCase()} Final pricing reviewed by Gorilla Salem.`
-                    : "Estimate priced from the customer's size breakdown. Final pricing reviewed by Gorilla Salem."
-                  : `Estimate uses an assumed size mix — ${describeAssumedMix().toLowerCase()} Final pricing reviewed by Gorilla Salem.`,
+              /**
+               * The shop reads this to know what the customer's figure
+               * stood on: their entered sizes, an assumed mix, or — in a
+               * cart — some of each, with the assumed ones NAMED.
+               *
+               * Derived from the lines, never asserted. It used to say
+               * "added garments use an assumed size mix" on every cart,
+               * which was true only while added garments had no size grid
+               * (Gabe found the missing grid on 8 Sep). A note that states
+               * a rule the code no longer follows is worse than none.
+               */
+              note: (() => {
+                const { basis, assumedGarments } = quoteSizeBasis;
+                const assumption = describeAssumedMix().toLowerCase();
+                const reviewed = "Final pricing reviewed by Gorilla Salem.";
+
+                if (basis === "exact") {
+                  return `Estimate priced from the customer's size breakdown. ${reviewed}`;
+                }
+
+                if (basis === "assumed") {
+                  return `Estimate uses an assumed size mix — ${assumption} ${reviewed}`;
+                }
+
+                return `Estimate priced from the customer's size breakdown, except ${assumedGarments.join(
+                  " and "
+                )}, which use an assumed size mix — ${assumption} ${reviewed}`;
+              })(),
             },
       };
     }
@@ -2948,8 +2987,16 @@ All Garments: ${describeGarmentLines(apparelPricing.lines)}`
           : ""
       }
 Print Locations: ${apparelQuote.printLocations.join(", ")}
-Ink Colors: ${describeInkColors(apparelQuote)}
+Ink Colors: ${describeInkColors(apparelQuote)}${
+        // On a cart the sizes ride WITH each garment on the All Garments
+        // line above, because every garment has its own grid now. A second
+        // "Size Breakdown:" naming only the first one reads as the whole
+        // order's and is how a customer forwards half their sizes to us.
+        apparelPricing.lines.length > 1
+          ? ""
+          : `
 Size Breakdown: ${apparelQuote.sizeBreakdown || "Not entered yet"}`
+      }`
       }
 
 ${timelineSection}
@@ -2968,8 +3015,15 @@ Printing: $${apparelPricing.printTotal.toFixed(2)}
 Setup / Screens: $${apparelPricing.setupTotal.toFixed(2)}
 Locations: ${apparelQuote.printLocations.length}
 ${
-              apparelEstimateBasis === "exact"
+              // The whole quote's footing, not the first garment's — a cart
+              // can be exact on the tees and assumed on the hoodies, and
+              // the customer's own copy has to say which.
+              quoteSizeBasis.basis === "exact"
                 ? "Priced from your sizes."
+                : quoteSizeBasis.basis === "mixed"
+                ? `Priced from your sizes, except ${quoteSizeBasis.assumedGarments.join(
+                    " and "
+                  )}. ${describeAssumedMix()} Enter those sizes and this becomes exact.`
                 : `${describeAssumedMix()} Enter your sizes and this becomes exact.`
             }
 Pricing Note: Final pricing reviewed by Gorilla Salem.`
@@ -3793,9 +3847,6 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   selectedSsSize={selectedSsSize}
                   sizeOptionsForBreakdown={sizeOptionsForBreakdown}
                   sizeQuantities={sizeQuantities}
-                  sizeQuantityTotal={sizeQuantityTotal}
-                  sizeBreakdownFromButtons={sizeBreakdownFromButtons}
-                  sizeBreakdownMatchesQuantity={sizeBreakdownMatchesQuantity}
                   fieldErrors={fieldErrors}
                   onSelectCategory={handleApparelCategorySelect}
                   onSelectProduct={handleSsProductSelect}
@@ -3862,13 +3913,44 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     onUpdate={(id, updates) =>
                       setExtraGarmentLines((current) =>
                         current.map((line) =>
-                          line.id === id ? { ...line, ...updates } : line
+                          // Not a bare spread: a garment or colour change
+                          // has to prune size counts the new colour is not
+                          // stocked in, or the line silently orders shirts
+                          // nobody can buy. See applyExtraLineUpdate.
+                          line.id === id
+                            ? applyExtraLineUpdate(line, updates, ssProducts)
+                            : line
                         )
                       )
                     }
                     onRemove={(id) =>
                       setExtraGarmentLines((current) =>
                         current.filter((line) => line.id !== id)
+                      )
+                    }
+                    onStepSize={(id, sizeName, change) =>
+                      setExtraGarmentLines((current) =>
+                        current.map((line) =>
+                          line.id === id
+                            ? stepExtraLineSize(line, sizeName, change)
+                            : line
+                        )
+                      )
+                    }
+                    onSetSize={(id, sizeName, value) =>
+                      setExtraGarmentLines((current) =>
+                        current.map((line) =>
+                          line.id === id
+                            ? setExtraLineSize(line, sizeName, value)
+                            : line
+                        )
+                      )
+                    }
+                    onResetSizes={(id) =>
+                      setExtraGarmentLines((current) =>
+                        current.map((line) =>
+                          line.id === id ? resetExtraLineSizes(line) : line
+                        )
                       )
                     }
                   />

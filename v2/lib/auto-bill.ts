@@ -33,34 +33,54 @@
  * confirmation screen says so in as many words, because a customer who pays
  * and then gets a second bill without warning is a dispute.
  *
- * ── THE CEILING — Gabe, 2026-09-07 ────────────────────────────────────────
+ * ── THE CEILING, AND THE DEPOSIT — Gabe, 2026-09-07 ───────────────────────
  * Asked whether an unattended card payment should have a ceiling, Gabe chose
- * one. Above it the quote still goes through, the shop still gets its email
- * and Printavo still gets the record — only the payment link is withheld,
- * and the shop invoices by hand. It is a blast radius, not a pricing rule: a
- * mistyped 50-foot banner cannot take four figures off somebody before
- * anyone has looked at it.
+ * one. It began as $1,500 on signs alone; by that afternoon it was one line
+ * for the whole self-serve app, and above it the payment link was withheld
+ * entirely and the shop invoiced by hand.
  *
- * It started the same day as a $1,500 ceiling on signs alone. Later that day
- * Gabe set one line for the whole self-serve app: "I would offer this for
- * certain orders under $5,000." Bigger or more complicated than that is
- * quoted in Printavo by hand — so this is not only a safety cap, it is where
- * the self-serve product stops and the shop's own quoting begins.
+ * That lasted a few hours, because it had the incentives backwards: the
+ * biggest jobs got the least automation and the slowest cash. His rule now:
  *
- * Stickers came under it for the first time; until then a sticker cart of
- * any size raised a live link. Both gates read the same constant below, so
- * the number cannot drift between them; a ceiling that only one flow honours
- * is a ceiling with a hole in it.
+ *   "All orders over $4999.99 should ask for 50% deposit, and the remaining
+ *    balance is due before or upon shipping or pickup."
+ *
+ * So the ceiling is no longer a refusal — it is the line between paying in
+ * full and paying half. It is still a blast radius rather than a pricing
+ * rule: a mistyped 50-foot banner cannot take five figures off somebody
+ * unattended, because at most half of it can be taken, and the rest is
+ * settled by a human before anything leaves the building — which is already
+ * the shop's rule for pickup and shipping, so it needs no new process.
+ *
+ * Stickers came under it at the same time; until then a sticker cart of any
+ * size raised a live link for the whole amount. Both gates read the same two
+ * constants below, so neither the ceiling nor the fraction can drift between
+ * them; a ceiling only one flow honours is a ceiling with a hole in it.
+ *
+ * What is still a refusal is everything above the ceiling clause in each
+ * decision: a total the server did not compute, a total nothing could price,
+ * a kiosk session, a quote Printavo never got. A deposit is a smaller ask,
+ * not a weaker check — half of a price nobody set is still a price nobody
+ * set.
  */
 
 import { isStickerOrder } from "./sticker-repricing";
 
 /**
- * Above this, an order that would otherwise self-check-out is invoiced by
- * hand instead. Gabe, 2026-09-07. Read by BOTH gates — never give either
- * flow its own copy.
+ * The most an order can be asked to pay IN FULL, unattended.
+ *
+ * Gabe, 2026-09-07: "All orders over $4999.99 should ask for 50% deposit,
+ * and the remaining balance is due before or upon shipping or pickup."
+ *
+ * Written as the figure he named rather than as $5,000, because the boundary
+ * is a real one: an order of exactly $5,000.00 IS over $4,999.99 and takes a
+ * deposit. The ceiling this replaced was `> 5000`, which let $5,000.00
+ * through at full price — a one-cent band on the wrong side of his rule.
  */
-export const SELF_CHECKOUT_CEILING = 5000;
+export const FULL_PAYMENT_CEILING = 4999.99;
+
+/** Half, per Gabe. The balance is due before the job leaves the shop. */
+export const DEPOSIT_FRACTION = 0.5;
 
 /**
  * True for the signs and banners pipeline, decided POSITIVELY.
@@ -90,6 +110,12 @@ export function isSignsOrder(order: Record<string, unknown>) {
 export type AutoBillDecision = {
   /** Whether to raise a payment request without a human looking first. */
   bill: boolean;
+  /**
+   * True when what is raised is a DEPOSIT rather than the whole amount —
+   * over FULL_PAYMENT_CEILING. Always false when `bill` is false; there is
+   * no such thing as a deposit on an order nobody was asked to pay.
+   */
+  deposit: boolean;
   /**
    * Why — logged by the route on every submission that does NOT bill, so a
    * sign that quietly stopped self-checking-out can be diagnosed from the
@@ -132,43 +158,61 @@ export function decideSignsAutoBill(input: {
   printavoCreated: boolean;
 }): AutoBillDecision {
   if (!isSignsOrder(input.order)) {
-    return { bill: false, reason: "not a signs order" };
+    return { bill: false, deposit: false, reason: "not a signs order" };
   }
 
   if (input.kioskSession) {
-    return { bill: false, reason: "kiosk order — payment is taken at the counter" };
+    return { bill: false, deposit: false, reason: "kiosk order — payment is taken at the counter" };
   }
 
   if (!input.printavoCreated) {
-    return { bill: false, reason: "no Printavo quote to bill against" };
+    return { bill: false, deposit: false, reason: "no Printavo quote to bill against" };
   }
 
   if (!input.repriced) {
     return {
       bill: false,
+      deposit: false,
       reason:
         "the server could not reprice this payload from its design specs, so the only total available is the browser's",
     };
   }
 
   if (input.unpriceable) {
-    return { bill: false, reason: "the engine could not price it — quote this one by hand" };
+    return { bill: false, deposit: false, reason: "the engine could not price it — quote this one by hand" };
   }
 
   if (!(input.serverTotal > 0)) {
-    return { bill: false, reason: `server total is ${input.serverTotal}` };
+    return { bill: false, deposit: false, reason: `server total is ${input.serverTotal}` };
   }
 
-  if (input.serverTotal > SELF_CHECKOUT_CEILING) {
-    return { bill: false, reason: overCeiling(input.serverTotal) };
+  /**
+   * OVER THE CEILING IS A DEPOSIT, NOT A REFUSAL.
+   *
+   * It used to withhold the link entirely and leave the shop to invoice by
+   * hand — which meant the largest orders were the ones that got the least
+   * automation and the slowest cash. Gabe's rule turns that around: the
+   * customer still pays online, they pay half, and the balance is settled
+   * before the job leaves the shop (which is already the rule for delivery,
+   * so it needs no new process).
+   */
+  if (input.serverTotal > FULL_PAYMENT_CEILING) {
+    return { bill: true, deposit: true, reason: overCeiling(input.serverTotal) };
   }
 
-  return { bill: true, reason: "priced by the server, under the ceiling" };
+  return {
+    bill: true,
+    deposit: false,
+    reason: "priced by the server, under the ceiling",
+  };
 }
 
 /** The one wording for the one rule, so the log and the email read alike. */
 function overCeiling(serverTotal: number) {
-  return `$${serverTotal.toFixed(2)} is over the $${SELF_CHECKOUT_CEILING} self-checkout ceiling — invoice this one by hand`;
+  return (
+    `$${serverTotal.toFixed(2)} is over the $${FULL_PAYMENT_CEILING} full-payment ceiling — ` +
+    `${Math.round(DEPOSIT_FRACTION * 100)}% deposit requested`
+  );
 }
 
 /**
@@ -207,33 +251,40 @@ export function decideStickersAutoBill(input: {
   printavoCreated: boolean;
 }): AutoBillDecision {
   if (!isStickerOrder(input.order)) {
-    return { bill: false, reason: "not a sticker order" };
+    return { bill: false, deposit: false, reason: "not a sticker order" };
   }
 
   if (input.kioskSession) {
-    return { bill: false, reason: "kiosk order — payment is taken at the counter" };
+    return { bill: false, deposit: false, reason: "kiosk order — payment is taken at the counter" };
   }
 
   if (!input.printavoCreated) {
-    return { bill: false, reason: "no Printavo quote to bill against" };
+    return { bill: false, deposit: false, reason: "no Printavo quote to bill against" };
   }
 
   if (input.unpriceable) {
     return {
       bill: false,
+      deposit: false,
       reason: "a design has no usable size, so nothing was priced",
     };
   }
 
   if (!(input.serverTotal > 0)) {
-    return { bill: false, reason: `server total is ${input.serverTotal}` };
+    return { bill: false, deposit: false, reason: `server total is ${input.serverTotal}` };
   }
 
-  if (input.serverTotal > SELF_CHECKOUT_CEILING) {
-    return { bill: false, reason: overCeiling(input.serverTotal) };
+  // Same rule as signs — see the note there. Half now, the rest before it
+  // ships or is collected.
+  if (input.serverTotal > FULL_PAYMENT_CEILING) {
+    return { bill: true, deposit: true, reason: overCeiling(input.serverTotal) };
   }
 
-  return { bill: true, reason: "priced by the server, under the ceiling" };
+  return {
+    bill: true,
+    deposit: false,
+    reason: "priced by the server, under the ceiling",
+  };
 }
 
 /**
@@ -261,22 +312,34 @@ export function shopPaymentNote(input: {
   /** The stickers decision, for a sticker order. Ignored for other flows. */
   stickers: AutoBillDecision | null;
 }): string | null {
-  if (input.signs && isSignsOrder(input.order)) {
-    return input.signs.bill
-      ? "Charged automatically — the customer gets a payment link as soon as this reaches Printavo."
-      : `NOT charged — ${input.signs.reason}. Invoice this one by hand.`;
-  }
+  if (input.signs && isSignsOrder(input.order)) return paymentNote(input.signs);
 
   // Stickers get a line only when they are the EXCEPTION. They bill on every
   // ordinary order, so saying so each time is noise; saying nothing when one
   // silently did not is how a job gets printed for free. Since the ceiling
   // covers stickers, "over the ceiling" is one of those exceptions, and the
   // reason is the same decision's, so the email and the link cannot disagree.
+  // Stickers get a line only when they are the EXCEPTION — they bill on
+  // every ordinary order, so saying so each time is noise. A deposit IS an
+  // exception: the shop has to collect the rest.
   if (input.stickers && isStickerOrder(input.order)) {
-    return input.stickers.bill
+    return input.stickers.bill && !input.stickers.deposit
       ? null
-      : `NOT charged — ${input.stickers.reason}. Invoice this one by hand.`;
+      : paymentNote(input.stickers);
   }
 
   return null;
+}
+
+/** One decision, one sentence, whichever flow asked. */
+function paymentNote(decision: AutoBillDecision): string {
+  if (decision.deposit) {
+    // The reason already names the deposit; this adds the instruction, so
+    // the sentence reads once rather than saying "50% deposit" twice.
+    return `${decision.reason}. Collect the balance before it ships or is collected.`;
+  }
+
+  return decision.bill
+    ? "Charged automatically — the customer gets a payment link as soon as this reaches Printavo."
+    : `NOT charged — ${decision.reason}. Invoice this one by hand.`;
 }

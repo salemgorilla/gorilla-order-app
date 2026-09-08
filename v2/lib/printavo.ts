@@ -1,5 +1,6 @@
 import { isTaxableFlow, SALES_TAX } from "./tax";
 import { SIGNS_FEE_KINDS } from "./signs-pricing";
+import { DEPOSIT_FRACTION } from "./auto-bill";
 import { getTrackUrl } from "./order-status";
 import {
   SKU,
@@ -423,6 +424,17 @@ export async function createPaymentRequest(input: {
   quoteId: string;
   /** Amount to request. Defaults to the quote's outstanding total. */
   amount?: number;
+  /**
+   * Ask for a FRACTION of what Printavo says is outstanding — 0.5 for
+   * Gabe's 50% deposit on orders over the full-payment ceiling.
+   *
+   * Deliberately a fraction rather than a figure. The standing rule on this
+   * function is that the app never passes a total it derived itself; the
+   * authority stays Printavo's `amountOutstanding`, and this only says what
+   * share of it to ask for. Half of the shop's own number is still the
+   * shop's own number; half of a number this app computed would not be.
+   */
+  fraction?: number;
   /** Who to email. Defaults to the quote's contact. */
   to?: string[];
   subject?: string;
@@ -455,7 +467,14 @@ export async function createPaymentRequest(input: {
     }
 
     const outstanding = num(quote.amountOutstanding, num(quote.total));
-    const amount = input.amount !== undefined ? input.amount : outstanding;
+    const requested =
+      input.fraction !== undefined && input.fraction > 0 && input.fraction < 1
+        ? // To the cent. Whatever the rounding leaves goes to the balance,
+          // which Printavo computes itself as what is still outstanding —
+          // so the two halves cannot add up to more than the invoice.
+          Math.round(outstanding * input.fraction * 100) / 100
+        : outstanding;
+    const amount = input.amount !== undefined ? input.amount : requested;
 
     if (!(amount > 0)) {
       return {
@@ -524,6 +543,8 @@ export async function createPaymentRequest(input: {
 export type CheckoutResult = {
   /** True when the customer can pay right now, unassisted. */
   ready: boolean;
+  /** True when `amount` is a deposit and a balance follows. */
+  deposit?: boolean;
   payUrl?: string;
   amount?: number;
   error?: string;
@@ -556,6 +577,13 @@ export async function createCheckout(input: {
   /** True when the customer chose shipping rather than pickup. */
   shipped?: boolean;
   /**
+   * Ask for half rather than the whole amount — Gabe, 2026-09-07, on orders
+   * over $4,999.99. The email has to say so plainly: somebody who pays what
+   * looks like an invoice and then receives a second bill has been misled,
+   * even when the second bill was always the deal.
+   */
+  deposit?: boolean;
+  /**
    * The `GS-` number, so the payment email can carry a tracking link that
    * prefills it. lookupOrderStatus matches on this appearing in the Printavo
    * order's `nickname`, so it is the same string the customer must type.
@@ -568,6 +596,7 @@ export async function createCheckout(input: {
 
   const signs = input.flow === "signs";
   const what = signs ? "order" : "sticker quote";
+  const deposit = Boolean(input.deposit);
 
   try {
     const request = await createPaymentRequest({
@@ -576,13 +605,23 @@ export async function createCheckout(input: {
       // total Printavo computed. The app deliberately does not pass a figure
       // it derived itself.
       to: input.customerEmail ? [input.customerEmail] : undefined,
-      subject: `Your Gorilla Salem ${what} — ready to pay`,
+      fraction: deposit ? DEPOSIT_FRACTION : undefined,
+      subject: deposit
+        ? `Your Gorilla Salem ${what} — 50% deposit to get started`
+        : `Your Gorilla Salem ${what} — ready to pay`,
       body:
         "Thanks for your order.\n\n" +
         `Your ${signs ? "signs are" : "stickers are"} priced and ready to pay ` +
         "using the link below. " +
         "Once you pay we'll send a proof before anything goes to print — if " +
         "we can't print your artwork, you get a full refund.\n\n" +
+        // Said before anything else about money, because it changes what
+        // the figure in this email means.
+        (deposit
+          ? "This is a 50% deposit to get your job started. The balance is " +
+            "due before your order ships or is collected — we'll send it " +
+            "once the work is ready.\n\n"
+          : "") +
         // Said here as well as on screen. A customer who pays this link and
         // then receives a second bill they were never warned about is a
         // dispute; the shop's rule is that nothing ships until it is paid in
@@ -614,7 +653,10 @@ export async function createCheckout(input: {
 
     return {
       ready: true,
+      deposit,
       payUrl: input.publicUrl,
+      // What Printavo actually raised — half of ITS outstanding figure when
+      // this is a deposit, never a number this app worked out.
       amount: request.amount,
     };
   } catch (error) {

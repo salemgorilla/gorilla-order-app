@@ -143,6 +143,17 @@ export default function QuoteConfirmationScreen({
   const canPayNow = Boolean(payUrl);
 
   /**
+   * Half now, the rest before it leaves the shop — Gabe, 2026-09-07, on
+   * orders over $4,999.99.
+   *
+   * Said on this screen as well as in the payment email, because this is
+   * where the figure is first seen. Someone who pays what looks like the
+   * invoice and then gets a second bill has been misled, even when the
+   * second bill was always the arrangement.
+   */
+  const isDeposit = canPayNow && Boolean(checkout?.deposit);
+
+  /**
    * A signs order that is being SHIPPED pays for its goods here and settles
    * delivery afterwards — lib/signs-cart.ts never prices shipping, and the
    * delivery step says as much ("shipping quoted separately").
@@ -174,7 +185,11 @@ export default function QuoteConfirmationScreen({
             </div>
 
             <p className="mt-8 text-fine font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
-              {canPayNow ? "Ready to pay" : "Quote Received"}
+              {isDeposit
+                ? "Deposit to get started"
+                : canPayNow
+                ? "Ready to pay"
+                : "Quote Received"}
             </p>
 
             <h1 className="mt-3 text-hero font-bold tracking-display text-[var(--ink-black)]">
@@ -198,7 +213,7 @@ export default function QuoteConfirmationScreen({
                 rel="noopener noreferrer"
                 className="inline-block w-full border-2 border-[var(--gorilla-green)] bg-[var(--gorilla-green)] px-8 py-5 text-lede font-bold text-white transition-colors duration-[120ms] ease-linear hover:bg-[var(--paper)] hover:text-[var(--gorilla-green)] sm:w-auto"
               >
-                Pay now
+                {isDeposit ? "Pay 50% deposit" : "Pay now"}
                 {typeof payAmount === "number" && payAmount > 0
                   ? ` — $${payAmount.toFixed(2)}`
                   : ""}
@@ -209,6 +224,14 @@ export default function QuoteConfirmationScreen({
                 printing — if we can&rsquo;t print your artwork, you get a full
                 refund.
               </p>
+
+              {isDeposit && (
+                <p className="mt-3 text-fine font-medium leading-6 text-[var(--ink-muted)]">
+                  This is a 50% deposit to get your job started. The balance is
+                  due before your order ships or is collected — we&rsquo;ll
+                  send it once the work is ready.
+                </p>
+              )}
 
               {shippedSignsPayment && (
                 <p className="mt-3 text-fine font-medium leading-6 text-[var(--ink-muted)]">

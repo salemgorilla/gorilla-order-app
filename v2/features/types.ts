@@ -6,6 +6,13 @@
  */
 export type StickerCheckout = {
   ready: boolean;
+  /**
+   * True when `amount` is a 50% DEPOSIT rather than the whole invoice, on
+   * orders over the full-payment ceiling (lib/auto-bill.ts). The screen has
+   * to say so: a customer who pays what looks like the bill and then gets a
+   * second one has been misled, even when the second one was the deal.
+   */
+  deposit?: boolean;
   payUrl?: string;
   amount?: number;
   error?: string;

@@ -22,43 +22,61 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
-- **One $5,000 self-checkout ceiling, for stickers as well as signs** —
-  2026-09-07, Gabe: "I would offer this for certain orders under $5,000" —
-  bigger or more complicated than that is quoted in Printavo by hand. So the
-  number is where the self-serve product stops, not only a safety cap. The
-  morning's $1,500 ceiling covered signs and banners only; stickers, the flow
-  that has taken cards unattended the longest, had no ceiling at all — a
-  10,000-sticker cart raised a live link for whatever it came to.
+- **Over $4,999.99 asks for a 50% deposit, not a refusal** — 2026-09-07,
+  Gabe: "All orders over $4999.99 should ask for 50% deposit, and the
+  remaining balance is due before or upon shipping or pickup."
 
-  `SELF_CHECKOUT_CEILING` in lib/auto-bill.ts replaces
-  `SIGNS_AUTO_BILL_CEILING`, and BOTH gates read it — the sticker decision
-  is now `decideStickersAutoBill()` beside the signs one, lifted out of the
-  boolean in the route, so a refusal carries a reason and the shop email
-  can say it. `isStickerOrder()` is only read from there, never redefined.
+  This replaced, the same day, a ceiling that WITHHELD the payment link and
+  left the shop to invoice by hand (itself a replacement for a $1,500
+  signs-only one set that morning). That had the incentives backwards: the
+  biggest jobs got the least automation and the slowest cash. Now they still
+  pay online — they pay half, and the rest is settled before the job leaves
+  the building, which is already the shop's rule for pickup and shipping.
 
-  Over the line: the quote, the shop email and the Printavo record still go
-  out; only the payment link is withheld, the shop email says "NOT charged —
-  $X is over the $5000 self-checkout ceiling — invoice this one by hand",
-  and the route logs the same sentence against the GS- number. Apparel is
-  untouched — still no payment link, still an estimate.
+  `FULL_PAYMENT_CEILING` (4999.99) and `DEPOSIT_FRACTION` (0.5) in
+  lib/auto-bill.ts, read by BOTH gates — `decideSignsAutoBill()` and
+  `decideStickersAutoBill()` — so neither number can drift between the flows.
+  The ceiling is written as Gabe's figure rather than $5,000 on purpose: the
+  rule it replaced was `> 5000`, which let an order of exactly $5,000.00
+  through at FULL price, a one-cent band on the wrong side of what he said.
 
-  tests/stickers-auto-bill.test.ts is the sticker half of the pressure,
-  mirroring signs-auto-bill.test.ts, and pins that the two gates refuse a
-  cent-over order with the SAME reason string, so neither can grow a ceiling
-  of its own. Real figures from the engine: 10,000 3" stickers are $2,905
-  and still bill; 10,000 5" are $8,025 and do not. tsc clean, eslint clean,
-  1,915 tests pass (16 new).
+  **The half is a FRACTION of Printavo's own `amountOutstanding`**, never of
+  a total this app computed — `createPaymentRequest({ fraction })`. Half of
+  the shop's number is still the shop's number; half of ours would be the app
+  billing a figure it derived itself, which is the one thing that function
+  has never done. Printavo computes the balance as what is left outstanding,
+  so the two halves cannot add up to more than the invoice.
 
-  **NOT yet done: one real sticker order reconciled against the Printavo
-  invoice to the cent** (never pay it; void it after). The money path
-  changed, so per AGENTS.md that reconciliation is owed before this is
-  trusted — same debt as the signs one below. Also still open, in order:
-  (1) customer-facing copy for the over-ceiling case — the confirmation
-  screen should say "we'll invoice you by hand", today only the shop email
-  knows; (2) the proofing gate in CART-PLAN.md; (3) an apparel payment link
-  under the ceiling, which needs Gabe's explicit decision because
-  tests/product-fulfilment.test.ts enforces that apparel never says "pay
-  online".
+  Everything above the ceiling clause is still a flat refusal: a total the
+  server did not reprice, a total nothing could price, a kiosk session, a
+  quote Printavo never got. A deposit is a smaller ask, not a weaker check.
+
+  Said in three places, because a customer who pays what looks like the
+  invoice and then gets a second bill has been misled even when the second
+  bill was always the deal: the payment email's subject and body, the
+  confirmation screen ("Deposit to get started" / "Pay 50% deposit — $X" /
+  the balance paragraph), and the shop's own email, which now says a deposit
+  was taken and there is a balance to collect rather than "NOT charged".
+
+  Verified in Chromium, both branches: a real 40 × 96"x48" banner order
+  ($12,255.00) built in the UI, its posted payload run through the real
+  `repriceSigns()` + `decideSignsAutoBill()` → `{bill: true, deposit: true}`;
+  the confirmation rendered from a deposit response shows the deposit copy
+  and no "Pay now", and from an ordinary response shows "Pay now — $X" with
+  the word "deposit" nowhere on the page. tests/deposit.test.ts drives the
+  real `createPaymentRequest` against a stubbed Printavo and reads the amount
+  off the MUTATION — including that a fraction of `amountOutstanding` is not
+  a fraction of `total`. 1,946 tests pass (9 new), tsc clean, eslint clean, smoke and
+  apparel audit green.
+
+  **NOT yet done: one real order over the ceiling reconciled against the
+  Printavo invoice to the cent** — the deposit raised, then the balance —
+  plus the sticker and signs reconciliations already owed below (never pay
+  one; void it after). Per AGENTS.md the money path is not trusted until a
+  human has compared two numbers. Also still open: the proofing gate in
+  CART-PLAN.md, and an apparel payment link, which needs Gabe's explicit
+  decision because tests/product-fulfilment.test.ts enforces that apparel
+  never says "pay online".
 
 - **Ink is a question per placement now** — 2026-09-07, Gabe: "Each
   location should offer options for print color amount. An order could be:

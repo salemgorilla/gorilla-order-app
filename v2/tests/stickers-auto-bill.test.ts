@@ -17,7 +17,8 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
 import {
-  SELF_CHECKOUT_CEILING,
+  DEPOSIT_FRACTION,
+  FULL_PAYMENT_CEILING,
   decideSignsAutoBill,
   decideStickersAutoBill,
 } from "../lib/auto-bill";
@@ -157,44 +158,48 @@ describe("Gabe's ceiling covers stickers", () => {
    * Before this, a sticker cart of any size raised a live link.
    */
   test("it is the same constant signs read", () => {
-    assert.equal(SELF_CHECKOUT_CEILING, 5000);
+    assert.equal(FULL_PAYMENT_CEILING, 4999.99);
+    assert.equal(DEPOSIT_FRACTION, 0.5);
 
     // Not two constants that happen to agree today: the SAME rule fires at
     // the same figure on both flows. If either gate ever grows a ceiling of
     // its own, these two decisions stop matching.
     const stickers = decideFor(stickerOrder([design()]), {
-      serverTotal: SELF_CHECKOUT_CEILING + 0.01,
+      serverTotal: FULL_PAYMENT_CEILING + 0.01,
     });
     const signs = decideSignsAutoBill({
       order: { product: { type: "Vinyl Banners", signType: "Vinyl Banner" } },
       repriced: true,
       unpriceable: false,
-      serverTotal: SELF_CHECKOUT_CEILING + 0.01,
+      serverTotal: FULL_PAYMENT_CEILING + 0.01,
       kioskSession: false,
       printavoCreated: true,
     });
 
-    assert.equal(stickers.bill, false);
-    assert.equal(signs.bill, false);
+    // Both take a deposit, with the same sentence, at the same figure.
+    assert.equal(stickers.deposit, true);
+    assert.equal(signs.deposit, true);
     assert.equal(stickers.reason, signs.reason);
   });
 
-  test("at the ceiling, it still bills", () => {
+  test("at the ceiling, it bills in full", () => {
     const decision = decideFor(stickerOrder([design()]), {
-      serverTotal: SELF_CHECKOUT_CEILING,
+      serverTotal: FULL_PAYMENT_CEILING,
     });
+
     assert.equal(decision.bill, true, decision.reason);
+    assert.equal(decision.deposit, false);
   });
 
-  test("a cent over it, the shop invoices by hand", () => {
+  test("a cent over it, it asks for a deposit", () => {
     const decision = decideFor(stickerOrder([design()]), {
-      serverTotal: SELF_CHECKOUT_CEILING + 0.01,
+      serverTotal: FULL_PAYMENT_CEILING + 0.01,
     });
 
-    assert.equal(decision.bill, false);
-    assert.match(decision.reason, /ceiling/i);
+    assert.equal(decision.bill, true, decision.reason);
+    assert.equal(decision.deposit, true);
     // The figure, so the shop does not have to work out which rule fired.
-    assert.match(decision.reason, /\$5000\.01/);
+    assert.match(decision.reason, /\$5000\.00/);
   });
 
   test("a genuinely large order is over it", () => {
@@ -206,14 +211,18 @@ describe("Gabe's ceiling covers stickers", () => {
 
     const priced = repriceStickers(order);
     assert.ok(
-      priced.serverTotal > SELF_CHECKOUT_CEILING,
+      priced.serverTotal > FULL_PAYMENT_CEILING,
       `fixture is under the ceiling at $${priced.serverTotal}`
     );
 
     const decision = decideFor(order);
 
-    assert.equal(decision.bill, false, "a five-figure order billed unattended");
-    assert.match(decision.reason, /ceiling/i);
+    assert.equal(decision.bill, true, decision.reason);
+    assert.equal(
+      decision.deposit,
+      true,
+      "a five-figure order was billed in full unattended"
+    );
   });
 
   test("and a large order under it still bills", () => {
@@ -224,7 +233,7 @@ describe("Gabe's ceiling covers stickers", () => {
 
     const priced = repriceStickers(order);
     assert.ok(priced.serverTotal > 1500, "fixture is not a large order");
-    assert.ok(priced.serverTotal <= SELF_CHECKOUT_CEILING);
+    assert.ok(priced.serverTotal <= FULL_PAYMENT_CEILING);
 
     const decision = decideFor(order);
     assert.equal(decision.bill, true, decision.reason);

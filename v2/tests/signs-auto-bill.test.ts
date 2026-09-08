@@ -15,7 +15,8 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
 import {
-  SELF_CHECKOUT_CEILING,
+  DEPOSIT_FRACTION,
+  FULL_PAYMENT_CEILING,
   decideSignsAutoBill,
   isSignsOrder,
 } from "../lib/auto-bill";
@@ -221,24 +222,42 @@ describe("Gabe's ceiling", () => {
    * stickers on purpose (stickers-auto-bill.test.ts pins that side): a
    * ceiling only one flow honours has a hole in it.
    */
-  test("it is $5,000", () => {
-    assert.equal(SELF_CHECKOUT_CEILING, 5000);
+  test("it is the figure Gabe named, not a round $5,000", () => {
+    // "All orders over $4999.99 should ask for 50% deposit" — so an order of
+    // exactly $5,000.00 IS over it and takes a deposit. The ceiling this
+    // replaced was `> 5000`, which let $5,000.00 through at full price: a
+    // one-cent band on the wrong side of the rule.
+    assert.equal(FULL_PAYMENT_CEILING, 4999.99);
+    assert.equal(DEPOSIT_FRACTION, 0.5);
   });
 
-  test("at the ceiling, it still bills", () => {
+  test("at the ceiling, it bills in full", () => {
     const decision = decideFor([banner()], {
-      serverTotal: SELF_CHECKOUT_CEILING,
+      serverTotal: FULL_PAYMENT_CEILING,
     });
+
     assert.equal(decision.bill, true, decision.reason);
+    assert.equal(decision.deposit, false);
   });
 
-  test("a cent over it, the shop invoices by hand", () => {
+  test("a cent over it, it asks for a deposit — it does NOT refuse", () => {
+    // The rule changed on 7 Sep. Over the ceiling used to withhold the link
+    // and leave the shop to invoice by hand, which gave the largest orders
+    // the least automation and the slowest cash. Now the customer still pays
+    // online, they pay half, and the balance is due before the job leaves.
     const decision = decideFor([banner()], {
-      serverTotal: SELF_CHECKOUT_CEILING + 0.01,
+      serverTotal: FULL_PAYMENT_CEILING + 0.01,
     });
 
-    assert.equal(decision.bill, false);
-    assert.match(decision.reason, /ceiling/i);
+    assert.equal(decision.bill, true, decision.reason);
+    assert.equal(decision.deposit, true);
+    assert.match(decision.reason, /deposit requested/i);
+    assert.match(decision.reason, /full-payment ceiling/i);
+  });
+
+  test("exactly $5,000.00 takes a deposit", () => {
+    const decision = decideFor([banner()], { serverTotal: 5000 });
+    assert.equal(decision.deposit, true, decision.reason);
   });
 
   test("a genuinely large order is over it", () => {
@@ -247,8 +266,9 @@ describe("Gabe's ceiling", () => {
       banner({ quantity: 120, customWidthInches: 96, customHeightInches: 48 }),
     ]);
 
-    assert.equal(decision.bill, false, "a four-figure order billed unattended");
-    assert.match(decision.reason, /ceiling/i);
+    assert.equal(decision.bill, true, decision.reason);
+    assert.equal(decision.deposit, true, "a four-figure order billed in full");
+    assert.match(decision.reason, /deposit/i);
   });
 });
 
@@ -257,6 +277,7 @@ describe("the rules stickers already had apply here too", () => {
     const decision = decideFor([banner()], { kioskSession: true });
 
     assert.equal(decision.bill, false);
+    assert.equal(decision.deposit, false);
     assert.match(decision.reason, /kiosk/i);
   });
 

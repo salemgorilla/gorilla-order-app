@@ -68,6 +68,20 @@ success.
 **Any change touching pricing or checkout ends with one real order reconciled
 against the Printavo invoice, to the cent.** Never with a passing test.
 
+`npm run reconcile -- GS-XXXXXXXX-XXXXX` does the comparison: it reads the
+order back out of Printavo and puts its total beside the figure the app
+wrote into that same record ("WEBSITE ESTIMATE" in the customer note), then
+exits non-zero on any drift. It READS ONLY — no quote, no payment request,
+nothing voided. It does not replace the human; it replaces transcribing
+eight figures between two browser tabs, which is the part that was stopping
+this from happening. Record the run in the `## Reconciled` table in
+HANDOFF.md — **and no PR that changes a billed figure merges until the
+previous one has a row there.**
+
+A check it reports as `????` is a blind spot, not a pass: the line-item read
+shape has never been confirmed against the live account. Run with `--raw`
+once and settle it.
+
 `tests/price-sheet.test.ts` is the second line, not a substitute for that: 199
 committed totals across sizes, quantities, materials, carts and shipping, as
 literal numbers. Any edit that moves a price shows up as a readable diff, so a

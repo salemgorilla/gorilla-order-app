@@ -174,7 +174,14 @@ export function buildSignsPayloadParts(
    * customer's record. Defaults from design 1's product so a caller that
    * predates the split still files under the right pipeline.
    */
-  family: SignFamily = getSignProduct(designs[0]?.productId).family
+  family: SignFamily = getSignProduct(designs[0]?.productId).family,
+  /**
+   * "My material / size / finish isn't listed" — the customer's own escape,
+   * off by default. Carried on the payload because lib/auto-bill.ts reads
+   * the ORDER, and this is the flag that stops a live payment link being
+   * raised for something the configurator could not describe.
+   */
+  special: { specialOrder?: boolean; specialOrderNotes?: string } = {}
 ) {
   const first = designs[0];
   const firstProduct = getSignProduct(first.productId);
@@ -204,6 +211,24 @@ export function buildSignsPayloadParts(
       finishing: first.finishing,
       sides: first.doubleSided ? "Double-sided" : "Single-sided",
       designCount: designs.length,
+      /**
+       * SPELLED THE SAME AS APPAREL'S, on purpose — `product.specialOrder`
+       * with `product.specialOrderNotes` beside it. The shop email, the
+       * Printavo note and the money gate all already know that shape, and a
+       * second name for the same idea is how one of them comes to miss it.
+       *
+       * Only written when it is TRUE. An `specialOrder: false` on every
+       * payload would be noise, and — more to the point — the money gate
+       * must key on the flag being present and true, never on its absence
+       * meaning anything (the original sticker-gate bug was membership by
+       * omission).
+       */
+      ...(special.specialOrder
+        ? {
+            specialOrder: true,
+            specialOrderNotes: String(special.specialOrderNotes || "").trim(),
+          }
+        : {}),
     },
     /**
      * The real content of the quote. Present even for one design, so nothing
@@ -223,7 +248,21 @@ export function buildSignsPayloadParts(
           }
         : null,
     },
-    pricing: pricing.priceable
+    /**
+     * A SPECIAL ORDER CARRIES NO PRICE, exactly as apparel's does.
+     *
+     * The engine can still price what the customer selected — Jake Pardee's
+     * PVC sign came to $60.00 to the cent. It is the wrong product: he
+     * wants clear acrylic, which the list does not carry. Sending the $60
+     * would give him a "confirmation" at a figure the shop will never bill,
+     * and give the shop a priced quote to work from that describes
+     * something nobody is going to make.
+     *
+     * So the same shape apparel has used since #98: total 0, quoteRequired
+     * true, and every screen says "Quoted by hand" because they all already
+     * branch on exactly that.
+     */
+    pricing: pricing.priceable && !special.specialOrder
       ? {
           total: pricing.total,
           unitPrice: pricing.unitPrice,
@@ -247,9 +286,10 @@ export function buildSignsPayloadParts(
       : {
           total: 0,
           quoteRequired: true,
-          note:
-            pricing.reason ||
-            "Priced by hand. Gorilla Salem will reply with the price.",
+          note: special.specialOrder
+            ? "Special order — the customer's material, size or finish is not on the list. Priced by hand by Gorilla Salem."
+            : pricing.reason ||
+              "Priced by hand. Gorilla Salem will reply with the price.",
         },
   };
 }

@@ -107,6 +107,20 @@ export function isSignsOrder(order: Record<string, unknown>) {
   return namesThePipeline && Boolean(product.signType);
 }
 
+/**
+ * Did the customer tick "my material / size / finish isn't listed"?
+ *
+ * POSITIVE, like isSignsOrder above: `=== true`, never truthiness and never
+ * absence. A payload that forgot the field must read as an ordinary order
+ * that bills, not as one that silently does not — and a payload carrying
+ * the string "false" must not read as a special order either.
+ */
+export function isSpecialOrder(order: Record<string, unknown>): boolean {
+  const product = (order.product || {}) as Record<string, unknown>;
+
+  return product.specialOrder === true;
+}
+
 export type AutoBillDecision = {
   /** Whether to raise a payment request without a human looking first. */
   bill: boolean;
@@ -163,6 +177,36 @@ export function decideSignsAutoBill(input: {
 
   if (input.kioskSession) {
     return { bill: false, deposit: false, reason: "kiosk order — payment is taken at the counter" };
+  }
+
+  /**
+   * THE CUSTOMER SAID THE CONFIGURATOR CANNOT DESCRIBE THIS.
+   *
+   * Gabe's first real signs order under auto-billing, 7 Sep, eleven hours
+   * after #122: a rigid sign configured as 6" x 7" PVC, with the notes
+   * "Looking to do a CLEAR ACRYLIC version of this design for my recording
+   * console… Would like to discuss how to make this happen!" The list has
+   * no acrylic. He picked PVC to get through the form, and the app raised a
+   * live $60 link for a sign he does not want.
+   *
+   * This is the same failure `isStickerOrder()` was hardened against: a
+   * confident charge for something nobody specified. Apparel has had the
+   * escape since it was a hand-quote flow; signs got one the moment they
+   * started taking cards.
+   *
+   * Checked HIGH — above reprice, price and ceiling — because none of those
+   * are the question. The engine can price a PVC sign perfectly. What it
+   * cannot do is price the acrylic one the customer is describing, and a
+   * correct price for the wrong product is exactly what makes this worth
+   * refusing rather than capping.
+   */
+  if (isSpecialOrder(input.order)) {
+    return {
+      bill: false,
+      deposit: false,
+      reason:
+        "special order — the customer said their material, size or finish is not listed, so this is quoted by hand",
+    };
   }
 
   if (!input.printavoCreated) {
@@ -256,6 +300,22 @@ export function decideStickersAutoBill(input: {
 
   if (input.kioskSession) {
     return { bill: false, deposit: false, reason: "kiosk order — payment is taken at the counter" };
+  }
+
+  /**
+   * The same escape as signs. No sticker surface offers it today, so this
+   * changes nothing for any payload the app currently sends — it is here so
+   * that the rule "a customer who says we cannot describe their job is not
+   * charged for it" belongs to the FILE rather than to one flow. The day
+   * stickers grow the control, the gate is already right.
+   */
+  if (isSpecialOrder(input.order)) {
+    return {
+      bill: false,
+      deposit: false,
+      reason:
+        "special order — the customer said what they need is not listed, so this is quoted by hand",
+    };
   }
 
   if (!input.printavoCreated) {

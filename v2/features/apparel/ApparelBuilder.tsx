@@ -1,6 +1,7 @@
 "use client";
 
 import OptionSelector from "../../components/OptionSelector";
+import SpecialOrderEscape from "../../components/SpecialOrderEscape";
 import SizeBreakdownGrid from "./SizeBreakdownGrid";
 import { apparelCatalog, type ApparelQuote } from "../../lib/apparel";
 import type { ArtworkAnalysis } from "../../lib/artwork";
@@ -625,83 +626,20 @@ export default function ApparelBuilder({
         />
       )}
 
-      <div
-        className={` border p-4 transition ${
-          apparelQuote.specialOrder
-            ? "border-[var(--rush-red)] bg-[var(--surface-rush)]"
-            : "border-[var(--rule)] bg-[var(--shirt-blank)]"
-        }`}
-      >
-        <label className="flex cursor-pointer items-start gap-3">
-          <input
-            type="checkbox"
-            checked={apparelQuote.specialOrder}
-            onChange={(event) =>
-              onUpdateSpecialOrder({ specialOrder: event.target.checked })
-            }
-            className="mt-1 h-5 w-5 shrink-0 accent-[var(--rush-red)]"
-          />
-          <span>
-            <span className="block text-fine font-bold text-[var(--ink-black)]">
-              I need something not listed here
-            </span>
-            <span className="mt-1 block text-fine font-medium leading-5 text-[var(--ink-muted)]">
-              Different garment (crewneck, long sleeve, youth, hats), another
-              print location (left chest, sleeve, tag), embroidery, or anything
-              custom. We&apos;ll quote it by hand.
-            </span>
-          </span>
-        </label>
-
-        {apparelQuote.specialOrder && (
-          <div
-            className="mt-4"
-            data-invalid={fieldErrors?.specialOrderNotes ? "true" : undefined}
-          >
-            <label className="block">
-              <span className="text-fine font-semibold text-[var(--ink-black)]">
-                Tell us what you need
-              </span>
-              <textarea
-                value={apparelQuote.specialOrderNotes}
-                onChange={(event) =>
-                  onUpdateSpecialOrder({
-                    specialOrderNotes: event.target.value,
-                  })
-                }
-                rows={3}
-                placeholder="e.g. 40 crewnecks, left chest logo + full back, plus 12 embroidered hats"
-                aria-invalid={fieldErrors?.specialOrderNotes ? true : undefined}
-                aria-describedby={
-                  fieldErrors?.specialOrderNotes
-                    ? "special-order-notes-error"
-                    : undefined
-                }
-                className={`mt-2 w-full bg-white px-4 py-3 font-bold text-[var(--ink-black)] outline-none focus:ring-2 focus:ring-[var(--rush-red)] ${
-                  fieldErrors?.specialOrderNotes
-                    ? "border-2 border-[var(--rush-red)]"
-                    : "border border-[var(--rule)]"
-                }`}
-              />
-            </label>
-
-            {fieldErrors?.specialOrderNotes && (
-              <p
-                id="special-order-notes-error"
-                className="mt-1 text-fine font-bold text-[var(--rush-red)]"
-              >
-                {fieldErrors.specialOrderNotes}
-              </p>
-            )}
-
-            <p className="mt-3 bg-white p-3 text-spec font-bold leading-5 text-[var(--ink-muted)]">
-              Heads up: special orders don&apos;t get an online price. Everything
-              you fill in above still comes through — Gorilla Salem will price it
-              and reply.
-            </p>
-          </div>
-        )}
-      </div>
+      {/* The same control signs use — see components/SpecialOrderEscape for
+          why it is one component and why it is never a heuristic on the
+          notes field. Apparel's consequence line differs from the other
+          flows': it has no payment link to withhold, only a number. */}
+      <SpecialOrderEscape
+        idPrefix="apparel-special-order"
+        checked={Boolean(apparelQuote.specialOrder)}
+        notes={apparelQuote.specialOrderNotes || ""}
+        examples="Different garment (crewneck, long sleeve, youth, hats), another print location (left chest, sleeve, tag), embroidery, or anything custom."
+        placeholder="e.g. 40 crewnecks, left chest logo + full back, plus 12 embroidered hats"
+        consequence="Heads up: special orders don't get an online price. Everything you fill in above still comes through — Gorilla Salem will price it and reply."
+        error={fieldErrors?.specialOrderNotes}
+        onChange={onUpdateSpecialOrder}
+      />
 
       {artworkAnalysis?.estimatedColorCount && (
         <div className=" border border-[var(--rule)] bg-[var(--shirt-blank)] p-4">

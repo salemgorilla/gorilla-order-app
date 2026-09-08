@@ -285,7 +285,12 @@ export function getSignsFieldErrors(
    * family's promise for the other.
    */
   lane: TurnaroundLane,
-  today: string = todayIso()
+  today: string = todayIso(),
+  /**
+   * The quote's own "my material / size / finish isn't listed", when it is
+   * ticked. Optional so every existing caller is unchanged.
+   */
+  special: { specialOrder?: boolean; specialOrderNotes?: string } = {}
 ): FieldErrors {
   const errors: FieldErrors = {};
 
@@ -302,6 +307,15 @@ export function getSignsFieldErrors(
     errors.needBy = "Enter the date you need this in hand.";
   } else if (isNeedByRefused(order.production.needBy, lane, today)) {
     errors.needBy = needByRefusedError(lane, today);
+  }
+
+  /**
+   * A special order with an empty box is the worst of both worlds: the
+   * payment link is withheld AND the shop has nothing to quote from, so the
+   * customer waits on a reply nobody can write. The same rule apparel has.
+   */
+  if (special.specialOrder && !String(special.specialOrderNotes || "").trim()) {
+    errors.specialOrderNotes = "Tell us what you need.";
   }
 
   /**
@@ -361,9 +375,10 @@ export function getSignsValidationSummary(
     production: { needBy: string };
   },
   lane: TurnaroundLane,
-  today: string = todayIso()
+  today: string = todayIso(),
+  special: { specialOrder?: boolean; specialOrderNotes?: string } = {}
 ): string[] {
-  const fields = getSignsFieldErrors(designs, order, lane, today);
+  const fields = getSignsFieldErrors(designs, order, lane, today, special);
   const problems: FieldProblem[] = [];
 
   // Order-level: one name, one address, one date, however many designs.
@@ -375,6 +390,12 @@ export function getSignsValidationSummary(
   }
   if (fields.needBy) {
     problems.push({ field: "needBy", message: fields.needBy });
+  }
+  if (fields.specialOrderNotes) {
+    problems.push({
+      field: "specialOrderNotes",
+      message: "Tell us what you need for your special order.",
+    });
   }
 
   const many = designs.length > 1;

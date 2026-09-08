@@ -322,6 +322,15 @@ export type SignsDesign = typeof defaultSignsDesign;
 /** A signs quote: one or more designs, priced together. */
 export type SignsQuote = {
   designs: SignsDesign[];
+  /**
+   * "My material / size / finish isn't listed" — off unless the customer
+   * says so. Per QUOTE, not per design, and deliberately: a cart where one
+   * design bills and another does not would raise a link for part of an
+   * order, which is a worse thing to explain than a whole order quoted by
+   * hand. See components/SpecialOrderEscape and lib/auto-bill.ts.
+   */
+  specialOrder?: boolean;
+  specialOrderNotes?: string;
 };
 
 let designSequence = 0;

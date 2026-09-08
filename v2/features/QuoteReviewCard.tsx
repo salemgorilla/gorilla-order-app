@@ -1,5 +1,6 @@
 "use client";
 
+import { describeInkColors } from "../lib/apparel-pricing";
 import type { Order } from "../types/order";
 import { getSignsTotals, getStickerTotals } from "../lib/tax";
 import type { ApparelQuote } from "../lib/apparel";
@@ -301,7 +302,7 @@ export default function QuoteReviewCard({
             <div className="flex justify-between gap-4">
               <span>Ink Colors</span>
               <span className="text-right font-bold text-[var(--ink-black)]">
-                {apparelQuote.inkColors}
+                {describeInkColors(apparelQuote)}
               </span>
             </div>
 

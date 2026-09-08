@@ -9,6 +9,7 @@ import {
 } from "react";
 import { SALES_TAX, getSignsTotals, getStickerTotals } from "../lib/tax";
 import { getTrackUrl } from "../lib/order-status";
+import { describeInkColors } from "../lib/apparel-pricing";
 import { SHOP } from "../lib/shop";
 import { SKU } from "../lib/sku";
 import { looksLikeEmailAddress } from "../lib/email-address";
@@ -683,6 +684,10 @@ export default function Home() {
       {
         printLocations: apparelQuote.printLocations,
         inkColors: apparelQuote.inkColors,
+        // Per-placement ink, where the customer set it. Sparse: a location
+        // with no entry falls back to inkColors above, so this changes
+        // nothing for an order that never touches it.
+        inkColorsByLocation: apparelQuote.inkColorsByLocation,
         // One decision for the whole run — see anyGarmentNeedsUnderbase for
         // why a mixed cart errs high rather than low.
         hasUnderbase:
@@ -704,6 +709,7 @@ export default function Home() {
     apparelQuote.quantity,
     apparelQuote.printLocations,
     apparelQuote.inkColors,
+    apparelQuote.inkColorsByLocation,
     apparelQuote.garmentColor,
     artworkAnalysis?.estimatedColorCount,
     chosenSsProduct?.catalogStyle,
@@ -1981,7 +1987,10 @@ export default function Home() {
           // "Not specified" / "TBD" downstream, which is the truth.
           garmentColor: isApparelRequest ? "" : apparelQuote.garmentColor,
           printLocations: isApparelRequest ? [] : apparelQuote.printLocations,
-          inkColors: isApparelRequest ? "" : apparelQuote.inkColors,
+          // The SUMMARY, so the shop email, the Printavo description and the
+          // customer's copy all say "Front 2 colors · Back 1 color" when the
+          // placements differ. Identical to the old string when they do not.
+          inkColors: isApparelRequest ? "" : describeInkColors(apparelQuote),
           sizeBreakdown: apparelQuote.sizeBreakdown,
           specialOrder: apparelQuote.specialOrder,
           specialOrderNotes: apparelQuote.specialOrderNotes,
@@ -2939,7 +2948,7 @@ All Garments: ${describeGarmentLines(apparelPricing.lines)}`
           : ""
       }
 Print Locations: ${apparelQuote.printLocations.join(", ")}
-Ink Colors: ${apparelQuote.inkColors}
+Ink Colors: ${describeInkColors(apparelQuote)}
 Size Breakdown: ${apparelQuote.sizeBreakdown || "Not entered yet"}`
       }
 
@@ -3255,7 +3264,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       garmentColorHex={selectedSsColor?.colorHex}
       catalogStyle={selectedSsProduct?.catalogStyle}
       printLocations={apparelQuote.printLocations}
-      inkColors={apparelQuote.inkColors}
+      inkColors={describeInkColors(apparelQuote)}
       quantity={apparelQuote.quantity}
     />
   ) : (
@@ -3809,6 +3818,14 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   onTogglePrintLocation={togglePrintLocation}
                   onSelectInkColors={(inkColors) =>
                     updateApparelQuote({ inkColors })
+                  }
+                  onSelectLocationInkColors={(location, inkColors) =>
+                    updateApparelQuote({
+                      inkColorsByLocation: {
+                        ...apparelQuote.inkColorsByLocation,
+                        [location]: inkColors,
+                      },
+                    })
                   }
                   onUpdateSpecialOrder={(updates) =>
                     updateApparelQuote(updates)

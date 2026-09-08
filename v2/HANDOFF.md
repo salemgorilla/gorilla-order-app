@@ -22,6 +22,51 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **"Configured" now means an upload will actually work** — 2026-09-08.
+
+  `/api/artwork-upload` reported `configured: Boolean(BLOB_READ_WRITE_TOKEN)`.
+  On 1 Sep that answered TRUE while production logged, on Stuart Hinton's
+  real submission: `ARTWORK DIRECT UPLOAD FAILED in the customer's browser:
+  "IMG_0528.jpeg" — Vercel Blob: This store does not exist.` The token was
+  set. The store it named was gone.
+
+  **That boolean is customer-facing.** The browser reads it to choose which
+  ceiling the upload box advertises — 100 MB when configured, 3.5 MB when
+  not — and the box's oversized warning is keyed to the same number. So a
+  dead store made the app promise 100 MB while the real ceiling was 3.5 MB
+  AND switched off the warning that would have said so. Anything over
+  3.5 MB is dropped from the quote (reported to the shop, never blocking the
+  order). Stuart's file was 204 KB and fit. That is luck, not design.
+
+  `lib/blob-health.ts` probes the store (`list({ limit: 1 })`) and
+  `configured` is now `hasToken && reachable`. The endpoint also reports
+  `reachable` and the SDK's own error sentence separately, because "no
+  token" and "token, dead store" have different fixes and look identical
+  from the dashboard. The canary gained the same probe — blob is a
+  credential like the S&S key and rots on its own schedule.
+
+  Two things found by running it rather than reading it:
+
+  - **The SDK talks through `undici.fetch`, not `globalThis.fetch`.**
+    Stubbing the global does nothing; the "stubbed" test hits the real API
+    and hangs. The probe is injected into `checkBlobStore` instead.
+  - **`abortSignal` alone does not bound it.** Measured: `list` with
+    `AbortSignal.timeout(3000)` had not returned 45 seconds later against a
+    black-holed network (the SDK retries ten times with backoff). The
+    deadline is now a race in our own code — 5s — because this call is on
+    the page-load path for every visitor. Verified against a genuinely
+    unreachable store: the endpoint answers in 5,003 ms with
+    `configured:false`.
+
+  Verified in Chromium both ways: with the store dead the box says "Files up
+  to 3.5 MB" and a 6 MB file is flagged BEFORE submit naming the 3.5 MB
+  limit; with it live the box says 100 MB and the same file passes without a
+  warning. 1,992 tests pass (11 new), tsc clean, eslint clean.
+
+  **This does not fix the store** — that is Gabe in Vercel → Storage. It
+  stops the app lying about it in the meantime, and makes the canary say so
+  every morning until it is fixed.
+
 - **Every garment gets a size breakdown, not just the first one** —
   2026-09-08, Gabe: "When I added another garment in the apparel button,
   there was no way to enter the size breakdown. Can you make sure that each

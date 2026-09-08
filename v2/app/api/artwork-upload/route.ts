@@ -2,6 +2,7 @@ import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
 
 import { describeBuild } from "../../../lib/build-stamp";
+import { checkBlobStore, describeBlobHealth } from "../../../lib/blob-health";
 import {
   isAllowedUploadPath,
   MAX_BLOB_ARTWORK_BYTES,
@@ -26,6 +27,23 @@ import {
  * Reports only a boolean — never the token.
  */
 export async function GET() {
+  /**
+   * CONFIGURED MEANS "AN UPLOAD WILL SUCCEED", AND NOTHING WEAKER.
+   *
+   * This used to report Boolean(BLOB_READ_WRITE_TOKEN). On 2026-09-01 that
+   * said yes while production logged, on a real customer's submission,
+   * "Vercel Blob: This store does not exist" — the token was there, the
+   * store it named was not, and every direct upload was failing.
+   *
+   * The browser READS this answer: the upload box advertises 100 MB when it
+   * says configured and 3.5 MB when it does not, and anything over 3.5 MB
+   * is dropped from the quote. So a wrong yes here is the app promising a
+   * ceiling it cannot honour, to the customer, at the moment they choose a
+   * file. It now probes the store — see lib/blob-health.ts, including why
+   * the probe is cached.
+   */
+  const health = await checkBlobStore();
+
   // Report WHICH credential is missing, not just that something is.
   //
   // A connected blob store can provision either of two credential sets, and
@@ -52,7 +70,12 @@ export async function GET() {
   const stamp = describeBuild();
 
   return NextResponse.json({
-    configured: hasReadWriteToken,
+    // The credential AND the store. Either one missing means the direct
+    // path is unavailable and the customer must be told the smaller number.
+    configured: hasReadWriteToken && health.reachable,
+    // Kept separate so a reader can tell "no token" from "token, dead
+    // store" without reading the prose — they have different fixes.
+    reachable: health.reachable,
     // Which build is answering. Real emitted code, not a comment — a comment
     // is stripped by the minifier, so a fresh deployment produced byte
     // identical chunks and was indistinguishable from no deployment at all.
@@ -68,9 +91,10 @@ export async function GET() {
       BLOB_READ_WRITE_TOKEN: hasReadWriteToken,
       BLOB_STORE_ID: hasStoreId,
       blobVarNames,
-      needed: hasReadWriteToken
-        ? null
-        : "BLOB_READ_WRITE_TOKEN — client uploads cannot use OIDC. Copy the read-write token from the blob store and add it to this project's environment variables (Production), then redeploy.",
+      // The SDK's own sentence, unedited. "This store does not exist" names
+      // the fix; a paraphrase would not.
+      storeError: health.error,
+      needed: describeBlobHealth(health),
     },
   });
 }

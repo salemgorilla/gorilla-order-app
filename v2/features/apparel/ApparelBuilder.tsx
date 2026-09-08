@@ -40,6 +40,8 @@ type Props = {
   onSelectFallbackGarmentColor: (garmentColor: string) => void;
   onTogglePrintLocation: (location: string) => void;
   onSelectInkColors: (inkColors: string) => void;
+  /** Ink for ONE placement — Gabe: "Front is 2 color, back is 1." */
+  onSelectLocationInkColors: (location: string, inkColors: string) => void;
   onUpdateSpecialOrder: (updates: {
     specialOrder?: boolean;
     specialOrderNotes?: string;
@@ -82,6 +84,7 @@ export default function ApparelBuilder({
   onSelectFallbackGarmentColor,
   onTogglePrintLocation,
   onSelectInkColors,
+  onSelectLocationInkColors,
   onUpdateSpecialOrder,
   onUpdateSizeQuantity,
   onSetSizeQuantity,
@@ -567,12 +570,40 @@ export default function ApparelBuilder({
         )}
       </div>
 
-      <OptionSelector
-        title="Ink Colors"
-        options={apparelCatalog.inkColors}
-        selected={apparelQuote.inkColors}
-        onSelect={(inkColors) => onSelectInkColors(inkColors)}
-      />
+      {/* One ink question per placement.
+          Gabe, 2026-09-07: "Each location should offer options for print
+          color amount. An order could be: Front is 2 color, back is 1."
+          One count for the whole order made a two-colour front force the
+          back to two colours, so the customer paid for a screen nobody
+          burned. Each selected location now answers for itself, and a
+          location left alone keeps the order-level value below it.
+
+          Before any location is chosen there is nothing to ask per
+          placement, so the plain question stands in and sets the default
+          every location inherits. */}
+      {apparelQuote.printLocations.length > 0 ? (
+        apparelQuote.printLocations.map((location) => (
+          <OptionSelector
+            key={location}
+            title={`Ink Colors — ${location}`}
+            options={apparelCatalog.inkColors}
+            selected={
+              apparelQuote.inkColorsByLocation?.[location] ||
+              apparelQuote.inkColors
+            }
+            onSelect={(inkColors) =>
+              onSelectLocationInkColors(location, inkColors)
+            }
+          />
+        ))
+      ) : (
+        <OptionSelector
+          title="Ink Colors"
+          options={apparelCatalog.inkColors}
+          selected={apparelQuote.inkColors}
+          onSelect={(inkColors) => onSelectInkColors(inkColors)}
+        />
+      )}
 
       <div
         className={` border p-4 transition ${

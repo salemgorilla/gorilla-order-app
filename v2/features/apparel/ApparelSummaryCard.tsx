@@ -1,5 +1,6 @@
 "use client";
 
+import { describeInkColors } from "../../lib/apparel-pricing";
 import type { ApparelQuote } from "../../lib/apparel";
 import { describeAssumedMix } from "../../lib/apparel-blend";
 import type { ApparelPricingResult } from "../../lib/apparel-pricing";
@@ -108,7 +109,7 @@ export default function ApparelSummaryCard({
         </div>
         <div className="flex justify-between gap-4">
           <span>Ink</span>
-          <span className="text-right font-bold text-[var(--ink-black)]">{apparelQuote.inkColors}</span>
+          <span className="text-right font-bold text-[var(--ink-black)]">{describeInkColors(apparelQuote)}</span>
         </div>
 
         {!apparelQuote.specialOrder && (

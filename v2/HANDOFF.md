@@ -57,6 +57,88 @@ Working and verified:
   tests/product-fulfilment.test.ts enforces that apparel never says "pay
   online".
 
+- **Ink is a question per placement now** — 2026-09-07, Gabe: "Each
+  location should offer options for print color amount. An order could be:
+  Front is 2 color, back is 1." One count covered the whole order, so a
+  two-colour front FORCED the back to two colours: the customer paid for a
+  screen nobody burned ($25) and a print rate one column too far along the
+  matrix, on every job with an uneven design.
+
+  `inkColorsByLocation` is a SPARSE map on the quote — a location with no
+  entry uses the order-level `inkColors`, so an order that never touches
+  this prices exactly as before and a payload written before the field
+  existed still prices correctly. `locationColorCounts()` resolves it;
+  `priceApparelRun` now takes `colorsByLocation: number[]` in place of
+  `locationCount` + `colors`.
+
+  **The generalisation is exact, not approximate.** The old engine computed
+  `perPiece(colors) × locations` and `colors × locations × $25`; the new one
+  sums per location, which is the same arithmetic when the counts match.
+  471 money tests — the 66-row price sheet, the invariants, money-path and
+  the invoice sweep — passed UNCHANGED, and tests/per-location-ink asserts
+  the equivalence directly rather than trusting it.
+
+  The underbase is per placement, because a dark shirt printed front and
+  back burns two of them. Capped per location, which is what
+  maxColorsPerLocation always meant. Note "5+ colors" parses to 5, so with
+  an underbase that is 6, NOT the cap — the cap is only reachable from a
+  payload.
+
+  Driven in Chromium: front only $328.60, both at 1 colour $461.60, front 2
+  / back 1 $538.20, both at 2 colours $614.80. The mixed order sits between
+  and saves $76.60 against the old forced-uniform price. The payload,
+  review card, summary and Printavo description read "Front 2 colors · Back
+  1 color" when placements differ and the exact old string when they do
+  not. 1,920 tests, smoke 28/28, audit 49/49.
+
+- **Every product card says how it ships** — 2026-09-07, Gabe: "We offer
+  shipping on all products, so you can include that detail for all 4
+  buttons." `shipping` is now a REQUIRED field on ProductCategory, in a
+  fixed slot above the fulfilment line, so a new product cannot ship
+  without saying how.
+
+  The offer is universal; the TERMS are not, and the card is where somebody
+  decides what they are committing to. Stickers price delivery in the total
+  ($12 flat, interpolated from DECAL_SHIPPING_PRICE — never typed, so a
+  rate change cannot leave a stale figure on the card). Signs and banners
+  offer it in the flow and quote it separately; neither engine ever puts a
+  shipping figure on the total, and the test asserts their lines carry no
+  "$". Those two are word-for-word identical on purpose: a spec line
+  repeated is not the same defect as an explanation repeated, and the
+  fulfilment line is already identical on three cards.
+
+  **APPAREL HAS NO DELIVERY STEP AT ALL** — this is what the request
+  surfaced. Stickers get one in DecalBuilder, signs in SignsDelivery,
+  apparel gets none, so an apparel order silently defaults to Pickup and a
+  customer wanting 48 shirts shipped has no box to say so in. The card
+  therefore says delivery is "confirmed with your estimate", which is true
+  and is how that flow already works, rather than promising a choice the
+  form never offers. Flagged to Gabe; if he wants the choice in the form it
+  is the SignsDelivery pattern and the card's line changes with it.
+
+  `note` is gone — its only use was the banner's delivery caveat, which
+  became `shipping`. The old "band explains its caveat once per segment"
+  rule went with it: right while shipping was one department's caveat,
+  wrong once the shop ships everything. Measured in Chromium at 1300 and
+  390: four identical widths, status line 21px above the bottom on all
+  four. 1,901 tests, smoke 28/28, audit 49/49.
+
+- **The four product cards are one component** — 2026-09-07, Gabe: "Make
+  the 'INSTANT PRICE · PAY ONLINE' consistent colour and placement across
+  all options. Also, make the format similar to keep them looking uniform."
+  They were two hand-built shapes: stickers/apparel a two-up grid with the
+  status line LAST and green when the flow takes payment; banners/signs
+  full-width bands with the line TOP-RIGHT beside the SELECTED badge and
+  always muted — so after #122 the same words were green on one card and
+  grey on two. components/ProductCard.tsx now draws all four; the
+  large-format pair keeps its "Large format" rule-label (a real department
+  split) but sits in the same two-up grid with the same frame, the status
+  line last and `mt-auto` so the four lines share a baseline. Green means
+  "takes a card", muted means "the shop confirms first", on every card.
+  Measured in Chromium at 1300 and 390: identical widths, status line 21px
+  above the bottom on all four, three lines at #2e7d32 and apparel muted.
+  tests/product-segments now asserts page.tsx carries no hand-built card.
+
 - **Choosing a garment colour now looks like something happened** —
   2026-09-07, Gabe: "when I press a color there is no indication, or not
   one very visible, for me to know that the color has been chosen." The

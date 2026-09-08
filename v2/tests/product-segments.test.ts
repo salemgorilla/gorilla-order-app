@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import { productCategories } from "../lib/products";
+import { DECAL_SHIPPING_PRICE } from "../lib/pricing";
 
 /**
  * How step 01 divides the shop, and what each option is allowed to say.
@@ -119,9 +120,19 @@ describe("the split is on how the work is made", () => {
     assert.doesNotMatch(page, /grid gap-4 md:grid-cols-3/);
   });
 
-  test("the large-format band is labelled and full width", () => {
+  test("the large-format segment is labelled, and its cards match the others", () => {
+    /**
+     * The band used to be full width — a different SHAPE for a different
+     * kind of thing. By 7 Sep it was not a different kind of thing: signs
+     * and banners pay online exactly as stickers do, and Gabe asked for the
+     * four cards uniform. The segment keeps its rule-label (large format IS
+     * a different department); the cards no longer claim a second
+     * distinction the business does not make.
+     */
     assert.match(page, /Large format/);
-    assert.match(page, /flex w-full min-h-\[44px\]/);
+    assert.doesNotMatch(page, /flex w-full min-h-\[44px\]/);
+    // Both segments render through the one component.
+    assert.equal((page.match(/<ProductCard/g) || []).length, 2);
   });
 });
 
@@ -133,10 +144,15 @@ describe("the group survives the visual split", () => {
     assert.match(page, /id=\{currentStepId === "product" \? "product-heading" : undefined\}/);
   });
 
-  test("the band is a toggle button like the cards", () => {
-    // Two aria-pressed usages on this screen: the cards and the band.
-    const pressed = page.match(/aria-pressed=\{isSelected\}/g) || [];
-    assert.ok(pressed.length >= 2, `found ${pressed.length} aria-pressed toggles`);
+  test("every option is a toggle button", () => {
+    // One component draws all four cards, so one aria-pressed covers them —
+    // and page.tsx must no longer carry a hand-built card of its own.
+    const card = readFileSync(
+      new URL("../components/ProductCard.tsx", import.meta.url),
+      "utf8"
+    );
+    assert.match(card, /aria-pressed=\{isSelected\}/);
+    assert.doesNotMatch(page, /product\.fulfilment/);
   });
 });
 
@@ -182,27 +198,53 @@ describe("only the pay-online paths are coloured", () => {
     assert.match(apparel.fulfilment, /estimate/i);
   });
 
-  test("the band explains its delivery caveat once", () => {
+  test("every card states its shipping terms", () => {
     /**
-     * ONCE means once for the segment, not once per card. The band holds two
-     * pipelines since the split, and since 7 Sep both pay online — what the
-     * note now carries is the one thing that price does NOT cover, which is
-     * shipping (lib/auto-bill.ts says why that is safe). The note sits on the
-     * first card and the second stays quiet, because the same sentence twice
-     * in adjacent cards reads as a bug.
+     * Gabe, 2026-09-07: "We offer shipping on all products, so you can
+     * include that detail for all 4 buttons."
+     *
+     * This replaced a rule that the large-format band explain its delivery
+     * caveat ONCE for the segment. That rule was right while shipping was a
+     * caveat on one department; it is wrong now that the shop ships
+     * everything, because "once per segment" leaves two of the four cards
+     * silent about it. Required on the type, so a new product cannot ship
+     * without saying how it ships.
      */
-    const noted = productCategories.filter(
-      (p) => p.segment === "large-format" && p.note
-    );
-
-    assert.equal(noted.length, 1, "the segment's note appears " + noted.length + " times");
-    assert.match(noted[0].note ?? "", /separately/i);
-
-    // The cards have no room for a second line and do not get one.
-    for (const product of productCategories.filter(
-      (p) => p.segment === "decorated"
-    )) {
-      assert.equal(product.note, undefined, `${product.title} has a note`);
+    for (const product of productCategories) {
+      assert.ok(
+        product.shipping && product.shipping.trim().length > 0,
+        `${product.title} does not say how it ships`
+      );
+      assert.match(product.shipping, /ships/i);
     }
+  });
+
+  test("and the terms differ where the flows differ", () => {
+    const shippingOf = (id: string) =>
+      productCategories.find((p) => p.id === id)?.shipping ?? "";
+
+    // Stickers are the one flow that PRICES delivery, and the figure comes
+    // from lib/pricing rather than the copy — a card quoting a stale postage
+    // rate is a card quoting a wrong price.
+    assert.match(shippingOf("stickers"), new RegExp(`\\$${DECAL_SHIPPING_PRICE}\\b`));
+
+    // Signs and banners offer it and quote it by hand; neither engine ever
+    // puts a shipping figure on the total.
+    for (const id of ["signs", "banners"]) {
+      assert.match(shippingOf(id), /quoted separately/i);
+      assert.doesNotMatch(shippingOf(id), /\$/, `${id} names a delivery price the engine never charges`);
+    }
+
+    // Apparel has NO delivery step, so its card must not imply a choice the
+    // form never offers.
+    assert.match(shippingOf("apparel"), /confirmed with your estimate/i);
+    assert.doesNotMatch(shippingOf("apparel"), /\$|choose|select/i);
+  });
+
+  test("the note field is gone — shipping replaced its only use", () => {
+    for (const product of productCategories) {
+      assert.ok(!("note" in product), `${product.title} still has a note`);
+    }
+    assert.doesNotMatch(page, /product\.note/);
   });
 });

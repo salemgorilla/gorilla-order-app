@@ -9,6 +9,7 @@ import {
 } from "react";
 import { SALES_TAX, getSignsTotals, getStickerTotals } from "../lib/tax";
 import { getTrackUrl } from "../lib/order-status";
+import { describeInkColors } from "../lib/apparel-pricing";
 import { SHOP } from "../lib/shop";
 import { SKU } from "../lib/sku";
 import { looksLikeEmailAddress } from "../lib/email-address";
@@ -16,6 +17,7 @@ import { looksLikeEmailAddress } from "../lib/email-address";
 import Header from "../components/Header";
 import StepNav from "../components/StepNav";
 import DesignCard from "../components/DesignCard";
+import ProductCard from "../components/ProductCard";
 import TemplateDesigner from "../components/TemplateDesigner";
 import StepFooter from "../components/StepFooter";
 import UploadBox from "../components/upload/UploadBox";
@@ -682,6 +684,10 @@ export default function Home() {
       {
         printLocations: apparelQuote.printLocations,
         inkColors: apparelQuote.inkColors,
+        // Per-placement ink, where the customer set it. Sparse: a location
+        // with no entry falls back to inkColors above, so this changes
+        // nothing for an order that never touches it.
+        inkColorsByLocation: apparelQuote.inkColorsByLocation,
         // One decision for the whole run — see anyGarmentNeedsUnderbase for
         // why a mixed cart errs high rather than low.
         hasUnderbase:
@@ -703,6 +709,7 @@ export default function Home() {
     apparelQuote.quantity,
     apparelQuote.printLocations,
     apparelQuote.inkColors,
+    apparelQuote.inkColorsByLocation,
     apparelQuote.garmentColor,
     artworkAnalysis?.estimatedColorCount,
     chosenSsProduct?.catalogStyle,
@@ -1980,7 +1987,10 @@ export default function Home() {
           // "Not specified" / "TBD" downstream, which is the truth.
           garmentColor: isApparelRequest ? "" : apparelQuote.garmentColor,
           printLocations: isApparelRequest ? [] : apparelQuote.printLocations,
-          inkColors: isApparelRequest ? "" : apparelQuote.inkColors,
+          // The SUMMARY, so the shop email, the Printavo description and the
+          // customer's copy all say "Front 2 colors · Back 1 color" when the
+          // placements differ. Identical to the old string when they do not.
+          inkColors: isApparelRequest ? "" : describeInkColors(apparelQuote),
           sizeBreakdown: apparelQuote.sizeBreakdown,
           specialOrder: apparelQuote.specialOrder,
           specialOrderNotes: apparelQuote.specialOrderNotes,
@@ -2938,7 +2948,7 @@ All Garments: ${describeGarmentLines(apparelPricing.lines)}`
           : ""
       }
 Print Locations: ${apparelQuote.printLocations.join(", ")}
-Ink Colors: ${apparelQuote.inkColors}
+Ink Colors: ${describeInkColors(apparelQuote)}
 Size Breakdown: ${apparelQuote.sizeBreakdown || "Not entered yet"}`
       }
 
@@ -3254,7 +3264,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       garmentColorHex={selectedSsColor?.colorHex}
       catalogStyle={selectedSsProduct?.catalogStyle}
       printLocations={apparelQuote.printLocations}
-      inkColors={apparelQuote.inkColors}
+      inkColors={describeInkColors(apparelQuote)}
       quantity={apparelQuote.quantity}
     />
   ) : (
@@ -3587,91 +3597,22 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               visual split: the band below is a different SHAPE, not a
               different question. */}
           <div role="group" aria-labelledby="product-heading">
+            {/* Every option is ONE component now — see components/ProductCard.
+                Stickers/apparel and banners/signs used to be two hand-built
+                shapes with the status line in two places and two colours;
+                Gabe asked for them uniform (2026-09-07), and one component is
+                how they stay that way. */}
             <div className="grid gap-4 md:grid-cols-2">
               {productCategories
                 .filter((product) => product.segment === "decorated")
-                .map((product) => {
-                  // "request" is selectable — it just has no online price.
-                  const isActive = product.status !== "coming-soon";
-                  const isSelected = selectedProductId === product.id;
-
-                  // The one flow that returns a number AND takes the payment.
-                  // Read off the fulfilment line rather than the id, because
-                  // that string is already asserted against isStickerOrder()
-                  // in tests/product-fulfilment.test.ts — the server function
-                  // that actually decides it.
-                  const takesPayment = /pay online/i.test(product.fulfilment);
-
-                  return (
-                    <button
-                      key={product.id}
-                      type="button"
-                      disabled={!isActive}
-                      onClick={() => selectProduct(product)}
-                      aria-pressed={isSelected}
-                      className={`border p-5 text-left transition ${
-                        isSelected
-                          ? // cursor-pointer was on the UNSELECTED variant
-                            // only, so choosing a product made its card read
-                            // as disabled.
-                            "cursor-pointer border-[var(--gorilla-green)] bg-[var(--surface-ok)]"
-                          : isActive
-                          ? // Was hover:-translate-y-0.5 — a lift toward the
-                            // viewer, which is soft elevation, in a system
-                            // that committed to letterpress (radius 0,
-                            // --offset 3px, hairlines, no shadows) and presses
-                            // every other control DOWN and away. The border
-                            // stepping to ink is the house move, and unlike a
-                            // 1px→2px border it cannot shift the layout.
-                            "cursor-pointer border-[var(--rule)] bg-white hover:border-[var(--ink-black)]"
-                          : "cursor-not-allowed border-[var(--rule)] bg-[var(--shirt-blank)] opacity-70"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-value font-bold text-[var(--ink-black)]">
-                          {product.title}
-                        </p>
-
-                        {/* Selection was carried by border and fill colour and
-                            nothing else, which fails SC 1.4.1 and leaves a
-                            greyscale or colour-blind reader with cards that
-                            look alike. aria-pressed above says it to assistive
-                            tech; this says it on the screen. */}
-                        {isSelected && (
-                          <span className="spec shrink-0 bg-[var(--gorilla-green)] px-2 py-1 text-spec font-bold text-white">
-                            SELECTED
-                          </span>
-                        )}
-                      </div>
-
-                      <p className="mt-3 text-fine font-medium leading-6 text-[var(--ink-muted)]">
-                        {product.description}
-                      </p>
-
-                      {/* What happens after submit, not how finished the flow
-                          is. Each option carries exactly one of these now —
-                          the "Beta" and "By request" badges said the same
-                          thing again in a second vocabulary, and on Banners
-                          one of them contradicted the other outright.
-
-                          Green on the pay-online line is deliberate and is the
-                          only place it appears unselected: that path is the
-                          one that returns a number and takes the money, and
-                          the SELECTED chip carries selection on its own. */}
-                      <p
-                        className={`mt-4 text-spec font-bold uppercase tracking-eyebrow ${
-                          takesPayment
-                            ? "text-[var(--gorilla-green)]"
-                            : "text-[var(--ink-muted)]"
-                        }`}
-                      >
-                        {product.status === "coming-soon"
-                          ? "Coming soon"
-                          : product.fulfilment}
-                      </p>
-                    </button>
-                  );
-                })}
+                .map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    isSelected={selectedProductId === product.id}
+                    onSelect={selectProduct}
+                  />
+                ))}
             </div>
 
             {/* A rule-label, in the system's existing hairline-as-structure
@@ -3688,62 +3629,26 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               />
             </div>
 
-            {productCategories
-              .filter((product) => product.segment === "large-format")
-              .map((product) => {
-                const isSelected = selectedProductId === product.id;
-
-                return (
-                  <div key={product.id}>
-
-                    {/* Full width, not a smaller card. A band reads as a
-                        DIFFERENT KIND of thing; a narrower card would read as
-                        a worse one, and this is the segment that already
-                        returns a real price. */}
-                    <button
-                      type="button"
-                      onClick={() => selectProduct(product)}
-                      aria-pressed={isSelected}
-                      className={`mt-4 flex w-full min-h-[44px] cursor-pointer flex-col gap-3 border p-5 text-left transition-colors duration-[120ms] ease-linear active:translate-x-[2px] active:translate-y-[2px] ${
-                        isSelected
-                          ? "border-[var(--gorilla-green)] bg-[var(--surface-ok)]"
-                          : "border-[var(--rule)] bg-white hover:border-[var(--ink-black)]"
-                      }`}
-                    >
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-                        <p className="text-value font-bold text-[var(--ink-black)]">
-                          {product.title}
-                        </p>
-
-                        <div className="flex items-center gap-3">
-                          <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
-                            {product.fulfilment}
-                          </p>
-
-                          {isSelected && (
-                            <span className="spec shrink-0 bg-[var(--gorilla-green)] px-2 py-1 text-spec font-bold text-white">
-                              SELECTED
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <p className="max-w-2xl text-fine font-medium leading-6 text-[var(--ink-muted)]">
-                        {product.description}
-                      </p>
-
-                      {product.note && (
-                        // Not font-bold, deliberately. Everything on this
-                        // screen is 700, which flattens the hierarchy; this
-                        // line is where that starts being unwound.
-                        <p className="max-w-2xl text-fine text-[var(--ink-muted)]">
-                          {product.note}
-                        </p>
-                      )}
-                    </button>
-                  </div>
-                );
-              })}
+            {/* The same grid and the same card as the decorated pair above.
+                These were full-width bands, which read as a different KIND of
+                thing — but by 7 Sep they were not: signs and banners pay online
+                exactly as stickers do, and the only thing the band shape still
+                said was "these two are laid out differently". The segment
+                label above keeps the true distinction (large format is a
+                different department); the cards stop pretending to a second
+                one. */}
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              {productCategories
+                .filter((product) => product.segment === "large-format")
+                .map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    isSelected={selectedProductId === product.id}
+                    onSelect={selectProduct}
+                  />
+                ))}
+            </div>
           </div>
 
           {/* The "not sure what to choose" reassurance also sits beside the
@@ -3913,6 +3818,14 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   onTogglePrintLocation={togglePrintLocation}
                   onSelectInkColors={(inkColors) =>
                     updateApparelQuote({ inkColors })
+                  }
+                  onSelectLocationInkColors={(location, inkColors) =>
+                    updateApparelQuote({
+                      inkColorsByLocation: {
+                        ...apparelQuote.inkColorsByLocation,
+                        [location]: inkColors,
+                      },
+                    })
                   }
                   onUpdateSpecialOrder={(updates) =>
                     updateApparelQuote(updates)

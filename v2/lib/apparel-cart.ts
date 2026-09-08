@@ -1,4 +1,4 @@
-import { getInkColorCount, priceApparelRun } from "./apparel-pricing";
+import { locationColorCounts, priceApparelRun } from "./apparel-pricing";
 import { apparelPricingConfig, garmentMarkupKey } from "./apparel-pricing-config";
 import { applyRush } from "./rush";
 import type { TurnaroundLane } from "./turnaround";
@@ -79,6 +79,8 @@ export type ApparelCartLine = {
 export type ApparelCartPrintSpec = {
   printLocations: string[];
   inkColors: string;
+  /** Per-location ink overrides; a location without one uses `inkColors`. */
+  inkColorsByLocation?: Record<string, string>;
   hasUnderbase: boolean;
 };
 
@@ -104,6 +106,8 @@ export type ApparelCartQuote = {
   /** Across the whole quote. Meaningless per garment; useful as a headline. */
   unitPrice: number;
   inkColorCount: number;
+  /** One entry per location — what each placement is charged for. */
+  colorsByLocation: number[];
   locationCount: number;
   /** See ApparelPricingResult — the count the print charge was computed at. */
   printTierQuantity: number;
@@ -147,6 +151,7 @@ export function quoteApparelCart(
       total: 0,
       unitPrice: 0,
       inkColorCount: 0,
+      colorsByLocation: [],
       locationCount: 0,
       printTierQuantity: 0,
     };
@@ -173,10 +178,15 @@ export function quoteApparelCart(
       : line.garmentUnitPrice ?? 0;
 
   const locationCount = Math.max(1, print.printLocations.length);
-  const colors = Math.min(
-    getInkColorCount(print.inkColors) + (print.hasUnderbase ? 1 : 0),
-    apparelPricingConfig.maxColorsPerLocation
-  );
+  // One count per placement — see locationColorCounts. A spec with no
+  // per-location settings resolves to the same number on every location,
+  // which is exactly what this used to compute.
+  const colorsByLocation = locationColorCounts({
+    printLocations: print.printLocations,
+    inkColors: print.inkColors,
+    inkColorsByLocation: print.inkColorsByLocation,
+    hasUnderbase: print.hasUnderbase,
+  });
 
   // THE CORE, shared with the single-garment engine: the tier is chosen
   // for the COMBINED count (20 tees and 20 hoodies is a 40-piece run, which
@@ -184,8 +194,7 @@ export function quoteApparelCart(
   // blank is then charged at that tier's markup.
   const run = priceApparelRun({
     quantity,
-    locationCount,
-    colors,
+    colorsByLocation,
     garmentTotalAt: (markup) =>
       usable.reduce((sum, line) => sum + unitAt(line, markup) * line.quantity, 0),
   });
@@ -215,7 +224,8 @@ export function quoteApparelCart(
     setupTotal: round2(setupTotal),
     total,
     unitPrice: quantity > 0 ? round2(total / quantity) : 0,
-    inkColorCount: colors,
+    inkColorCount: Math.max(...colorsByLocation),
+    colorsByLocation,
     locationCount,
     printTierQuantity: run.printTierQuantity,
   };

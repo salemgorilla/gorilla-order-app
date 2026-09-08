@@ -1,5 +1,6 @@
 "use client";
 
+import { describeInkColors } from "../lib/apparel-pricing";
 import Header from "../components/Header";
 import KioskPickupCard from "../components/kiosk/KioskPickupCard";
 import { useKiosk } from "../components/kiosk/KioskProvider";
@@ -426,7 +427,7 @@ export default function QuoteConfirmationScreen({
                     </div>
                   ))}
                   <p className="border-t border-[var(--rule-faint)] pt-3 text-fine font-medium text-[var(--ink-muted)]">
-                    {apparelQuote.inkColors} • {apparelQuote.printLocations.join(", ")}
+                    {describeInkColors(apparelQuote)} • {apparelQuote.printLocations.join(", ")}
                   </p>
                 </div>
               ) : isApparelSubmitted ? (
@@ -437,7 +438,7 @@ export default function QuoteConfirmationScreen({
                   </p>
                   <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
                     {selectedSsColor?.colorName || apparelQuote.garmentColor} •{" "}
-                    {apparelQuote.inkColors}
+                    {describeInkColors(apparelQuote)}
                   </p>
                   <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
                     {apparelQuote.printLocations.join(", ")}

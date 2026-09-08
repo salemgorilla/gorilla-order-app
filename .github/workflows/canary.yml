@@ -13,6 +13,10 @@
 #   2. /api/printavo-test says the shop's Printavo credentials still work
 #   3. /api/ss-catalog still serves real garments (the check that would
 #      have caught the 401 in one day instead of seven)
+#   4. /api/artwork-upload can still reach the blob store — a credential
+#      like any other, and it rotted silently for a week (1 Sep: "This
+#      store does not exist" on a real customer's upload, while the
+#      endpoint reported itself configured)
 name: Production canary
 
 on:
@@ -72,5 +76,31 @@ jobs:
                 process.exit(1);
               }
               console.log(`S&S catalog alive: ${products.length} products, ${colors} colors`);
+            });
+          '
+
+      - name: The artwork blob store still answers
+        run: |
+          # NOT a variable check. The endpoint reported configured:true for a
+          # week while every direct upload failed, because it only asked
+          # whether BLOB_READ_WRITE_TOKEN was set — and the store that token
+          # named had been deleted. The browser reads this answer to decide
+          # whether to advertise a 100 MB or a 3.5 MB ceiling, so a wrong yes
+          # is the app promising a limit it cannot honour.
+          json=$(curl -sS --max-time 30 https://labs.gorillasalem.com/api/artwork-upload)
+          echo "$json"
+          echo "$json" | node -e '
+            let raw = "";
+            process.stdin.on("data", (c) => (raw += c));
+            process.stdin.on("end", () => {
+              const r = JSON.parse(raw);
+              if (r.reachable !== true) {
+                console.error(
+                  "::error::The artwork blob store is unreachable — customers are on the 3.5 MB inline limit and larger files are collected by email. " +
+                    (r.detail?.needed ?? "no detail")
+                );
+                process.exit(1);
+              }
+              console.log("Blob store reachable, build " + r.build);
             });
           '

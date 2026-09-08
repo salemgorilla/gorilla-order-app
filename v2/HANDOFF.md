@@ -23,11 +23,14 @@ the build stamp for why it must never be a typed-in string again.
 Working and verified:
 
 - **One $5,000 self-checkout ceiling, for stickers as well as signs** —
-  2026-09-07, Gabe. The morning's $1,500 ceiling covered signs and banners
-  only; stickers, the flow that has taken cards unattended the longest, had
-  no ceiling at all — a 10,000-sticker cart raised a live link for whatever
-  it came to. Gabe set one ceiling for everything that self-checks-out, at
-  $5,000. `SELF_CHECKOUT_CEILING` in lib/auto-bill.ts replaces
+  2026-09-07, Gabe: "I would offer this for certain orders under $5,000" —
+  bigger or more complicated than that is quoted in Printavo by hand. So the
+  number is where the self-serve product stops, not only a safety cap. The
+  morning's $1,500 ceiling covered signs and banners only; stickers, the flow
+  that has taken cards unattended the longest, had no ceiling at all — a
+  10,000-sticker cart raised a live link for whatever it came to.
+
+  `SELF_CHECKOUT_CEILING` in lib/auto-bill.ts replaces
   `SIGNS_AUTO_BILL_CEILING`, and BOTH gates read it — the sticker decision
   is now `decideStickersAutoBill()` beside the signs one, lifted out of the
   boolean in the route, so a refusal carries a reason and the shop email

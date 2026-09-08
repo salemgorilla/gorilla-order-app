@@ -43,12 +43,14 @@ here:
   being raised it would mean billing a number the browser supplied. No
   reprice, no link.
 - **One $5,000 ceiling, `SELF_CHECKOUT_CEILING`, read by BOTH gates** (Gabe,
-  same day — it replaced a $1,500 signs-only ceiling set that morning, and
-  gave stickers a ceiling for the first time). Above it the quote, the shop
-  email and the Printavo record all still go out — only the payment link is
-  withheld, the shop email says "NOT charged — over the ceiling", and the shop
-  invoices by hand. It is a blast radius, not a pricing rule. Never give
-  either flow its own copy of the number.
+  same day: "I would offer this for certain orders under $5,000" — bigger or
+  more complicated is quoted in Printavo by hand, so the number is where the
+  self-serve product stops. It replaced a $1,500 signs-only ceiling set that
+  morning, and gave stickers a ceiling for the first time). Above it the
+  quote, the shop email and the Printavo record all still go out — only the
+  payment link is withheld, the shop email says "NOT charged — over the
+  ceiling", and the shop invoices by hand. Never give either flow its own
+  copy of the number.
 
 `buildQuotePayload` must keep synthesising a `product` object. A payload
 without it returns false from `isStickerOrder()` and stickers silently stop

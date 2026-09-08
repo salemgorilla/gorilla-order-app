@@ -42,8 +42,12 @@
  * anyone has looked at it.
  *
  * It started the same day as a $1,500 ceiling on signs alone. Later that day
- * Gabe set ONE ceiling for everything that self-checks-out, at $5,000, and
- * stickers came under it for the first time — until then a sticker cart of
+ * Gabe set one line for the whole self-serve app: "I would offer this for
+ * certain orders under $5,000." Bigger or more complicated than that is
+ * quoted in Printavo by hand — so this is not only a safety cap, it is where
+ * the self-serve product stops and the shop's own quoting begins.
+ *
+ * Stickers came under it for the first time; until then a sticker cart of
  * any size raised a live link. Both gates read the same constant below, so
  * the number cannot drift between them; a ceiling that only one flow honours
  * is a ceiling with a hole in it.

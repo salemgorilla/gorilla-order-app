@@ -1,3 +1,5 @@
+import { DECAL_SHIPPING_PRICE } from "./pricing";
+
 export type ProductCategory = {
   id: string;
   title: string;
@@ -17,6 +19,32 @@ export type ProductCategory = {
    * card component is a rule nobody can find later.
    */
   segment: "decorated" | "large-format";
+  /**
+   * How this product reaches the customer.
+   *
+   * ── WHY EVERY PRODUCT HAS ONE ─────────────────────────────────────────
+   * Gabe, 2026-09-07: "We offer shipping on all products, so you can
+   * include that detail for all 4 buttons." Required rather than optional
+   * for exactly that reason — a product that could omit it is a product
+   * whose card would silently stop saying the shop ships.
+   *
+   * ── WHY THE FOUR DO NOT SAY THE SAME THING ────────────────────────────
+   * The offer is universal; the TERMS are not, and the card is where a
+   * customer decides what they are committing to:
+   *
+   *   stickers   priced in the total, flat, from lib/pricing
+   *   signs      offered in the flow, quoted separately (never priced)
+   *   banners    same as signs
+   *   apparel    no delivery step exists — it is settled when the shop
+   *              confirms the estimate, which is what that card must say
+   *              rather than implying a choice the flow never offers
+   *
+   * Two of them ARE identical, and that is fine: this is a spec line, not
+   * prose. The fulfilment line below is already word-for-word identical on
+   * three cards and reads as consistency, because a fact repeated is not
+   * the same defect as an explanation repeated.
+   */
+  shipping: string;
   /**
    * `request` is selectable but carries no online price — the flow collects
    * enough to quote it by hand. Apparel sat on `coming-soon` (a disabled
@@ -64,6 +92,11 @@ export const productCategories: ProductCategory[] = [
       "Die-cut stickers, logo stickers, product labels, and custom vinyl stickers.",
     segment: "decorated",
     status: "active",
+    // The one flow that PRICES delivery, so the card can name the figure.
+    // Interpolated from lib/pricing rather than typed: the hero's terms
+    // chips learned the same lesson, and a card quoting a stale postage
+    // rate is a card quoting a wrong price.
+    shipping: `Ships nationwide for $${DECAL_SHIPPING_PRICE} · free local pickup`,
     fulfilment: "Instant price · pay online",
   },
   {
@@ -94,6 +127,16 @@ export const productCategories: ProductCategory[] = [
      * still in the tree and page.tsx routes on the status.
      */
     status: "active",
+    /**
+     * Deliberately not "choose shipping at checkout": the apparel flow has
+     * NO delivery step, so an order defaults to pickup and a customer who
+     * wants 48 shirts shipped has no box to say so in. Promising a choice
+     * the flow never offers is the defect; saying it is settled when the
+     * shop confirms the estimate is both true and already how that flow
+     * works. Flagged to Gabe on 2026-09-07 — if he wants the choice in the
+     * form, it is the SignsDelivery pattern and this line changes with it.
+     */
+    shipping: "Ships nationwide · delivery confirmed with your estimate",
     fulfilment: "Instant estimate · we confirm, then invoice",
   },
   /**
@@ -118,7 +161,7 @@ export const productCategories: ProductCategory[] = [
     // says so, and so does the confirmation. Stated on the card too, because
     // a customer choosing between products should know before they invest
     // five steps, not at the end.
-    note: "Pay online. Delivery, if you need it, is quoted separately.",
+    shipping: "Ships nationwide · delivery quoted separately",
     /**
      * Pays online, same as stickers — Gabe, 2026-09-07: "All 3 should be
      * instant price - pay online."
@@ -139,8 +182,9 @@ export const productCategories: ProductCategory[] = [
       "Yard signs, rigid signs, posters and window graphics.",
     segment: "large-format",
     status: "active",
-    // No note: the delivery caveat is explained once for the segment, on the
-    // card above. The same sentence twice in adjacent cards reads as a bug.
+    // Word for word the banner's terms, because they ARE the banner's terms
+    // — same department, same freight. See `shipping` on the type.
+    shipping: "Ships nationwide · delivery quoted separately",
     fulfilment: "Instant price · pay online",
   },
 ];

@@ -22,6 +22,38 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **Every product card says how it ships** — 2026-09-07, Gabe: "We offer
+  shipping on all products, so you can include that detail for all 4
+  buttons." `shipping` is now a REQUIRED field on ProductCategory, in a
+  fixed slot above the fulfilment line, so a new product cannot ship
+  without saying how.
+
+  The offer is universal; the TERMS are not, and the card is where somebody
+  decides what they are committing to. Stickers price delivery in the total
+  ($12 flat, interpolated from DECAL_SHIPPING_PRICE — never typed, so a
+  rate change cannot leave a stale figure on the card). Signs and banners
+  offer it in the flow and quote it separately; neither engine ever puts a
+  shipping figure on the total, and the test asserts their lines carry no
+  "$". Those two are word-for-word identical on purpose: a spec line
+  repeated is not the same defect as an explanation repeated, and the
+  fulfilment line is already identical on three cards.
+
+  **APPAREL HAS NO DELIVERY STEP AT ALL** — this is what the request
+  surfaced. Stickers get one in DecalBuilder, signs in SignsDelivery,
+  apparel gets none, so an apparel order silently defaults to Pickup and a
+  customer wanting 48 shirts shipped has no box to say so in. The card
+  therefore says delivery is "confirmed with your estimate", which is true
+  and is how that flow already works, rather than promising a choice the
+  form never offers. Flagged to Gabe; if he wants the choice in the form it
+  is the SignsDelivery pattern and the card's line changes with it.
+
+  `note` is gone — its only use was the banner's delivery caveat, which
+  became `shipping`. The old "band explains its caveat once per segment"
+  rule went with it: right while shipping was one department's caveat,
+  wrong once the shop ships everything. Measured in Chromium at 1300 and
+  390: four identical widths, status line 21px above the bottom on all
+  four. 1,901 tests, smoke 28/28, audit 49/49.
+
 - **The four product cards are one component** — 2026-09-07, Gabe: "Make
   the 'INSTANT PRICE · PAY ONLINE' consistent colour and placement across
   all options. Also, make the format similar to keep them looking uniform."

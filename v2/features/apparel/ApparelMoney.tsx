@@ -26,6 +26,21 @@
  * sit side by side, same step, same weight, each under its own label, and
  * the reader takes whichever one they came for.
  *
+ * ── A CART GETS ONE FIGURE PER GARMENT ───────────────────────────────────
+ * Gabe, 2026-09-09: "If there are two different items in the print run, they
+ * each need the cost per item shown separately."
+ *
+ * The quote's `unitPrice` is total ÷ pieces — a weighted average. On 24 tees
+ * and 12 hoodies it is $16.12, and every tee costs $10.43 while every hoodie
+ * costs $27.50: a figure describing NEITHER garment, which a customer will
+ * quote back at the shop. The sticker cart and the signs cart were both
+ * fixed for this exact shape already.
+ *
+ * So when the garments differ, the blended each is not shown at all — each
+ * garment states its own, from lib/apparel-per-line.ts. When they do not
+ * differ (one garment, or two whose blanks cost the same) the single figure
+ * is the honest one and the list would be noise.
+ *
  * ── "EACH", NOT "PRICE" ───────────────────────────────────────────────────
  * Two constraints meet here. Apparel is an ESTIMATE, never a price — the
  * smoke test asserts the review card contains no "Price" — and "each" is
@@ -34,6 +49,11 @@
  * one that stays true when the cart holds hoodies as well as tees.
  */
 
+import {
+  apparelEachVaries,
+  type ApparelLineEach,
+} from "../../lib/apparel-per-line";
+
 type Props = {
   /** The whole run's estimate, tax-exempt for apparel. */
   total: number;
@@ -41,6 +61,12 @@ type Props = {
   unitPrice: number;
   /** Pieces across every garment on the quote. */
   quantity: number;
+  /**
+   * One entry per garment, from apparelLineEach(). Given, the block prints
+   * a figure per garment instead of the blended one — see the header. Omit
+   * it (or pass one line) and nothing changes.
+   */
+  lines?: ApparelLineEach[];
   /**
    * What the figures stand on: the customer's own sizes, or the assumed
    * mix. Rendered under the figures because the handoff's rule is that the
@@ -67,9 +93,14 @@ export default function ApparelMoney({
   total,
   unitPrice,
   quantity,
+  lines = [],
   basisNote,
   compact = false,
 }: Props) {
+  // Only when the garments actually cost different amounts — two lines of
+  // the same blank would print one figure twice.
+  const perGarment = apparelEachVaries(lines);
+
   return (
     <div
       className={
@@ -85,17 +116,51 @@ export default function ApparelMoney({
           in a column too narrow for it. Measured: the total right-aligned
           itself into the middle of a 280px card. */}
       <div className="@container">
-        <div className="flex flex-col gap-3 @sm:flex-row @sm:items-end @sm:justify-between @sm:gap-x-6">
+        {/* Bottom-aligned when both sides are one figure, so the two sit on
+            a line. TOP-aligned once the left side is a LIST — otherwise the
+            total floats down beside the last garment and reads as that
+            garment's total rather than the order's. */}
+        <div
+          className={`flex flex-col gap-3 @sm:flex-row @sm:justify-between @sm:gap-x-6 ${
+            perGarment ? "@sm:items-start" : "@sm:items-end"
+          }`}
+        >
           <div>
             <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
               Estimated each
             </p>
-            {/* The figure Gabe asked to see. text-head is 1.75rem — the
-                same step as the total beside it, and 2.3x the muted caption
-                this replaced. */}
-            <p className="mt-1 text-head font-bold tracking-display text-[var(--gorilla-green-dark)]">
-              {money(unitPrice)}
-            </p>
+
+            {perGarment ? (
+              /**
+               * One row per garment. The blended figure is NOT printed
+               * anywhere here: on a mixed cart it describes no garment in
+               * the order, and printing it beside the real ones would be
+               * offering the customer a number to misquote.
+               */
+              <ul className="mt-1 space-y-2">
+                {lines.map((line) => (
+                  <li key={line.id}>
+                    <p className="text-lede font-bold tracking-display text-[var(--gorilla-green-dark)]">
+                      {money(line.unitPrice)}
+                    </p>
+                    <p className="text-fine font-medium text-[var(--ink-muted)]">
+                      {line.quantity.toLocaleString()} ×{" "}
+                      <span className="font-bold text-[var(--ink-black)]">
+                        {line.garmentLabel}
+                      </span>
+                      {line.colorName ? ` / ${line.colorName}` : ""}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              /* The figure Gabe asked to see. text-head is 1.75rem — the
+                 same step as the total beside it, and 2.3x the muted
+                 caption this replaced. */
+              <p className="mt-1 text-head font-bold tracking-display text-[var(--gorilla-green-dark)]">
+                {money(unitPrice)}
+              </p>
+            )}
           </div>
 
           <div className="@sm:text-right">

@@ -45,6 +45,49 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **One figure per garment, not one average for the cart** — 2026-09-09,
+  Gabe: "I want the price per item to show for each item. If there are two
+  different items in the print run, they each need the cost per item shown
+  separately."
+
+  The quote's `unitPrice` is total ÷ pieces. On 24 tees and 12 hoodies that
+  is **$16.12 — and every tee costs $10.43 while every hoodie costs $27.50.**
+  A figure describing neither garment, on a screen a customer quotes back at
+  the shop. The sticker cart and the signs cart were both fixed for exactly
+  this shape already ("an average of things that do not average").
+
+  `lib/apparel-per-line.ts` gives each garment its own. When the figures
+  differ, the blended one is not printed anywhere — the block lists a figure
+  per garment instead; when they do not differ (one garment, or two whose
+  blanks cost the same) the single figure is honest and the list would be
+  noise. Same block on the summary, the review card and the confirmation,
+  derived ONCE in page.tsx so the three cannot disagree.
+
+  **THE BUG THIS SHIPPED WITH FOR AN HOUR, and how it was caught.** The
+  obvious formula for the shared part is `printUnitPrice + (setup + rush) ÷
+  pieces`. It is wrong: `printTotal` is `printUnitPrice × printTierQuantity`,
+  NOT × quantity. Never-pay-more charges a 36-piece run at the 48-piece rate
+  when that costs less — so the per-garment figures summed **$72.12 under
+  the total on screen** ($842.40 against $914.52). Every unit test passed;
+  the first real cart driven through a browser failed on the first try.
+
+  The shared part is now `(total − garments) ÷ pieces`, which is exhaustive
+  by construction: whatever the engine charged and did not put on a garment
+  is shared across the run, whatever it was and whatever gets added later.
+  Σ(each × count) = the total exactly, before display rounding. The fixture
+  that missed it now exercises the tier bump explicitly (two inks on a
+  coloured garment, so the underbase makes three, over 36 pieces), and the
+  apparel audit sums the on-screen figures against the payload total — the
+  check that would have caught it in the first place.
+
+  No per-line TOTAL is shown anywhere: the order has one total, from the
+  engine. A per-line total would be a column that does not quite add up,
+  which is worse than the problem being fixed.
+
+  Verified in Chromium at 1300px and 390px on a real tee + hoodie cart,
+  across the summary, review card and confirmation. 2,051 tests pass (14
+  new), tsc clean, eslint clean, smoke and apparel audit green.
+
 - **The per-piece figure, where a garment order is actually decided** —
   2026-09-09, Gabe: "For the apparel section, when the final cost and
   breakdown of the quote, the price per item does not appear. I think that

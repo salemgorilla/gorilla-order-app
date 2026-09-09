@@ -20,6 +20,7 @@ import {
 import { apparelLineSku, apparelSku, decalSku, signSku } from "../lib/sku";
 import { shouldListGarments } from "../lib/apparel-cart-lines";
 import ApparelMoney from "./apparel/ApparelMoney";
+import type { ApparelLineEach } from "../lib/apparel-per-line";
 
 type Props = {
   quoteConfirmation: QuoteConfirmation | null;
@@ -58,6 +59,12 @@ type Props = {
    * 20 hoodies — on a screen that, for apparel, is the customer's only
    * copy of what they sent.
    */
+  /**
+   * Each garment's own per-piece figure — apparelLineEach(). Handed down
+   * rather than derived here: one derivation, read by three surfaces, so
+   * they cannot disagree.
+   */
+  apparelEach?: ApparelLineEach[];
   garmentLines?: Array<{
     garmentLabel: string;
     colorName: string;
@@ -90,6 +97,7 @@ export default function QuoteConfirmationScreen({
   selectedGarmentLabel,
   selectedSsColor,
   catalogStyle,
+  apparelEach = [],
   garmentLines = [],
   apparelPricing,
   unitPrice,
@@ -607,6 +615,7 @@ export default function QuoteConfirmationScreen({
                         compact
                         total={apparelPricing.total}
                         unitPrice={apparelPricing.unitPrice}
+              lines={apparelEach}
                         quantity={runQuantity}
                         basisNote={
                           apparelEstimateBasis === "exact"

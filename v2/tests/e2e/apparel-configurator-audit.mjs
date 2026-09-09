@@ -525,11 +525,73 @@ try {
     await c.waitForTimeout(400);
     const cReview = await c.evaluate(() => document.body.innerText);
     check("cart: review lists the hoodie line", /12 × Classic Hoodie \/ Black/.test(cReview));
+
+    /**
+     * A FIGURE PER GARMENT, and the pair must differ.
+     *
+     * Gabe, 2026-09-09: "If there are two different items in the print run,
+     * they each need the cost per item shown separately." The quote's own
+     * unitPrice is a weighted average that describes neither garment — on
+     * 24 tees and 12 hoodies every tee is cheaper than it and every hoodie
+     * dearer.
+     */
+    /**
+     * Scoped to ONE money block, between its own heading and the run
+     * total. A loose sweep of the page matched the "Setup / Screens $75.00"
+     * row against the garments list under it and summed $3,840.96 on an
+     * $869.40 order — a test that fails for a reason that is not the bug.
+     */
+    const eachBlock = (() => {
+      const start = cReview.indexOf("ESTIMATED EACH");
+      if (start < 0) return "";
+      const end = cReview.indexOf("PIECES · TOTAL", start);
+      return cReview.slice(start, end < 0 ? start + 400 : end);
+    })();
+
+    const cardEach = [
+      ...eachBlock.matchAll(/\$([\d,]+\.\d{2})\s*\n+\s*(\d+) × ([^\n/]+)/g),
+    ].map((m) => ({
+      each: Number(m[1].replace(/,/g, "")),
+      quantity: Number(m[2]),
+      garment: m[3].trim(),
+    }));
+
+    check(
+      "cart: each garment states its own per-piece figure",
+      cardEach.length >= 2,
+      JSON.stringify(cardEach)
+    );
+    check(
+      "cart: the two figures are not the same blended average",
+      cardEach.length >= 2 && cardEach[0].each !== cardEach[1].each,
+      JSON.stringify(cardEach.map((e) => `${e.garment} $${e.each}`))
+    );
     await c.click('button:has-text("Request Quote")');
     await c.waitForTimeout(1500);
 
     const cOrder = JSON.parse(formField(cState.quoteRaw || "", "order") || "null");
     check("cart: payload captured", Boolean(cOrder));
+
+    if (cOrder && cardEach.length >= 2) {
+      /**
+       * THE CHECK A FIXTURE CANNOT DO. The per-garment figures are the
+       * order total minus the garments, spread over the pieces — so they
+       * must come back to the total the customer was shown.
+       *
+       * The first version of this feature derived the shared part as
+       * printUnitPrice + setup ÷ pieces, which is $72.12 short whenever
+       * never-pay-more charges a 36-piece run at the 48-piece rate. Every
+       * unit test passed; this is what caught it.
+       */
+      const summed = cardEach.reduce((t, e) => t + e.each * e.quantity, 0);
+      const pieces = cardEach.reduce((t, e) => t + e.quantity, 0);
+
+      check(
+        "cart: the per-garment figures come back to the order total",
+        Math.abs(summed - Number(cOrder.pricing?.total ?? 0)) <= pieces * 0.01,
+        `$${summed.toFixed(2)} vs $${cOrder.pricing?.total}`
+      );
+    }
     if (cOrder) {
       const lines = cOrder.pricing?.lines ?? [];
       check("cart: payload carries two garment lines", lines.length === 2, JSON.stringify(lines.map((l) => [l.garmentLabel, l.colorName, l.quantity])));

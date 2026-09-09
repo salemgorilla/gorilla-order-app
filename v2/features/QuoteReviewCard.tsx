@@ -20,6 +20,7 @@ import {
 } from "../lib/sku";
 import { shouldListGarments } from "../lib/apparel-cart-lines";
 import ApparelMoney from "./apparel/ApparelMoney";
+import type { ApparelLineEach } from "../lib/apparel-per-line";
 
 type Props = {
   isApparelSelected: boolean;
@@ -46,6 +47,12 @@ type Props = {
   selectedGarmentLabel: string;
   selectedSsColor: SsCatalogColor | null;
   /** Every garment in the apparel quote; see ApparelSummaryCard. */
+  /**
+   * Each garment's own per-piece figure — apparelLineEach(). Handed down
+   * rather than derived here: one derivation, read by three surfaces, so
+   * they cannot disagree.
+   */
+  apparelEach?: ApparelLineEach[];
   garmentLines?: Array<{
     garmentLabel: string;
     colorName: string;
@@ -93,6 +100,7 @@ export default function QuoteReviewCard({
   signsFeeTotal,
   selectedGarmentLabel,
   selectedSsColor,
+  apparelEach = [],
   garmentLines = [],
   catalogStyle,
   isReady,
@@ -371,6 +379,7 @@ export default function QuoteReviewCard({
                 compact
                 total={apparelPricing.total}
                 unitPrice={apparelPricing.unitPrice}
+              lines={apparelEach}
                 quantity={runQuantity}
               />
             )}

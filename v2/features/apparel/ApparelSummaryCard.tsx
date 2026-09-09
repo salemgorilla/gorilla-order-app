@@ -8,6 +8,7 @@ import { apparelPricingConfig } from "../../lib/apparel-pricing-config";
 import type { ArtworkAnalysis } from "../../lib/artwork";
 import { shouldListGarments } from "../../lib/apparel-cart-lines";
 import ApparelMoney from "./ApparelMoney";
+import type { ApparelLineEach } from "../../lib/apparel-per-line";
 
 type Props = {
   apparelQuote: ApparelQuote;
@@ -25,6 +26,12 @@ type Props = {
    * Product/Quantity/Color rows give way to a list, because "Quantity 36"
    * over "Color White" would be describing a cart as one shirt.
    */
+  /**
+   * Each garment's own per-piece figure — apparelLineEach(). Handed down
+   * rather than derived here: one derivation, read by three surfaces, so
+   * they cannot disagree.
+   */
+  apparelEach?: ApparelLineEach[];
   garmentLines?: Array<{
     garmentLabel: string;
     colorName: string;
@@ -53,6 +60,7 @@ export default function ApparelSummaryCard({
   apparelPricing,
   apparelEstimateBasis,
   artworkAnalysis,
+  apparelEach = [],
   garmentLines = [],
 }: Props) {
   // See shouldListGarments: not simply "more than one line" — a quote
@@ -227,6 +235,7 @@ export default function ApparelSummaryCard({
               compact
               total={apparelPricing.total}
               unitPrice={apparelPricing.unitPrice}
+              lines={apparelEach}
               quantity={runQuantity}
             />
           </div>

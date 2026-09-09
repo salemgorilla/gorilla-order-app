@@ -11,13 +11,19 @@
  * read on an ordinary Tuesday. The shop email is read on every order, and
  * it is where the claim is made. So the row makes the claim honest.
  *
- * ── WHY THE BOX IS NOT SIMPLY HIDDEN ─────────────────────────────────────
- * The obvious alternative — no hook, no checkbox — would destroy something
- * this repo keeps on purpose. config-health.ts, on the same failure:
- * "Consent is recorded, so the list can be backfilled from past quote
- * emails." Hiding the box throws that away, and it is a marketing and
- * consent decision rather than a defect. Left for Gabe; recorded in
- * HANDOFF.md rather than decided here.
+ * ── THE BOX IS NOT HIDDEN, AND THAT IS SETTLED ───────────────────────────
+ * Gabe, 2026-09-09: "Don't hide the box."
+ *
+ * The obvious alternative — no hook, no checkbox — was asked for and was
+ * declined, because it destroys something this repo keeps on purpose.
+ * config-health.ts, on the same failure: "Consent is recorded, so the list
+ * can be backfilled from past quote emails." Hiding the box throws that
+ * away; asking and saying so does not.
+ *
+ * So this row is the whole fix, and it has to keep working. A future
+ * session that reads "nobody is added to any list" and reaches for the
+ * obvious remedy would be undoing a decision the shop has already made —
+ * the test below is here to be the thing it trips over.
  *
  * ── UNDEFINED ASSERTS NOTHING ────────────────────────────────────────────
  * `false` is the only value that changes a rendering. A caller that does
@@ -82,6 +88,20 @@ describe("the shop email tells the truth about the list", () => {
         buildCustomerLines({ customer: optedIn, newsletterConfigured: true })
       )
     );
+  });
+
+  it("the box is still asked for — hiding it was declined, not deferred", () => {
+    // Gabe, 2026-09-09: "Don't hide the box." The consent question is
+    // rendered by CustomerForm unconditionally and takes no configuration
+    // flag, so there is nothing that CAN suppress it. If that ever changes,
+    // this is the assertion that says the change was not asked for.
+    const form = readFileSync(
+      new URL("../components/CustomerForm.tsx", import.meta.url),
+      "utf8"
+    );
+
+    assert.match(form, /Email me occasional Gorilla Salem news and offers/);
+    assert.doesNotMatch(form, /newsletterConfigured|newsletterHook/);
   });
 
   it("a customer who declined gets no warning about a list they are not on", () => {

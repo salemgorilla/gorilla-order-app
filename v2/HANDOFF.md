@@ -45,6 +45,55 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **The per-piece figure, where a garment order is actually decided** —
+  2026-09-09, Gabe: "For the apparel section, when the final cost and
+  breakdown of the quote, the price per item does not appear. I think that
+  should be very noticeable and highlighted."
+
+  He was right twice. On the REVIEW card — the screen headed "Check
+  everything before submitting" — the per-piece figure **was not there at
+  all**; it showed one row, `Estimate $523.32`. And where it did appear (the
+  summary panel, the confirmation) it was `text-fine` muted furniture under
+  a total four times its size, in the same weight as "Needed By".
+
+  Backwards for this product. A team order is negotiated per shirt: "what's
+  it each?" is the question every customer asks, and it is the number they
+  carry to the next quote. The total is what they pay; the each is what they
+  DECIDE on.
+
+  `features/apparel/ApparelMoney.tsx` is one block, mounted by all three
+  surfaces, showing both figures as PEERS at `text-head` — 28px against the
+  12px caption it replaced. Deliberately not larger than the total: a
+  customer who reads $16.02 and remembers $16.02 on a $384.52 order has been
+  misled by a type scale just as surely.
+
+  Details worth keeping:
+
+  - **"Estimated each", not "price".** Apparel is an estimate — the smoke
+    test asserts the review card contains no "Price" — and "each" is already
+    the shop's word on the sticker bar and the signs summary. It also stays
+    true when the cart holds hoodies as well as tees.
+  - **The count is printed beside the total** ("24 PIECES · TOTAL"). An each
+    with no divisor beside it is a figure the reader has to take on trust.
+  - **A container query, not a viewport one.** The block sits in a
+    full-width review card and a third-width confirmation column at the same
+    viewport, so `sm:` was true in both and the total right-aligned itself
+    into the middle of a 280px card. `@container` / `@sm:` fixes it.
+  - Thousands separators, matching the estimate bar: `$7,027.00`.
+  - The summary card's "First garment priced from your sizes; added garments
+    use an assumed size mix" is gone — true only before #134 gave added
+    garments a size grid.
+
+  The smoke and the audit both asked only for "an estimated dollar figure",
+  which a lone total satisfied — which is how this shipped with no per-piece
+  figure at all. They now check for both, and the audit asserts
+  `each × pieces` comes back to the total so the screen cannot disagree with
+  itself.
+
+  Verified in Chromium at 1300px and 390px, on the summary, review and
+  confirmation, and on a 600-piece order ($11.71 each / $7,027.00) for
+  overflow. 2,037 tests pass, tsc clean, eslint clean, smoke and audit green.
+
 - **Signs got an escape hatch, eleven hours too late for Jake Pardee** —
   2026-09-08.
 

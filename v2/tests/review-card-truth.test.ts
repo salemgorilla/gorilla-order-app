@@ -102,9 +102,13 @@ describe("the shared footer artwork row is apparel's alone", () => {
 
 describe("a special order is quoted by hand on every customer surface", () => {
   test("the review card", () => {
+    // Shape changed on 9 Sep: the priced branch became <ApparelMoney>, which
+    // shows the per-piece figure the card never had (Gabe: "the price per
+    // item does not appear"). The TRUTH is unchanged and is what is asserted
+    // — a special order still reads "Quoted by hand" and never a figure.
     assert.match(
       card,
-      /apparelQuote\.specialOrder\s*\n?\s*\? "Quoted by hand"/
+      /apparelQuote\.specialOrder \? \([\s\S]{0,400}Quoted by hand/
     );
   });
 
@@ -129,8 +133,19 @@ describe("a special order is quoted by hand on every customer surface", () => {
 
   test("a PRICED apparel quote still shows its figure on all of them", () => {
     // The gate must not swallow the ordinary case.
-    assert.match(card, /`\$\$\{apparelPricing\.total\.toFixed\(2\)\}`/);
-    assert.match(confirmation, /apparelPricing\.total\.toFixed\(2\)/);
+    //
+    // The review card hands its figures to <ApparelMoney> rather than
+    // interpolating them, so what is pinned here is that the ordinary
+    // branch is fed the engine's total AND its per-piece figure — the one
+    // that was missing from this card entirely until 9 Sep.
+    for (const [name, source] of [
+      ["the review card", card],
+      ["the confirmation", confirmation],
+    ] as Array<[string, string]>) {
+      assert.match(source, /total=\{apparelPricing\.total\}/, name);
+      assert.match(source, /unitPrice=\{apparelPricing\.unitPrice\}/, name);
+    }
+
     assert.match(page, /Estimated Apparel Total: \$\$\{apparelPricing\.total\.toFixed\(2\)\}/);
   });
 });

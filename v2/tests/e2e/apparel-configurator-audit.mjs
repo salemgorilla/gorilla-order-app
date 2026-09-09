@@ -373,7 +373,23 @@ try {
   check("review names the color", review.includes("White"));
   check("review carries the size breakdown", review.includes("M-12, L-12"), review.slice(0, 300));
   check("review shows quantity 24", /Quantity\s*\n?\s*24/.test(review));
-  const reviewEstimate = review.match(/Estimate\s*\n?\s*\$([\d,]+\.\d{2})/);
+  /**
+   * The RUN TOTAL off the review card, which since 9 Sep prints it beside
+   * the per-piece figure rather than as a lone "Estimate" row — see
+   * features/apparel/ApparelMoney. Anchored to the "· TOTAL" label so it
+   * can never pick up the per-piece figure by accident and call a $21.81
+   * each a $523.32 total.
+   */
+  const reviewEstimate = review.match(
+    /PIECES · TOTAL\s*\n*\s*\$([\d,]+\.\d{2})/i
+  );
+  const reviewEach = review.match(/ESTIMATED EACH\s*\n*\s*\$([\d,]+\.\d{2})/i);
+
+  check(
+    "review shows the per-piece figure Gabe asked for",
+    Boolean(reviewEach),
+    review.slice(0, 200)
+  );
   await page.screenshot({ path: S + "/audit-review.png", fullPage: true });
 
   // Submit
@@ -426,9 +442,23 @@ try {
     if (reviewEstimate) {
       check(
         "review estimate equals the payload total",
-        Math.abs(Number(reviewEstimate[1].replace(",", "")) - (order.pricing?.total ?? -1)) < 0.005,
+        Math.abs(Number(reviewEstimate[1].replace(/,/g, "")) - (order.pricing?.total ?? -1)) < 0.005,
         `review ${reviewEstimate[1]} vs payload ${order.pricing?.total}`
       );
+
+      // The per-piece figure is the total over the run, and the screen must
+      // not be able to disagree with itself about which run.
+      if (reviewEach) {
+        const each = Number(reviewEach[1].replace(/,/g, ""));
+        const total = Number(reviewEstimate[1].replace(/,/g, ""));
+        const pieces = Number(order.product?.quantity ?? 0);
+
+        check(
+          "review each × pieces comes back to the review total",
+          pieces > 0 && Math.abs(each * pieces - total) <= pieces * 0.01,
+          `${each} × ${pieces} vs ${total}`
+        );
+      }
     } else {
       check("review estimate found", false, "no Estimate figure matched");
     }

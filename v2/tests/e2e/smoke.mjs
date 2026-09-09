@@ -284,10 +284,22 @@ try {
 
     const review = await reviewText(page);
     check("apparel: review shows the chosen garment", review.includes("Basic Tee"));
+    /**
+     * BOTH figures, since 9 Sep. This asked only for "an estimated dollar
+     * figure" and the card answered with a total — which is how it went
+     * live with no per-piece figure at all on the screen headed "Check
+     * everything before submitting", for the one product customers
+     * negotiate per shirt (Gabe: "the price per item does not appear").
+     */
     check(
-      "apparel: review shows an estimated dollar figure",
-      /Estimate\s*\n?\s*\$\d+\.\d{2}/.test(review),
-      JSON.stringify(review.slice(0, 160))
+      "apparel: review shows the per-piece figure",
+      /ESTIMATED EACH\s*\n*\s*\$[\d,]+\.\d{2}/i.test(review),
+      JSON.stringify(review.slice(0, 200))
+    );
+    check(
+      "apparel: review shows the run total beside it",
+      /\d+ PIECES · TOTAL\s*\n*\s*\$[\d,]+\.\d{2}/i.test(review),
+      JSON.stringify(review.slice(0, 200))
     );
     check("apparel: review does not call it a price", !/\bPrice\b/.test(review));
 

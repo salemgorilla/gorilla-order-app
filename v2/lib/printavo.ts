@@ -1986,6 +1986,13 @@ export type ReconcileQuoteResult = {
   quoteNumber: string;
   visualId?: string;
   id?: string;
+  /**
+   * What Printavo says this record IS — "Quote" or "Invoice". Read from
+   * __typename on the search hit, so it is a fact rather than an assumption.
+   * The detail query below only reads `quote(id:)`, and an order that has
+   * been billed may no longer be one.
+   */
+  kind?: string;
   total?: number;
   amountOutstanding?: number;
   customerNote?: string;
@@ -2024,6 +2031,7 @@ export async function fetchQuoteForReconciliation(
       `query GorillaReconcileSearch($q: String!, $first: Int!) {
          orders(query: $q, first: $first) {
            nodes {
+             __typename
              ... on Quote    { id visualId nickname }
              ... on Invoice  { id visualId nickname }
            }
@@ -2091,6 +2099,37 @@ export async function fetchQuoteForReconciliation(
         error instanceof Error ? error.message : "Unknown Printavo error.";
     }
 
+    const kind = str(match.__typename);
+
+    /**
+     * THE SILENT-NULL CASE.
+     *
+     * `quote(id:)` is the only detail query here, and Printavo returns null
+     * rather than an error when the id belongs to something that is not a
+     * Quote. A billed order may well be an Invoice by the time anyone
+     * reconciles it — which is exactly when this runs, since AGENTS.md asks
+     * for a comparison against the Printavo INVOICE.
+     *
+     * Without this, that case produced no error and no figures, so every
+     * check downstream reported UNKNOWN and invented its own reason: the
+     * headline one said the customer note carried no total line, about a
+     * record nobody had read. A harness that describes its own blind spot
+     * as a fact about the order is worse than one that stays quiet.
+     */
+    if (!detail && !detailError) {
+      detailError =
+        kind && kind !== "Quote"
+          ? `Printavo says ${wanted} is ${
+              /^[AEIOU]/.test(kind) ? "an" : "a"
+            } ${kind}, and the detail query reads quote(id:) only — so no ` +
+            "figures came back. Nothing below was actually compared. Run " +
+            "again with --raw to capture the shape, then teach the query to " +
+            "read this record type."
+          : "The detail query returned no record, and Printavo reported no " +
+            "error. Nothing below was actually compared. Run again with " +
+            "--raw and settle the shape.";
+    }
+
     const groups =
       ((detail?.lineItemGroups as AnyRecord)?.nodes as AnyRecord[]) || null;
 
@@ -2118,6 +2157,7 @@ export async function fetchQuoteForReconciliation(
       quoteNumber: wanted,
       id: str(match.id),
       visualId: str(match.visualId),
+      kind: kind || undefined,
       total: detail?.total !== undefined ? num(detail.total) : undefined,
       amountOutstanding:
         detail?.amountOutstanding !== undefined

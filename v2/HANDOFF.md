@@ -45,6 +45,35 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **The funnel, for the people who never submit** — 2026-09-09,
+  `lib/analytics.ts` + `<Analytics />` in the root layout (#143).
+
+  The submission log answers everything about the people who pressed the
+  button and nothing about the people who did not: this app is entirely
+  client-side until submit, so somebody can configure a run, read an
+  estimate and close the tab without the server hearing a word. Five
+  events close that: `product_selected`, `step_reached`, `estimate_shown`,
+  `submit_ok`, `upload_failed`.
+
+  **IT SHIPS DARK.** Vercel Web Analytics is a per-project toggle in the
+  dashboard. Until Gabe turns it on the script is not served, `window.va`
+  is undefined and every call is a no-op — no data, no cookie, nothing to
+  consent to. It is on his list, not a code change.
+
+  No PII, and no exact money: totals go as a BAND
+  (`under_100` … `over_5000`, with the top boundary at the $4,999.99
+  deposit ceiling the app already thinks in), the quote number is
+  deliberately absent even though the server log carries it, and the
+  upload reason is CLASSIFIED onto five words rather than forwarded —
+  the SDK's own sentence has carried store ids and signed URLs.
+
+  **`estimate_shown` does not fire on the product step, and that is the
+  whole difficulty of the event.** Every flow arrives with a working
+  default configuration, so the first drive of this code fired
+  `estimate_shown flow=stickers band=under_100` on a page nobody had
+  touched — which would have made the metric a synonym for "opened the
+  page". It now counts a priced estimate the customer *reached*.
+
 - **One grep-able line per submission** — 2026-09-09, `lib/submission-log.ts`
   (#141). Every usage report this project has produced was reconstructed by
   reading the shop's inbox. Nobody could say how many people take the "not

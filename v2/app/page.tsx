@@ -146,6 +146,12 @@ import {
   remainingInlineBudget,
 } from "../lib/upload-limits";
 import { uploadArtworkToBlob } from "../lib/artwork-upload";
+import {
+  classifyUploadFailure,
+  estimateBand,
+  sendAnalyticsEvent,
+  type AnalyticsFlow,
+} from "../lib/analytics";
 import { renderStickerProof } from "../lib/sticker-proof";
 import {
   isRemovalFailure,
@@ -403,6 +409,23 @@ export default function Home() {
    * what tells them apart.
    */
   const isSignsSelected = selectedProductId === "signs" || isBannersSelected;
+
+  /**
+   * The four product ids, narrowed for lib/analytics.ts.
+   *
+   * Anything unrecognised falls back to "stickers" rather than being sent
+   * as itself: the event's `flow` is a closed set on purpose, and a new
+   * product id reaching a third party before anyone has decided it should
+   * is exactly what the closed set is for. A new flow adds itself here.
+   */
+  const analyticsFlow: AnalyticsFlow =
+    selectedProductId === "apparel"
+      ? "apparel"
+      : selectedProductId === "banners"
+      ? "banners"
+      : selectedProductId === "signs"
+      ? "signs"
+      : "stickers";
   const signsFamily: SignFamily = isBannersSelected ? "banners" : "signs";
 
   // Which turnaround floor this flow's need-by date sits on: stickers and
@@ -2247,6 +2270,12 @@ export default function Home() {
     setVisitedStepIds((seen) => (seen.includes(id) ? seen : [...seen, id]));
     setStepScrollToken((token) => token + 1);
 
+    // The funnel. Every arrival, including the ones going backwards — a
+    // customer who reaches Review and returns to Details is the shape worth
+    // seeing, and de-duplicating here would hide it. Never throws; see
+    // lib/analytics.ts.
+    sendAnalyticsEvent({ name: "step_reached", flow: analyticsFlow, step: id });
+
     // Prefill the contact boxes when the customer arrives at the step that
     // has them, once, and never over anything already typed.
     //
@@ -2337,6 +2366,50 @@ export default function Home() {
   } | null>(null);
 
   // Synced in an effect, not written during render: a ref mutated mid-render
+  /**
+   * "How many people reached an estimate?" — the question the server cannot
+   * answer, because nothing reaches the server until submit.
+   *
+   * ONCE PER FLOW per page life, not once per change. The estimate bar
+   * recomputes on every drag of the quantity slider; counting each one
+   * would report the fidgetiest customer as the whole funnel. Switching
+   * products is a different answer to the same question, so the ref is
+   * keyed by flow rather than being a single boolean.
+   *
+   * The BAND, never the figure — see lib/analytics.ts on why a per-cent
+   * total is close enough to unique to identify the order it came from.
+   */
+  const estimateSeenRef = useRef<Record<string, boolean>>({});
+
+  useEffect(() => {
+    /**
+     * NOT ON THE PRODUCT STEP, and this is the whole difficulty of the
+     * event. Every flow arrives with a working default configuration, so a
+     * browser that loads the page and touches nothing already has a
+     * priceable figure in the estimate bar — the first drive of this code
+     * fired `estimate_shown flow=stickers band=under_100` before the
+     * customer had done anything at all, which would have made the metric
+     * a synonym for "opened the page".
+     *
+     * So it counts a figure the customer reached: a priced estimate on a
+     * step past the picker. That also keeps it worth having next to
+     * `step_reached`, because the two differ exactly when somebody got to
+     * the configurator and the app could NOT price what they asked for.
+     */
+    if (currentStepId === "product") return;
+    if (!estimateBar.priceable) return;
+    if (!(estimateBar.total > 0)) return;
+    if (estimateSeenRef.current[analyticsFlow]) return;
+
+    estimateSeenRef.current[analyticsFlow] = true;
+
+    sendAnalyticsEvent({
+      name: "estimate_shown",
+      flow: analyticsFlow,
+      band: estimateBand(estimateBar.total),
+    });
+  }, [analyticsFlow, currentStepId, estimateBar.priceable, estimateBar.total]);
+
   // is not safe under concurrent rendering, where a render can be thrown away
   // after the write. No dependency array on purpose — this must hold the
   // latest values on every commit, and it is a single object assignment.
@@ -2550,6 +2623,16 @@ export default function Home() {
             id: part.id,
             name: part.file.name,
             reason: uploaded.failure,
+          });
+
+          // CLASSIFIED, never forwarded. The reason above is the SDK's own
+          // sentence and can carry a store id or a signed URL; the shop
+          // email and the server log want that, a third party must not have
+          // it. See classifyUploadFailure in lib/analytics.ts.
+          sendAnalyticsEvent({
+            name: "upload_failed",
+            flow: analyticsFlow,
+            reason: classifyUploadFailure(uploaded.failure),
           });
         }
 
@@ -2781,6 +2864,22 @@ export default function Home() {
 
       setSubmittedProductId(selectedProductId);
       setQuoteSubmitted(true);
+
+      /**
+       * Only on the branch that actually succeeded. The route answers 502
+       * when nothing reached the shop, and that path throws above rather
+       * than arriving here — so this counts deliveries, and the server's own
+       * QUOTE_SUBMITTED line (lib/submission-log.ts) counts attempts. The
+       * two are meant to differ; the gap between them is the failure rate.
+       */
+      sendAnalyticsEvent({
+        name: "submit_ok",
+        flow: analyticsFlow,
+        door:
+          apparelQuote.specialOrder || signsQuote.specialOrder
+            ? "special"
+            : "priced",
+      });
 
       /**
        * Remember the contact details for next time — contact fields only.
@@ -3492,6 +3591,20 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
   function selectProduct(product: ProductCategory) {
     setSelectedProductId(product.id);
     updateItem({ type: product.title });
+
+    // The id, never the title. "Yard signs, rigid signs & more" is copy that
+    // changes; `signs` is the thing being counted.
+    sendAnalyticsEvent({
+      name: "product_selected",
+      flow:
+        product.id === "apparel"
+          ? "apparel"
+          : product.id === "banners"
+          ? "banners"
+          : product.id === "signs"
+          ? "signs"
+          : "stickers",
+    });
 
     // Apparel is a hand-quote request, not the configurator. Pinning
     // specialOrder here routes it down the path that already exists for

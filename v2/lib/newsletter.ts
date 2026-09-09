@@ -41,6 +41,20 @@ export type NewsletterPayload = {
   consent: NewsletterConsent;
 };
 
+/**
+ * Is there anywhere for a sign-up to GO?
+ *
+ * The dangerous kind of "off": with no hook set, a customer ticks the box,
+ * the shop's email says "Opted in", the consent record is written, and
+ * nobody is ever added to the list. Nothing is broken anywhere; nothing is
+ * happening either. lib/config-health.ts reports it on the admin health
+ * page, which nobody reads on an ordinary Tuesday — so the shop email says
+ * it too, on the line where the claim is made.
+ */
+export function isNewsletterConfigured(): boolean {
+  return Boolean(process.env.ZAPIER_NEWSLETTER_HOOK_URL?.trim());
+}
+
 export async function subscribeToNewsletter(
   payload: NewsletterPayload
 ): Promise<NewsletterSubscribeResult> {

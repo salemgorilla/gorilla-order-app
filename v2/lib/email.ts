@@ -112,6 +112,21 @@ export function buildCustomerLines(input: {
    * fact said more precisely, and two Payment rows on one email is a bug.
    */
   paymentNote?: string | null;
+  /**
+   * Whether a sign-up has anywhere to go — isNewsletterConfigured().
+   *
+   * FALSE is the only value that changes anything, and it changes one row:
+   * "Opted in" becomes "Opted in — NOT added to any list". Undefined leaves
+   * the row exactly as it was, so a caller that does not know cannot
+   * accidentally assert either way.
+   *
+   * This is on the shop email rather than only on the admin health page
+   * because the health page is not read on an ordinary Tuesday, and this is
+   * the surface where the claim is made. A row that says a customer opted
+   * in, on a deployment where opting in does nothing, is the app telling
+   * the shop something untrue.
+   */
+  newsletterConfigured?: boolean;
 }) {
   const customer = input.customer;
 
@@ -148,9 +163,15 @@ export function buildCustomerLines(input: {
     line(
       "Newsletter",
       customer.newsletterOptIn === true
-        ? input.kiosk
-          ? "Opted in (box started empty — ticked deliberately)"
-          : "Opted in (box shipped pre-ticked)"
+        ? `${
+            input.kiosk
+              ? "Opted in (box started empty — ticked deliberately)"
+              : "Opted in (box shipped pre-ticked)"
+          }${
+            input.newsletterConfigured === false
+              ? " — NOT added to any list: no newsletter hook is configured on this deployment. The consent is recorded, so the list can be backfilled."
+              : ""
+          }`
         : input.kiosk
         ? "Not opted in (box started empty)"
         : "Declined"
@@ -236,6 +257,12 @@ export function buildQuoteEmail(input: {
    * lib/repricing-note.ts for why a console.error was not enough.
    */
   repricing?: RepricingNote | null;
+  /**
+   * Whether a newsletter sign-up has anywhere to go. The route passes
+   * isNewsletterConfigured(); see buildCustomerLines for why false is the
+   * only value that changes anything.
+   */
+  newsletterConfigured?: boolean;
 }) {
   const { quoteNumber, receivedAt, order, artworkAnalysis, attachmentInfo } =
     input;
@@ -857,6 +884,7 @@ export function buildQuoteEmail(input: {
       customer,
       kiosk: input.kiosk,
       paymentNote: input.paymentNote,
+      newsletterConfigured: input.newsletterConfigured,
     }),
     ``,
     apparel ? `APPAREL DETAILS` : signs ? `SIGNS DETAILS` : `STICKER DETAILS`,
@@ -906,6 +934,9 @@ export function buildQuoteEmail(input: {
     customerName: str(customer.customerName, "the customer"),
     customerEmail,
     kiosk: input.kiosk,
+    // Both renderings, or the consent record the shop reads and the one an
+    // archive keeps would describe the same customer differently.
+    newsletterConfigured: input.newsletterConfigured,
   });
 
   return { subject, text, html, replyTo: customerEmail || undefined };
@@ -1017,6 +1048,8 @@ function buildHtml(input: {
   customerName: string;
   customerEmail: string;
   kiosk?: { mode: "self" | "staff"; staffName: string } | null;
+  /** Passed straight through to buildCustomerLines — see its note. */
+  newsletterConfigured?: boolean;
 }) {
   // Shared with the plain-text rendering, so the consent record the shop reads
   // and the one an archive keeps can never describe the same customer
@@ -1081,6 +1114,8 @@ export async function sendQuoteEmail(input: {
   repricing?: RepricingNote | null;
   /** Whether this order self-bills — see shopPaymentNote in lib/auto-bill. */
   paymentNote?: string | null;
+  /** Forwarded to buildQuoteEmail — see buildCustomerLines. */
+  newsletterConfigured?: boolean;
 }): Promise<QuoteEmailResult> {
   const provider = getEmailProvider();
 

@@ -155,6 +155,27 @@ describe("both renderings, or the archive disagrees with the inbox", () => {
   });
 });
 
+describe("the customer is told too, not only the shop", () => {
+  const route = readFileSync(
+    new URL("../app/api/quote/route.ts", import.meta.url),
+    "utf8"
+  );
+
+  it("the confirmation email is given the same answer the consent record is", () => {
+    // The SAME `optedIn` const, not a second reading of the field. Two
+    // readings is two chances for one to drift, and the two that must never
+    // disagree are the record the shop keeps and the sentence the customer
+    // is sent. See tests/order-confirmation for what the email says.
+    assert.match(route, /const optedIn = customerRecord\.newsletterOptIn === true/);
+    assert.match(route, /newsletterOptIn: optedIn,/);
+    assert.equal(
+      route.split("customerRecord.newsletterOptIn").length - 1,
+      1,
+      "the field is read in more than one place"
+    );
+  });
+});
+
 describe("the route asks, and asks in one place", () => {
   const route = readFileSync(
     new URL("../app/api/quote/route.ts", import.meta.url),

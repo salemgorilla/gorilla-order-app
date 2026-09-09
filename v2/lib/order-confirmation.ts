@@ -29,6 +29,15 @@ import { formatBytes } from "./upload-limits";
  * for the opposite reason: it only fires on statuses a paid job reaches.
  * The two are meant to disagree.
  *
+ * ── THE ONE THING IT SAYS THAT IS NOT ABOUT THE ORDER ────────────────────
+ * The newsletter confirmation, when they left the box ticked. It is here
+ * rather than in a separate email for the reason the rest of this file
+ * exists: a second message about one order in one minute is how a shop
+ * teaches people to stop reading its email. It is also the only written
+ * record the CUSTOMER gets of a consent the shop has been recording since
+ * the box shipped pre-ticked — which is the wrong way round, since the
+ * record exists to protect them.
+ *
  * ── WHY IT SAYS SO LITTLE ─────────────────────────────────────────────────
  * Every order that reaches this function is one the shop has not finished
  * pricing, or one whose payment link did not generate. So the email promises
@@ -81,6 +90,20 @@ export function buildOrderConfirmation(input: {
    * the only note about it went to the shop.
    */
   droppedArtwork?: { name: string; size: number }[];
+  /**
+   * Did they leave the newsletter box ticked?
+   *
+   * Gabe, 2026-09-09: "Have the email say they have joined our newsletter
+   * and also add that we assure you we will not sell your info or spam you
+   * with marketing messages."
+   *
+   * Until now the only party told about the sign-up was the shop. The
+   * customer ticked a box — pre-ticked, at that — and got no written record
+   * of what they had agreed to, which is the wrong way round: the consent
+   * record exists to protect them, and they were the one person who could
+   * not see it.
+   */
+  newsletterOptIn?: boolean;
 }): OrderConfirmationDecision {
   const quoteNumber = String(input.quoteNumber || "").trim();
   const reorder = String(input.reorderUrl || "").trim();
@@ -136,6 +159,28 @@ export function buildOrderConfirmation(input: {
       )}, more than the form can carry. Reply to this email with the file and we'll add it to your quote. Nothing else is missing.`
   );
 
+  /**
+   * Two sentences, and the second one is the point.
+   *
+   * "You've joined" is the receipt. The assurance is what makes it worth
+   * sending: this shop asks for an email, a phone number and a company on
+   * every quote, and a customer who ticked a pre-ticked box has no idea
+   * what happens to any of it. Saying it in writing, unprompted, at the
+   * moment they hand it over, is the difference between a promise and an
+   * assumption — and it is a promise the shop can keep, because there is no
+   * mechanism in this app that shares a customer with anyone but Printavo.
+   *
+   * Only when they actually opted in. A customer who UNTICKED the box being
+   * told what our newsletter is like would read as not having been listened
+   * to, which is the one thing an opt-out has to get right.
+   */
+  const newsletterLines = input.newsletterOptIn
+    ? [
+        "You've also joined our newsletter — shop news, seasonal offers and new products.",
+        "We will not sell your information, and we won't spam you with marketing messages. You can unsubscribe from any email.",
+      ]
+    : [];
+
   const text = [
     greeting,
     "",
@@ -152,6 +197,11 @@ export function buildOrderConfirmation(input: {
     ...(reorder ? ["", `Need these again? ${reorder}`] : []),
     "",
     "Keep this email — the quote number is how we both find it.",
+    // AFTER the order, before the sign-off. The order is what they came
+    // for; the newsletter is a thing they agreed to on the way past, and
+    // putting it above the quote number would rank it as the more
+    // important of the two.
+    ...(newsletterLines.length ? ["", ...newsletterLines] : []),
     "",
     "Thanks,",
     "Gorilla Salem",
@@ -173,6 +223,12 @@ export function buildOrderConfirmation(input: {
         ]
       : []),
     `<p style="margin-top:20px">Keep this email &mdash; the quote number is how we both find it.</p>`,
+    ...(newsletterLines.length
+      ? [
+          `<p style="margin-top:20px">${escapeEmailHtml(newsletterLines[0])}<br>`,
+          `<span style="color:#6b6b6b">${escapeEmailHtml(newsletterLines[1])}</span></p>`,
+        ]
+      : []),
     `<p style="margin-top:20px">Thanks,<br>Gorilla Salem</p>`,
   ].join("\n");
 

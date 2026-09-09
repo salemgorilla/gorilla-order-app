@@ -1114,6 +1114,15 @@ export async function POST(request: Request) {
       paymentEmailSent: Boolean(checkout?.ready),
       printavoCreated: Boolean(printavo.created),
       kiosk: Boolean(kioskSession),
+      /**
+       * Their own copy of the consent the shop has been recording.
+       *
+       * THE SAME `optedIn` the consent record above is written from, not a
+       * second reading of the same field. Two readings is two chances for
+       * one of them to drift, and the two that must never disagree are the
+       * record the shop keeps and the sentence the customer is sent.
+       */
+      newsletterOptIn: optedIn,
       // Stickers only: they are the repeat product, and the only flow whose
       // whole spec a link can carry. reorderUrl returns null for anything
       // it cannot describe, and the email omits the line.

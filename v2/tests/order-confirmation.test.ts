@@ -151,3 +151,93 @@ describe("what it promises", () => {
     assert.doesNotMatch(decision.html, /<script>/);
   });
 });
+
+describe("their own copy of what they agreed to", () => {
+  /**
+   * Gabe, 2026-09-09: "Have the email say they have joined our newsletter
+   * and also add that we assure you we will not sell your info or spam you
+   * with marketing messages."
+   *
+   * Until this, the only party told about a sign-up was the shop. The
+   * customer ticked a box that arrived ALREADY TICKED and got no written
+   * record of what they had agreed to — the wrong way round, since the
+   * consent record exists to protect them and they were the one person who
+   * could not see it.
+   */
+  function textFor(newsletterOptIn: boolean | undefined) {
+    const decision = buildOrderConfirmation({ ...BASE, newsletterOptIn });
+    return decision.send ? decision.text : "";
+  }
+
+  it("says they joined, in the shop's own words", () => {
+    assert.match(textFor(true), /joined our newsletter/i);
+    assert.match(textFor(true), /shop news, seasonal offers and new products/i);
+  });
+
+  it("and gives the assurance unprompted", () => {
+    const text = textFor(true);
+
+    // The point of the pair. This shop asks for an email, a phone number
+    // and a company on every quote; a customer who ticked a pre-ticked box
+    // has no idea what happens to any of it. Saying it in writing, at the
+    // moment they hand it over, is the difference between a promise and an
+    // assumption.
+    assert.match(text, /will not sell your information/i);
+    assert.match(text, /won't spam you with marketing messages/i);
+    assert.match(text, /unsubscribe from any email/i);
+  });
+
+  it("says nothing to a customer who unticked the box", () => {
+    // Telling someone who opted OUT what our newsletter is like reads as
+    // not having been listened to, which is the one thing an opt-out has to
+    // get right.
+    const text = textFor(false);
+
+    assert.doesNotMatch(text, /newsletter/i);
+    assert.doesNotMatch(text, /unsubscribe/i);
+  });
+
+  it("and nothing when the caller did not say", () => {
+    // Every call site written before this existed. A missing answer must
+    // not become a claim that somebody signed up for something.
+    assert.equal(textFor(undefined), textFor(false));
+  });
+
+  it("the order comes first — the newsletter rides after the quote number", () => {
+    const text = textFor(true);
+
+    assert.ok(
+      text.indexOf("Quote number:") < text.indexOf("joined our newsletter"),
+      "the newsletter outranks the thing they actually came for"
+    );
+    assert.ok(
+      text.indexOf("joined our newsletter") < text.indexOf("Thanks,\nGorilla Salem"),
+      "it falls below the sign-off, where nobody reads it"
+    );
+  });
+
+  it("both renderings carry it", () => {
+    const decision = buildOrderConfirmation({ ...BASE, newsletterOptIn: true });
+    if (!decision.send) throw new Error("not sent");
+
+    assert.match(decision.html, /joined our newsletter/i);
+    assert.match(decision.html, /will not sell your information/i);
+    // Escaped like every other line in this email — the apostrophes in
+    // "You've" and "won't" go through escapeEmailHtml, not raw.
+    assert.doesNotMatch(decision.html, /<script/i);
+  });
+
+  it("it does not turn a skipped email into a sent one", () => {
+    // The send conditions are unchanged: this rides ALONG with a
+    // confirmation, it is never a reason to write to somebody. A customer
+    // whose payment request Printavo already emailed still gets one message
+    // about one order, not two.
+    const decision = buildOrderConfirmation({
+      ...BASE,
+      paymentEmailSent: true,
+      newsletterOptIn: true,
+    });
+
+    assert.equal(decision.send, false);
+  });
+});

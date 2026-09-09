@@ -88,6 +88,7 @@ import {
   STICKER_SETUP_FEE_ADDITIONAL,
 } from "../lib/pricing";
 import { quoteApparelCart, withApparelRush } from "../lib/apparel-cart";
+import { apparelLineEach } from "../lib/apparel-per-line";
 import {
   anyGarmentNeedsUnderbase,
   applyExtraLineUpdate,
@@ -725,6 +726,20 @@ export default function Home() {
     extraGarmentLines,
     ssProducts,
   ]);
+
+  /**
+   * Each garment's OWN per-piece figure.
+   *
+   * Derived once and read by the summary, the review card and the
+   * confirmation, so the three cannot disagree — the same discipline as
+   * signsPriceable. See lib/apparel-per-line.ts for why the quote's own
+   * `unitPrice` cannot be shown on a mixed cart: it is a weighted average
+   * that describes no garment in the order.
+   */
+  const apparelEach = useMemo(
+    () => apparelLineEach(apparelPricing),
+    [apparelPricing]
+  );
 
   /**
    * The basis across the WHOLE quote, which a cart can answer three ways:
@@ -3302,6 +3317,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         selectedSsColor={selectedSsColor}
         catalogStyle={chosenSsProduct?.catalogStyle}
         garmentLines={apparelPricing.lines}
+        apparelEach={apparelEach}
         apparelPricing={apparelPricing}
         unitPrice={unitPrice}
         copyStatus={copyStatus}
@@ -3461,6 +3477,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       apparelEstimateBasis={apparelEstimateBasis}
       artworkAnalysis={artworkAnalysis}
       garmentLines={apparelPricing.lines}
+      apparelEach={apparelEach}
     />
   ) : (
     <OrderSummary order={order} />
@@ -4373,6 +4390,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               apparelQuote={apparelQuote}
               apparelPricing={apparelPricing}
               garmentLines={apparelPricing.lines}
+              apparelEach={apparelEach}
               signsQuote={signsQuote}
               signsTotal={signsPriceable ? signsPricing.total : null}
               signsFeeTotal={signsPricing.feeTotal}

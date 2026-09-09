@@ -45,6 +45,41 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **One grep-able line per submission** — 2026-09-09, `lib/submission-log.ts`
+  (#141). Every usage report this project has produced was reconstructed by
+  reading the shop's inbox. Nobody could say how many people take the "not
+  listed here" door instead of the priced one, how often artwork falls back
+  to the email path, or how often a need-by date lands exactly on the floor
+  the picker would not let them go under.
+
+  `/api/quote` now logs ONE line per submission, same fields, same order,
+  no PII:
+
+  ```
+  QUOTE_SUBMITTED quote=GS-20260909-Q19VW flow=apparel door=priced qty=24
+  total=461.12 needBy=2026-12-08 earliest=2026-09-29 atFloor=false
+  artwork=form delivered=false billed=false deposit=false kiosk=false
+  ```
+
+  (one line in reality — wrapped here). Filter the Vercel log viewer on
+  `QUOTE_SUBMITTED` and `grep door=special | wc -l` is an answer rather
+  than a research project.
+
+  **Two things the first draft got wrong, both caught by driving real
+  quotes through the real route rather than by a test.** It was emitted
+  beside the success response — and produced NO lines at all, because with
+  neither email nor Printavo configured the route returns 502 UNDELIVERED
+  first. That is the submission most worth counting, so the line now sits
+  before that gate and carries `delivered=`. And every apparel line read
+  `why="not a signs order"`: the signs gate's answer borrowed by a flow
+  that has no gate. The reason now comes from the gate that applies, and
+  apparel carries none.
+
+  `atFloor` is documented as a PROXY, in the file, at length: it counts how
+  often the answer and the floor coincide, which is not proof anyone wanted
+  sooner. It is the number that says how often Stuart Hinton's question is
+  worth asking.
+
 - **One figure per garment, not one average for the cart** — 2026-09-09,
   Gabe: "I want the price per item to show for each item. If there are two
   different items in the print run, they each need the cost per item shown

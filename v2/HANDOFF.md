@@ -45,6 +45,32 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **The customer gets their own copy of the consent** — 2026-09-09 (#146).
+  Gabe: "Have the email say they have joined our newsletter and also add
+  that we assure you we will not sell your info or spam you with marketing
+  messages."
+
+  The confirmation email now ends, when they left the box ticked:
+
+  > You've also joined our newsletter — shop news, seasonal offers and new
+  > products.
+  > We will not sell your information, and we won't spam you with
+  > marketing messages. You can unsubscribe from any email.
+
+  Until this the only party told about a sign-up was the SHOP. The
+  customer ticked a box that arrived already ticked and got nothing in
+  writing — the wrong way round, since the consent record exists to
+  protect them and they were the one person who could not see it.
+
+  Nothing about who gets an email changed. It rides along with a
+  confirmation and is never a reason to send one, so the customers this
+  email already skips still do not get it: **a kiosk order** (they are at
+  the counter) and **any auto-billed sticker or sign order**, where
+  Printavo emails the payment request and ours would be the second message
+  about one order in one minute. Those customers see the confirmation
+  SCREEN and no newsletter wording at all — worth putting the same two
+  sentences on `QuoteConfirmation.tsx` if Gabe wants everyone covered.
+
 - **The shop email says when a sign-up went nowhere** — 2026-09-09 (#144).
   With no `ZAPIER_NEWSLETTER_HOOK_URL` set, a customer ticks the box, the
   shop email says "Opted in", the consent record is written, and nobody is

@@ -19,6 +19,7 @@ import {
   signSku,
 } from "../lib/sku";
 import { shouldListGarments } from "../lib/apparel-cart-lines";
+import ApparelMoney from "./apparel/ApparelMoney";
 
 type Props = {
   isApparelSelected: boolean;
@@ -103,6 +104,15 @@ export default function QuoteReviewCard({
    * estimate.
    */
   const listGarments = shouldListGarments(garmentLines, apparelQuote.quantity);
+
+  /**
+   * Pieces across the whole apparel quote — what the per-piece figure is
+   * divided by. Summed from the priced lines, because apparelQuote.quantity
+   * is the configured garment's count alone and a cart has more.
+   */
+  const runQuantity =
+    garmentLines.reduce((sum, line) => sum + line.quantity, 0) ||
+    apparelQuote.quantity;
 
   // Shared with the summary, the confirmation screen and the sticky bar.
   const stickerTotals = getStickerTotals(order.pricing);
@@ -335,14 +345,35 @@ export default function QuoteReviewCard({
                 screens over a garment the catalogue could not price — handed
                 the customer a number the shop never saw. Signs one branch up
                 already say "Quoted by hand". */}
-            <div className="flex justify-between gap-4">
-              <span>Estimate</span>
-              <span className="text-right font-bold text-[var(--gorilla-green)]">
-                {apparelQuote.specialOrder
-                  ? "Quoted by hand"
-                  : `$${apparelPricing.total.toFixed(2)}`}
-              </span>
-            </div>
+            {apparelQuote.specialOrder ? (
+              <div className="flex justify-between gap-4">
+                <span>Estimate</span>
+                <span className="text-right font-bold text-[var(--gorilla-green)]">
+                  Quoted by hand
+                </span>
+              </div>
+            ) : (
+              /**
+               * BOTH figures, and the per-piece one at last.
+               *
+               * This card showed a single "Estimate $523.32" row and nothing
+               * per shirt — on the screen headed "Check everything before
+               * submitting", for the one product customers negotiate per
+               * piece. Gabe, 9 Sep: "the price per item does not appear. I
+               * think that should be very noticeable and highlighted."
+               *
+               * The count is summed from the priced LINES, not read off
+               * apparelQuote.quantity: on a cart the latter is the FIRST
+               * garment's count, which is how the estimate bar once
+               * described a 42-piece order as "24 × Basic Tee".
+               */
+              <ApparelMoney
+                compact
+                total={apparelPricing.total}
+                unitPrice={apparelPricing.unitPrice}
+                quantity={runQuantity}
+              />
+            )}
           </>
         ) : (
           <>

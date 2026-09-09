@@ -19,6 +19,7 @@ import {
 } from "../lib/signs";
 import { apparelLineSku, apparelSku, decalSku, signSku } from "../lib/sku";
 import { shouldListGarments } from "../lib/apparel-cart-lines";
+import ApparelMoney from "./apparel/ApparelMoney";
 
 type Props = {
   quoteConfirmation: QuoteConfirmation | null;
@@ -105,6 +106,15 @@ export default function QuoteConfirmationScreen({
 
   /** List the garments, or describe the configured one — shouldListGarments. */
   const listGarments = shouldListGarments(garmentLines, apparelQuote.quantity);
+
+  /**
+   * Pieces across the whole apparel quote — the divisor behind the per-piece
+   * figure. Summed from the priced lines, because apparelQuote.quantity is
+   * the configured garment's count alone and a cart has more.
+   */
+  const runQuantity =
+    garmentLines.reduce((sum, line) => sum + line.quantity, 0) ||
+    apparelQuote.quantity;
 
   /**
    * Tax-inclusive, like every other surface — and like the sticker branch
@@ -586,20 +596,25 @@ export default function QuoteConfirmationScreen({
                   </>
                 ) : (
                   <>
-                    <p className="mt-2 text-head font-bold text-[var(--ink-black)]">
-                      ${apparelPricing.total.toFixed(2)}
-                    </p>
-                    <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
-                      ${apparelPricing.unitPrice.toFixed(2)} each estimated
-                    </p>
-                    {/* The assumption travels with the number past submit —
-                        this screen shows the figure, so it states the basis,
-                        exactly as the review screen did. */}
-                    <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
-                      {apparelEstimateBasis === "exact"
-                        ? "Priced from your sizes"
-                        : `${describeAssumedMix()} We'll confirm sizes with you.`}
-                    </p>
+                    {/* Both figures, as peers. The per-piece one was
+                        "$21.81 each estimated" in muted text a third the
+                        size of the total — on the record a customer keeps of
+                        an order they negotiate per shirt. Gabe, 9 Sep.
+                        The assumption travels with the number past submit,
+                        so ApparelMoney carries the basis note. */}
+                    <div className="mt-2">
+                      <ApparelMoney
+                        compact
+                        total={apparelPricing.total}
+                        unitPrice={apparelPricing.unitPrice}
+                        quantity={runQuantity}
+                        basisNote={
+                          apparelEstimateBasis === "exact"
+                            ? "Priced from your sizes"
+                            : `${describeAssumedMix()} We'll confirm sizes with you.`
+                        }
+                      />
+                    </div>
                     <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
                       Final pricing reviewed by Gorilla Salem
                     </p>

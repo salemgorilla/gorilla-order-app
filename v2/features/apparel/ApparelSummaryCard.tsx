@@ -7,6 +7,7 @@ import type { ApparelPricingResult } from "../../lib/apparel-pricing";
 import { apparelPricingConfig } from "../../lib/apparel-pricing-config";
 import type { ArtworkAnalysis } from "../../lib/artwork";
 import { shouldListGarments } from "../../lib/apparel-cart-lines";
+import ApparelMoney from "./ApparelMoney";
 
 type Props = {
   apparelQuote: ApparelQuote;
@@ -58,7 +59,9 @@ export default function ApparelSummaryCard({
   // whose only priced garment is an ADDED one has to list it, or the card
   // describes the configured garment nobody ordered.
   const isCart = shouldListGarments(garmentLines, apparelQuote.quantity);
+
   // The run: every garment on a cart, the configurator's count otherwise.
+  // Also the divisor behind the per-piece figure in ApparelMoney below.
   const runQuantity = isCart
     ? garmentLines.reduce((sum, line) => sum + line.quantity, 0)
     : apparelQuote.quantity;
@@ -216,31 +219,29 @@ export default function ApparelSummaryCard({
             </span>
           </div>
 
-          <div className="border-t border-[var(--rule)] pt-3">
-            <div className="flex justify-between gap-4">
-              <span className="text-[var(--ink-black)]">Estimated Total</span>
-              <span className="text-right text-lede font-bold text-[var(--gorilla-green)]">
-                ${apparelPricing.total.toFixed(2)}
-              </span>
-            </div>
-
-            <div className="mt-1 flex justify-between gap-4">
-              <span>Estimated Each</span>
-              <span className="text-right font-bold text-[var(--ink-black)]">
-                ${apparelPricing.unitPrice.toFixed(2)}
-              </span>
-            </div>
+          {/* The two figures the order is about, as peers — see
+              ApparelMoney. The each used to be a muted row a third the size
+              of the total, on the product customers negotiate per piece. */}
+          <div className="pt-1">
+            <ApparelMoney
+              compact
+              total={apparelPricing.total}
+              unitPrice={apparelPricing.unitPrice}
+              quantity={runQuantity}
+            />
           </div>
 
           {/* The assumption lives ON THE SAME SCREEN as the number, and the
               asterisk promises the specific thing that removes it — not
               "this is an estimate", which every customer ignores. Once real
               sizes exist the assumption is gone and the line says so. */}
+          {/* Was "First garment priced from your sizes; added garments use an
+              assumed size mix" on every cart. True only while added garments
+              had no size grid — #134 gave them one, and a note that states a
+              rule the code no longer follows is worse than no note. */}
           {apparelEstimateBasis === "exact" ? (
             <p className="mt-3 border-t border-[var(--rule-faint)] pt-3 text-fine font-bold leading-5 text-[var(--gorilla-green)]">
-              {isCart
-                ? "First garment priced from your sizes; added garments use an assumed size mix."
-                : "Priced from your sizes."}
+              Priced from your sizes.
             </p>
           ) : (
             <p className="mt-3 border-t border-[var(--rule-faint)] pt-3 text-fine font-medium leading-5 text-[var(--ink-muted)]">

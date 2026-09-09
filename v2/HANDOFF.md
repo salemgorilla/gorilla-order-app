@@ -55,18 +55,22 @@ Working and verified:
   newsletter hook is configured on this deployment. The consent is
   recorded, so the list can be backfilled."*
 
-  **NEEDS GABE — do not decide this in code.** The audit's B8 asked for the
-  checkbox to be HIDDEN when the hook is unset. That would destroy
-  something this repo keeps on purpose: config-health.ts, on the same
-  failure, says "Consent is recorded, so the list can be backfilled from
-  past quote emails." Hiding the box throws the backfill away. It is a
-  marketing and consent call, not a defect, so the reporting half shipped
-  and the behaviour half is his:
+  **ANSWERED — Gabe, 2026-09-09: "Don't hide the box."** The audit's B8
+  asked for the checkbox to be HIDDEN when the hook is unset. It is not,
+  and it will not be. Do not re-open this: a future session reading
+  "nobody is added to any list" and reaching for the obvious fix would be
+  undoing a decision the shop has already made.
 
-  1. Set `ZAPIER_NEWSLETTER_HOOK_URL` and redeploy (the sign-ups start
-     flowing and the warning disappears by itself), **or**
-  2. say the word and the checkbox comes out until there is a list, **or**
-  3. leave it as it is and backfill from the consent records later.
+  The box keeps asking, the consent record keeps being written, and the
+  shop email keeps saying plainly that the sign-up went nowhere — which is
+  exactly the state the backfill needs. config-health.ts, on the same
+  failure: "Consent is recorded, so the list can be backfilled from past
+  quote emails."
+
+  Still Gabe's to do, and now the only thing left on this: set
+  `ZAPIER_NEWSLETTER_HOOK_URL` and redeploy. Sign-ups start flowing, the
+  warning disappears by itself, and everyone who ticked the box in the
+  meantime can be backfilled from the consent records.
 
 - **The funnel, for the people who never submit** — 2026-09-09,
   `lib/analytics.ts` + `<Analytics />` in the root layout (#143).

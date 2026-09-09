@@ -18,12 +18,15 @@ import { reorderUrl } from "../../../lib/reorder";
 import { describeRepricing } from "../../../lib/repricing-note";
 import { repriceSigns } from "../../../lib/signs-repricing";
 import {
+  isSpecialOrder,
   decideSignsAutoBill,
   decideStickersAutoBill,
   isSignsOrder,
   shopPaymentNote,
 } from "../../../lib/auto-bill";
 import { getEmailError } from "../../../lib/validation";
+import { describeSubmission } from "../../../lib/submission-log";
+import { earliestNeedBy, turnaroundLaneFor } from "../../../lib/turnaround";
 import { subscribeToNewsletter } from "../../../lib/newsletter";
 import { describeKioskSource, readKioskSession } from "../../../lib/kiosk";
 import {
@@ -965,6 +968,98 @@ export async function POST(request: Request) {
     // An email that is SKIPPED (no provider configured) is not a delivery, so
     // it does not count here either.
     const reachedShop = Boolean(notification.sent) || Boolean(printavo.created);
+
+    /**
+     * ONE GREP-ABLE LINE PER SUBMISSION.
+     *
+     * Everything above logs richly and inconsistently — a whole quote
+     * record, a sentence per refusal, a line per email. None of it can be
+     * counted. This can: same fields, same order, every time, no PII. See
+     * lib/submission-log.ts for the four questions it exists to answer and
+     * for why `atFloor` is a proxy rather than a measurement.
+     *
+     * Emitted HERE — after every decision is made and the delivery attempt
+     * has come back, but BEFORE the undelivered gate below returns 502. The
+     * first draft sat beside the success response and never fired for a
+     * failed delivery, which is the submission worth counting most.
+     */
+    console.log(
+      describeSubmission({
+        quoteNumber,
+        flow: isStickers
+          ? "stickers"
+          : isSignsOrder(pricedOrder)
+          ? String(
+              (pricedOrder.product as Record<string, unknown> | undefined)
+                ?.family || "signs"
+            )
+          : "apparel",
+        // The escape reaches the payload the same way in both flows —
+        // product.specialOrder, read positively (lib/auto-bill.ts).
+        door: isSpecialOrder(pricedOrder) ? "special" : "priced",
+        quantity: Number(
+          (pricedOrder.product as Record<string, unknown> | undefined)
+            ?.quantity || 0
+        ),
+        // The SERVER's figure for the flows that reprice; the payload's for
+        // apparel, which is an estimate the shop confirms either way.
+        total: Number(
+          (pricedOrder.pricing as Record<string, unknown> | undefined)
+            ?.total || 0
+        ),
+        needBy: String(
+          (order.production as Record<string, unknown> | undefined)?.needBy || ""
+        ),
+        earliest: earliestNeedBy(
+          turnaroundLaneFor({
+            isApparel: !isStickers && !isSignsOrder(pricedOrder),
+            isSigns: isSignsOrder(pricedOrder),
+            signsFamily:
+              String(
+                (pricedOrder.product as Record<string, unknown> | undefined)
+                  ?.family || "signs"
+              ) === "banners"
+                ? "banners"
+                : "signs",
+            isKiosk: Boolean(kioskSession),
+          })
+        ),
+        /**
+         * How the artwork actually travelled, read off the parts the route
+         * already holds rather than off the parser's internals.
+         *
+         * "dropped" wins over "form": a submission where anything was left
+         * behind is the one worth counting, and it is the number that says
+         * whether the blob store being down is costing real files
+         * (lib/blob-health.ts, lib/upload-limits.ts).
+         */
+        artwork: artworkParts.some((part) => part.dropped)
+          ? "dropped"
+          : artworkParts.some((part) => part.blob)
+          ? "blob"
+          : artworkParts.some((part) => part.file)
+          ? "form"
+          : "none",
+        delivered: reachedShop,
+        billed: Boolean(checkout?.ready),
+        deposit: Boolean(checkout?.deposit),
+        /**
+         * Why it did not bill — from the gate that actually applies.
+         *
+         * The first version read the signs reason whenever signs had not
+         * billed, which put `why="not a signs order"` on every apparel line
+         * in the first real drive: true, and a non-answer. Apparel has no
+         * gate to fail — it is an estimate the shop confirms, by design —
+         * so it carries no reason at all rather than a borrowed one.
+         */
+        reason: isStickers
+          ? stickersAutoBill.reason
+          : isSignsOrder(pricedOrder)
+          ? signsAutoBill.reason
+          : undefined,
+        kiosk: Boolean(kioskSession),
+      })
+    );
 
     if (!reachedShop) {
       console.error(

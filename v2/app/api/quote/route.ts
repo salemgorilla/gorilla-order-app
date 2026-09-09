@@ -27,7 +27,10 @@ import {
 import { getEmailError } from "../../../lib/validation";
 import { describeSubmission } from "../../../lib/submission-log";
 import { earliestNeedBy, turnaroundLaneFor } from "../../../lib/turnaround";
-import { subscribeToNewsletter } from "../../../lib/newsletter";
+import {
+  isNewsletterConfigured,
+  subscribeToNewsletter,
+} from "../../../lib/newsletter";
 import { describeKioskSource, readKioskSession } from "../../../lib/kiosk";
 import {
   createPrintavoQuote,
@@ -726,6 +729,17 @@ export async function POST(request: Request) {
       artworkAnalysis,
       // Null on the overwhelming majority of orders, where the two agreed.
       repricing,
+      /**
+       * Whether a sign-up has anywhere to go.
+       *
+       * Read here rather than inside the builder so the email stays a pure
+       * function of its input — and so this is the one place the answer
+       * comes from. The row it changes reads "Opted in — NOT added to any
+       * list" instead of "Opted in", on the surface where the claim is
+       * made, because a shop reading "Opted in" on a deployment with no
+       * hook set is being told something untrue.
+       */
+      newsletterConfigured: isNewsletterConfigured(),
       // "Charged automatically", or why not and what to do about it.
       paymentNote: shopPaymentNote({
         order: pricedOrder,

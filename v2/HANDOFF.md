@@ -45,6 +45,29 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **The shop email says when a sign-up went nowhere** — 2026-09-09 (#144).
+  With no `ZAPIER_NEWSLETTER_HOOK_URL` set, a customer ticks the box, the
+  shop email says "Opted in", the consent record is written, and nobody is
+  ever added to Constant Contact. `lib/config-health.ts` has said so since
+  it was written — on the admin health page, behind a secret, which nobody
+  reads on an ordinary Tuesday. The row now says it where the claim is
+  made: *"Opted in (box shipped pre-ticked) — NOT added to any list: no
+  newsletter hook is configured on this deployment. The consent is
+  recorded, so the list can be backfilled."*
+
+  **NEEDS GABE — do not decide this in code.** The audit's B8 asked for the
+  checkbox to be HIDDEN when the hook is unset. That would destroy
+  something this repo keeps on purpose: config-health.ts, on the same
+  failure, says "Consent is recorded, so the list can be backfilled from
+  past quote emails." Hiding the box throws the backfill away. It is a
+  marketing and consent call, not a defect, so the reporting half shipped
+  and the behaviour half is his:
+
+  1. Set `ZAPIER_NEWSLETTER_HOOK_URL` and redeploy (the sign-ups start
+     flowing and the warning disappears by itself), **or**
+  2. say the word and the checkbox comes out until there is a list, **or**
+  3. leave it as it is and backfill from the consent records later.
+
 - **The funnel, for the people who never submit** — 2026-09-09,
   `lib/analytics.ts` + `<Analytics />` in the root layout (#143).
 

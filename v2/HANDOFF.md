@@ -45,6 +45,39 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **The list is visible, exportable and importable** — 2026-09-10 (#148).
+  #147 made the list private and permanent and also made it INVISIBLE:
+  nothing could say how many people were on it, who they were, or whether
+  the store was working at all. A list nobody can see is a list nobody
+  trusts, and that is how it ends up back at a company that charges
+  monthly for the privilege of showing it to you.
+
+  `GET /api/subscribers?secret=…` — the counts, whether a send is legal
+  right now (`canSend`), and the ten most recent sign-ups. **This is the
+  check after the blob store is connected**: it answers with a number.
+  `&format=csv` downloads the whole list, leavers included, never cached.
+
+  `POST /api/subscribers` with a CSV body imports a list that already
+  exists. Columns are found by NAME, so a file that has been opened and
+  sorted still imports. Two rules it holds: it **invents no consent date**
+  (a row with no date is stored with an empty one and a source saying it
+  was imported — stamping today would be the app writing a consent record
+  for an agreement it did not witness), and it **cannot resurrect
+  anybody**, because it goes through `recordSubscription` and the sticky
+  unsubscribe applies. Export → edit → re-import is exactly how a shop
+  re-mails everyone who ever left.
+
+  CSV both directions is one file (`lib/subscriber-csv.ts`) so the round
+  trip is a test rather than a hope. `name` and `company` are typed by
+  CUSTOMERS on a public form, and a field starting with `=`, `+`, `-` or
+  `@` is a FORMULA to Excel — those go out apostrophe-prefixed and come
+  back unprefixed. A BOM so Excel does not turn "Beyoncé" into "BeyoncÃ©".
+
+  The handlers live in `lib/subscriber-admin.ts`, not in the route: Next
+  forbids extra exports from a route file, so a handler written there is a
+  handler no test can reach — and the arithmetic the shop reads off a
+  phone would be the untested half.
+
 - **The shop keeps its own newsletter list** — 2026-09-10 (#147). Gabe:
   "I quit constant contact. Is there an app you can build that works on my
   website but behind the scenes?"

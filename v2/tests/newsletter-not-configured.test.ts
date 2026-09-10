@@ -36,7 +36,8 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import { buildCustomerLines, buildQuoteEmail } from "../lib/email";
-import { isNewsletterConfigured } from "../lib/newsletter";
+import { isNewsletterConfigured, subscribeToNewsletter } from "../lib/newsletter";
+import { unsubscribeEmail, type SubscriberStore } from "../lib/subscribers";
 
 const optedIn = {
   customerName: "Stacey",
@@ -189,30 +190,145 @@ describe("the route asks, and asks in one place", () => {
   it("reads the variable through that function, never inline", () => {
     // Two readings of one env var is two chances for one of them to be the
     // one that drifts. The subscriber and the email row must agree.
-    assert.doesNotMatch(route, /ZAPIER_NEWSLETTER_HOOK_URL/);
+    assert.doesNotMatch(route, /BLOB_READ_WRITE_TOKEN/);
   });
 });
 
 describe("the answer comes from the environment, once", () => {
-  it("reads the hook the subscriber actually uses", () => {
-    const before = process.env.ZAPIER_NEWSLETTER_HOOK_URL;
+  it("asks whether there is anywhere to KEEP a list", () => {
+    // The question used to be "is the Zapier hook set". Gabe quit Constant
+    // Contact on 2026-09-10 and the list moved into the shop's own blob
+    // store, so it is now "is there a store" — the same question about the
+    // shop's own storage, asked in one place.
+    const before = process.env.BLOB_READ_WRITE_TOKEN;
 
     try {
-      delete process.env.ZAPIER_NEWSLETTER_HOOK_URL;
+      delete process.env.BLOB_READ_WRITE_TOKEN;
       assert.equal(isNewsletterConfigured(), false);
 
       // A pasted value with a trailing newline is invisible in the Vercel
       // UI and invisible in the error it causes — every secret in this repo
       // is read with .trim() for that reason.
-      process.env.ZAPIER_NEWSLETTER_HOOK_URL = "   \n";
+      process.env.BLOB_READ_WRITE_TOKEN = "   \n";
       assert.equal(isNewsletterConfigured(), false);
 
-      process.env.ZAPIER_NEWSLETTER_HOOK_URL =
-        "https://hooks.zapier.com/hooks/catch/1/abc/\n";
+      process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_abc123\n";
       assert.equal(isNewsletterConfigured(), true);
     } finally {
-      if (before === undefined) delete process.env.ZAPIER_NEWSLETTER_HOOK_URL;
-      else process.env.ZAPIER_NEWSLETTER_HOOK_URL = before;
+      if (before === undefined) delete process.env.BLOB_READ_WRITE_TOKEN;
+      else process.env.BLOB_READ_WRITE_TOKEN = before;
+    }
+  });
+});
+
+describe("a sign-up now lands in the shop's own store", () => {
+  /**
+   * The end of the Zapier path. Gabe, 2026-09-10: "I quit constant
+   * contact." What used to be a POST to a catch hook is a write to a blob
+   * the shop owns — which is what makes the confirmation email's promise
+   * ("we will not sell your information") true by construction: there is no
+   * longer a mechanism in this app that hands a subscriber to anyone.
+   */
+  function memoryStore(): SubscriberStore & { files: Map<string, string> } {
+    const files = new Map<string, string>();
+
+    return {
+      files,
+      async put(pathname, body) {
+        files.set(pathname, body);
+      },
+      async read(pathname) {
+        return files.get(pathname) ?? null;
+      },
+      async list(prefix) {
+        return {
+          pathnames: [...files.keys()].filter((key) => key.startsWith(prefix)),
+        };
+      },
+    };
+  }
+
+  const payload = {
+    email: "stacey@example.com",
+    name: "Stacey",
+    company: "Salem Rowing",
+    phone: "978-555-0100",
+    heardAbout: ["Google"],
+    quoteNumber: "GS-20260910-AB12C",
+    consent: {
+      optedIn: true,
+      at: "2026-09-10T12:00:00.000Z",
+      source: "labs.gorillasalem.com quote builder",
+      preChecked: true,
+    },
+  };
+
+  it("stores the sign-up", async () => {
+    const store = memoryStore();
+    const result = await subscribeToNewsletter(payload, store);
+
+    assert.deepEqual(result, { sent: true });
+    assert.equal(store.files.size, 1);
+  });
+
+  it("carries no third party in it at all", async () => {
+    // The whole point of the move. Nothing about Zapier, nothing about
+    // Constant Contact, no outbound call to anyone.
+    const source = readFileSync(
+      new URL("../lib/newsletter.ts", import.meta.url),
+      "utf8"
+    );
+    const code = source
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/\/\/.*$/gm, "");
+
+    assert.doesNotMatch(code, /zapier/i);
+    assert.doesNotMatch(code, /constant.?contact/i);
+    assert.doesNotMatch(code, /fetch\(/);
+  });
+
+  it("a 'no' still cannot become a subscription", async () => {
+    const store = memoryStore();
+
+    const declined = await subscribeToNewsletter(
+      { ...payload, consent: { ...payload.consent, optedIn: false } },
+      store
+    );
+
+    assert.equal(declined.sent, false);
+    assert.equal(store.files.size, 0);
+  });
+
+  it("somebody who unsubscribed is not handed back by the pre-ticked box", async () => {
+    const store = memoryStore();
+
+    await subscribeToNewsletter(payload, store);
+    await unsubscribeEmail(payload.email, "2026-10-01T00:00:00.000Z", store);
+
+    const again = await subscribeToNewsletter(
+      { ...payload, consent: { ...payload.consent, at: "2026-12-01T00:00:00.000Z" } },
+      store
+    );
+
+    assert.equal(again.sent, false);
+    assert.match(
+      "reason" in again ? again.reason : "",
+      /previously unsubscribed/i
+    );
+  });
+
+  it("with no store, it is skipped and the quote is untouched", async () => {
+    const before = process.env.BLOB_READ_WRITE_TOKEN;
+
+    try {
+      delete process.env.BLOB_READ_WRITE_TOKEN;
+      const result = await subscribeToNewsletter(payload);
+
+      assert.equal(result.sent, false);
+      assert.equal("skipped" in result && result.skipped, true);
+    } finally {
+      if (before === undefined) delete process.env.BLOB_READ_WRITE_TOKEN;
+      else process.env.BLOB_READ_WRITE_TOKEN = before;
     }
   });
 });

@@ -45,6 +45,82 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **The shop keeps its own newsletter list** — 2026-09-10 (#147). Gabe:
+  "I quit constant contact. Is there an app you can build that works on my
+  website but behind the scenes?"
+
+  Every sign-up this app ever took went to a Zapier hook and then to
+  Constant Contact. **The app itself kept nothing** — a customer could tick
+  the box, the shop email could say "Opted in", and the record existed
+  nowhere either party controlled. That path is gone.
+
+  `lib/subscribers.ts` keeps the list as **one PRIVATE blob per
+  subscriber**, keyed by a SHA-256 of the lowercased address. One-per-
+  subscriber, not one list file: a single `subscribers.json` needs
+  read-modify-write and two quotes in the same second silently drop one —
+  a loss nobody notices for months, because it looks exactly like "not
+  many people signed up". Private, not public-but-unguessable: what is
+  stored is a list of customers' email addresses, and the difference is
+  one leaked pathname. The pathname is a hash so listings and logs never
+  carry an address.
+
+  **The rule that matters most: an unsubscribe is STICKY.** The box
+  arrives pre-ticked, so without it somebody who unsubscribes and orders
+  again is silently re-added by a control they never touched — and the
+  second time they do not unsubscribe, they press "spam". Gmail throttles
+  a sending domain at a complaint rate of 0.3%: three people in a
+  thousand, and it takes the QUOTE emails down with the newsletter. The
+  attempt is recorded (`resubscribeAttemptedAt`) so the shop can ask them
+  properly, which is the only way back on.
+
+  Also kept: the FIRST `optedInAt` (never restated as today by a later
+  order — when they agreed is what answers a complaint) and the strongest
+  consent (`preChecked` can go false and never back to true). Deliberately
+  NOT kept: the phone number. PII with no use is PII kept for a breach.
+
+  `/unsubscribe` + `POST /api/unsubscribe` are the opt-out. **The endpoint
+  has no GET, on purpose** — mail clients, link scanners and preview
+  generators fetch URLs found in a message with no human involved, so an
+  unsubscribe that acts on GET is one that happens to people who never
+  clicked. The emailed link opens a page with one button; RFC 8058
+  one-click (the header Gmail and Yahoo require from bulk senders) is a
+  POST for the same reason and lands on the same route. Tokens are an HMAC
+  of the address under `NEWSLETTER_SECRET` — no state, no expiry, and not
+  forgeable, so nobody can walk the list removing people.
+
+  The confirmation email now carries the link, because "you can
+  unsubscribe from any email" has to be true of the email it appears in.
+
+  **GABE'S TO-DO, and the list does not exist until both are done:**
+
+  1. **Vercel → Storage → connect a Blob store, then redeploy.** Sets
+     `BLOB_READ_WRITE_TOKEN`. Until then every sign-up is skipped and the
+     shop email says so on each order. (This is the same store the artwork
+     uploads have been waiting on.)
+  2. **Set `NEWSLETTER_SECRET`** (a long random string) in all three
+     environments, then redeploy. Without it there is no working
+     unsubscribe, so nothing may be sent. Never change it once mail has
+     gone out — every link already in an inbox is signed with it.
+
+  `/api/health?secret=` reports all three states: `off` (nowhere to keep a
+  list), `degraded` (**keeping a list it must not mail** — no secret), and
+  `live`.
+
+  **Not built yet, and deliberately:** sending. No campaign composer, no
+  admin list view, no export. The list has to be real, and the opt-out has
+  to work, before anything can be sent to it.
+
+  **Not verified against a real store.** Everything here is driven against
+  a Map, and the browser drive covers the page, the token, the refusal of
+  a forged one, the 405 on GET and the one-click POST — but `BLOB_READ_WRITE_TOKEN`
+  is unset in this sandbox, so `lib/subscriber-store.ts` (the only file
+  that touches the Vercel SDK) has never run. **First real sign-up after
+  the store is connected is the check**: submit one quote with the box
+  ticked, then unsubscribe from the link in the confirmation email.
+
+  Local dev: `.env.local` holds `NEWSLETTER_SECRET=local-test-secret` so
+  the page can be driven. It is gitignored.
+
 - **The customer gets their own copy of the consent** — 2026-09-09 (#146).
   Gabe: "Have the email say they have joined our newsletter and also add
   that we assure you we will not sell your info or spam you with marketing

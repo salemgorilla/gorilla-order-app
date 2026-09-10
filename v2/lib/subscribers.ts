@@ -134,8 +134,20 @@ export type SubscriptionInput = {
   source: string;
   preChecked: boolean;
   quoteNumber: string;
-  /** The server's timestamp for this opt-in — never the browser's. */
+  /** The server's timestamp for this write — never the browser's. */
   at: string;
+  /**
+   * When they actually agreed, when that is known from somewhere other than
+   * this moment — an import of a list that already exists.
+   *
+   * Omitted means "now", which is right for a sign-up happening as we
+   * watch. An EMPTY STRING means "we do not know", and is stored as such:
+   * the temptation with an imported row is to stamp today so the record
+   * looks complete, and that would be the app writing a consent record for
+   * an agreement it did not witness — the one thing such a record must
+   * never contain.
+   */
+  optedInAt?: string;
 };
 
 export type SubscriptionOutcome =
@@ -187,7 +199,9 @@ export async function recordSubscription(
         : existing?.heardAbout ?? [],
       // The FIRST opt-in, kept. When they agreed is the fact a complaint is
       // answered with; a later order must not quietly restate it as today.
-      optedInAt: existing?.optedInAt || input.at,
+      optedInAt:
+        existing?.optedInAt ||
+        (input.optedInAt === undefined ? input.at : input.optedInAt),
       source: existing?.source || input.source,
       // Once false, always false: if they ever ticked it deliberately, that
       // is the stronger consent and it is the one worth keeping.

@@ -147,18 +147,33 @@ export function getConfigHealth(): {
   });
 
   // ---- newsletter ----------------------------------------------------------
-  const zap = has("ZAPIER_NEWSLETTER_HOOK_URL");
+  //
+  // Two separate things, and they fail separately. The STORE is where a
+  // sign-up is kept; the SECRET is what makes an unsubscribe link work. A
+  // deployment can keep a list it must not mail, and that is a real state
+  // worth naming rather than rounding to "on" or "off".
+  const listStore = has("BLOB_READ_WRITE_TOKEN");
+  const unsubscribe = has("NEWSLETTER_SECRET");
 
   capabilities.push({
     key: "newsletter",
-    name: "Newsletter sign-ups",
-    state: zap ? "live" : "off",
-    summary: zap
-      ? "Sign-ups are posted to Zapier for Constant Contact."
-      : // The dangerous kind of "off": it looks like it is working from every
+    name: "Newsletter list",
+    state: listStore ? (unsubscribe ? "live" : "degraded") : "off",
+    summary: !listStore
+      ? // The dangerous kind of "off": it looks like it is working from every
         // angle except the list itself.
-        "Customers can tick the box and the shop email says 'Opted in', but NOBODY is being added to Constant Contact. Consent is recorded, so the list can be backfilled from past quote emails.",
-    fix: zap ? [] : ["ZAPIER_NEWSLETTER_HOOK_URL"],
+        "Customers can tick the box and the shop email says 'Opted in', but NOBODY is being added to any list — there is nowhere to keep one. The shop email says so on every order, and the consent is in those emails, so the list can be backfilled."
+      : unsubscribe
+      ? "Sign-ups are kept in the shop's own blob store. Unsubscribe links work. Nothing is shared with any third party."
+      : // Keeping a list is fine. Mailing it without a working opt-out is
+        // not: CAN-SPAM requires one, and Gmail and Yahoo require the
+        // one-click header from bulk senders. Every link would 404.
+        "Sign-ups are being kept, but DO NOT SEND: with no NEWSLETTER_SECRET there is no working unsubscribe link, which is both unlawful and the fastest way to get the sending domain throttled.",
+    fix: listStore
+      ? unsubscribe
+        ? []
+        : ["NEWSLETTER_SECRET"]
+      : ["BLOB_READ_WRITE_TOKEN", "NEWSLETTER_SECRET"],
   });
 
   // ---- kiosk ---------------------------------------------------------------

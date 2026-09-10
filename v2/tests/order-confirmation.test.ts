@@ -241,3 +241,57 @@ describe("their own copy of what they agreed to", () => {
     assert.equal(decision.send, false);
   });
 });
+
+describe("the way out, in the email that says they are in", () => {
+  /**
+   * "You can unsubscribe from any email" is a sentence that has to be true
+   * of the email it appears in. This is the first — and until campaigns
+   * exist, the only — message that mentions the newsletter, so the link
+   * belongs here rather than being promised for later.
+   */
+  const LINK = "https://labs.gorillasalem.com/unsubscribe?e=a%40b.com&t=abc123";
+
+  it("the link is given, not merely promised", () => {
+    const decision = buildOrderConfirmation({
+      ...BASE,
+      newsletterOptIn: true,
+      unsubscribeUrl: LINK,
+    });
+    if (!decision.send) throw new Error("not sent");
+
+    assert.ok(decision.text.includes(LINK));
+
+    // In the HTML the "&" is escaped to "&amp;", which is correct in an
+    // href and is parsed back by every mail client. Asserting the raw
+    // string here would be asserting a bug.
+    assert.ok(decision.html.includes(LINK.replace(/&/g, "&amp;")));
+    assert.match(decision.html, /<a[^>]*>Unsubscribe<\/a>/);
+  });
+
+  it("no link when the deployment cannot mint one", () => {
+    // No NEWSLETTER_SECRET means no token, so any link would 404 — and a
+    // dead unsubscribe link is worse than none, it is the fastest route to
+    // a spam complaint there is.
+    const decision = buildOrderConfirmation({
+      ...BASE,
+      newsletterOptIn: true,
+      unsubscribeUrl: null,
+    });
+    if (!decision.send) throw new Error("not sent");
+
+    assert.match(decision.text, /joined our newsletter/);
+    assert.doesNotMatch(decision.text, /unsubscribe\?/i);
+    assert.doesNotMatch(decision.html, /<a[^>]*>Unsubscribe<\/a>/);
+  });
+
+  it("and none at all for somebody who did not opt in", () => {
+    const decision = buildOrderConfirmation({
+      ...BASE,
+      newsletterOptIn: false,
+      unsubscribeUrl: LINK,
+    });
+    if (!decision.send) throw new Error("not sent");
+
+    assert.ok(!decision.text.includes(LINK));
+  });
+});

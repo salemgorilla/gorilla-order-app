@@ -178,3 +178,75 @@ describe("the apparel catalogue reports why it is dark", () => {
     );
   });
 });
+
+describe("the newsletter list, which fails in two separate ways", () => {
+  /**
+   * The store is where a sign-up is KEPT. The secret is what makes an
+   * unsubscribe link work. A deployment can perfectly well keep a list it
+   * must not mail, and rounding that to "on" or "off" is how somebody sends
+   * a campaign with dead unsubscribe links in it.
+   */
+  function newsletterCapability(env: Record<string, string | undefined>) {
+    const saved = {
+      BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
+      NEWSLETTER_SECRET: process.env.NEWSLETTER_SECRET,
+    };
+
+    try {
+      for (const [key, value] of Object.entries(env)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+
+      return getConfigHealth().capabilities.find(
+        (item) => item.key === "newsletter"
+      );
+    } finally {
+      for (const [key, value] of Object.entries(saved)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+  }
+
+  test("nowhere to keep a list is off, and says the shop email covers it", () => {
+    const capability = newsletterCapability({
+      BLOB_READ_WRITE_TOKEN: undefined,
+      NEWSLETTER_SECRET: undefined,
+    });
+
+    assert.equal(capability?.state, "off");
+    assert.match(capability?.summary ?? "", /NOBODY is being added/);
+    assert.deepEqual(capability?.fix, [
+      "BLOB_READ_WRITE_TOKEN",
+      "NEWSLETTER_SECRET",
+    ]);
+  });
+
+  test("a list with no working unsubscribe is DEGRADED, not live", () => {
+    // The state that matters. CAN-SPAM requires a working opt-out and Gmail
+    // requires the one-click header from bulk senders; without the secret
+    // every link would 404, which is unlawful and is also the fastest way
+    // to get the domain throttled — taking the quote emails with it.
+    const capability = newsletterCapability({
+      BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_abc",
+      NEWSLETTER_SECRET: undefined,
+    });
+
+    assert.equal(capability?.state, "degraded");
+    assert.match(capability?.summary ?? "", /DO NOT SEND/);
+    assert.deepEqual(capability?.fix, ["NEWSLETTER_SECRET"]);
+  });
+
+  test("both set is live, and says who holds the list", () => {
+    const capability = newsletterCapability({
+      BLOB_READ_WRITE_TOKEN: "vercel_blob_rw_abc",
+      NEWSLETTER_SECRET: "a-secret",
+    });
+
+    assert.equal(capability?.state, "live");
+    assert.match(capability?.summary ?? "", /shop's own blob store/);
+    assert.match(capability?.summary ?? "", /Nothing is shared with any third party/);
+    assert.deepEqual(capability?.fix, []);
+  });
+});

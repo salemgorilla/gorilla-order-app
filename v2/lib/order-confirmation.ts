@@ -104,6 +104,17 @@ export function buildOrderConfirmation(input: {
    * not see it.
    */
   newsletterOptIn?: boolean;
+  /**
+   * Their way out, already signed — unsubscribeUrl() from
+   * lib/unsubscribe-token.ts. Null when the deployment has no
+   * NEWSLETTER_SECRET, in which case no link can exist yet.
+   *
+   * It belongs in THIS email because this is the email that tells them they
+   * joined. Saying "you can unsubscribe from any email" in a message with
+   * no way to unsubscribe is the sentence being untrue of the very first
+   * email it appears in.
+   */
+  unsubscribeUrl?: string | null;
 }): OrderConfirmationDecision {
   const quoteNumber = String(input.quoteNumber || "").trim();
   const reorder = String(input.reorderUrl || "").trim();
@@ -174,10 +185,16 @@ export function buildOrderConfirmation(input: {
    * told what our newsletter is like would read as not having been listened
    * to, which is the one thing an opt-out has to get right.
    */
+  const optOut = String(input.unsubscribeUrl || "").trim();
+
   const newsletterLines = input.newsletterOptIn
     ? [
         "You've also joined our newsletter — shop news, seasonal offers and new products.",
         "We will not sell your information, and we won't spam you with marketing messages. You can unsubscribe from any email.",
+        // Given here, not merely promised. A one-tap link in the message
+        // that announces the sign-up is the difference between an opt-out
+        // somebody has and one they would have to go looking for.
+        ...(optOut ? [`Changed your mind already? ${optOut}`] : []),
       ]
     : [];
 
@@ -226,7 +243,10 @@ export function buildOrderConfirmation(input: {
     ...(newsletterLines.length
       ? [
           `<p style="margin-top:20px">${escapeEmailHtml(newsletterLines[0])}<br>`,
-          `<span style="color:#6b6b6b">${escapeEmailHtml(newsletterLines[1])}</span></p>`,
+          `<span style="color:#6b6b6b">${escapeEmailHtml(newsletterLines[1])}</span>`,
+          optOut
+            ? `<br><a style="color:#6b6b6b" href="${escapeEmailHtml(optOut)}">Unsubscribe</a></p>`
+            : `</p>`,
         ]
       : []),
     `<p style="margin-top:20px">Thanks,<br>Gorilla Salem</p>`,

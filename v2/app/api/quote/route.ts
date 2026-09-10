@@ -31,6 +31,7 @@ import {
   isNewsletterConfigured,
   subscribeToNewsletter,
 } from "../../../lib/newsletter";
+import { unsubscribeUrl } from "../../../lib/unsubscribe-token";
 import { describeKioskSource, readKioskSession } from "../../../lib/kiosk";
 import {
   createPrintavoQuote,
@@ -1123,6 +1124,16 @@ export async function POST(request: Request) {
        * record the shop keeps and the sentence the customer is sent.
        */
       newsletterOptIn: optedIn,
+      /**
+       * Their way out, in the email that tells them they are in.
+       *
+       * Null when the deployment has no NEWSLETTER_SECRET — no secret, no
+       * token, no link that would work. A dead unsubscribe link is worse
+       * than none: it is the fastest route to a spam complaint there is.
+       */
+      unsubscribeUrl: optedIn
+        ? unsubscribeUrl(String(customerRecord.email || ""))
+        : null,
       // Stickers only: they are the repeat product, and the only flow whose
       // whole spec a link can carry. reorderUrl returns null for anything
       // it cannot describe, and the email omits the line.

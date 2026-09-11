@@ -670,7 +670,46 @@ export default function QuoteConfirmationScreen({
             </p>
           </div>
 
-          <div className="mt-8 grid gap-3 sm:grid-cols-3">
+          {/**
+           * THE PAY BUTTON AGAIN, AT THE BOTTOM.
+           *
+           * Gabe, 2026-09-11: "the signs, stickers and banner buttons do not
+           * end with a pay button. They end with a white button."
+           *
+           * Nothing had regressed — production logs for his own two tests
+           * that afternoon both read `billed=true` with a live Printavo link,
+           * and the block above renders correctly from that response. The
+           * problem is where it SITS. Between it and the end of the page are
+           * the quote number, three detail cards, a disclaimer, and then a
+           * row whose first button is a white "Copy Quote Details". On a
+           * phone the last thing under the customer's thumb is a backup
+           * action, and the one thing the shop needs them to do is four
+           * scrolls back up.
+           *
+           * So the page ends with it too. Only when there IS a link — on an
+           * apparel quote, or a sticker order Printavo could not bill, this
+           * renders nothing and the row below is the honest ending.
+           */}
+          {payUrl && (
+            <a
+              href={payUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-8 block w-full border-2 border-[var(--gorilla-green)] bg-[var(--gorilla-green)] px-8 py-5 text-center text-lede font-bold text-white transition-colors duration-[120ms] ease-linear hover:bg-[var(--paper)] hover:text-[var(--gorilla-green)]"
+            >
+              {isDeposit ? "Pay 50% deposit" : "Pay now"}
+              {typeof payAmount === "number" && payAmount > 0
+                ? ` — $${payAmount.toFixed(2)}`
+                : ""}
+            </a>
+          )}
+
+          {/* The backup actions. Demoted below the pay button when there is
+              one: they are what somebody reaches for when the main thing did
+              not work, and they were reading as the end of the flow. */}
+          <div
+            className={`grid gap-3 sm:grid-cols-3 ${payUrl ? "mt-4" : "mt-8"}`}
+          >
             <button
               type="button"
               onClick={onCopy}

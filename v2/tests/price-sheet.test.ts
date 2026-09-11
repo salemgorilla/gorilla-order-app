@@ -34,6 +34,12 @@ import { repriceStickers } from "../lib/sticker-repricing";
  * volume break the setup fee provides survives the rise. That file's header
  * carries the reasoning; this sheet is the readable diff of what it did.
  *
+ * REGENERATED AGAIN the same day for STICKER_VOLUME_TIERS — the old site's
+ * quantity curve put back on top of the re-rate, so 96 of these rows (every
+ * one at 500 and above) came DOWN from where the morning's rise had put
+ * them. Gabe: "if you are increasing the pricing across the board, those
+ * discounts should still be active." 100 x 3" is unchanged at $85.00.
+ *
  * THE REFERENCE ROW: 100 x 3" pickup, single design, is now $85.00 exactly.
  * That is Lexi Sprague's order (GS-20260910-U38N3), the one that started it.
  *
@@ -68,195 +74,195 @@ const PRICE_SHEET = `
 1     1x1           Gloss White Vinyl  pickup   40.05
 25    1x1           Gloss White Vinyl  pickup   41.25
 100   1x1           Gloss White Vinyl  pickup   45.00
-500   1x1           Gloss White Vinyl  pickup   65.00
-1000  1x1           Gloss White Vinyl  pickup   90.00
-5000  1x1           Gloss White Vinyl  pickup   290.00
+500   1x1           Gloss White Vinyl  pickup   62.25
+1000  1x1           Gloss White Vinyl  pickup   81.00
+5000  1x1           Gloss White Vinyl  pickup   220.00
 1     2x2           Gloss White Vinyl  pickup   40.20
 25    2x2           Gloss White Vinyl  pickup   45.00
 100   2x2           Gloss White Vinyl  pickup   60.00
-500   2x2           Gloss White Vinyl  pickup   140.00
-1000  2x2           Gloss White Vinyl  pickup   240.00
-5000  2x2           Gloss White Vinyl  pickup   1040.00
+500   2x2           Gloss White Vinyl  pickup   129.00
+1000  2x2           Gloss White Vinyl  pickup   204.00
+5000  2x2           Gloss White Vinyl  pickup   760.00
 1     3x3           Gloss White Vinyl  pickup   40.45
 25    3x3           Gloss White Vinyl  pickup   51.25
 100   3x3           Gloss White Vinyl  pickup   85.00
-500   3x3           Gloss White Vinyl  pickup   265.00
-1000  3x3           Gloss White Vinyl  pickup   490.00
-5000  3x3           Gloss White Vinyl  pickup   2290.00
+500   3x3           Gloss White Vinyl  pickup   240.25
+1000  3x3           Gloss White Vinyl  pickup   409.00
+5000  3x3           Gloss White Vinyl  pickup   1660.00
 1     4x4           Gloss White Vinyl  pickup   40.80
 25    4x4           Gloss White Vinyl  pickup   60.00
 100   4x4           Gloss White Vinyl  pickup   120.00
-500   4x4           Gloss White Vinyl  pickup   440.00
-1000  4x4           Gloss White Vinyl  pickup   840.00
-5000  4x4           Gloss White Vinyl  pickup   4040.00
+500   4x4           Gloss White Vinyl  pickup   396.00
+1000  4x4           Gloss White Vinyl  pickup   696.00
+5000  4x4           Gloss White Vinyl  pickup   2920.00
 1     2x6           Gloss White Vinyl  pickup   40.60
 25    2x6           Gloss White Vinyl  pickup   55.00
 100   2x6           Gloss White Vinyl  pickup   100.00
-500   2x6           Gloss White Vinyl  pickup   340.00
-1000  2x6           Gloss White Vinyl  pickup   640.00
-5000  2x6           Gloss White Vinyl  pickup   3040.00
+500   2x6           Gloss White Vinyl  pickup   307.00
+1000  2x6           Gloss White Vinyl  pickup   532.00
+5000  2x6           Gloss White Vinyl  pickup   2200.00
 1     6x2           Gloss White Vinyl  pickup   40.60
 25    6x2           Gloss White Vinyl  pickup   55.00
 100   6x2           Gloss White Vinyl  pickup   100.00
-500   6x2           Gloss White Vinyl  pickup   340.00
-1000  6x2           Gloss White Vinyl  pickup   640.00
-5000  6x2           Gloss White Vinyl  pickup   3040.00
+500   6x2           Gloss White Vinyl  pickup   307.00
+1000  6x2           Gloss White Vinyl  pickup   532.00
+5000  6x2           Gloss White Vinyl  pickup   2200.00
 1     3.375x3.375   Gloss White Vinyl  pickup   40.57
 25    3.375x3.375   Gloss White Vinyl  pickup   54.24
 100   3.375x3.375   Gloss White Vinyl  pickup   96.95
-500   3.375x3.375   Gloss White Vinyl  pickup   324.77
-1000  3.375x3.375   Gloss White Vinyl  pickup   609.53
-5000  3.375x3.375   Gloss White Vinyl  pickup   2887.66
+500   3.375x3.375   Gloss White Vinyl  pickup   293.44
+1000  3.375x3.375   Gloss White Vinyl  pickup   507.02
+5000  3.375x3.375   Gloss White Vinyl  pickup   2090.31
 1     0.5x0.5       Gloss White Vinyl  pickup   40.01
 25    0.5x0.5       Gloss White Vinyl  pickup   40.31
 100   0.5x0.5       Gloss White Vinyl  pickup   41.25
-500   0.5x0.5       Gloss White Vinyl  pickup   46.25
-1000  0.5x0.5       Gloss White Vinyl  pickup   52.50
-5000  0.5x0.5       Gloss White Vinyl  pickup   102.50
+500   0.5x0.5       Gloss White Vinyl  pickup   45.56
+1000  0.5x0.5       Gloss White Vinyl  pickup   50.25
+5000  0.5x0.5       Gloss White Vinyl  pickup   85.00
 1     1x1           Matte White Vinyl  pickup   40.05
 25    1x1           Matte White Vinyl  pickup   41.25
 100   1x1           Matte White Vinyl  pickup   45.00
-500   1x1           Matte White Vinyl  pickup   65.00
-1000  1x1           Matte White Vinyl  pickup   90.00
-5000  1x1           Matte White Vinyl  pickup   290.00
+500   1x1           Matte White Vinyl  pickup   62.25
+1000  1x1           Matte White Vinyl  pickup   81.00
+5000  1x1           Matte White Vinyl  pickup   220.00
 1     2x2           Matte White Vinyl  pickup   40.20
 25    2x2           Matte White Vinyl  pickup   45.00
 100   2x2           Matte White Vinyl  pickup   60.00
-500   2x2           Matte White Vinyl  pickup   140.00
-1000  2x2           Matte White Vinyl  pickup   240.00
-5000  2x2           Matte White Vinyl  pickup   1040.00
+500   2x2           Matte White Vinyl  pickup   129.00
+1000  2x2           Matte White Vinyl  pickup   204.00
+5000  2x2           Matte White Vinyl  pickup   760.00
 1     3x3           Matte White Vinyl  pickup   40.45
 25    3x3           Matte White Vinyl  pickup   51.25
 100   3x3           Matte White Vinyl  pickup   85.00
-500   3x3           Matte White Vinyl  pickup   265.00
-1000  3x3           Matte White Vinyl  pickup   490.00
-5000  3x3           Matte White Vinyl  pickup   2290.00
+500   3x3           Matte White Vinyl  pickup   240.25
+1000  3x3           Matte White Vinyl  pickup   409.00
+5000  3x3           Matte White Vinyl  pickup   1660.00
 1     4x4           Matte White Vinyl  pickup   40.80
 25    4x4           Matte White Vinyl  pickup   60.00
 100   4x4           Matte White Vinyl  pickup   120.00
-500   4x4           Matte White Vinyl  pickup   440.00
-1000  4x4           Matte White Vinyl  pickup   840.00
-5000  4x4           Matte White Vinyl  pickup   4040.00
+500   4x4           Matte White Vinyl  pickup   396.00
+1000  4x4           Matte White Vinyl  pickup   696.00
+5000  4x4           Matte White Vinyl  pickup   2920.00
 1     2x6           Matte White Vinyl  pickup   40.60
 25    2x6           Matte White Vinyl  pickup   55.00
 100   2x6           Matte White Vinyl  pickup   100.00
-500   2x6           Matte White Vinyl  pickup   340.00
-1000  2x6           Matte White Vinyl  pickup   640.00
-5000  2x6           Matte White Vinyl  pickup   3040.00
+500   2x6           Matte White Vinyl  pickup   307.00
+1000  2x6           Matte White Vinyl  pickup   532.00
+5000  2x6           Matte White Vinyl  pickup   2200.00
 1     6x2           Matte White Vinyl  pickup   40.60
 25    6x2           Matte White Vinyl  pickup   55.00
 100   6x2           Matte White Vinyl  pickup   100.00
-500   6x2           Matte White Vinyl  pickup   340.00
-1000  6x2           Matte White Vinyl  pickup   640.00
-5000  6x2           Matte White Vinyl  pickup   3040.00
+500   6x2           Matte White Vinyl  pickup   307.00
+1000  6x2           Matte White Vinyl  pickup   532.00
+5000  6x2           Matte White Vinyl  pickup   2200.00
 1     3.375x3.375   Matte White Vinyl  pickup   40.57
 25    3.375x3.375   Matte White Vinyl  pickup   54.24
 100   3.375x3.375   Matte White Vinyl  pickup   96.95
-500   3.375x3.375   Matte White Vinyl  pickup   324.77
-1000  3.375x3.375   Matte White Vinyl  pickup   609.53
-5000  3.375x3.375   Matte White Vinyl  pickup   2887.66
+500   3.375x3.375   Matte White Vinyl  pickup   293.44
+1000  3.375x3.375   Matte White Vinyl  pickup   507.02
+5000  3.375x3.375   Matte White Vinyl  pickup   2090.31
 1     0.5x0.5       Matte White Vinyl  pickup   40.01
 25    0.5x0.5       Matte White Vinyl  pickup   40.31
 100   0.5x0.5       Matte White Vinyl  pickup   41.25
-500   0.5x0.5       Matte White Vinyl  pickup   46.25
-1000  0.5x0.5       Matte White Vinyl  pickup   52.50
-5000  0.5x0.5       Matte White Vinyl  pickup   102.50
+500   0.5x0.5       Matte White Vinyl  pickup   45.56
+1000  0.5x0.5       Matte White Vinyl  pickup   50.25
+5000  0.5x0.5       Matte White Vinyl  pickup   85.00
 1     1x1           Chrome             pickup   40.08
 25    1x1           Chrome             pickup   42.00
 100   1x1           Chrome             pickup   48.00
-500   1x1           Chrome             pickup   80.00
-1000  1x1           Chrome             pickup   120.00
-5000  1x1           Chrome             pickup   440.00
+500   1x1           Chrome             pickup   75.60
+1000  1x1           Chrome             pickup   105.60
+5000  1x1           Chrome             pickup   328.00
 1     2x2           Chrome             pickup   40.32
 25    2x2           Chrome             pickup   48.00
 100   2x2           Chrome             pickup   72.00
-500   2x2           Chrome             pickup   200.00
-1000  2x2           Chrome             pickup   360.00
-5000  2x2           Chrome             pickup   1640.00
+500   2x2           Chrome             pickup   182.40
+1000  2x2           Chrome             pickup   302.40
+5000  2x2           Chrome             pickup   1192.00
 1     3x3           Chrome             pickup   40.72
 25    3x3           Chrome             pickup   58.00
 100   3x3           Chrome             pickup   112.00
-500   3x3           Chrome             pickup   400.00
-1000  3x3           Chrome             pickup   760.00
-5000  3x3           Chrome             pickup   3640.00
+500   3x3           Chrome             pickup   360.40
+1000  3x3           Chrome             pickup   630.40
+5000  3x3           Chrome             pickup   2632.00
 1     4x4           Chrome             pickup   41.28
 25    4x4           Chrome             pickup   72.00
 100   4x4           Chrome             pickup   168.00
-500   4x4           Chrome             pickup   680.00
-1000  4x4           Chrome             pickup   1320.00
-5000  4x4           Chrome             pickup   6440.00
+500   4x4           Chrome             pickup   609.60
+1000  4x4           Chrome             pickup   1089.60
+5000  4x4           Chrome             pickup   4648.00
 1     2x6           Chrome             pickup   40.96
 25    2x6           Chrome             pickup   64.00
 100   2x6           Chrome             pickup   136.00
-500   2x6           Chrome             pickup   520.00
-1000  2x6           Chrome             pickup   1000.00
-5000  2x6           Chrome             pickup   4840.00
+500   2x6           Chrome             pickup   467.20
+1000  2x6           Chrome             pickup   827.20
+5000  2x6           Chrome             pickup   3496.00
 1     6x2           Chrome             pickup   40.96
 25    6x2           Chrome             pickup   64.00
 100   6x2           Chrome             pickup   136.00
-500   6x2           Chrome             pickup   520.00
-1000  6x2           Chrome             pickup   1000.00
-5000  6x2           Chrome             pickup   4840.00
+500   6x2           Chrome             pickup   467.20
+1000  6x2           Chrome             pickup   827.20
+5000  6x2           Chrome             pickup   3496.00
 1     3.375x3.375   Chrome             pickup   40.91
 25    3.375x3.375   Chrome             pickup   62.78
 100   3.375x3.375   Chrome             pickup   131.13
-500   3.375x3.375   Chrome             pickup   495.63
-1000  3.375x3.375   Chrome             pickup   951.25
-5000  3.375x3.375   Chrome             pickup   4596.25
+500   3.375x3.375   Chrome             pickup   445.51
+1000  3.375x3.375   Chrome             pickup   787.23
+5000  3.375x3.375   Chrome             pickup   3320.50
 1     0.5x0.5       Chrome             pickup   40.02
 25    0.5x0.5       Chrome             pickup   40.50
 100   0.5x0.5       Chrome             pickup   42.00
-500   0.5x0.5       Chrome             pickup   50.00
-1000  0.5x0.5       Chrome             pickup   60.00
-5000  0.5x0.5       Chrome             pickup   140.00
+500   0.5x0.5       Chrome             pickup   48.90
+1000  0.5x0.5       Chrome             pickup   56.40
+5000  0.5x0.5       Chrome             pickup   112.00
 1     1x1           Holographic        pickup   40.08
 25    1x1           Holographic        pickup   42.00
 100   1x1           Holographic        pickup   48.00
-500   1x1           Holographic        pickup   80.00
-1000  1x1           Holographic        pickup   120.00
-5000  1x1           Holographic        pickup   440.00
+500   1x1           Holographic        pickup   75.60
+1000  1x1           Holographic        pickup   105.60
+5000  1x1           Holographic        pickup   328.00
 1     2x2           Holographic        pickup   40.32
 25    2x2           Holographic        pickup   48.00
 100   2x2           Holographic        pickup   72.00
-500   2x2           Holographic        pickup   200.00
-1000  2x2           Holographic        pickup   360.00
-5000  2x2           Holographic        pickup   1640.00
+500   2x2           Holographic        pickup   182.40
+1000  2x2           Holographic        pickup   302.40
+5000  2x2           Holographic        pickup   1192.00
 1     3x3           Holographic        pickup   40.72
 25    3x3           Holographic        pickup   58.00
 100   3x3           Holographic        pickup   112.00
-500   3x3           Holographic        pickup   400.00
-1000  3x3           Holographic        pickup   760.00
-5000  3x3           Holographic        pickup   3640.00
+500   3x3           Holographic        pickup   360.40
+1000  3x3           Holographic        pickup   630.40
+5000  3x3           Holographic        pickup   2632.00
 1     4x4           Holographic        pickup   41.28
 25    4x4           Holographic        pickup   72.00
 100   4x4           Holographic        pickup   168.00
-500   4x4           Holographic        pickup   680.00
-1000  4x4           Holographic        pickup   1320.00
-5000  4x4           Holographic        pickup   6440.00
+500   4x4           Holographic        pickup   609.60
+1000  4x4           Holographic        pickup   1089.60
+5000  4x4           Holographic        pickup   4648.00
 1     2x6           Holographic        pickup   40.96
 25    2x6           Holographic        pickup   64.00
 100   2x6           Holographic        pickup   136.00
-500   2x6           Holographic        pickup   520.00
-1000  2x6           Holographic        pickup   1000.00
-5000  2x6           Holographic        pickup   4840.00
+500   2x6           Holographic        pickup   467.20
+1000  2x6           Holographic        pickup   827.20
+5000  2x6           Holographic        pickup   3496.00
 1     6x2           Holographic        pickup   40.96
 25    6x2           Holographic        pickup   64.00
 100   6x2           Holographic        pickup   136.00
-500   6x2           Holographic        pickup   520.00
-1000  6x2           Holographic        pickup   1000.00
-5000  6x2           Holographic        pickup   4840.00
+500   6x2           Holographic        pickup   467.20
+1000  6x2           Holographic        pickup   827.20
+5000  6x2           Holographic        pickup   3496.00
 1     3.375x3.375   Holographic        pickup   40.91
 25    3.375x3.375   Holographic        pickup   62.78
 100   3.375x3.375   Holographic        pickup   131.13
-500   3.375x3.375   Holographic        pickup   495.63
-1000  3.375x3.375   Holographic        pickup   951.25
-5000  3.375x3.375   Holographic        pickup   4596.25
+500   3.375x3.375   Holographic        pickup   445.51
+1000  3.375x3.375   Holographic        pickup   787.23
+5000  3.375x3.375   Holographic        pickup   3320.50
 1     0.5x0.5       Holographic        pickup   40.02
 25    0.5x0.5       Holographic        pickup   40.50
 100   0.5x0.5       Holographic        pickup   42.00
-500   0.5x0.5       Holographic        pickup   50.00
-1000  0.5x0.5       Holographic        pickup   60.00
-5000  0.5x0.5       Holographic        pickup   140.00
+500   0.5x0.5       Holographic        pickup   48.90
+1000  0.5x0.5       Holographic        pickup   56.40
+5000  0.5x0.5       Holographic        pickup   112.00
 100   3x3           Gloss White Vinyl  pickup   150.00   x2 designs
 100   3x3           Gloss White Vinyl  ship     162.00   x2 designs
 100   3x3           Gloss White Vinyl  pickup   215.00   x3 designs
@@ -447,7 +453,9 @@ describe("the anchors", () => {
     // at high quantities still go low, and self-checkout charges them with
     // nobody in the loop. Kept visible rather than buried so the day the shop
     // wants a floor, the cost of not having one is already written down.
-    assert.equal(find(5000, 1, 1, "pickup")?.total, 290);
-    assert.equal(find(5000, 0.5, 0.5, "pickup")?.total, 102.5);
+    // After the volume curve (STICKER_VOLUME_TIERS): 5,000 pays 72% of the
+    // material rate, so these came down from $290 and $102.50 the same day.
+    assert.equal(find(5000, 1, 1, "pickup")?.total, 220);
+    assert.equal(find(5000, 0.5, 0.5, "pickup")?.total, 85);
   });
 });

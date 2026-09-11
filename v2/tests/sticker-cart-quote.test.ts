@@ -35,7 +35,8 @@ describe("the composition itself", () => {
     assert.equal(quote.stickerPrice, 60.8);
     assert.equal(quote.setupPrice, STICKER_SETUP_FEE + STICKER_SETUP_FEE_ADDITIONAL);
     assert.equal(quote.shippingPrice, DECAL_SHIPPING_PRICE);
-    assert.equal(quote.total, 110.3);
+    // 60.80 material + (40 + 20) setup + 12 shipping.
+    assert.equal(quote.total, 132.8);
   });
 
   it("charges setup per DESIGN, not per dollar", () => {

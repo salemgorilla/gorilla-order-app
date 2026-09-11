@@ -26,20 +26,33 @@ import { repriceStickers } from "../lib/sticker-repricing";
  * what it did, which is the shape of a test that reads as coverage and
  * protects nothing.
  *
- * ── ANCHORED TO FIGURES VERIFIED OUTSIDE THIS REPO ────────────────────────
- * Four rows here are known-good independently, which is what makes the rest
- * of the sheet trustworthy rather than merely self-consistent:
+ * ── REGENERATED 2026-09-11 FOR THE RE-RATE ────────────────────────────────
+ * Every one of the 199 rows moved. Gabe, that morning: "The sticker quote
+ * system is not accurate. The cost of Lexi order is $55 approximately.
+ * Should be closer to $85." Both constants in lib/pricing.ts were scaled by
+ * the same ~58% — the rate to $0.05/sq in and setup to $40 — so that the
+ * volume break the setup fee provides survives the rise. That file's header
+ * carries the reasoning; this sheet is the readable diff of what it did.
  *
- *   3 x 100 x 3" shipped .......... $148.40   the price agreed with the shop
- *                                             in CART-PLAN.md, and the whole
- *                                             reason the cart exists
- *   3 x 100 x 3" pickup ........... $136.40   reconciled against a real
- *                                             Printavo invoice on 15 Aug —
- *                                             $144.93 due with MA 6.25% tax,
- *                                             to the cent (see HANDOFF.md)
- *   5,000 x 1" .................... $185.00   both quoted in the header of
- *   5,000 x 0.5" ................... $65.00   lib/pricing.ts as what the
- *                                             missing price floor allows
+ * THE REFERENCE ROW: 100 x 3" pickup, single design, is now $85.00 exactly.
+ * That is Lexi Sprague's order (GS-20260910-U38N3), the one that started it.
+ *
+ * ── WHAT THE OLD ANCHORS DID AND DID NOT PROVE ────────────────────────────
+ * This sheet used to cite four figures verified outside the repo, including
+ * 3 x 100 x 3" pickup at $136.40, reconciled against a real Printavo invoice
+ * on 15 Aug to the cent. A re-rate retires those dollar figures — they were
+ * correct for the old constants and are simply not what the shop charges any
+ * more.
+ *
+ * Be precise about what is lost. That reconciliation proved the APP AND
+ * PRINTAVO AGREE: the payload, the tax flags and the invoice arithmetic line
+ * up. Nothing about that pipeline changed here, and Lexi's own order re-proved
+ * it four weeks later — $53.80 quoted, $55.60 collected, which is exactly
+ * $28.80 of stickers plus 6.25% MA tax plus untaxed $25 setup.
+ *
+ * What is NOT proved is the new rate against a real invoice, because no order
+ * has been placed at it yet. HANDOFF.md's Reconciled table carries that as
+ * owed, and the first sticker order after this ships is the one to check.
  *
  * ── WHAT IS NOT COVERED HERE ──────────────────────────────────────────────
  * Tax. The payload deliberately stays PRE-TAX so Printavo computes what is
@@ -52,205 +65,205 @@ import { repriceStickers } from "../lib/sticker-repricing";
  * Columns: quantity, size, material, delivery, total, [designs in the cart].
  */
 const PRICE_SHEET = `
-1     1x1           Gloss White Vinyl  pickup   25.03
-25    1x1           Gloss White Vinyl  pickup   25.80
-100   1x1           Gloss White Vinyl  pickup   28.20
-500   1x1           Gloss White Vinyl  pickup   41.00
-1000  1x1           Gloss White Vinyl  pickup   57.00
-5000  1x1           Gloss White Vinyl  pickup   185.00
-1     2x2           Gloss White Vinyl  pickup   25.13
-25    2x2           Gloss White Vinyl  pickup   28.20
-100   2x2           Gloss White Vinyl  pickup   37.80
-500   2x2           Gloss White Vinyl  pickup   89.00
-1000  2x2           Gloss White Vinyl  pickup   153.00
-5000  2x2           Gloss White Vinyl  pickup   665.00
-1     3x3           Gloss White Vinyl  pickup   25.29
-25    3x3           Gloss White Vinyl  pickup   32.20
-100   3x3           Gloss White Vinyl  pickup   53.80
-500   3x3           Gloss White Vinyl  pickup   169.00
-1000  3x3           Gloss White Vinyl  pickup   313.00
-5000  3x3           Gloss White Vinyl  pickup   1465.00
-1     4x4           Gloss White Vinyl  pickup   25.51
-25    4x4           Gloss White Vinyl  pickup   37.80
-100   4x4           Gloss White Vinyl  pickup   76.20
-500   4x4           Gloss White Vinyl  pickup   281.00
-1000  4x4           Gloss White Vinyl  pickup   537.00
-5000  4x4           Gloss White Vinyl  pickup   2585.00
-1     2x6           Gloss White Vinyl  pickup   25.38
-25    2x6           Gloss White Vinyl  pickup   34.60
-100   2x6           Gloss White Vinyl  pickup   63.40
-500   2x6           Gloss White Vinyl  pickup   217.00
-1000  2x6           Gloss White Vinyl  pickup   409.00
-5000  2x6           Gloss White Vinyl  pickup   1945.00
-1     6x2           Gloss White Vinyl  pickup   25.38
-25    6x2           Gloss White Vinyl  pickup   34.60
-100   6x2           Gloss White Vinyl  pickup   63.40
-500   6x2           Gloss White Vinyl  pickup   217.00
-1000  6x2           Gloss White Vinyl  pickup   409.00
-5000  6x2           Gloss White Vinyl  pickup   1945.00
-1     3.375x3.375   Gloss White Vinyl  pickup   25.36
-25    3.375x3.375   Gloss White Vinyl  pickup   34.11
-100   3.375x3.375   Gloss White Vinyl  pickup   61.45
-500   3.375x3.375   Gloss White Vinyl  pickup   207.25
-1000  3.375x3.375   Gloss White Vinyl  pickup   389.50
-5000  3.375x3.375   Gloss White Vinyl  pickup   1847.50
-1     0.5x0.5       Gloss White Vinyl  pickup   25.01
-25    0.5x0.5       Gloss White Vinyl  pickup   25.20
-100   0.5x0.5       Gloss White Vinyl  pickup   25.80
-500   0.5x0.5       Gloss White Vinyl  pickup   29.00
-1000  0.5x0.5       Gloss White Vinyl  pickup   33.00
-5000  0.5x0.5       Gloss White Vinyl  pickup   65.00
-1     1x1           Matte White Vinyl  pickup   25.03
-25    1x1           Matte White Vinyl  pickup   25.80
-100   1x1           Matte White Vinyl  pickup   28.20
-500   1x1           Matte White Vinyl  pickup   41.00
-1000  1x1           Matte White Vinyl  pickup   57.00
-5000  1x1           Matte White Vinyl  pickup   185.00
-1     2x2           Matte White Vinyl  pickup   25.13
-25    2x2           Matte White Vinyl  pickup   28.20
-100   2x2           Matte White Vinyl  pickup   37.80
-500   2x2           Matte White Vinyl  pickup   89.00
-1000  2x2           Matte White Vinyl  pickup   153.00
-5000  2x2           Matte White Vinyl  pickup   665.00
-1     3x3           Matte White Vinyl  pickup   25.29
-25    3x3           Matte White Vinyl  pickup   32.20
-100   3x3           Matte White Vinyl  pickup   53.80
-500   3x3           Matte White Vinyl  pickup   169.00
-1000  3x3           Matte White Vinyl  pickup   313.00
-5000  3x3           Matte White Vinyl  pickup   1465.00
-1     4x4           Matte White Vinyl  pickup   25.51
-25    4x4           Matte White Vinyl  pickup   37.80
-100   4x4           Matte White Vinyl  pickup   76.20
-500   4x4           Matte White Vinyl  pickup   281.00
-1000  4x4           Matte White Vinyl  pickup   537.00
-5000  4x4           Matte White Vinyl  pickup   2585.00
-1     2x6           Matte White Vinyl  pickup   25.38
-25    2x6           Matte White Vinyl  pickup   34.60
-100   2x6           Matte White Vinyl  pickup   63.40
-500   2x6           Matte White Vinyl  pickup   217.00
-1000  2x6           Matte White Vinyl  pickup   409.00
-5000  2x6           Matte White Vinyl  pickup   1945.00
-1     6x2           Matte White Vinyl  pickup   25.38
-25    6x2           Matte White Vinyl  pickup   34.60
-100   6x2           Matte White Vinyl  pickup   63.40
-500   6x2           Matte White Vinyl  pickup   217.00
-1000  6x2           Matte White Vinyl  pickup   409.00
-5000  6x2           Matte White Vinyl  pickup   1945.00
-1     3.375x3.375   Matte White Vinyl  pickup   25.36
-25    3.375x3.375   Matte White Vinyl  pickup   34.11
-100   3.375x3.375   Matte White Vinyl  pickup   61.45
-500   3.375x3.375   Matte White Vinyl  pickup   207.25
-1000  3.375x3.375   Matte White Vinyl  pickup   389.50
-5000  3.375x3.375   Matte White Vinyl  pickup   1847.50
-1     0.5x0.5       Matte White Vinyl  pickup   25.01
-25    0.5x0.5       Matte White Vinyl  pickup   25.20
-100   0.5x0.5       Matte White Vinyl  pickup   25.80
-500   0.5x0.5       Matte White Vinyl  pickup   29.00
-1000  0.5x0.5       Matte White Vinyl  pickup   33.00
-5000  0.5x0.5       Matte White Vinyl  pickup   65.00
-1     1x1           Chrome             pickup   25.05
-25    1x1           Chrome             pickup   26.28
-100   1x1           Chrome             pickup   30.12
-500   1x1           Chrome             pickup   50.60
-1000  1x1           Chrome             pickup   76.20
-5000  1x1           Chrome             pickup   281.00
-1     2x2           Chrome             pickup   25.20
-25    2x2           Chrome             pickup   30.12
-100   2x2           Chrome             pickup   45.48
-500   2x2           Chrome             pickup   127.40
-1000  2x2           Chrome             pickup   229.80
-5000  2x2           Chrome             pickup   1049.00
-1     3x3           Chrome             pickup   25.46
-25    3x3           Chrome             pickup   36.52
-100   3x3           Chrome             pickup   71.08
-500   3x3           Chrome             pickup   255.40
-1000  3x3           Chrome             pickup   485.80
-5000  3x3           Chrome             pickup   2329.00
-1     4x4           Chrome             pickup   25.82
-25    4x4           Chrome             pickup   45.48
-100   4x4           Chrome             pickup   106.92
-500   4x4           Chrome             pickup   434.60
-1000  4x4           Chrome             pickup   844.20
-5000  4x4           Chrome             pickup   4121.00
-1     2x6           Chrome             pickup   25.61
-25    2x6           Chrome             pickup   40.36
-100   2x6           Chrome             pickup   86.44
-500   2x6           Chrome             pickup   332.20
-1000  2x6           Chrome             pickup   639.40
-5000  2x6           Chrome             pickup   3097.00
-1     6x2           Chrome             pickup   25.61
-25    6x2           Chrome             pickup   40.36
-100   6x2           Chrome             pickup   86.44
-500   6x2           Chrome             pickup   332.20
-1000  6x2           Chrome             pickup   639.40
-5000  6x2           Chrome             pickup   3097.00
-1     3.375x3.375   Chrome             pickup   25.58
-25    3.375x3.375   Chrome             pickup   39.58
-100   3.375x3.375   Chrome             pickup   83.32
-500   3.375x3.375   Chrome             pickup   316.60
-1000  3.375x3.375   Chrome             pickup   608.20
-5000  3.375x3.375   Chrome             pickup   2941.00
-1     0.5x0.5       Chrome             pickup   25.01
-25    0.5x0.5       Chrome             pickup   25.32
-100   0.5x0.5       Chrome             pickup   26.28
-500   0.5x0.5       Chrome             pickup   31.40
-1000  0.5x0.5       Chrome             pickup   37.80
-5000  0.5x0.5       Chrome             pickup   89.00
-1     1x1           Holographic        pickup   25.05
-25    1x1           Holographic        pickup   26.28
-100   1x1           Holographic        pickup   30.12
-500   1x1           Holographic        pickup   50.60
-1000  1x1           Holographic        pickup   76.20
-5000  1x1           Holographic        pickup   281.00
-1     2x2           Holographic        pickup   25.20
-25    2x2           Holographic        pickup   30.12
-100   2x2           Holographic        pickup   45.48
-500   2x2           Holographic        pickup   127.40
-1000  2x2           Holographic        pickup   229.80
-5000  2x2           Holographic        pickup   1049.00
-1     3x3           Holographic        pickup   25.46
-25    3x3           Holographic        pickup   36.52
-100   3x3           Holographic        pickup   71.08
-500   3x3           Holographic        pickup   255.40
-1000  3x3           Holographic        pickup   485.80
-5000  3x3           Holographic        pickup   2329.00
-1     4x4           Holographic        pickup   25.82
-25    4x4           Holographic        pickup   45.48
-100   4x4           Holographic        pickup   106.92
-500   4x4           Holographic        pickup   434.60
-1000  4x4           Holographic        pickup   844.20
-5000  4x4           Holographic        pickup   4121.00
-1     2x6           Holographic        pickup   25.61
-25    2x6           Holographic        pickup   40.36
-100   2x6           Holographic        pickup   86.44
-500   2x6           Holographic        pickup   332.20
-1000  2x6           Holographic        pickup   639.40
-5000  2x6           Holographic        pickup   3097.00
-1     6x2           Holographic        pickup   25.61
-25    6x2           Holographic        pickup   40.36
-100   6x2           Holographic        pickup   86.44
-500   6x2           Holographic        pickup   332.20
-1000  6x2           Holographic        pickup   639.40
-5000  6x2           Holographic        pickup   3097.00
-1     3.375x3.375   Holographic        pickup   25.58
-25    3.375x3.375   Holographic        pickup   39.58
-100   3.375x3.375   Holographic        pickup   83.32
-500   3.375x3.375   Holographic        pickup   316.60
-1000  3.375x3.375   Holographic        pickup   608.20
-5000  3.375x3.375   Holographic        pickup   2941.00
-1     0.5x0.5       Holographic        pickup   25.01
-25    0.5x0.5       Holographic        pickup   25.32
-100   0.5x0.5       Holographic        pickup   26.28
-500   0.5x0.5       Holographic        pickup   31.40
-1000  0.5x0.5       Holographic        pickup   37.80
-5000  0.5x0.5       Holographic        pickup   89.00
-100   3x3           Gloss White Vinyl  pickup   95.10   x2 designs
-100   3x3           Gloss White Vinyl  ship     107.10   x2 designs
-100   3x3           Gloss White Vinyl  pickup   136.40   x3 designs
-100   3x3           Gloss White Vinyl  ship     148.40   x3 designs
-100   3x3           Gloss White Vinyl  pickup   219.00   x5 designs
-100   3x3           Gloss White Vinyl  ship     231.00   x5 designs
-100   3x3           Gloss White Vinyl  ship     65.80
+1     1x1           Gloss White Vinyl  pickup   40.05
+25    1x1           Gloss White Vinyl  pickup   41.25
+100   1x1           Gloss White Vinyl  pickup   45.00
+500   1x1           Gloss White Vinyl  pickup   65.00
+1000  1x1           Gloss White Vinyl  pickup   90.00
+5000  1x1           Gloss White Vinyl  pickup   290.00
+1     2x2           Gloss White Vinyl  pickup   40.20
+25    2x2           Gloss White Vinyl  pickup   45.00
+100   2x2           Gloss White Vinyl  pickup   60.00
+500   2x2           Gloss White Vinyl  pickup   140.00
+1000  2x2           Gloss White Vinyl  pickup   240.00
+5000  2x2           Gloss White Vinyl  pickup   1040.00
+1     3x3           Gloss White Vinyl  pickup   40.45
+25    3x3           Gloss White Vinyl  pickup   51.25
+100   3x3           Gloss White Vinyl  pickup   85.00
+500   3x3           Gloss White Vinyl  pickup   265.00
+1000  3x3           Gloss White Vinyl  pickup   490.00
+5000  3x3           Gloss White Vinyl  pickup   2290.00
+1     4x4           Gloss White Vinyl  pickup   40.80
+25    4x4           Gloss White Vinyl  pickup   60.00
+100   4x4           Gloss White Vinyl  pickup   120.00
+500   4x4           Gloss White Vinyl  pickup   440.00
+1000  4x4           Gloss White Vinyl  pickup   840.00
+5000  4x4           Gloss White Vinyl  pickup   4040.00
+1     2x6           Gloss White Vinyl  pickup   40.60
+25    2x6           Gloss White Vinyl  pickup   55.00
+100   2x6           Gloss White Vinyl  pickup   100.00
+500   2x6           Gloss White Vinyl  pickup   340.00
+1000  2x6           Gloss White Vinyl  pickup   640.00
+5000  2x6           Gloss White Vinyl  pickup   3040.00
+1     6x2           Gloss White Vinyl  pickup   40.60
+25    6x2           Gloss White Vinyl  pickup   55.00
+100   6x2           Gloss White Vinyl  pickup   100.00
+500   6x2           Gloss White Vinyl  pickup   340.00
+1000  6x2           Gloss White Vinyl  pickup   640.00
+5000  6x2           Gloss White Vinyl  pickup   3040.00
+1     3.375x3.375   Gloss White Vinyl  pickup   40.57
+25    3.375x3.375   Gloss White Vinyl  pickup   54.24
+100   3.375x3.375   Gloss White Vinyl  pickup   96.95
+500   3.375x3.375   Gloss White Vinyl  pickup   324.77
+1000  3.375x3.375   Gloss White Vinyl  pickup   609.53
+5000  3.375x3.375   Gloss White Vinyl  pickup   2887.66
+1     0.5x0.5       Gloss White Vinyl  pickup   40.01
+25    0.5x0.5       Gloss White Vinyl  pickup   40.31
+100   0.5x0.5       Gloss White Vinyl  pickup   41.25
+500   0.5x0.5       Gloss White Vinyl  pickup   46.25
+1000  0.5x0.5       Gloss White Vinyl  pickup   52.50
+5000  0.5x0.5       Gloss White Vinyl  pickup   102.50
+1     1x1           Matte White Vinyl  pickup   40.05
+25    1x1           Matte White Vinyl  pickup   41.25
+100   1x1           Matte White Vinyl  pickup   45.00
+500   1x1           Matte White Vinyl  pickup   65.00
+1000  1x1           Matte White Vinyl  pickup   90.00
+5000  1x1           Matte White Vinyl  pickup   290.00
+1     2x2           Matte White Vinyl  pickup   40.20
+25    2x2           Matte White Vinyl  pickup   45.00
+100   2x2           Matte White Vinyl  pickup   60.00
+500   2x2           Matte White Vinyl  pickup   140.00
+1000  2x2           Matte White Vinyl  pickup   240.00
+5000  2x2           Matte White Vinyl  pickup   1040.00
+1     3x3           Matte White Vinyl  pickup   40.45
+25    3x3           Matte White Vinyl  pickup   51.25
+100   3x3           Matte White Vinyl  pickup   85.00
+500   3x3           Matte White Vinyl  pickup   265.00
+1000  3x3           Matte White Vinyl  pickup   490.00
+5000  3x3           Matte White Vinyl  pickup   2290.00
+1     4x4           Matte White Vinyl  pickup   40.80
+25    4x4           Matte White Vinyl  pickup   60.00
+100   4x4           Matte White Vinyl  pickup   120.00
+500   4x4           Matte White Vinyl  pickup   440.00
+1000  4x4           Matte White Vinyl  pickup   840.00
+5000  4x4           Matte White Vinyl  pickup   4040.00
+1     2x6           Matte White Vinyl  pickup   40.60
+25    2x6           Matte White Vinyl  pickup   55.00
+100   2x6           Matte White Vinyl  pickup   100.00
+500   2x6           Matte White Vinyl  pickup   340.00
+1000  2x6           Matte White Vinyl  pickup   640.00
+5000  2x6           Matte White Vinyl  pickup   3040.00
+1     6x2           Matte White Vinyl  pickup   40.60
+25    6x2           Matte White Vinyl  pickup   55.00
+100   6x2           Matte White Vinyl  pickup   100.00
+500   6x2           Matte White Vinyl  pickup   340.00
+1000  6x2           Matte White Vinyl  pickup   640.00
+5000  6x2           Matte White Vinyl  pickup   3040.00
+1     3.375x3.375   Matte White Vinyl  pickup   40.57
+25    3.375x3.375   Matte White Vinyl  pickup   54.24
+100   3.375x3.375   Matte White Vinyl  pickup   96.95
+500   3.375x3.375   Matte White Vinyl  pickup   324.77
+1000  3.375x3.375   Matte White Vinyl  pickup   609.53
+5000  3.375x3.375   Matte White Vinyl  pickup   2887.66
+1     0.5x0.5       Matte White Vinyl  pickup   40.01
+25    0.5x0.5       Matte White Vinyl  pickup   40.31
+100   0.5x0.5       Matte White Vinyl  pickup   41.25
+500   0.5x0.5       Matte White Vinyl  pickup   46.25
+1000  0.5x0.5       Matte White Vinyl  pickup   52.50
+5000  0.5x0.5       Matte White Vinyl  pickup   102.50
+1     1x1           Chrome             pickup   40.08
+25    1x1           Chrome             pickup   42.00
+100   1x1           Chrome             pickup   48.00
+500   1x1           Chrome             pickup   80.00
+1000  1x1           Chrome             pickup   120.00
+5000  1x1           Chrome             pickup   440.00
+1     2x2           Chrome             pickup   40.32
+25    2x2           Chrome             pickup   48.00
+100   2x2           Chrome             pickup   72.00
+500   2x2           Chrome             pickup   200.00
+1000  2x2           Chrome             pickup   360.00
+5000  2x2           Chrome             pickup   1640.00
+1     3x3           Chrome             pickup   40.72
+25    3x3           Chrome             pickup   58.00
+100   3x3           Chrome             pickup   112.00
+500   3x3           Chrome             pickup   400.00
+1000  3x3           Chrome             pickup   760.00
+5000  3x3           Chrome             pickup   3640.00
+1     4x4           Chrome             pickup   41.28
+25    4x4           Chrome             pickup   72.00
+100   4x4           Chrome             pickup   168.00
+500   4x4           Chrome             pickup   680.00
+1000  4x4           Chrome             pickup   1320.00
+5000  4x4           Chrome             pickup   6440.00
+1     2x6           Chrome             pickup   40.96
+25    2x6           Chrome             pickup   64.00
+100   2x6           Chrome             pickup   136.00
+500   2x6           Chrome             pickup   520.00
+1000  2x6           Chrome             pickup   1000.00
+5000  2x6           Chrome             pickup   4840.00
+1     6x2           Chrome             pickup   40.96
+25    6x2           Chrome             pickup   64.00
+100   6x2           Chrome             pickup   136.00
+500   6x2           Chrome             pickup   520.00
+1000  6x2           Chrome             pickup   1000.00
+5000  6x2           Chrome             pickup   4840.00
+1     3.375x3.375   Chrome             pickup   40.91
+25    3.375x3.375   Chrome             pickup   62.78
+100   3.375x3.375   Chrome             pickup   131.13
+500   3.375x3.375   Chrome             pickup   495.63
+1000  3.375x3.375   Chrome             pickup   951.25
+5000  3.375x3.375   Chrome             pickup   4596.25
+1     0.5x0.5       Chrome             pickup   40.02
+25    0.5x0.5       Chrome             pickup   40.50
+100   0.5x0.5       Chrome             pickup   42.00
+500   0.5x0.5       Chrome             pickup   50.00
+1000  0.5x0.5       Chrome             pickup   60.00
+5000  0.5x0.5       Chrome             pickup   140.00
+1     1x1           Holographic        pickup   40.08
+25    1x1           Holographic        pickup   42.00
+100   1x1           Holographic        pickup   48.00
+500   1x1           Holographic        pickup   80.00
+1000  1x1           Holographic        pickup   120.00
+5000  1x1           Holographic        pickup   440.00
+1     2x2           Holographic        pickup   40.32
+25    2x2           Holographic        pickup   48.00
+100   2x2           Holographic        pickup   72.00
+500   2x2           Holographic        pickup   200.00
+1000  2x2           Holographic        pickup   360.00
+5000  2x2           Holographic        pickup   1640.00
+1     3x3           Holographic        pickup   40.72
+25    3x3           Holographic        pickup   58.00
+100   3x3           Holographic        pickup   112.00
+500   3x3           Holographic        pickup   400.00
+1000  3x3           Holographic        pickup   760.00
+5000  3x3           Holographic        pickup   3640.00
+1     4x4           Holographic        pickup   41.28
+25    4x4           Holographic        pickup   72.00
+100   4x4           Holographic        pickup   168.00
+500   4x4           Holographic        pickup   680.00
+1000  4x4           Holographic        pickup   1320.00
+5000  4x4           Holographic        pickup   6440.00
+1     2x6           Holographic        pickup   40.96
+25    2x6           Holographic        pickup   64.00
+100   2x6           Holographic        pickup   136.00
+500   2x6           Holographic        pickup   520.00
+1000  2x6           Holographic        pickup   1000.00
+5000  2x6           Holographic        pickup   4840.00
+1     6x2           Holographic        pickup   40.96
+25    6x2           Holographic        pickup   64.00
+100   6x2           Holographic        pickup   136.00
+500   6x2           Holographic        pickup   520.00
+1000  6x2           Holographic        pickup   1000.00
+5000  6x2           Holographic        pickup   4840.00
+1     3.375x3.375   Holographic        pickup   40.91
+25    3.375x3.375   Holographic        pickup   62.78
+100   3.375x3.375   Holographic        pickup   131.13
+500   3.375x3.375   Holographic        pickup   495.63
+1000  3.375x3.375   Holographic        pickup   951.25
+5000  3.375x3.375   Holographic        pickup   4596.25
+1     0.5x0.5       Holographic        pickup   40.02
+25    0.5x0.5       Holographic        pickup   40.50
+100   0.5x0.5       Holographic        pickup   42.00
+500   0.5x0.5       Holographic        pickup   50.00
+1000  0.5x0.5       Holographic        pickup   60.00
+5000  0.5x0.5       Holographic        pickup   140.00
+100   3x3           Gloss White Vinyl  pickup   150.00   x2 designs
+100   3x3           Gloss White Vinyl  ship     162.00   x2 designs
+100   3x3           Gloss White Vinyl  pickup   215.00   x3 designs
+100   3x3           Gloss White Vinyl  ship     227.00   x3 designs
+100   3x3           Gloss White Vinyl  pickup   345.00   x5 designs
+100   3x3           Gloss White Vinyl  ship     357.00   x5 designs
+100   3x3           Gloss White Vinyl  ship     97.00
 `;
 
 type Row = {
@@ -344,8 +357,14 @@ describe("the price sheet has not moved", () => {
 
 describe("the anchors", () => {
   /**
-   * Verified outside this repo, so they check the sheet rather than each
-   * other. If one of these moves, the sheet is wrong, not the anchor.
+   * Figures verified OUTSIDE this repo, so they check the sheet rather than
+   * each other. If one of these moves, the sheet is wrong, not the anchor.
+   *
+   * All four were replaced on 2026-09-11. The old ones — $148.40 for the
+   * three-design cart, $136.40 reconciled against a real Printavo invoice —
+   * were correct for the old constants and are simply not what the shop
+   * charges any more. See the header for what that reconciliation did and
+   * did not prove.
    */
   const find = (q: number, w: number, h: number, delivery: string, designs = 1) =>
     ROWS.find(
@@ -358,27 +377,77 @@ describe("the anchors", () => {
         r.material === "Gloss White Vinyl"
     );
 
-  test("the three-design cart price agreed with the shop", () => {
-    // CART-PLAN.md: $197.40 as three separate orders, $173.40 at $25 per
-    // design, $148.40 as agreed. The cart is a deliberate price cut.
-    assert.equal(find(100, 3, 3, "ship", 3)?.total, 148.4);
+  test("the order that started the re-rate", () => {
+    // Lexi Sprague, GS-20260910-U38N3: 100 x 3" circles, local pickup,
+    // quoted $53.80 and paid $55.60 with tax. Gabe the next morning: "should
+    // be closer to $85." This row IS that number, and the whole re-rate was
+    // sized to land on it.
+    assert.equal(find(100, 3, 3, "pickup")?.total, 85);
   });
 
-  test("the order reconciled against a real Printavo invoice", () => {
-    // 15 Aug, three designs, local pickup. $144.93 was actually charged,
-    // which is this figure plus MA 6.25% on goods and setup.
-    const goods = find(100, 3, 3, "pickup", 3)?.total;
+  test("the sheet sits in the band of Gabe's own hand quotes", () => {
+    /**
+     * The only outside check on the RATE itself, and the reason it is worth
+     * having: a sheet can be internally perfect and still charge half what
+     * the shop charges, which is exactly the state this replaced.
+     *
+     * His words to Boston Children's Hospital, 2025-05-15, verbatim: "here
+     * are prices no matter which art is used, based on size: 2x2 = $0.75
+     * each, 3x3 = $1.00 each, 5x6 = $1.75 each". The old formula charged
+     * $0.38, $0.54 and $1.21 for those.
+     *
+     * A BAND, not an equality. Those were hand-quoted to one customer on one
+     * day and the web price is deliberately a little under a negotiated one.
+     * The band is wide enough to allow that and narrow enough to fail the
+     * "half price" bug it exists to catch.
+     */
+    const handQuoted: [number, number, number][] = [
+      [2, 2, 0.75],
+      [3, 3, 1.0],
+      [5, 6, 1.75],
+    ];
 
-    assert.equal(goods, 136.4);
-    assert.equal(Math.round((goods as number) * 1.0625 * 100) / 100, 144.93);
+    for (const [w, h, his] of handQuoted) {
+      const priced = priceOf({
+        quantity: 100,
+        widthInches: w,
+        heightInches: h,
+        material: "Gloss White Vinyl",
+        delivery: "pickup",
+        total: 0,
+        designs: 1,
+      });
+
+      const ours = priced.serverTotal / 100;
+      const ratio = ours / his;
+
+      assert.ok(
+        ratio > 0.7 && ratio < 1.2,
+        `${w}x${h}: shop quotes $${his.toFixed(2)} each by hand, the app says $${ours.toFixed(
+          2
+        )} — ${(ratio * 100).toFixed(0)}% of it`
+      );
+    }
+  });
+
+  test("the cart is still a deliberate price cut", () => {
+    // CART-PLAN.md's reason for existing: three designs in one cart must
+    // cost less than three separate orders. The figures moved with the
+    // re-rate; the property did not.
+    const cart = find(100, 3, 3, "ship", 3)?.total as number;
+    const separately = 3 * (find(100, 3, 3, "ship")?.total as number);
+
+    assert.equal(cart, 227);
+    assert.ok(cart < separately, `${cart} is not less than ${separately}`);
+    assert.ok(separately - cart > 50, "the cut stopped being worth taking");
   });
 
   test("the prices the missing floor allows, as documented", () => {
     // lib/pricing.ts says these out loud: with no minimum price, small sizes
-    // at high quantities go very low, and self-checkout would charge them.
-    // Kept visible rather than buried so the day the shop wants a floor,
-    // the cost of not having one is already written down.
-    assert.equal(find(5000, 1, 1, "pickup")?.total, 185);
-    assert.equal(find(5000, 0.5, 0.5, "pickup")?.total, 65);
+    // at high quantities still go low, and self-checkout charges them with
+    // nobody in the loop. Kept visible rather than buried so the day the shop
+    // wants a floor, the cost of not having one is already written down.
+    assert.equal(find(5000, 1, 1, "pickup")?.total, 290);
+    assert.equal(find(5000, 0.5, 0.5, "pickup")?.total, 102.5);
   });
 });

@@ -27,8 +27,15 @@ PRINTAVO_TOKEN set. It reads only. Never pay a test quote; void it after.
 | Quote | Date | Flow | Covers | Result |
 |---|---|---|---|---|
 | _(none yet)_ | | signs | #112 #113 #114 #122 #129 #133 | **owed** — GS-20260908-TT40U is a real auto-billed sign sitting in Printavo now |
-| _(none yet)_ | | stickers | #108 #129 #133 | **owed** — reference order 100 × 3" pickup, expect $55.60 |
+| GS-20260910-U38N3 | 2026-09-10 | stickers | #108 #129 #133 | ✅ **matched** — 100 × 3" circle, matte, pickup. App quoted $53.80; Printavo invoice #102567 collected **$55.60**, which is $28.80 of stickers + 6.25% MA tax + untaxed $25 setup, to the cent. Read off the Printavo payment email, not typed in. |
+| _(none yet)_ | | stickers | **#149 (the re-rate)** | **owed** — the figures above are the OLD rate. Next sticker order: 100 × 3" pickup now quotes **$85.00** pre-tax, **$87.81** collected |
 | _(none yet)_ | | apparel | #98 #132 #134 | **owed** — one catalogue garment, and one CART so the per-line size rows can be seen |
+
+**What GS-20260910-U38N3 did and did not prove.** It proved the PIPELINE:
+the payload, the per-line `taxed` flags and Printavo's arithmetic all agree,
+to the cent. Nothing in #149 touched any of that. It did not prove the RATE
+— that is a business figure, and #149 changed it, so the row above it is
+owed and the merge rule points at the next sticker order.
 
 ## Live right now — 2026-08-25 evening, `main` @ `954686e`
 
@@ -44,6 +51,45 @@ guess**: `/api/artwork-upload` and `/api/printavo-test` report the commit
 the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
+
+- **Stickers re-rated ~58%** — 2026-09-11 (#149). Gabe: "The sticker quote
+  system is not accurate. The cost of Lexi order is $55 approximately.
+  Should be closer to $85."
+
+  He was right, and his own sent mail proves it. Boston Children's Hospital,
+  2025-05-15, verbatim: *"2x2 = $0.75 each, 3x3 = $1.00 each, 5x6 = $1.75
+  each."* The app was charging **$0.38, $0.54 and $1.21** — a little over
+  half — because `MATERIAL_RATE_PER_SQ_IN` was $0.032, roughly the cost of
+  the vinyl with no labour or margin on it.
+
+  `$0.032 → $0.05/sq in` and `setup $25 → $40` (`$12.50 → $20` per extra
+  design). **100 × 3" pickup — Lexi's exact spec, and the public cross-sell
+  anchor — is now $85.00 pre-tax, $87.81 collected.**
+
+  **BOTH constants moved by the same factor, and that is the whole design.**
+  Gabe: *"There was already a volume break with how the pricing went, if you
+  aren't increasing the pricing across the board, those discounts should
+  still be active."* The setup fee amortising IS this formula's only volume
+  break — a 3" sticker is $1.29 each at 25 and $0.29 at 5,000, a 4.4×
+  spread. Raising the material rate alone (or adding a flat per-sticker
+  charge, which was tried first) leaves the setup fee where it is and
+  crushes that spread to **2.6×**: the small run barely moves while a
+  5,000-piece order more than doubles — a rise aimed at exactly the
+  customers who were already paying the right price. Scaling both terms
+  keeps the spread at 4.48× and lifts every quantity from 25 to 5,000 by
+  56–59%.
+
+  All 199 rows of `tests/price-sheet.test.ts` regenerated. Its old outside
+  anchors are retired and replaced with two better ones: Lexi's $85.00, and
+  a BAND check against Gabe's own hand-quoted per-each prices (0.7–1.2× —
+  wide enough for a negotiated quote, narrow enough to catch the "half
+  price" bug it exists for).
+
+  **Not done: a real quantity curve.** 5,000 × 3" is still 200 × the price
+  of 25 × 3" plus one setup, so a bulk order quotes ~$2,290 and auto-bills.
+  Gabe asked for the fix first and volume separately. The missing price
+  floor is also still missing — 5,000 × 0.5" now quotes $102.50, up from
+  $65, and still with nobody in the loop.
 
 - **The list is visible, exportable and importable** — 2026-09-10 (#148).
   #147 made the list private and permanent and also made it INVISIBLE:

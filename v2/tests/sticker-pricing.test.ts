@@ -33,14 +33,14 @@ import { repriceStickers } from "../lib/sticker-repricing";
  */
 
 const VINYL = "Gloss White Vinyl";
-const RATE = 0.032;
+const RATE = 0.05;
 
 describe("the formula is the formula", () => {
   test("material is area x rate x quantity", () => {
-    // 3" x 3" = 9 sq in. 9 x 0.032 x 1000 = $288.
+    // 3" x 3" = 9 sq in. 9 x 0.05 x 1000 = $450.
     assert.equal(
       getStickerMaterialPrice(1000, VINYL, '3"', { widthInches: 3, heightInches: 3 }),
-      288
+      450
     );
   });
 
@@ -57,7 +57,7 @@ describe("the formula is the formula", () => {
     // single-design prices untouched.
     assert.equal(
       getStickerPrice(1000, VINYL, "Gloss", '3"', { widthInches: 3, heightInches: 3 }),
-      288 + STICKER_SETUP_FEE
+      450 + STICKER_SETUP_FEE
     );
   });
 
@@ -116,8 +116,8 @@ describe("setup is per design, once per cart", () => {
   });
 
   test("each design after the first is half", () => {
-    assert.equal(getCartSetupFee(2), 37.5);
-    assert.equal(getCartSetupFee(3), 50);
+    assert.equal(getCartSetupFee(2), 60);
+    assert.equal(getCartSetupFee(3), 80);
     assert.equal(
       getCartSetupFee(4),
       STICKER_SETUP_FEE + STICKER_SETUP_FEE_ADDITIONAL * 3
@@ -131,8 +131,10 @@ describe("setup is per design, once per cart", () => {
   });
 
   test("the agreed cart price for three designs", () => {
-    // From CART-PLAN: 3 x 100 x 3" shipped comes to $148.40 — the number
-    // signed off with the shop, and the reason the cart exists.
+    // From CART-PLAN: 3 x 100 x 3" shipped. It was $148.40 at the old rate;
+    // the 2026-09-11 re-rate moved it to $227.00. The figure changed, the
+    // property it exists for did not — a cart still costs less than three
+    // separate orders, which is checked in tests/price-sheet.test.ts.
     const material = getStickerMaterialPrice(100, VINYL, '3"', {
       widthInches: 3,
       heightInches: 3,
@@ -140,7 +142,7 @@ describe("setup is per design, once per cart", () => {
 
     const total = material * 3 + getCartSetupFee(3) + DECAL_SHIPPING_PRICE;
 
-    assert.equal(Math.round(total * 100) / 100, 148.4);
+    assert.equal(Math.round(total * 100) / 100, 227);
   });
 });
 
@@ -234,7 +236,8 @@ describe("nothing auto-bills at a price nobody set", () => {
     const priced = repriceStickers(stickerOrder([good]));
 
     assert.equal(priced.unpriceable, false);
-    assert.equal(priced.serverTotal, 144 + STICKER_SETUP_FEE);
+    // 500 x 9 sq in x $0.05 = $225.
+    assert.equal(priced.serverTotal, 225 + STICKER_SETUP_FEE);
   });
 
   test("a design with no dimensions is flagged, not billed", () => {
@@ -274,7 +277,8 @@ describe("nothing auto-bills at a price nobody set", () => {
     );
 
     assert.equal(priced.unpriceable, false);
-    assert.equal(priced.serverTotal, 38.4 + STICKER_SETUP_FEE);
+    // 100 x 12 sq in x $0.05 = $60.
+    assert.equal(priced.serverTotal, 60 + STICKER_SETUP_FEE);
   });
 
   test("a non-sticker order is never flagged by this", () => {

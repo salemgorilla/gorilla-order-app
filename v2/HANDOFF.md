@@ -28,7 +28,7 @@ PRINTAVO_TOKEN set. It reads only. Never pay a test quote; void it after.
 |---|---|---|---|---|
 | _(none yet)_ | | signs | #112 #113 #114 #122 #129 #133 | **owed** — GS-20260908-TT40U is a real auto-billed sign sitting in Printavo now |
 | GS-20260910-U38N3 | 2026-09-10 | stickers | #108 #129 #133 | ✅ **matched** — 100 × 3" circle, matte, pickup. App quoted $53.80; Printavo invoice #102567 collected **$55.60**, which is $28.80 of stickers + 6.25% MA tax + untaxed $25 setup, to the cent. Read off the Printavo payment email, not typed in. |
-| _(none yet)_ | | stickers | **#149 (the re-rate)** | **owed** — the figures above are the OLD rate. Next sticker order: 100 × 3" pickup now quotes **$85.00** pre-tax, **$87.81** collected |
+| _(none yet)_ | | stickers | **#149 #151 (re-rate + volume curve)** | **owed** — the figures above are the OLD rate. Next sticker order: 100 × 3" pickup now quotes **$85.00** pre-tax, **$87.81** collected; anything ≥250 also exercises the curve |
 | _(none yet)_ | | apparel | #98 #132 #134 | **owed** — one catalogue garment, and one CART so the per-line size rows can be seen |
 
 **What GS-20260910-U38N3 did and did not prove.** It proved the PIPELINE:
@@ -85,11 +85,21 @@ Working and verified:
   wide enough for a negotiated quote, narrow enough to catch the "half
   price" bug it exists for).
 
-  **Not done: a real quantity curve.** 5,000 × 3" is still 200 × the price
-  of 25 × 3" plus one setup, so a bulk order quotes ~$2,290 and auto-bills.
-  Gabe asked for the fix first and volume separately. The missing price
-  floor is also still missing — 5,000 × 0.5" now quotes $102.50, up from
-  $65, and still with nobody in the loop.
+  **Then the volume curve, same day (#151).** Gabe, a second time: *"if
+  you are increasing the pricing across the board, those discounts should
+  still be active."* The formula's only discount was the setup fee
+  amortising, spent by ~500 pieces. The v1 site (`data/sticker-pricing.js`,
+  repo root — the "dead" one) had a real quantity table whose 3×3 column
+  kept falling to 5,000. Its SHAPE is restored as `STICKER_VOLUME_TIERS`,
+  re-anchored so 100 × 3" is still $85: material pays 100/97/89/82/78/72%
+  of the rate at 100/250/500/1000/2500/5000, **linearly interpolated** so
+  249 never costs more than 250 (the cliff the seven-rung table had). Every
+  quantity 1–6,000 is swept for "total never falls" and "each never rises".
+  5,000 × 3" is now $1,660 (was $2,290 for one morning; v1-anchored target
+  $1,648).
+
+  The missing price floor is still missing — 5,000 × 0.5" quotes $85, and
+  auto-bills with nobody in the loop.
 
 - **The list is visible, exportable and importable** — 2026-09-10 (#148).
   #147 made the list private and permanent and also made it INVISIBLE:

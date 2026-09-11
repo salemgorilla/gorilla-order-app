@@ -36,9 +36,9 @@
 // quantity from 25 to 5,000 rises by 56-59%. The discount is as active as it
 // was; the whole sheet simply sits higher.
 //
-// Volume pricing beyond that — a real quantity curve, so 5,000 pieces is not
-// merely 200x the price of 25 — is NOT in this change. Gabe, same day, asked
-// for the fix first and that separately.
+// A real quantity curve on top of that — so 5,000 pieces is not merely 200x
+// the price of 25 — went in the same day, once Gabe had said a second time
+// that the old discounts had to stay active. See STICKER_VOLUME_TIERS.
 //
 // Setup is per DESIGN, not per order — $25 for the first, $12.50 for each
 // after (getCartSetupFee). It reads as "once per order" only because an order
@@ -60,6 +60,77 @@
 
 /** Material cost per square inch. Was $0.032 until 2026-09-11 — see above. */
 const MATERIAL_RATE_PER_SQ_IN = 0.05;
+
+/**
+ * THE VOLUME BREAK — the old site's curve, put back.
+ *
+ * ── WHY ──────────────────────────────────────────────────────────────────
+ * Gabe, 2026-09-11, twice in one morning: "There was already a volume
+ * break with how the pricing went. If you are increasing the pricing
+ * across the board, those discounts should still be active."
+ *
+ * The formula's only discount was the setup fee amortising, and that is
+ * spent by about 500 pieces — from there to 5,000 the per-sticker price
+ * barely moves. The v1 site (data/sticker-pricing.js at the repo root) had
+ * a real quantity table, and its 3x3 column kept falling all the way up:
+ *
+ *   qty      50     100    250    500   1000   2500   5000
+ *   each  $0.58  $0.41  $0.29  $0.23  $0.20  $0.18  $0.16
+ *
+ * Those are the shop's own numbers. The SHAPE of that column is what is
+ * restored here; the level is re-anchored so 100 x 3" still comes to the
+ * $85 the re-rate was sized to (see the header). Below 100 the setup fee
+ * already discounts harder than v1 did, so the curve starts at 100.
+ *
+ * ── HOW THE FIGURES WERE DERIVED ─────────────────────────────────────────
+ * For each v1 quantity, target = qty x $0.85 x (v1 each / v1 each at 100),
+ * then keep = (target - setup) / (qty x 9 sq in x rate), rounded to two
+ * places. So `keep` is what fraction of the material rate that quantity
+ * pays, and the all-in totals land within 1% of the re-anchored v1 table.
+ *
+ * ── INTERPOLATED, NOT STEPPED ────────────────────────────────────────────
+ * A step at 250 would make 249 stickers cost MORE than 250 — the cliff
+ * tests/pricing-invariants.test.ts exists to catch, and the one the seven-
+ * rung table had. Linear between tiers keeps the total strictly rising
+ * with quantity and the per-sticker price never rising; the invariant
+ * suite sweeps every quantity from 1 to 6,000 to hold that.
+ *
+ * Applied to MATERIAL ONLY, per design, before the premium markup. Setup is
+ * labour and does not get cheaper because the run is long; a cart of three
+ * designs discounts each design on its own count, which is what actually
+ * comes off the roll.
+ */
+export const STICKER_VOLUME_TIERS: ReadonlyArray<{ at: number; keep: number }> = [
+  { at: 100, keep: 1 },
+  { at: 250, keep: 0.97 },
+  { at: 500, keep: 0.89 },
+  { at: 1000, keep: 0.82 },
+  { at: 2500, keep: 0.78 },
+  { at: 5000, keep: 0.72 },
+];
+
+/** What fraction of the material rate this quantity pays. 1 below 100. */
+export function stickerVolumeMultiplier(quantity: number): number {
+  const qty = Math.max(1, Math.floor(quantity || 0));
+  const tiers = STICKER_VOLUME_TIERS;
+
+  if (qty <= tiers[0].at) return tiers[0].keep;
+
+  const last = tiers[tiers.length - 1];
+  if (qty >= last.at) return last.keep;
+
+  for (let i = 1; i < tiers.length; i += 1) {
+    const lo = tiers[i - 1];
+    const hi = tiers[i];
+
+    if (qty <= hi.at) {
+      const t = (qty - lo.at) / (hi.at - lo.at);
+      return lo.keep + (hi.keep - lo.keep) * t;
+    }
+  }
+
+  return last.keep;
+}
 
 /**
  * Setup for the FIRST design in a cart.
@@ -181,8 +252,8 @@ export function getShippingPrice(deliveryMethod: string) {
  *
  * NOTE ON THE MISSING FLOOR: the shop's matrix says a minimum floor is
  * "REMOVED for testing". Nothing here reinstates one, so small sizes at high
- * quantities still go low — after the 2026-09-11 re-rate, 5,000 x 1" comes
- * to about $290 and 5,000 x 0.5" to about $102. Those are real prices this
+ * quantities still go low — after the 2026-09-11 re-rate and volume curve,
+ * 5,000 x 1" comes to $220 and 5,000 x 0.5" to $85. Those are real prices this
  * function will quote, and stickers self-check-out, so they are charged
  * automatically with nobody in the loop. The re-rate lifted them; it did not
  * put a floor under them.
@@ -219,6 +290,7 @@ export function getStickerMaterialPrice(
 
   const materialPerSticker =
     area * MATERIAL_RATE_PER_SQ_IN *
+    stickerVolumeMultiplier(qty) *
     (isPremiumMaterial(material) ? PREMIUM_MATERIAL_MARKUP : 1);
 
   return Math.round(materialPerSticker * qty * 100) / 100;

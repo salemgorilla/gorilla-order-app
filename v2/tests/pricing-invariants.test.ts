@@ -366,9 +366,10 @@ describe("stickers: totals, not rates", () => {
   test("setup is derived from cart position, never stored on the design", () => {
     /**
      * Three designs, then remove the first. If each design kept the fee it
-     * was assigned when added, the survivors would both pay $12.50 and the
-     * order would be $12.50 under, silently, on the flow that bills with
-     * nobody watching. The handoff calls this a REQUIRED test.
+     * was assigned when added, the survivors would both pay the ADDITIONAL
+     * fee and the order would be one first-design fee under, silently, on
+     * the flow that bills with nobody watching. The handoff calls this a
+     * REQUIRED test.
      */
     const materials = [28.8, 6.4, 76.8];
     const three = quoteStickerCart({ materialPrices: materials, deliveryMethod: "Pickup" });
@@ -382,7 +383,7 @@ describe("stickers: totals, not rates", () => {
     assert.equal(survivors.setupPrice, getCartSetupFee(2));
     assert.equal(
       survivors.total,
-      round2(6.4 + 76.8 + 37.5),
+      round2(6.4 + 76.8 + getCartSetupFee(2)),
       "the new first design is not paying the first-design fee"
     );
   });

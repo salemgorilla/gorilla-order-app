@@ -1,11 +1,44 @@
 // Sticker pricing — formula, not a lookup table.
 //
-// Supplied by Gorilla Salem 2026-08-05:
+// Supplied by Gorilla Salem 2026-08-05, RE-RATED 2026-09-11:
 //
-//   price per sticker = (area in sq in x $0.032) + ($25 / quantity)
+//   price per sticker = (area in sq in x $0.05) + ($40 / quantity)
 //
-// Material is area-based, and a $25 setup fee is amortised across the run.
+// Material is area-based, and a $40 setup fee is amortised across the run.
 // That is why small runs cost more per sticker.
+//
+// ── WHY THE RE-RATE, AND WHY BOTH NUMBERS MOVED TOGETHER ──────────────────
+// Lexi Sprague, GS-20260910-U38N3: 100 x 3" circles, quoted $53.80, invoiced
+// and PAID $55.60 with tax. Gabe, the next morning: "The sticker quote system
+// is not accurate... should be closer to $85."
+//
+// His own hand-quoted prices from the sent-mail archive say the same thing.
+// Boston Children's Hospital, 2025-05-15, verbatim: "2x2 = $0.75 each,
+// 3x3 = $1.00 each, 5x6 = $1.75 each". The app was charging $0.38, $0.54 and
+// $1.21 for those — a little over half.
+//
+// BOTH constants are scaled by the same ~58%, and that is the whole point of
+// how this was done. Gabe, 2026-09-11: "There was already a volume break with
+// how the pricing went, if you aren't increasing the pricing across the
+// board, those discounts should still be active."
+//
+// He is right, and it is easy to get wrong. The only volume break this
+// formula has is the setup fee amortising — a 3" sticker costs $1.29 each at
+// 25 and $0.29 each at 5,000, a 4.4x spread. Raising the MATERIAL RATE ALONE
+// (or adding a flat per-sticker charge, which was the first thing tried)
+// leaves the $40 where it was and crushes that spread to 2.6x: the small run
+// barely moves while a 5,000-piece order more than doubles. Scaling only the
+// terms that do not amortise is a price rise aimed at exactly the customers
+// who were already getting the right price.
+//
+// Scaling BOTH terms by one factor is the only change that leaves the curve
+// alone — the spread comes out at 4.48x against today's 4.40x, and every
+// quantity from 25 to 5,000 rises by 56-59%. The discount is as active as it
+// was; the whole sheet simply sits higher.
+//
+// Volume pricing beyond that — a real quantity curve, so 5,000 pieces is not
+// merely 200x the price of 25 — is NOT in this change. Gabe, same day, asked
+// for the fix first and that separately.
 //
 // Setup is per DESIGN, not per order — $25 for the first, $12.50 for each
 // after (getCartSetupFee). It reads as "once per order" only because an order
@@ -25,32 +58,37 @@
 // Matte and gloss cost the same. Shape does not change price — area is taken
 // as the bounding box (size x size), matching the shop's own reference matrix.
 
-/** Material cost per square inch. */
-const MATERIAL_RATE_PER_SQ_IN = 0.032;
+/** Material cost per square inch. Was $0.032 until 2026-09-11 — see above. */
+const MATERIAL_RATE_PER_SQ_IN = 0.05;
 
 /**
  * Setup for the FIRST design in a cart.
  *
  * Was "flat setup, once per order" — that comment was true only because an
  * order could hold one design. Three designs meant three submissions and
- * therefore three $25 fees; the customer paid $75.
+ * therefore three full fees; the customer paid triple.
+ *
+ * $25 until the 2026-09-11 re-rate. It moved with the material rate rather
+ * than staying put, because the setup fee IS this formula's volume break —
+ * see the header.
  */
-export const STICKER_SETUP_FEE = 25;
+export const STICKER_SETUP_FEE = 40;
 
 /**
  * Setup for each design after the first.
  *
- * The cart is therefore a deliberate price CUT, agreed with Gabe 2026-08-05 to
- * reward bigger carts. On 3 x 100 x 3" shipped: $197.40 as three separate
- * orders today, $173.40 at $25 per design, $148.40 as agreed.
+ * The cart is therefore a deliberate price CUT, agreed with Gabe 2026-08-05
+ * to reward bigger carts, and kept at half the first-design fee through the
+ * 2026-09-11 re-rate so the cut is the same proportion it always was.
  */
-export const STICKER_SETUP_FEE_ADDITIONAL = 12.5;
+export const STICKER_SETUP_FEE_ADDITIONAL = 20;
 
 /**
- * Setup for a whole cart. $25 + $12.50 per extra design.
+ * Setup for a whole cart. $40 + $20 per extra design.
  *
- * One design returns exactly $25, so a single-design order costs precisely
- * what it costs today — the cart cannot quietly reprice the common case.
+ * One design returns exactly STICKER_SETUP_FEE, so a single-design order
+ * costs precisely what the formula in the header says — the cart cannot
+ * quietly reprice the common case.
  */
 export function getCartSetupFee(designCount: number) {
   const designs = Math.max(1, Math.floor(designCount || 0));
@@ -143,9 +181,11 @@ export function getShippingPrice(deliveryMethod: string) {
  *
  * NOTE ON THE MISSING FLOOR: the shop's matrix says a minimum floor is
  * "REMOVED for testing". Nothing here reinstates one, so small sizes at high
- * quantities go very low — 5,000 x 1" comes to about $185, and 5,000 x 0.5"
- * to about $65. Those are real prices this function will quote, and with
- * sticker self-checkout enabled they would be charged automatically.
+ * quantities still go low — after the 2026-09-11 re-rate, 5,000 x 1" comes
+ * to about $290 and 5,000 x 0.5" to about $102. Those are real prices this
+ * function will quote, and stickers self-check-out, so they are charged
+ * automatically with nobody in the loop. The re-rate lifted them; it did not
+ * put a floor under them.
  */
 export function getStickerPrice(
   quantity: number,

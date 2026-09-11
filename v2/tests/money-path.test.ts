@@ -101,8 +101,8 @@ describe("server repricing", () => {
       ])
     );
 
-    assert.equal((one.order.pricing as Record<string, number>).setupPrice, 25);
-    assert.equal((three.order.pricing as Record<string, number>).setupPrice, 50);
+    assert.equal((one.order.pricing as Record<string, number>).setupPrice, 40);
+    assert.equal((three.order.pricing as Record<string, number>).setupPrice, 80);
   });
 
   test("writes each design's price onto the item it priced", () => {
@@ -222,7 +222,7 @@ describe("Printavo invoices exactly what the website quoted", () => {
     );
 
     assert.ok(setup, "setup fee must be its own Printavo line");
-    assert.equal(setup?.price, 25);
+    assert.equal(setup?.price, 40);
   });
 });
 

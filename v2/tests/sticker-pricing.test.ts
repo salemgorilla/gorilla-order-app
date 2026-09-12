@@ -33,15 +33,17 @@ import { repriceStickers } from "../lib/sticker-repricing";
  */
 
 const VINYL = "Gloss White Vinyl";
-const RATE = 0.05;
+// 70/900: whatever makes 100 x 3" come to $70 of stickers at a $15 setup.
+const RATE = 70 / 900;
 
 describe("the formula is the formula", () => {
   test("material is area x rate x quantity", () => {
-    // 3" x 3" = 9 sq in. 9 x 0.05 x 1000 = $450, and 1,000 pieces keep 82%
-    // of the rate on the volume curve (tests/sticker-volume.test.ts) = $369.
+    // 3" x 3" = 9 sq in. 9 x (70/900) x 1000 = $700, and 1,000 pieces keep
+    // 56% of the rate on the volume curve (tests/sticker-volume.test.ts) =
+    // $392.
     assert.equal(
       getStickerMaterialPrice(1000, VINYL, '3"', { widthInches: 3, heightInches: 3 }),
-      369
+      392
     );
   });
 
@@ -58,7 +60,7 @@ describe("the formula is the formula", () => {
     // single-design prices untouched.
     assert.equal(
       getStickerPrice(1000, VINYL, "Gloss", '3"', { widthInches: 3, heightInches: 3 }),
-      369 + STICKER_SETUP_FEE
+      392 + STICKER_SETUP_FEE
     );
   });
 
@@ -117,8 +119,8 @@ describe("setup is per design, once per cart", () => {
   });
 
   test("each design after the first is half", () => {
-    assert.equal(getCartSetupFee(2), 60);
-    assert.equal(getCartSetupFee(3), 80);
+    assert.equal(getCartSetupFee(2), 22.5);
+    assert.equal(getCartSetupFee(3), 30);
     assert.equal(
       getCartSetupFee(4),
       STICKER_SETUP_FEE + STICKER_SETUP_FEE_ADDITIONAL * 3
@@ -133,7 +135,8 @@ describe("setup is per design, once per cart", () => {
 
   test("the agreed cart price for three designs", () => {
     // From CART-PLAN: 3 x 100 x 3" shipped. It was $148.40 at the old rate;
-    // the 2026-09-11 re-rate moved it to $227.00. The figure changed, the
+    // the 2026-09-11 re-rate moved it to $227.00, and the 2026-09-12
+    // rebalance ($15 setup, more on the rate) to $252.00. The figure changed, the
     // property it exists for did not — a cart still costs less than three
     // separate orders, which is checked in tests/price-sheet.test.ts.
     const material = getStickerMaterialPrice(100, VINYL, '3"', {
@@ -143,7 +146,7 @@ describe("setup is per design, once per cart", () => {
 
     const total = material * 3 + getCartSetupFee(3) + DECAL_SHIPPING_PRICE;
 
-    assert.equal(Math.round(total * 100) / 100, 227);
+    assert.equal(Math.round(total * 100) / 100, 252);
   });
 });
 
@@ -237,8 +240,8 @@ describe("nothing auto-bills at a price nobody set", () => {
     const priced = repriceStickers(stickerOrder([good]));
 
     assert.equal(priced.unpriceable, false);
-    // 500 x 9 sq in x $0.05 = $225, at 89% on the volume curve = $200.25.
-    assert.equal(priced.serverTotal, 200.25 + STICKER_SETUP_FEE);
+    // 500 x 9 sq in x (70/900) = $350, at 64% on the volume curve = $224.
+    assert.equal(priced.serverTotal, 224 + STICKER_SETUP_FEE);
   });
 
   test("a design with no dimensions is flagged, not billed", () => {
@@ -278,8 +281,8 @@ describe("nothing auto-bills at a price nobody set", () => {
     );
 
     assert.equal(priced.unpriceable, false);
-    // 100 x 12 sq in x $0.05 = $60.
-    assert.equal(priced.serverTotal, 60 + STICKER_SETUP_FEE);
+    // 100 x 12 sq in x (70/900) = $93.33.
+    assert.equal(priced.serverTotal, 93.33 + STICKER_SETUP_FEE);
   });
 
   test("a non-sticker order is never flagged by this", () => {

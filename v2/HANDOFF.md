@@ -28,8 +28,8 @@ PRINTAVO_TOKEN set. It reads only. Never pay a test quote; void it after.
 |---|---|---|---|---|
 | _(none yet)_ | | signs | #112 #113 #114 #122 #129 #133 | **owed** — GS-20260908-TT40U is a real auto-billed sign sitting in Printavo now |
 | GS-20260910-U38N3 | 2026-09-10 | stickers | #108 #129 #133 | ✅ **matched** — 100 × 3" circle, matte, pickup. App quoted $53.80; Printavo invoice #102567 collected **$55.60**, which is $28.80 of stickers + 6.25% MA tax + untaxed $25 setup, to the cent. Read off the Printavo payment email, not typed in. |
-| GS-20260912-81PI1 | 2026-09-12 | stickers | **#149 #151 (re-rate + volume curve)** | ✅ **matched** — Gabe's own test, same spec as Lexi's: 100 × 3" circle, pickup. App: Stickers $45.00 + Setup $40.00 = **$85.00**. Printavo Request #10568 asked for **$87.81** = $45.00 × 1.0625 + $40.00, to the cent. Read off Printavo's payment-request email. **Void it in Printavo** — it is a live link to the shop's own address. |
-| _(none yet)_ | | stickers | #151 above 250 pieces | **owed** — the row above sits at 100, where the volume curve is 1.0. Nothing at 250+ has been placed yet, so the curve's arithmetic is proven by tests only |
+| GS-20260912-81PI1 | 2026-09-12 | stickers | **#149 #151 (re-rate + volume curve)** | ✅ **matched** — Gabe's own test, same spec as Lexi's: 100 × 3" circle, pickup. App: Stickers $45.00 + Setup $40.00 = **$85.00**. Printavo Request #10568 asked for **$87.81** = $45.00 × 1.0625 + $40.00, to the cent. Read off Printavo's payment-request email. Voided by Gabe the same day. |
+| _(none yet)_ | | stickers | **#153 (setup $15 + the cent fix)** | **owed** — #153 moved money between the two invoice lines AND changed how per-line unit prices are sent to Printavo (`lineUnitPrice`, 4 dp). A **multi-design cart** is the one to check: three designs at mixed sizes, expect Printavo to match the website to the cent. Reference single order now $85.00 pre-tax / **$89.38** collected |
 | _(none yet)_ | | apparel | #98 #132 #134 | **owed** — one catalogue garment, and one CART so the per-line size rows can be seen |
 
 **GS-20260912-81PI1 proves the new RATE** — the first real invoice at
@@ -60,6 +60,42 @@ guess**: `/api/artwork-upload` and `/api/printavo-test` report the commit
 the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
+
+- **Setup $15, rate 70/900 — and a one-cent Printavo bug found on the way**
+  — 2026-09-12 (#153). Gabe: *"Can we make the set up lower and the sq
+  inch price higher? I want the same total but less on set up. Maybe $15
+  or $20."* He chose $15 with the consequences in front of him: a flat
+  fee and a rate do not move together, so small stickers and small runs
+  got cheaper and big stickers dearer (2×2 at 100: $60 → $46 against his
+  $75 hand quote; 5×6: $190 → $248 against $175). `STICKER_VOLUME_TIERS`
+  re-derived so the 3" column is unchanged at every quantity from 100 up.
+  Extra designs $7.50.
+
+  **Collected amount rose $1.57 on the reference order** — $85.00 pre-tax
+  is unchanged, but setup is untaxed and stickers are not, so moving $25
+  from setup to stickers moves it into the taxed line: **$87.81 → $89.38**.
+
+  **THE CENT.** The rebalance made the test `three designs, shipped:
+  Printavo total === website total` fail by one cent — $470.56 quoted,
+  $470.57 billed. Printavo stores a unit price to FOUR decimals and
+  multiplies; the app was summing cent-rounded lines and then dividing a
+  rounded line back into a unit for Printavo. Two arithmetics, and the
+  fractional rate (70/900 × tier × premium) finally produced a figure they
+  disagreed on. Fixed by construction: `getStickerUnitMaterialPrice()`
+  quantises the per-sticker price to 4 decimals FIRST; every line is that
+  unit × qty, exact; `quoteStickerCart` sums exact lines and rounds ONCE
+  (Printavo's arithmetic); `repriceStickers` writes `lineUnitPrice` onto
+  each item and `lib/printavo.ts` sends exactly that. `linePrice` (cents)
+  is display only. Every quote === invoice test passes by construction
+  now, not by luck of the numbers.
+
+  **What the 4-decimal unit costs, measured and bounded:** a sliding unit
+  steps down 0.0001 every so often, paid on every sticker in the run, so
+  above `quantity = 10,000 × unit` one MORE sticker can come out slightly
+  cheaper — worst case 4,940 one-inch stickers cost 46¢ more than 4,941.
+  `tests/sticker-volume` sweeps 1–6,000 and holds the true bound
+  (0.0001 × qty) plus "any 100-sticker stretch rises". A stepped table
+  would trade this for dollar cliffs; Printavo has no fifth decimal.
 
 - **Stickers re-rated ~58%** — 2026-09-11 (#149). Gabe: "The sticker quote
   system is not accurate. The cost of Lexi order is $55 approximately.

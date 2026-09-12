@@ -2,10 +2,28 @@
 //
 // Supplied by Gorilla Salem 2026-08-05, RE-RATED 2026-09-11:
 //
-//   price per sticker = (area in sq in x $0.05) + ($40 / quantity)
+//   price per sticker = (area in sq in x $0.0778) + ($15 / quantity)
 //
-// Material is area-based, and a $40 setup fee is amortised across the run.
+// Material is area-based, and a $15 setup fee is amortised across the run.
 // That is why small runs cost more per sticker.
+//
+// ── REBALANCED 2026-09-12: LESS ON SETUP, MORE ON THE RATE ────────────────
+// Gabe: "Can we make the set up lower and the sq inch price higher? I want
+// the same total but less on set up. Maybe $15 or $20." He chose $15.
+//
+// The rate is 70/900 — whatever makes 100 x 3" come to $70 of stickers and
+// $15 of setup, which is still the $85 the whole sheet is anchored to. It is
+// written as a fraction rather than 0.0778 because 0.0778 x 900 is $70.02,
+// and a reference order that reads $85.02 is a reference order nobody trusts.
+//
+// This is not neutral, and he chose it knowing that. A flat fee and a rate
+// do not move together: taking $25 out of setup and putting it into the
+// square inch makes SMALL stickers and SMALL runs cheaper and big stickers
+// dearer at every quantity. At 100 pieces a 2x2 went from $60 to $46 and a
+// 5x6 from $190 to $248, against his own hand quotes of $75 and $175. The
+// $40 was doing real work holding those; the invoice line reading lighter
+// was worth more to him. STICKER_VOLUME_TIERS were re-derived so the 3"
+// column is unchanged at every quantity from 100 up.
 //
 // ── WHY THE RE-RATE, AND WHY BOTH NUMBERS MOVED TOGETHER ──────────────────
 // Lexi Sprague, GS-20260910-U38N3: 100 x 3" circles, quoted $53.80, invoiced
@@ -58,8 +76,11 @@
 // Matte and gloss cost the same. Shape does not change price — area is taken
 // as the bounding box (size x size), matching the shop's own reference matrix.
 
-/** Material cost per square inch. Was $0.032 until 2026-09-11 — see above. */
-const MATERIAL_RATE_PER_SQ_IN = 0.05;
+/**
+ * Material cost per square inch. $0.032 until 2026-09-11, $0.05 for a day,
+ * then rebalanced against the setup fee — see the header for both.
+ */
+const MATERIAL_RATE_PER_SQ_IN = 70 / 900;
 
 /**
  * THE VOLUME BREAK — the old site's curve, put back.
@@ -88,6 +109,12 @@ const MATERIAL_RATE_PER_SQ_IN = 0.05;
  * places. So `keep` is what fraction of the material rate that quantity
  * pays, and the all-in totals land within 1% of the re-anchored v1 table.
  *
+ * Re-derived on 2026-09-12 when setup dropped from $40 to $15 and the rate
+ * rose to cover it. The tiers look steeper (down to 47% rather than 72%)
+ * but the 3" totals they produce are the same ones: the discount that was
+ * hidden inside a $40 fee amortising is now visible on the material line.
+ * Same money, different column.
+ *
  * ── INTERPOLATED, NOT STEPPED ────────────────────────────────────────────
  * A step at 250 would make 249 stickers cost MORE than 250 — the cliff
  * tests/pricing-invariants.test.ts exists to catch, and the one the seven-
@@ -102,11 +129,11 @@ const MATERIAL_RATE_PER_SQ_IN = 0.05;
  */
 export const STICKER_VOLUME_TIERS: ReadonlyArray<{ at: number; keep: number }> = [
   { at: 100, keep: 1 },
-  { at: 250, keep: 0.97 },
-  { at: 500, keep: 0.89 },
-  { at: 1000, keep: 0.82 },
-  { at: 2500, keep: 0.78 },
-  { at: 5000, keep: 0.72 },
+  { at: 250, keep: 0.77 },
+  { at: 500, keep: 0.64 },
+  { at: 1000, keep: 0.56 },
+  { at: 2500, keep: 0.52 },
+  { at: 5000, keep: 0.47 },
 ];
 
 /** What fraction of the material rate this quantity pays. 1 below 100. */
@@ -139,11 +166,12 @@ export function stickerVolumeMultiplier(quantity: number): number {
  * order could hold one design. Three designs meant three submissions and
  * therefore three full fees; the customer paid triple.
  *
- * $25 until the 2026-09-11 re-rate. It moved with the material rate rather
- * than staying put, because the setup fee IS this formula's volume break —
- * see the header.
+ * $25 until the 2026-09-11 re-rate, $40 for a day, then $15 on 2026-09-12
+ * at Gabe's request — with the difference moved into the square-inch rate
+ * so the reference order still comes to $85. See the header for what that
+ * trade costs at the small and large ends.
  */
-export const STICKER_SETUP_FEE = 40;
+export const STICKER_SETUP_FEE = 15;
 
 /**
  * Setup for each design after the first.
@@ -152,10 +180,10 @@ export const STICKER_SETUP_FEE = 40;
  * to reward bigger carts, and kept at half the first-design fee through the
  * 2026-09-11 re-rate so the cut is the same proportion it always was.
  */
-export const STICKER_SETUP_FEE_ADDITIONAL = 20;
+export const STICKER_SETUP_FEE_ADDITIONAL = 7.5;
 
 /**
- * Setup for a whole cart. $40 + $20 per extra design.
+ * Setup for a whole cart. $15 + $7.50 per extra design.
  *
  * One design returns exactly STICKER_SETUP_FEE, so a single-design order
  * costs precisely what the formula in the header says — the cart cannot
@@ -252,8 +280,8 @@ export function getShippingPrice(deliveryMethod: string) {
  *
  * NOTE ON THE MISSING FLOOR: the shop's matrix says a minimum floor is
  * "REMOVED for testing". Nothing here reinstates one, so small sizes at high
- * quantities still go low — after the 2026-09-11 re-rate and volume curve,
- * 5,000 x 1" comes to $220 and 5,000 x 0.5" to $85. Those are real prices this
+ * quantities still go low — after the 2026-09-12 rebalance, 5,000 x 1"
+ * comes to about $198 and 5,000 x 0.5" to about $61. Those are real prices this
  * function will quote, and stickers self-check-out, so they are charged
  * automatically with nobody in the loop. The re-rate lifted them; it did not
  * put a floor under them.
@@ -286,6 +314,51 @@ export function getStickerMaterialPrice(
   dims?: StickerDimensions
 ) {
   const qty = Math.max(1, Math.floor(quantity || 0));
+
+  // EXACT, to four decimals — not rounded to the cent here. See
+  // getStickerUnitMaterialPrice: the line is the unit Printavo stores times
+  // the quantity, and that product can carry sub-cent digits. Rounding it
+  // per line and then summing is how the website came to quote $470.56 for a
+  // cart Printavo would bill at $470.57. The cart sums these exact figures
+  // and rounds ONCE (quoteStickerCart), which is what Printavo does.
+  return Math.round(getStickerUnitMaterialPrice(qty, material, size, dims) * qty * 10000) / 10000;
+}
+
+/**
+ * The per-sticker material price, quantised to FOUR decimals.
+ *
+ * ── WHY FOUR, AND WHY HERE ────────────────────────────────────────────────
+ * Printavo stores a unit price to four decimal places and multiplies by the
+ * quantity itself. It does not store a line total. So whatever this app
+ * charges per sticker is only what Printavo will bill if it fits in four
+ * decimals — and after the 2026-09-12 rebalance the rate is 70/900, which
+ * with a tier multiplier and a premium markup produces figures like
+ * 0.239555…, which Printavo turns into 0.2396 and bills 250 of at $59.90,
+ * against the $59.89 this app had summed. One cent, on the flow that bills
+ * with nobody watching.
+ *
+ * The fix is to lose the digits FIRST, in one place, so the app never
+ * prices a sticker at a figure Printavo cannot store. repriceStickers writes
+ * this onto each item as `lineUnitPrice` and lib/printavo.ts sends exactly
+ * it, rather than dividing a rounded line total back into a unit and hoping
+ * the two agree.
+ *
+ * ── WHAT IT COSTS ─────────────────────────────────────────────────────────
+ * A sliding unit stored to four decimals steps down by 0.0001 every so
+ * often, and the step is paid on every sticker in the run. Above quantity =
+ * 10,000 x unit, one MORE sticker can therefore come out slightly cheaper:
+ * measured worst case, 4,940 one-inch stickers cost 46 cents more than
+ * 4,941. Bounded at 0.0001 x quantity, swept in tests/sticker-volume, and
+ * accepted: the alternative is a stepped table, and a step at 250 moves
+ * dollars. Printavo has no fifth decimal to give.
+ */
+export function getStickerUnitMaterialPrice(
+  quantity: number,
+  material: string,
+  size?: string,
+  dims?: StickerDimensions
+) {
+  const qty = Math.max(1, Math.floor(quantity || 0));
   const area = getAreaSqIn(size ?? '3"', dims);
 
   const materialPerSticker =
@@ -293,7 +366,7 @@ export function getStickerMaterialPrice(
     stickerVolumeMultiplier(qty) *
     (isPremiumMaterial(material) ? PREMIUM_MATERIAL_MARKUP : 1);
 
-  return Math.round(materialPerSticker * qty * 100) / 100;
+  return Number(materialPerSticker.toFixed(4));
 }
 
 /** Per-sticker price, for display. Derived, never a separate calculation. */

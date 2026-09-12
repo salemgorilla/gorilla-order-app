@@ -1529,6 +1529,10 @@ export function buildPrintavoQuotePlan(input: {
           stickerItems.map((item, index) => {
             const itemQuantity = Math.max(1, num(item.quantity, 1));
             const linePrice = num(item.linePrice);
+            // The four-decimal unit the server priced the design at, which is
+            // exactly what Printavo stores. Older payloads carry only the
+            // rounded line total, so those still divide.
+            const unitPrice = num(item.lineUnitPrice, Number.NaN);
 
             return {
               description: `Design ${index + 1}\n${describeStickerSpec(
@@ -1541,7 +1545,9 @@ export function buildPrintavoQuotePlan(input: {
               // design's cart position — the same number the shop email's
               // block and the design-N-*.png attachment use.
               itemNumber: decalSku(index, stickerItems.length),
-              price: Number((linePrice / itemQuantity).toFixed(4)),
+              price: Number.isFinite(unitPrice)
+                ? unitPrice
+                : Number((linePrice / itemQuantity).toFixed(4)),
               quantity: itemQuantity,
               sizes: [{ size: "size_other", count: itemQuantity }],
             };

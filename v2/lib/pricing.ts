@@ -240,8 +240,12 @@ export function getCartSetupFee(designCount: number) {
  * his pricing, and it charged for three things this engine had been giving
  * away or guessing at:
  *
- *   shape     die-cut x1.18, oval x1.05 — contour cutting is time and waste.
- *             Kiss-cut (x1.12 there) is not a shape this app offers.
+ *   shape     die-cut x1.20, oval x1.05 — contour cutting is time and waste.
+ *             v1 had die-cut at x1.18; Gabe raised it to 20% the same day
+ *             ("Die cut should be more cost than the others"). Kiss-cut
+ *             (x1.12 there) is not a shape this app offers and never will
+ *             be — he asked for it removed. Square and rounded corners are
+ *             the base price, which is where they already were.
  *   finish    matte x1.05.
  *   material  chrome x1.30, holographic x1.35. This engine had both at
  *             x1.6, which was a guess ("one line to change if the shop
@@ -255,12 +259,11 @@ export function getCartSetupFee(designCount: number) {
  *
  * Note what the default shape is. lib/order.ts starts every sticker order
  * as Die Cut, and the public reference pack is "100 die-cut 3" stickers",
- * so the +18% is the COMMON case: that pack is $97.60 now, $0.98 each,
- * against the $1.00 Gabe quotes 3x3 at by hand. A plain circle — Lexi's
- * order — is still $85.
+ * so the +20% is the COMMON case: that pack is $99.00, $0.99 each, against
+ * the $1.00 Gabe quotes 3x3 at by hand. A plain gloss circle is still $85.
  */
 const SHAPE_MULTIPLIERS: Record<string, number> = {
-  "Die Cut": 1.18,
+  "Die Cut": 1.2,
   Oval: 1.05,
 };
 

@@ -1,3 +1,4 @@
+import { MAX_STICKER_SIZE_INCHES } from "./units";
 import { looksLikeEmailAddress } from "./email-address";
 import { todayIso, type TurnaroundLane } from "./turnaround";
 // The floor the FORM enforces is the rush floor where rush is offered
@@ -43,6 +44,10 @@ export function getEmailError(email: string) {
 /** The subset of FieldKey that belongs to one design rather than the order. */
 export type ItemFieldKey = "artwork" | "width" | "height" | "quantity";
 
+// Names the limit and the way round it, in one line: this is read by
+// somebody who has just typed a number the shop cannot print.
+const OVER_MAX_STICKER_SIZE = `Stickers go up to ${MAX_STICKER_SIZE_INCHES}" — for anything bigger, use Signs & Banners or email us.`;
+
 export type ItemFieldErrors = Partial<Record<ItemFieldKey, string>>;
 
 /**
@@ -67,10 +72,14 @@ export function getItemFieldErrors(item: StickerItem): ItemFieldErrors {
   // is the fix; the fallback stays for old quotes that still carry presets.
   if (!(item.widthInches > 0)) {
     errors.width = "Enter a width.";
+  } else if (item.widthInches > MAX_STICKER_SIZE_INCHES) {
+    errors.width = OVER_MAX_STICKER_SIZE;
   }
 
   if (!(item.heightInches > 0)) {
     errors.height = "Enter a height.";
+  } else if (item.heightInches > MAX_STICKER_SIZE_INCHES) {
+    errors.height = OVER_MAX_STICKER_SIZE;
   }
 
   if (!(item.quantity > 0)) {

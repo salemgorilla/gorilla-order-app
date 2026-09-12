@@ -61,7 +61,7 @@ function stickerPackPrice(quantity: number) {
     const MATERIAL = "Gloss White Vinyl";
     const SIZE = '3"';
     // The offer says "die-cut" in its label and "cut to shape" in its
-    // detail, and die-cut is priced (+18%, the old site's own rate). The
+    // detail, and die-cut is priced (+20%, Gabe's rate). The
     // shape has to reach the engine or the label lies about the price.
     const SHAPE = "Die Cut";
 

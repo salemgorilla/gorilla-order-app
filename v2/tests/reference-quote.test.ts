@@ -53,7 +53,7 @@ describe("the figure is the engine's, to the cent", () => {
         finish: REFERENCE_STICKER.finish,
         size: REFERENCE_STICKER.size,
         // The spec says die-cut, so the server has to be told die-cut, or
-        // the hero and the invoice part company by 18%.
+        // the hero and the invoice part company by 20%.
         shape: REFERENCE_STICKER.shape,
       },
       production: { deliveryMethod: "Pickup" },
@@ -67,7 +67,7 @@ describe("the figure is the engine's, to the cent", () => {
     // The same 100-pack has been publicly quoted on signs and apparel
     // quotes since add-ons shipped. Two public prices for one pack would be
     // the entry screen contradicting the review step.
-    assert.equal(getReferenceStickerPrice(), 97.6);
+    assert.equal(getReferenceStickerPrice(), 99);
     // ^ ONE literal, here only, and it is the check that a repricing shows
     // up as a readable diff in this file — the price-sheet discipline.
     //

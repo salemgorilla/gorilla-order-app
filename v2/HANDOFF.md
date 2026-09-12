@@ -28,8 +28,17 @@ PRINTAVO_TOKEN set. It reads only. Never pay a test quote; void it after.
 |---|---|---|---|---|
 | _(none yet)_ | | signs | #112 #113 #114 #122 #129 #133 | **owed** — GS-20260908-TT40U is a real auto-billed sign sitting in Printavo now |
 | GS-20260910-U38N3 | 2026-09-10 | stickers | #108 #129 #133 | ✅ **matched** — 100 × 3" circle, matte, pickup. App quoted $53.80; Printavo invoice #102567 collected **$55.60**, which is $28.80 of stickers + 6.25% MA tax + untaxed $25 setup, to the cent. Read off the Printavo payment email, not typed in. |
-| _(none yet)_ | | stickers | **#149 #151 (re-rate + volume curve)** | **owed** — the figures above are the OLD rate. Next sticker order: 100 × 3" pickup now quotes **$85.00** pre-tax, **$87.81** collected; anything ≥250 also exercises the curve |
+| GS-20260912-81PI1 | 2026-09-12 | stickers | **#149 #151 (re-rate + volume curve)** | ✅ **matched** — Gabe's own test, same spec as Lexi's: 100 × 3" circle, pickup. App: Stickers $45.00 + Setup $40.00 = **$85.00**. Printavo Request #10568 asked for **$87.81** = $45.00 × 1.0625 + $40.00, to the cent. Read off Printavo's payment-request email. **Void it in Printavo** — it is a live link to the shop's own address. |
+| _(none yet)_ | | stickers | #151 above 250 pieces | **owed** — the row above sits at 100, where the volume curve is 1.0. Nothing at 250+ has been placed yet, so the curve's arithmetic is proven by tests only |
 | _(none yet)_ | | apparel | #98 #132 #134 | **owed** — one catalogue garment, and one CART so the per-line size rows can be seen |
+
+**GS-20260912-81PI1 proves the new RATE** — the first real invoice at
+$0.05/sq in and $40 setup, and the figure Gabe named ("closer to $85")
+is what Printavo asked for. What it does not yet prove is the volume
+curve, which is 1.0 at 100 pieces; that needs one order at 250 or more.
+
+Its artwork still travelled "attached to this email": the blob store was
+still not connected at 13:17 on 12 Sep.
 
 **What GS-20260910-U38N3 did and did not prove.** It proved the PIPELINE:
 the payload, the per-line `taxed` flags and Printavo's arithmetic all agree,

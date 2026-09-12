@@ -51,11 +51,17 @@ const initialDeliveryMethod = "Pickup" as const;
 
 // Price the default selection up front so the very first render shows the real
 // decal price instead of $0 (or shipping-only).
-const initialStickerPrice = getStickerMaterialPrice(
-  initialProduct.quantity,
-  initialProduct.material,
-  initialProduct.size
-);
+// Rounded here: the material function returns Printavo's exact four-decimal
+// line, and this is the one place it is shown before quoteStickerCart has
+// summed and rounded it.
+const initialStickerPrice =
+  Math.round(
+    getStickerMaterialPrice(
+      initialProduct.quantity,
+      initialProduct.material,
+      initialProduct.size
+    ) * 100
+  ) / 100;
 
 const initialSetupPrice = getCartSetupFee(1);
 const initialShippingPrice = getShippingPrice(initialDeliveryMethod);

@@ -1,4 +1,8 @@
-import { getStickerMaterialPrice, quoteStickerCart } from "./pricing";
+import {
+  getStickerMaterialPrice,
+  getStickerUnitMaterialPrice,
+  quoteStickerCart,
+} from "./pricing";
 
 /**
  * Which submissions self-bill, and what they are billed.
@@ -89,23 +93,30 @@ export function repriceStickers(order: Record<string, unknown>) {
    * second time and hoping the two agree. Printavo's per-design line items
    * read this.
    */
-  const pricedItems = items.map((item) => ({
-    ...item,
-    linePrice: getStickerMaterialPrice(
-      Number(item.quantity) || 0,
-      String(item.material || ""),
-      String(item.size || ""),
-      {
-        widthInches: Number(item.widthInches) || 0,
-        heightInches: Number(item.heightInches) || 0,
-      }
-    ),
-  }));
+  const pricedItems = items.map((item) => {
+    const quantity = Number(item.quantity) || 0;
+    const material = String(item.material || "");
+    const size = String(item.size || "");
+    const dims = {
+      widthInches: Number(item.widthInches) || 0,
+      heightInches: Number(item.heightInches) || 0,
+    };
 
-  const stickerPrice =
-    Math.round(
-      pricedItems.reduce((sum, item) => sum + item.linePrice, 0) * 100
-    ) / 100;
+    return {
+      ...item,
+      // The line, exact to four decimals. What the total is summed from.
+      lineExact: getStickerMaterialPrice(quantity, material, size, dims),
+      // The line, to the cent. What the shop email prints beside the design.
+      linePrice:
+        Math.round(getStickerMaterialPrice(quantity, material, size, dims) * 100) /
+        100,
+      // The unit Printavo will store — four decimals, and THE figure
+      // lib/printavo.ts puts on the row. Not derived from linePrice: dividing
+      // a rounded total back into a unit is how the two came to differ.
+      lineUnitPrice: getStickerUnitMaterialPrice(quantity, material, size, dims),
+    };
+  });
+
 
   /**
    * A design with no usable area cannot be priced, and must not auto-bill.
@@ -144,8 +155,19 @@ export function repriceStickers(order: Record<string, unknown>) {
    * quoteStickerCart takes the count from the priced array rather than as a
    * separate argument for exactly that reason.
    */
-  const { setupPrice, shippingPrice, total: serverTotal } = quoteStickerCart({
-    materialPrices: pricedItems.map((item) => item.linePrice),
+  const {
+    stickerPrice,
+    setupPrice,
+    shippingPrice,
+    total: serverTotal,
+  } = quoteStickerCart({
+    // The EXACT four-decimal lines, not the per-line figures rounded for the
+    // email. quoteStickerCart sums and rounds ONCE, which is Printavo's
+    // arithmetic; summing the rounded lines instead differs by a cent
+    // whenever two of them each carry half a cent — $470.56 quoted against
+    // $470.57 billed, on the flow that bills with nobody watching. One call,
+    // one rounding, and the same call the browser makes.
+    materialPrices: pricedItems.map((item) => item.lineExact),
     deliveryMethod: String(production.deliveryMethod || ""),
   });
 

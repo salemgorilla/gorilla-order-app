@@ -82,14 +82,49 @@ describe("no cliffs, at any quantity", () => {
   // Every quantity, not a sample. A cliff lives at exactly one number.
   const sweep = Array.from({ length: 6000 }, (_, i) => i + 1);
 
-  test("the total never falls when one more sticker is added", () => {
+  test("one more sticker never lowers the total by more than a fourth-decimal step is worth", () => {
+    /**
+     * Not strictly increasing, and it cannot be — and the bound is bigger
+     * than "a cent or two", which is what this comment said before the
+     * sweep was run.
+     *
+     * Printavo stores the unit price to FOUR decimals and multiplies, so
+     * the app quantises the unit the same way before it prices
+     * (getStickerUnitMaterialPrice). The volume curve slides the unit down
+     * continuously, so every so often it crosses a fourth-decimal boundary
+     * and drops by 0.0001. That drop is paid on EVERY sticker in the run:
+     * one more piece adds one unit price and subtracts 0.0001 x quantity.
+     * Above quantity = 10,000 x unit the subtraction wins. For a 1" sticker
+     * at $0.036 that is 360 pieces; measured, the worst case is 4,940
+     * one-inch stickers costing 46 cents MORE than 4,941.
+     *
+     * There is no fix that is not worse. A unit that never slides is a
+     * stepped table, and a step at 250 moves dollars, not cents — the
+     * cliff tests/pricing-invariants exists to stop. Printavo has no fifth
+     * decimal to give. So the bound held here is the true one, 0.0001 x
+     * quantity, and a real cliff still fails it by an order of magnitude.
+     */
     for (const dims of [THREE, { widthInches: 1, heightInches: 1 }, { widthInches: 4, heightInches: 6 }]) {
       let previous = total(1, dims);
 
       for (const q of sweep.slice(1)) {
         const now = total(q, dims);
-        assert.ok(now > previous, `${dims.widthInches}x${dims.heightInches}: ${q} stickers ($${now}) cost less than ${q - 1} ($${previous})`);
+        assert.ok(
+          now >= previous - (0.0001 * q + 0.01),
+          `${dims.widthInches}x${dims.heightInches}: ${q} stickers ($${now}) cost less than ${q - 1} ($${previous})`
+        );
         previous = now;
+      }
+    }
+  });
+
+  test("and over any hundred-sticker stretch it rises, always", () => {
+    // The wobble above is a one-piece artefact. A hundred more stickers is
+    // real money at every size — at least $3.60 even for a 1" — and no run
+    // of fourth-decimal steps inside a hundred pieces can add up to that.
+    for (const dims of [THREE, { widthInches: 1, heightInches: 1 }]) {
+      for (const q of sweep.slice(0, -100)) {
+        assert.ok(total(q + 100, dims) > total(q, dims), `${dims.widthInches}": ${q} -> ${q + 100} did not rise`);
       }
     }
   });
@@ -120,9 +155,9 @@ describe("no cliffs, at any quantity", () => {
 
 describe("what it applies to, and what it leaves alone", () => {
   test("material only — setup is labour and does not get cheaper by the roll", () => {
-    // 1,000 x 3": material 1000 x 9 x 0.05 x 0.82 = $369, setup untouched.
-    assert.equal(getStickerMaterialPrice(1000, VINYL, "", THREE), 369);
-    assert.equal(total(1000), 369 + STICKER_SETUP_FEE);
+    // 1,000 x 3": material 1000 x 9 x (70/900) x 0.56 = $392, setup untouched.
+    assert.equal(getStickerMaterialPrice(1000, VINYL, "", THREE), 392);
+    assert.equal(total(1000), 392 + STICKER_SETUP_FEE);
   });
 
   test("premium material is discounted on the same curve, then marked up", () => {
@@ -139,7 +174,7 @@ describe("what it applies to, and what it leaves alone", () => {
     const small = getStickerMaterialPrice(100, VINYL, "", THREE);
     const large = getStickerMaterialPrice(900, VINYL, "", THREE);
 
-    assert.equal(small, 45);
+    assert.equal(small, 70);
     assert.ok(large < 9 * small, "the 900-piece design got no discount");
     assert.ok(large > getStickerMaterialPrice(1000, VINYL, "", THREE) * 0.9);
   });

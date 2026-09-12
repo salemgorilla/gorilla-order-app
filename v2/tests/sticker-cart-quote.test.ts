@@ -35,8 +35,8 @@ describe("the composition itself", () => {
     assert.equal(quote.stickerPrice, 60.8);
     assert.equal(quote.setupPrice, STICKER_SETUP_FEE + STICKER_SETUP_FEE_ADDITIONAL);
     assert.equal(quote.shippingPrice, DECAL_SHIPPING_PRICE);
-    // 60.80 material + (40 + 20) setup + 12 shipping.
-    assert.equal(quote.total, 132.8);
+    // 60.80 material + (15 + 7.50) setup + 12 shipping.
+    assert.equal(quote.total, 95.3);
   });
 
   it("charges setup per DESIGN, not per dollar", () => {
@@ -147,11 +147,16 @@ describe("the server really does route through it", () => {
         .pricing as Record<string, number>;
 
       const items = (priced.order as Record<string, unknown>).items as Array<{
-        linePrice: number;
+        lineExact: number;
       }>;
 
+      // lineExact, not linePrice. The server sums the EXACT four-decimal
+      // lines and rounds once — Printavo's arithmetic — and linePrice is the
+      // per-line figure rounded for the shop email. Three 25 x 1" lines each
+      // carrying a fraction of a cent add up differently depending on which
+      // you sum, and the cent that fell out was the whole finding.
       const direct = quoteStickerCart({
-        materialPrices: items.map((item) => item.linePrice),
+        materialPrices: items.map((item) => item.lineExact),
         deliveryMethod: cart.deliveryMethod,
       });
 

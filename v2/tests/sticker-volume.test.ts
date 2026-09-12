@@ -164,7 +164,8 @@ describe("what it applies to, and what it leaves alone", () => {
     const plain = getStickerMaterialPrice(1000, VINYL, "", THREE);
     const chrome = getStickerMaterialPrice(1000, "Chrome", "", THREE);
 
-    assert.equal(Math.round((chrome / plain) * 100) / 100, 1.6);
+    // +30%, the old site's own chrome rate, restored 2026-09-12.
+    assert.equal(Math.round((chrome / plain) * 100) / 100, 1.3);
   });
 
   test("each design in a cart discounts on its own count", () => {

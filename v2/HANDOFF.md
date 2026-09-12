@@ -29,7 +29,7 @@ PRINTAVO_TOKEN set. It reads only. Never pay a test quote; void it after.
 | _(none yet)_ | | signs | #112 #113 #114 #122 #129 #133 | **owed** — GS-20260908-TT40U is a real auto-billed sign sitting in Printavo now |
 | GS-20260910-U38N3 | 2026-09-10 | stickers | #108 #129 #133 | ✅ **matched** — 100 × 3" circle, matte, pickup. App quoted $53.80; Printavo invoice #102567 collected **$55.60**, which is $28.80 of stickers + 6.25% MA tax + untaxed $25 setup, to the cent. Read off the Printavo payment email, not typed in. |
 | GS-20260912-81PI1 | 2026-09-12 | stickers | **#149 #151 (re-rate + volume curve)** | ✅ **matched** — Gabe's own test, same spec as Lexi's: 100 × 3" circle, pickup. App: Stickers $45.00 + Setup $40.00 = **$85.00**. Printavo Request #10568 asked for **$87.81** = $45.00 × 1.0625 + $40.00, to the cent. Read off Printavo's payment-request email. Voided by Gabe the same day. |
-| _(none yet)_ | | stickers | **#153 #154 (setup $15, the cent fix, the per-sticker term)** | **owed** — #153 moved money between the two invoice lines AND changed how per-line unit prices are sent to Printavo (`lineUnitPrice`, 4 dp). A **multi-design cart** is the one to check: three designs at mixed sizes, expect Printavo to match the website to the cent. Reference single order now $85.00 pre-tax / **$89.38** collected |
+| _(none yet)_ | | stickers | **#153 #154 #155 (setup $15, the cent fix, per-sticker term, v1 modifiers)** | **owed** — #153 moved money between the two invoice lines AND changed how per-line unit prices are sent to Printavo (`lineUnitPrice`, 4 dp). A **multi-design cart** is the one to check: three designs at mixed sizes, expect Printavo to match the website to the cent. Reference gloss circle $85.00 pre-tax; the die-cut pack $97.60; Lexi's matte circle $88.50 |
 | _(none yet)_ | | apparel | #98 #132 #134 | **owed** — one catalogue garment, and one CART so the per-line size rows can be seen |
 
 **GS-20260912-81PI1 proves the new RATE** — the first real invoice at
@@ -60,6 +60,45 @@ guess**: `/api/artwork-upload` and `/api/printavo-test` report the commit
 the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
+
+- **The old site's modifiers, restored** — 2026-09-12 (#155). Asked which
+  gaps in the matrix to close, Gabe: *"Use my hand quote for what makes
+  sense."* The v1 table (`data/sticker-pricing.js`) is his pricing, and it
+  charged for three things the engine had been giving away or guessing:
+
+  | | v1 | engine had | now |
+  |---|---|---|---|
+  | die-cut | ×1.18 | free | **×1.18** |
+  | oval | ×1.05 | free | **×1.05** |
+  | matte | ×1.05 | free | **×1.05** |
+  | chrome | ×1.30 | ×1.6 (a guess) | **×1.30** |
+  | holographic | ×1.35 | ×1.6 (a guess) | **×1.35** |
+  | shipping | $8/$12/$18/$25 by goods | flat $12 | **tiered** |
+
+  All on the whole unit, never on setup. Kiss-cut (v1 ×1.12) is not a shape
+  the app offers. Clear Vinyl (×1.15) kept for old quotes only.
+
+  **The default shape is Die Cut, so +18% is the common case.** The public
+  reference pack — hero and cross-sell strip, "100 die-cut 3" stickers" —
+  is **$97.60 = $0.98 each**, on top of Gabe's $1.00 hand quote for 3×3.
+  Lexi's exact spec (matte circle) is now **$88.50**; a gloss circle is
+  $85. So the "$85" anchor is a gloss circle from here on, and the copy
+  was left saying die-cut rather than changed to hit a number.
+
+  **Chrome and holographic came DOWN** (100 × 3" chrome $127 → $110.50):
+  the 60% was never his figure.
+
+  Shipping is stepped on stickers + setup: a typical single order (~$85
+  of goods) still pays the old $12; small orders pay $8; 5,000 × 6" now
+  pays $25 instead of $12 for ~1,250 sq ft of vinyl. 146 sheet rows moved.
+
+  **Still open from that audit, needing a number only Gabe has:** a maximum
+  self-serve size. The form accepts any dimensions and 1 × 48"×96" quotes
+  $200 and auto-bills. His own history quotes decals up to 9×11 by hand
+  (Brito Ice, 2024, $10 each ×10 — the app says $5.80). Proposal: cap
+  self-serve at 12" on the long side, route bigger to the "not listed"
+  door. Needs his roll width to be right. Also still his call: no minimum
+  order (1 × 3" = $15.70, auto-billed).
 
 - **A per-sticker term: $0.34 + $0.04/sq in** — 2026-09-12 (#154). Gabe:
   *"How can we fix that $0.46 for 100 - 2x2 stickers to keep same if not

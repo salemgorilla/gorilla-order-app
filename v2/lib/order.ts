@@ -59,12 +59,17 @@ const initialStickerPrice =
     getStickerMaterialPrice(
       initialProduct.quantity,
       initialProduct.material,
-      initialProduct.size
+      initialProduct.size,
+      undefined,
+      initialProduct.shape
     ) * 100
   ) / 100;
 
 const initialSetupPrice = getCartSetupFee(1);
-const initialShippingPrice = getShippingPrice(initialDeliveryMethod);
+const initialShippingPrice = getShippingPrice(
+  initialDeliveryMethod,
+  initialStickerPrice + initialSetupPrice
+);
 
 export const defaultOrder: Order = {
   customer: {

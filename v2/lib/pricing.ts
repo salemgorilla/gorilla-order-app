@@ -233,15 +233,60 @@ export function getCartSetupFee(designCount: number) {
 }
 
 /**
- * Chrome and holographic: 60% markup over standard vinyl.
+ * THE OLD SITE'S MODIFIERS, PUT BACK — 2026-09-12.
  *
- * Applied to the MATERIAL portion only, not the setup fee — the setup labour
- * is identical whichever substrate goes on the machine. On 100 x 3" that is
- * $71 rather than the $86 a markup on the whole price would give. One line to
- * change if the shop wants it on the total instead.
+ * Gabe, asked which of the matrix's gaps to close: "Use my hand quote for
+ * what makes sense." The v1 site (data/sticker-pricing.js, repo root) is
+ * his pricing, and it charged for three things this engine had been giving
+ * away or guessing at:
+ *
+ *   shape     die-cut x1.18, oval x1.05 — contour cutting is time and waste.
+ *             Kiss-cut (x1.12 there) is not a shape this app offers.
+ *   finish    matte x1.05.
+ *   material  chrome x1.30, holographic x1.35. This engine had both at
+ *             x1.6, which was a guess ("one line to change if the shop
+ *             wants it") — so chrome and holographic came DOWN here:
+ *             100 x 3" chrome $127 -> $110.50.
+ *
+ * All three multiply the WHOLE unit — per-sticker term included — so
+ * "chrome is 30% more" stays a sentence the shop can say from memory.
+ * Setup is never multiplied: the labour of setting a job up does not
+ * change with the substrate.
+ *
+ * Note what the default shape is. lib/order.ts starts every sticker order
+ * as Die Cut, and the public reference pack is "100 die-cut 3" stickers",
+ * so the +18% is the COMMON case: that pack is $97.60 now, $0.98 each,
+ * against the $1.00 Gabe quotes 3x3 at by hand. A plain circle — Lexi's
+ * order — is still $85.
  */
-const PREMIUM_MATERIAL_MARKUP = 1.6;
-const PREMIUM_MATERIALS = ["Chrome", "Holographic"];
+const SHAPE_MULTIPLIERS: Record<string, number> = {
+  "Die Cut": 1.18,
+  Oval: 1.05,
+};
+
+const MATERIAL_MULTIPLIERS: Record<string, number> = {
+  Chrome: 1.3,
+  Holographic: 1.35,
+  // Removed from the catalogue 2026-08-04; kept so an old quote still
+  // reprices the way it was sold.
+  "Clear Vinyl": 1.15,
+};
+
+const MATTE_MULTIPLIER = 1.05;
+
+function shapeMultiplier(shape?: string) {
+  return SHAPE_MULTIPLIERS[String(shape || "").trim()] ?? 1;
+}
+
+function materialMultiplier(material: string) {
+  const name = String(material || "").trim();
+  const premium = MATERIAL_MULTIPLIERS[name] ?? 1;
+  const matte = /matte/i.test(name) ? MATTE_MULTIPLIER : 1;
+
+  return premium * matte;
+}
+
+
 
 /** '3"' -> 3. Handles plain numbers and stray quotes. */
 export function parseStickerSizeInches(size: string | number) {
@@ -297,15 +342,37 @@ function getAreaSqIn(size: string | number, dims?: StickerDimensions) {
   return inches > 0 ? inches * inches : 0;
 }
 
-function isPremiumMaterial(material: string) {
-  return PREMIUM_MATERIALS.includes(String(material).trim());
-}
 
-// Flat shipping for mailed decal orders. Local pickup is free.
+/**
+ * Shipping, tiered by what is being shipped — the old site's own tiers.
+ *
+ * It was a flat $12 at any quantity, so 5,000 x 6" stickers — about 1,250
+ * square feet of vinyl — shipped for the same as 25 x 1". The v1 site
+ * stepped it by the goods subtotal: $8 to $75, $12 to $200, $18 to $500,
+ * $25 above. Those are Gabe's numbers (2026-09-12: "use my hand quote for
+ * what makes sense"), so they are what this charges. Local pickup is free.
+ *
+ * Stepped, not sloped, deliberately: a customer reads "$18 shipping" as a
+ * fact about parcels, not a function of their cart, and the steps are far
+ * enough apart that no order sits on a boundary by accident.
+ */
+export const SHIPPING_TIERS: ReadonlyArray<{ upTo: number | null; price: number }> = [
+  { upTo: 75, price: 8 },
+  { upTo: 200, price: 12 },
+  { upTo: 500, price: 18 },
+  { upTo: null, price: 25 },
+];
+
+/** The old flat rate, which is now the $75–$200 tier. Tests read it. */
 export const DECAL_SHIPPING_PRICE = 12;
 
-export function getShippingPrice(deliveryMethod: string) {
-  return deliveryMethod === "Ship" ? DECAL_SHIPPING_PRICE : 0;
+export function getShippingPrice(deliveryMethod: string, goodsSubtotal = 0) {
+  if (deliveryMethod !== "Ship") return 0;
+
+  const subtotal = Math.max(0, Number(goodsSubtotal) || 0);
+  const tier = SHIPPING_TIERS.find((t) => t.upTo === null || subtotal <= t.upTo);
+
+  return tier ? tier.price : SHIPPING_TIERS[SHIPPING_TIERS.length - 1].price;
 }
 
 /**
@@ -323,9 +390,10 @@ export function getStickerPrice(
   material: string,
   finish: string,
   size?: string,
-  dims?: StickerDimensions
+  dims?: StickerDimensions,
+  shape?: string
 ) {
-  const total = getStickerMaterialPrice(quantity, material, size, dims) +
+  const total = getStickerMaterialPrice(quantity, material, size, dims, shape) +
     STICKER_SETUP_FEE;
 
   return Math.round(total * 100) / 100;
@@ -343,7 +411,8 @@ export function getStickerMaterialPrice(
   quantity: number,
   material: string,
   size?: string,
-  dims?: StickerDimensions
+  dims?: StickerDimensions,
+  shape?: string
 ) {
   const qty = Math.max(1, Math.floor(quantity || 0));
 
@@ -353,7 +422,7 @@ export function getStickerMaterialPrice(
   // per line and then summing is how the website came to quote $470.56 for a
   // cart Printavo would bill at $470.57. The cart sums these exact figures
   // and rounds ONCE (quoteStickerCart), which is what Printavo does.
-  return Math.round(getStickerUnitMaterialPrice(qty, material, size, dims) * qty * 10000) / 10000;
+  return Math.round(getStickerUnitMaterialPrice(qty, material, size, dims, shape) * qty * 10000) / 10000;
 }
 
 /**
@@ -388,7 +457,8 @@ export function getStickerUnitMaterialPrice(
   quantity: number,
   material: string,
   size?: string,
-  dims?: StickerDimensions
+  dims?: StickerDimensions,
+  shape?: string
 ) {
   const qty = Math.max(1, Math.floor(quantity || 0));
   const area = getAreaSqIn(size ?? '3"', dims);
@@ -408,15 +478,13 @@ export function getStickerUnitMaterialPrice(
    */
   if (!(area > 0)) return 0;
 
-  // The premium markup is applied to the WHOLE unit, per-sticker term
-  // included, so chrome and holographic stay a plain "60% more" the shop can
-  // quote from memory. The stricter reading — markup on the material inches
-  // only, since weeding chrome costs what weeding vinyl costs — would drop
-  // chrome 100 x 3" from $127 to $107, and nobody has asked for that.
+  // Shape, finish and material all multiply the WHOLE unit — see the note
+  // above SHAPE_MULTIPLIERS for why, and for what the default shape means.
   const materialPerSticker =
     (STICKER_PER_PIECE + area * MATERIAL_RATE_PER_SQ_IN) *
     stickerVolumeMultiplier(qty) *
-    (isPremiumMaterial(material) ? PREMIUM_MATERIAL_MARKUP : 1);
+    shapeMultiplier(shape) *
+    materialMultiplier(material);
 
   return Number(materialPerSticker.toFixed(4));
 }
@@ -427,10 +495,11 @@ export function getStickerUnitPrice(
   material: string,
   finish: string,
   size?: string,
-  dims?: StickerDimensions
+  dims?: StickerDimensions,
+  shape?: string
 ) {
   const qty = Math.max(1, Math.floor(quantity || 0));
-  return getStickerPrice(qty, material, finish, size, dims) / qty;
+  return getStickerPrice(qty, material, finish, size, dims, shape) / qty;
 }
 
 /** "2 x 6 in" or '3"' — whichever the customer actually chose. */
@@ -492,7 +561,8 @@ export function quoteStickerCart(input: {
   // exactly $25, so a single-design order prices identically to before the
   // cart existed.
   const setupPrice = getCartSetupFee(input.materialPrices.length);
-  const shippingPrice = getShippingPrice(input.deliveryMethod);
+  // Tiered on the goods — stickers plus setup — never on shipping itself.
+  const shippingPrice = getShippingPrice(input.deliveryMethod, stickerPrice + setupPrice);
 
   return {
     stickerPrice,

@@ -1229,7 +1229,8 @@ export default function Home() {
         quantityForPricing,
         item.material,
         item.size,
-        { widthInches, heightInches }
+        { widthInches, heightInches },
+        item.shape
       ),
     };
   }
@@ -3354,7 +3355,8 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       snapQuantity(item.quantity),
       item.material,
       item.size,
-      { widthInches: item.widthInches, heightInches: item.heightInches }
+      { widthInches: item.widthInches, heightInches: item.heightInches },
+      item.shape
     );
 
     return (material + share) / Math.max(1, item.quantity);

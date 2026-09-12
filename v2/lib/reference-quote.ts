@@ -33,6 +33,10 @@ export const REFERENCE_STICKER = {
   material: "Gloss White Vinyl",
   finish: "Gloss",
   size: '3"',
+  // In the label, so in the price: die-cut is +18% (the old site's rate,
+  // restored 2026-09-12). $97.60 — $0.98 each, against the $1.00 Gabe
+  // quotes 3x3 at by hand. A plain circle of the same run is $85.
+  shape: "Die Cut",
 } as const;
 
 /**
@@ -44,6 +48,8 @@ export function getReferenceStickerPrice(): number {
     REFERENCE_STICKER.quantity,
     REFERENCE_STICKER.material,
     REFERENCE_STICKER.finish,
-    REFERENCE_STICKER.size
+    REFERENCE_STICKER.size,
+    undefined,
+    REFERENCE_STICKER.shape
   );
 }

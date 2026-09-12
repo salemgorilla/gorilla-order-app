@@ -46,6 +46,7 @@ import {
   quoteStickerCart,
   STICKER_SETUP_FEE,
   STICKER_SETUP_FEE_ADDITIONAL,
+  STICKER_ORDER_MINIMUM,
 } from "../lib/pricing";
 import { calculateSignsPricing, getYardSignPrice } from "../lib/signs-pricing";
 import { signsPricingConfig } from "../lib/signs-pricing-config";
@@ -342,7 +343,14 @@ describe("stickers: totals, not rates", () => {
           })
         );
 
-        assertStrictlyIncreasing(points, `${material} ${w}x${h}`);
+        // Every point at or above the $45 minimum, and strictly rising once
+        // clear of it. At the floor, one sticker and seven stickers both
+        // cost $45 — that is the policy (2026-09-12), not a cliff.
+        for (const p of points) assert.ok(p.total >= STICKER_ORDER_MINIMUM, `${material} ${w}x${h} @${p.at}: $${p.total}`);
+        assertStrictlyIncreasing(
+          points.filter((p) => p.total > STICKER_ORDER_MINIMUM),
+          `${material} ${w}x${h} (above the minimum)`
+        );
       }
     }
   });

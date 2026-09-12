@@ -19,6 +19,7 @@
  *   GORILLA-DECAL-<n>            design n of a cart — the same n as DESIGN 0n
  *                                and the design-n-*.png attachment
  *   GORILLA-DECAL-SETUP          sticker setup, one row however many designs
+ *   GORILLA-DECAL-MINIMUM        the top-up to the $45 sticker order minimum
  *   GORILLA-SIGN-<PRODUCT>       a sign, named by the product, never the
  *                                cart position (so "how many yard signs" has
  *                                an answer across carts)
@@ -37,6 +38,7 @@
 export const SKU = {
   DECAL: "GORILLA-DECAL",
   DECAL_SETUP: "GORILLA-DECAL-SETUP",
+  DECAL_MINIMUM: "GORILLA-DECAL-MINIMUM",
   APPAREL_PRINT: "GORILLA-APPAREL-PRINT",
   APPAREL_SETUP: "GORILLA-APPAREL-SETUP",
   RUSH: "GORILLA-RUSH",

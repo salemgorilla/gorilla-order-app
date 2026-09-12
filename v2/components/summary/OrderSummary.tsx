@@ -166,6 +166,16 @@ export default function OrderSummary({ order }: Props) {
           value={`$${order.pricing.setupPrice.toFixed(2)}`}
         />
 
+        {/* The $45 minimum, when it applies. Its own row so a customer
+            paying $45 for seven stickers sees a policy, not a unit price
+            that does not multiply. */}
+        {(order.pricing.minimumPrice ?? 0) > 0 && (
+          <SummaryRow
+            label="Minimum order"
+            value={`$${(order.pricing.minimumPrice ?? 0).toFixed(2)}`}
+          />
+        )}
+
         <SummaryRow
           label="Shipping"
           value={

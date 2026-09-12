@@ -125,6 +125,14 @@ export type Pricing = {
    * unit prices is unreviewable, and signs already do this correctly.
    */
   setupPrice: number;
+  /**
+   * The top-up to the $45 order minimum (lib/pricing.ts,
+   * STICKER_ORDER_MINIMUM), or 0. Its own line on every surface so a
+   * customer paying $45 for seven stickers can see the policy rather than
+   * a strange unit price. Optional because quotes from before 2026-09-12
+   * do not carry it.
+   */
+  minimumPrice?: number;
   shippingPrice: number;
   total: number;
 };

@@ -29,7 +29,7 @@ PRINTAVO_TOKEN set. It reads only. Never pay a test quote; void it after.
 | _(none yet)_ | | signs | #112 #113 #114 #122 #129 #133 | **owed** — GS-20260908-TT40U is a real auto-billed sign sitting in Printavo now |
 | GS-20260910-U38N3 | 2026-09-10 | stickers | #108 #129 #133 | ✅ **matched** — 100 × 3" circle, matte, pickup. App quoted $53.80; Printavo invoice #102567 collected **$55.60**, which is $28.80 of stickers + 6.25% MA tax + untaxed $25 setup, to the cent. Read off the Printavo payment email, not typed in. |
 | GS-20260912-81PI1 | 2026-09-12 | stickers | **#149 #151 (re-rate + volume curve)** | ✅ **matched** — Gabe's own test, same spec as Lexi's: 100 × 3" circle, pickup. App: Stickers $45.00 + Setup $40.00 = **$85.00**. Printavo Request #10568 asked for **$87.81** = $45.00 × 1.0625 + $40.00, to the cent. Read off Printavo's payment-request email. Voided by Gabe the same day. |
-| _(none yet)_ | | stickers | **#153–#157 (setup $15, the cent fix, per-sticker term, v1 modifiers, die-cut 20%, two curves)** | **owed** — #153 moved money between the two invoice lines AND changed how per-line unit prices are sent to Printavo (`lineUnitPrice`, 4 dp). A **multi-design cart** is the one to check: three designs at mixed sizes, expect Printavo to match the website to the cent. Reference gloss circle $85.00 pre-tax; the die-cut pack $97.60; Lexi's matte circle $88.50 |
+| _(none yet)_ | | stickers | **#153–#158 (setup $15, the cent fix, per-sticker term, v1 modifiers, die-cut 20%, two curves, $45 minimum)** | **owed** — #153 moved money between the two invoice lines AND changed how per-line unit prices are sent to Printavo (`lineUnitPrice`, 4 dp). A **multi-design cart** is the one to check: three designs at mixed sizes, expect Printavo to match the website to the cent. Reference gloss circle $85.00 pre-tax; the die-cut pack $97.60; Lexi's matte circle $88.50 |
 | _(none yet)_ | | apparel | #98 #132 #134 | **owed** — one catalogue garment, and one CART so the per-line size rows can be seen |
 
 **GS-20260912-81PI1 proves the new RATE** — the first real invoice at
@@ -60,6 +60,25 @@ guess**: `/api/artwork-upload` and `/api/printavo-test` report the commit
 the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
+
+- **$45 sticker order minimum** — 2026-09-12 (#158). Gabe: *"Let's have a
+  minimum of $45 for stickers."* Before this, one 3" sticker quoted $15.70
+  and auto-billed.
+
+  `STICKER_ORDER_MINIMUM = 45` on the GOODS (stickers + setup), before
+  shipping. When goods fall short, `quoteStickerCart` adds
+  `minimumPrice` — the top-up — and it is **its own line on every
+  surface**: the on-screen summary, the shop email, and a Printavo fee
+  row `GORILLA-DECAL-MINIMUM` ("Minimum order ($45 for stickers)"),
+  untaxed like setup. A row, not a quietly inflated unit price: "$4.29
+  each" for seven stickers invites a complaint; "Minimum order $19.96" is
+  a policy the customer can read. The taxable base is still `stickerPrice`
+  only, so estimate and invoice agree to the cent by construction.
+  Shipping tiers on goods including the top-up. 62 sheet rows lifted to
+  $45 (everything that was under it).
+
+  `Pricing.minimumPrice` is optional on the type because quotes from
+  before today do not carry it; every reader treats absent as 0.
 
 - **Two volume curves, so every size holds its margin** — 2026-09-12
   (#157). Gabe, on the size drift: *"can you fix that so the profit

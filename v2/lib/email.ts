@@ -618,6 +618,11 @@ export function buildQuoteEmail(input: {
        * blank to suppress, it is a bug worth seeing.
        */
       line("Setup", money(pricing.setupPrice)),
+      // Only when it applies. Unlike setup, a $0.00 here is the normal case
+      // and would read as a fee that failed to compute.
+      ...(Number(pricing.minimumPrice) > 0
+        ? [line("Minimum order", money(pricing.minimumPrice))]
+        : []),
       line(
         "Shipping",
         shippingPrice > 0 ? money(shippingPrice) : "Free (local pickup)"

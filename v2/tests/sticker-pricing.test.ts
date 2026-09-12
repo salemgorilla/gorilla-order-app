@@ -12,6 +12,7 @@ import {
   parseStickerSizeInches,
   STICKER_SETUP_FEE,
   STICKER_SETUP_FEE_ADDITIONAL,
+  STICKER_ORDER_MINIMUM,
 } from "../lib/pricing";
 import { repriceStickers } from "../lib/sticker-repricing";
 
@@ -266,7 +267,9 @@ describe("nothing auto-bills at a price nobody set", () => {
 
     assert.equal(priced.unpriceable, true);
     // Still priced and still sent to the shop — only the link is withheld.
-    assert.equal(priced.serverTotal, STICKER_SETUP_FEE);
+    // Setup alone is $15, and the $45 order minimum tops it up; the figure
+    // is informational here, since nothing bills an unpriceable order.
+    assert.equal(priced.serverTotal, STICKER_ORDER_MINIMUM);
   });
 
   test("negative dimensions are flagged too", () => {

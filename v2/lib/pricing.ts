@@ -569,9 +569,29 @@ export function describeStickerSize(size: string, dims?: StickerDimensions) {
  * changing WHERE the rounding happens moves cents. Both callers did it in
  * exactly this order, and that is preserved rather than tidied.
  */
+/**
+ * THE ORDER MINIMUM — Gabe, 2026-09-12: "Let's have a minimum of $45 for
+ * stickers."
+ *
+ * Before this there was none: one 3" sticker quoted $15.70 and auto-billed.
+ * Now, when stickers plus setup come to less than $45, a "Minimum order"
+ * line makes up the difference. It is its OWN line rather than a quiet
+ * inflation of the unit price, so a customer paying $45 for seven stickers
+ * can see why — "$4.29 each" invites a complaint; "minimum order $19.96"
+ * is a policy they can read. Untaxed, like setup: it is a charge for the
+ * size of the job, not for the vinyl.
+ *
+ * On the GOODS, before shipping. A $30 order picked up in Salem and the
+ * same order shipped both meet the same $45 minimum; the shipping goes on
+ * top of it.
+ */
+export const STICKER_ORDER_MINIMUM = 45;
+
 export type StickerCartQuote = {
   stickerPrice: number;
   setupPrice: number;
+  /** The top-up to STICKER_ORDER_MINIMUM, or 0. Its own line everywhere. */
+  minimumPrice: number;
   shippingPrice: number;
   total: number;
 };
@@ -594,13 +614,18 @@ export function quoteStickerCart(input: {
   // exactly $25, so a single-design order prices identically to before the
   // cart existed.
   const setupPrice = getCartSetupFee(input.materialPrices.length);
-  // Tiered on the goods — stickers plus setup — never on shipping itself.
-  const shippingPrice = getShippingPrice(input.deliveryMethod, stickerPrice + setupPrice);
+  const minimumPrice =
+    Math.max(0, Math.round((STICKER_ORDER_MINIMUM - stickerPrice - setupPrice) * 100)) / 100;
+  const goods = Math.round((stickerPrice + setupPrice + minimumPrice) * 100) / 100;
+  // Tiered on the goods — stickers, setup and the minimum — never on
+  // shipping itself.
+  const shippingPrice = getShippingPrice(input.deliveryMethod, goods);
 
   return {
     stickerPrice,
     setupPrice,
+    minimumPrice,
     shippingPrice,
-    total: Math.round((stickerPrice + setupPrice + shippingPrice) * 100) / 100,
+    total: Math.round((goods + shippingPrice) * 100) / 100,
   };
 }

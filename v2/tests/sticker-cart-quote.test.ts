@@ -6,6 +6,7 @@ import {
   STICKER_SETUP_FEE,
   STICKER_SETUP_FEE_ADDITIONAL,
   quoteStickerCart,
+  STICKER_ORDER_MINIMUM,
 } from "../lib/pricing";
 import { repriceStickers } from "../lib/sticker-repricing";
 
@@ -59,7 +60,11 @@ describe("the composition itself", () => {
     });
 
     assert.equal(single.setupPrice, STICKER_SETUP_FEE);
-    assert.equal(single.total, 28.8 + STICKER_SETUP_FEE);
+    // $28.80 + $15 is $43.80 — under the $45 order minimum (2026-09-12),
+    // so the minimum tops it up and the total is $45. The material and
+    // setup lines are still exactly what they were; the top-up is its own.
+    assert.equal(single.minimumPrice, 1.2);
+    assert.equal(single.total, STICKER_ORDER_MINIMUM);
   });
 
   it("charges no shipping on local pickup", () => {
@@ -81,10 +86,14 @@ describe("the composition itself", () => {
     });
 
     assert.equal(quote.stickerPrice, 0.3);
+    // The rounding contract is on the STICKER line and the GOODS; the total
+    // here is the $45 minimum, because 30 cents of stickers is nowhere near
+    // it. The top-up is exactly what closes the gap, to the cent.
     assert.equal(
-      quote.total,
-      0.3 + STICKER_SETUP_FEE + STICKER_SETUP_FEE_ADDITIONAL
+      quote.minimumPrice,
+      Math.round((STICKER_ORDER_MINIMUM - 0.3 - STICKER_SETUP_FEE - STICKER_SETUP_FEE_ADDITIONAL) * 100) / 100
     );
+    assert.equal(quote.total, STICKER_ORDER_MINIMUM);
   });
 
   it("keeps the one-design setup MINIMUM on an empty cart", () => {
@@ -96,7 +105,9 @@ describe("the composition itself", () => {
 
     assert.equal(quote.stickerPrice, 0);
     assert.equal(quote.setupPrice, STICKER_SETUP_FEE);
-    assert.equal(quote.total, STICKER_SETUP_FEE);
+    // And since 2026-09-12 the $45 order minimum sits on top of that.
+    assert.equal(quote.minimumPrice, STICKER_ORDER_MINIMUM - STICKER_SETUP_FEE);
+    assert.equal(quote.total, STICKER_ORDER_MINIMUM);
   });
 });
 
@@ -164,6 +175,7 @@ describe("the server really does route through it", () => {
         {
           stickerPrice: server.stickerPrice,
           setupPrice: server.setupPrice,
+          minimumPrice: server.minimumPrice,
           shippingPrice: server.shippingPrice,
           total: server.total,
         },

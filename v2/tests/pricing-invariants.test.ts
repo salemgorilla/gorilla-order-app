@@ -348,14 +348,16 @@ describe("stickers: totals, not rates", () => {
   });
 
   test("premium material costs more, on the material line ONLY", () => {
-    // ×1.6 tracks a real substrate cost; setup labour is identical whichever
-    // roll goes on the machine. Letting the markup drift onto setup would be
-    // a blanket upcharge with nothing behind it.
-    const plain = getStickerMaterialPrice(100, "Matte", "custom", { widthInches: 3, heightInches: 3 });
+    // x1.3 (the old site's chrome rate) tracks a real substrate cost; setup
+    // labour is identical whichever roll goes on the machine. Letting the
+    // markup drift onto setup would be a blanket upcharge with nothing
+    // behind it. Compared against GLOSS: matte carries its own +5% now, and
+    // chrome over matte reads 1.24, which is two rates and not one.
+    const plain = getStickerMaterialPrice(100, "Gloss White Vinyl", "custom", { widthInches: 3, heightInches: 3 });
     const chrome = getStickerMaterialPrice(100, "Chrome", "custom", { widthInches: 3, heightInches: 3 });
 
     assert.ok(chrome > plain);
-    assert.equal(round2(chrome / plain), 1.6);
+    assert.equal(round2(chrome / plain), 1.3);
     assert.equal(
       quoteStickerCart({ materialPrices: [chrome], deliveryMethod: "Pickup" }).setupPrice,
       quoteStickerCart({ materialPrices: [plain], deliveryMethod: "Pickup" }).setupPrice,

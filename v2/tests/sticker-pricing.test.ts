@@ -81,10 +81,12 @@ describe("the formula is the formula", () => {
     const dims = { widthInches: 3, heightInches: 3 };
     const plain = getStickerMaterialPrice(100, VINYL, '3"', dims);
 
-    for (const premium of ["Chrome", "Holographic"]) {
+    // The old site's rates, restored 2026-09-12: chrome +30%, holographic
+    // +35%. Both had been a guessed +60%.
+    for (const [premium, markup] of [["Chrome", 1.3], ["Holographic", 1.35]] as const) {
       assert.equal(
         getStickerMaterialPrice(100, premium, '3"', dims),
-        Math.round(plain * 1.6 * 100) / 100,
+        Math.round(plain * markup * 10000) / 10000,
         premium
       );
 
@@ -153,11 +155,23 @@ describe("setup is per design, once per cart", () => {
 });
 
 describe("shipping", () => {
-  test("mailed orders carry the flat fee, pickup is free", () => {
-    assert.equal(getShippingPrice("Ship"), DECAL_SHIPPING_PRICE);
-    assert.equal(getShippingPrice("Pickup"), 0);
+  test("mailed orders carry the tier for their goods, pickup is free", () => {
+    // The old site's tiers, by goods subtotal. $12 — the old flat rate — is
+    // the $75-$200 tier, which is where a typical single-design order sits.
+    assert.equal(getShippingPrice("Ship", 85), DECAL_SHIPPING_PRICE);
+    assert.equal(getShippingPrice("Ship", 40), 8);
+    assert.equal(getShippingPrice("Ship", 75), 8);
+    assert.equal(getShippingPrice("Ship", 75.01), 12);
+    assert.equal(getShippingPrice("Ship", 200), 12);
+    assert.equal(getShippingPrice("Ship", 350), 18);
+    assert.equal(getShippingPrice("Ship", 500), 18);
+    assert.equal(getShippingPrice("Ship", 501), 25);
+    assert.equal(getShippingPrice("Ship", 5000), 25);
+    assert.equal(getShippingPrice("Pickup", 5000), 0);
     // Anything unrecognised must not invent a charge.
-    assert.equal(getShippingPrice(""), 0);
+    assert.equal(getShippingPrice("", 5000), 0);
+    // And a missing subtotal is the cheapest tier, never a crash.
+    assert.equal(getShippingPrice("Ship"), 8);
   });
 });
 

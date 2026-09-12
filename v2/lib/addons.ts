@@ -60,6 +60,10 @@ function stickerPackPrice(quantity: number) {
     // 3" explicitly — the add-on offer names that size in its label.
     const MATERIAL = "Gloss White Vinyl";
     const SIZE = '3"';
+    // The offer says "die-cut" in its label and "cut to shape" in its
+    // detail, and die-cut is priced (+18%, the old site's own rate). The
+    // shape has to reach the engine or the label lies about the price.
+    const SHAPE = "Die Cut";
 
     /**
      * THE MATERIAL, checked separately, because it is the part that can go
@@ -81,12 +85,12 @@ function stickerPackPrice(quantity: number) {
      * fee — the guard's sibling catching it for banners and nothing catching
      * it here.
      */
-    if (getStickerMaterialPrice(quantity, MATERIAL, SIZE) <= 0) {
+    if (getStickerMaterialPrice(quantity, MATERIAL, SIZE, undefined, SHAPE) <= 0) {
       return handQuote();
     }
 
     return {
-      amount: getStickerPrice(quantity, MATERIAL, "Gloss", SIZE),
+      amount: getStickerPrice(quantity, MATERIAL, "Gloss", SIZE, undefined, SHAPE),
       quoteRequired: false,
     };
   };

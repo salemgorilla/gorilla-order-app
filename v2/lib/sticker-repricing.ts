@@ -102,18 +102,21 @@ export function repriceStickers(order: Record<string, unknown>) {
       heightInches: Number(item.heightInches) || 0,
     };
 
+    const shape = String(item.shape || "");
+
     return {
       ...item,
       // The line, exact to four decimals. What the total is summed from.
-      lineExact: getStickerMaterialPrice(quantity, material, size, dims),
+      lineExact: getStickerMaterialPrice(quantity, material, size, dims, shape),
       // The line, to the cent. What the shop email prints beside the design.
       linePrice:
-        Math.round(getStickerMaterialPrice(quantity, material, size, dims) * 100) /
-        100,
+        Math.round(
+          getStickerMaterialPrice(quantity, material, size, dims, shape) * 100
+        ) / 100,
       // The unit Printavo will store — four decimals, and THE figure
       // lib/printavo.ts puts on the row. Not derived from linePrice: dividing
       // a rounded total back into a unit is how the two came to differ.
-      lineUnitPrice: getStickerUnitMaterialPrice(quantity, material, size, dims),
+      lineUnitPrice: getStickerUnitMaterialPrice(quantity, material, size, dims, shape),
     };
   });
 

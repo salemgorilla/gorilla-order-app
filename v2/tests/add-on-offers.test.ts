@@ -128,7 +128,8 @@ describe("rule 1: prices come from the engines", () => {
 
       assert.equal(
         offer.price().amount,
-        getStickerPrice(quantity, "Gloss White Vinyl", "Gloss", '3"')
+        // Die-cut, as the label says — and as the engine now charges for.
+        getStickerPrice(quantity, "Gloss White Vinyl", "Gloss", '3"', undefined, "Die Cut")
       );
     }
   });

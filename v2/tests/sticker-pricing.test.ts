@@ -40,12 +40,11 @@ const PER_PIECE = 0.34;
 
 describe("the formula is the formula", () => {
   test("material is area x rate x quantity", () => {
-    // 3" x 3" = 9 sq in. 9 x (70/900) x 1000 = $700, and 1,000 pieces keep
-    // 56% of the rate on the volume curve (tests/sticker-volume.test.ts) =
-    // $392.
+    // 3" x 3": (0.34 x 0.80 per piece + 9 x 0.04 x 0.39 per area) x 1000 —
+    // the two volume curves at 1,000 (tests/sticker-volume.test.ts) = $412.40.
     assert.equal(
       getStickerMaterialPrice(1000, VINYL, '3"', { widthInches: 3, heightInches: 3 }),
-      392
+      412.4
     );
   });
 
@@ -62,7 +61,7 @@ describe("the formula is the formula", () => {
     // single-design prices untouched.
     assert.equal(
       getStickerPrice(1000, VINYL, "Gloss", '3"', { widthInches: 3, heightInches: 3 }),
-      392 + STICKER_SETUP_FEE
+      412.4 + STICKER_SETUP_FEE
     );
   });
 
@@ -256,8 +255,8 @@ describe("nothing auto-bills at a price nobody set", () => {
     const priced = repriceStickers(stickerOrder([good]));
 
     assert.equal(priced.unpriceable, false);
-    // 500 x 9 sq in x (70/900) = $350, at 64% on the volume curve = $224.
-    assert.equal(priced.serverTotal, 224 + STICKER_SETUP_FEE);
+    // 500 x (0.34 x 0.85 + 9 x 0.04 x 0.47) = $229.10 on the two curves.
+    assert.equal(priced.serverTotal, 229.1 + STICKER_SETUP_FEE);
   });
 
   test("a design with no dimensions is flagged, not billed", () => {

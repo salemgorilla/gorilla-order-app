@@ -160,24 +160,51 @@ const STICKER_PER_PIECE = 0.34;
  * designs discounts each design on its own count, which is what actually
  * comes off the roll.
  */
-export const STICKER_VOLUME_TIERS: ReadonlyArray<{ at: number; keep: number }> = [
-  { at: 100, keep: 1 },
-  { at: 250, keep: 0.77 },
-  { at: 500, keep: 0.64 },
-  { at: 1000, keep: 0.56 },
-  { at: 2500, keep: 0.52 },
-  { at: 5000, keep: 0.47 },
+export const STICKER_VOLUME_TIERS: ReadonlyArray<{
+  at: number;
+  /** What fraction of the per-sticker term this quantity pays. */
+  piece: number;
+  /** What fraction of the per-square-inch rate this quantity pays. */
+  area: number;
+}> = [
+  { at: 100, piece: 1, area: 1 },
+  { at: 250, piece: 0.96, area: 0.6 },
+  { at: 500, piece: 0.85, area: 0.47 },
+  { at: 1000, piece: 0.8, area: 0.39 },
+  { at: 2500, piece: 0.69, area: 0.39 },
+  { at: 5000, piece: 0.62, area: 0.36 },
 ];
 
-/** What fraction of the material rate this quantity pays. 1 below 100. */
-export function stickerVolumeMultiplier(quantity: number): number {
+/**
+ * TWO CURVES, NOT ONE — 2026-09-12.
+ *
+ * The first version of this table had a single `keep` on the whole unit,
+ * fitted to the 3x3 column of the old site's table. It held 3x3 within 1%
+ * and let every other size drift: 2x2 ran 8-15% UNDER the old table at
+ * volume, 4x4 and 5x5 ran 7-14% OVER. Gabe: "can you fix that so the
+ * profit margins stay where they need to be or higher?"
+ *
+ * The drift is structural. The unit is per-piece + per-area, and a single
+ * multiplier discounts both at the same rate — but the old table did not:
+ * its small stickers kept more of their price at volume than its big ones.
+ * So the per-piece term and the per-area term now discount on their own
+ * curves. At each tier the pair was chosen so that EVERY size in the old
+ * table (2x2, 3x3, 4x4, 5x5) prices at or above the re-anchored old figure,
+ * with the least overshoot. Small sizes came up to it; big sizes came down
+ * to it; 3x3 sits 1-4% over. The first tier is (1, 1) because 100 x 3" is
+ * the $85 anchor and does not move.
+ *
+ * Interpolated between tiers, held flat past the last one — same as before,
+ * for the same reason: a step is a cliff.
+ */
+export function stickerVolumeKeep(quantity: number): { piece: number; area: number } {
   const qty = Math.max(1, Math.floor(quantity || 0));
   const tiers = STICKER_VOLUME_TIERS;
 
-  if (qty <= tiers[0].at) return tiers[0].keep;
+  if (qty <= tiers[0].at) return { piece: tiers[0].piece, area: tiers[0].area };
 
   const last = tiers[tiers.length - 1];
-  if (qty >= last.at) return last.keep;
+  if (qty >= last.at) return { piece: last.piece, area: last.area };
 
   for (let i = 1; i < tiers.length; i += 1) {
     const lo = tiers[i - 1];
@@ -185,11 +212,14 @@ export function stickerVolumeMultiplier(quantity: number): number {
 
     if (qty <= hi.at) {
       const t = (qty - lo.at) / (hi.at - lo.at);
-      return lo.keep + (hi.keep - lo.keep) * t;
+      return {
+        piece: lo.piece + (hi.piece - lo.piece) * t,
+        area: lo.area + (hi.area - lo.area) * t,
+      };
     }
   }
 
-  return last.keep;
+  return { piece: last.piece, area: last.area };
 }
 
 /**
@@ -483,9 +513,9 @@ export function getStickerUnitMaterialPrice(
 
   // Shape, finish and material all multiply the WHOLE unit — see the note
   // above SHAPE_MULTIPLIERS for why, and for what the default shape means.
+  const keep = stickerVolumeKeep(qty);
   const materialPerSticker =
-    (STICKER_PER_PIECE + area * MATERIAL_RATE_PER_SQ_IN) *
-    stickerVolumeMultiplier(qty) *
+    (STICKER_PER_PIECE * keep.piece + area * MATERIAL_RATE_PER_SQ_IN * keep.area) *
     shapeMultiplier(shape) *
     materialMultiplier(material);
 

@@ -3,6 +3,7 @@ import {
   getCartSetupFee,
   getShippingPrice,
   getStickerMaterialPrice,
+  STICKER_ORDER_MINIMUM,
 } from "./pricing";
 
 const initialProduct = {
@@ -66,9 +67,13 @@ const initialStickerPrice =
   ) / 100;
 
 const initialSetupPrice = getCartSetupFee(1);
+const initialMinimumPrice = Math.max(
+  0,
+  Math.round((STICKER_ORDER_MINIMUM - initialStickerPrice - initialSetupPrice) * 100) / 100
+);
 const initialShippingPrice = getShippingPrice(
   initialDeliveryMethod,
-  initialStickerPrice + initialSetupPrice
+  initialStickerPrice + initialSetupPrice + initialMinimumPrice
 );
 
 export const defaultOrder: Order = {
@@ -95,6 +100,7 @@ export const defaultOrder: Order = {
   },
   pricing: {
     stickerPrice: initialStickerPrice,
+    minimumPrice: initialMinimumPrice,
     setupPrice: initialSetupPrice,
     shippingPrice: initialShippingPrice,
     total: initialStickerPrice + initialSetupPrice + initialShippingPrice,

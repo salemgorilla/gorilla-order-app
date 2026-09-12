@@ -10,6 +10,7 @@ import {
   signFeeSku,
   signSku,
 } from "./sku";
+import { STICKER_ORDER_MINIMUM } from "./pricing";
 
 // Pushes each submitted quote into Printavo as a DRAFT/UNCONFIRMED quote.
 //
@@ -1696,6 +1697,26 @@ export function buildPrintavoQuotePlan(input: {
                * so the two still agree to the cent. On the reference
                * two-design order that is $4.54 of tax becoming $2.20.
                */
+              taxed: false,
+            },
+          ]
+        : []),
+      /**
+       * The $45 sticker order minimum, as its own row — Gabe, 2026-09-12.
+       *
+       * A row, not a nudged unit price, for the same reason setup is: the
+       * customer and the shop both read the invoice, and "Minimum order
+       * $19.96" is a policy where "$4.29 each" is a mystery. Untaxed like
+       * setup — a charge for the size of the job, not for the vinyl — and
+       * getStickerTotals already leaves it out of the taxable base, so the
+       * estimate and this invoice agree to the cent.
+       */
+      ...(!apparel && !signs && num(pricing.minimumPrice) > 0
+        ? [
+            {
+              description: `Minimum order ($${STICKER_ORDER_MINIMUM} for stickers)`,
+              itemNumber: SKU.DECAL_MINIMUM,
+              price: money(pricing.minimumPrice),
               taxed: false,
             },
           ]

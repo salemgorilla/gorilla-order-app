@@ -170,6 +170,7 @@ export function repriceStickers(order: Record<string, unknown>) {
   const {
     stickerPrice,
     setupPrice,
+    minimumPrice,
     shippingPrice,
     total: serverTotal,
   } = quoteStickerCart({
@@ -194,6 +195,7 @@ export function repriceStickers(order: Record<string, unknown>) {
         ...clientPricing,
         stickerPrice,
         setupPrice,
+        minimumPrice,
         shippingPrice,
         total: serverTotal,
       },

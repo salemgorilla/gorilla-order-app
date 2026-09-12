@@ -9,7 +9,7 @@ import {
   snapQuantity,
 } from "../../lib/units";
 import { stickerCatalog } from "../../lib/catalog";
-import { DECAL_SHIPPING_PRICE } from "../../lib/pricing";
+import { SHIPPING_TIERS } from "../../lib/pricing";
 import type { FieldErrors } from "../../lib/validation";
 import type { DeliveryMethod, Product } from "../../types/order";
 
@@ -35,6 +35,15 @@ type Props = {
   onUpdate: (updates: Partial<Product>) => void;
   onSelectMaterial: (material: string) => void;
   onSelectDeliveryMethod: (deliveryMethod: DeliveryMethod) => void;
+  /**
+   * Where it ships. Order-level like the method, shown only when "Ship It"
+   * is chosen and only on the card that shows delivery. USPS Ground Advantage
+   * prices by zone, and the zone comes from the ZIP.
+   */
+  shipZip?: string;
+  /** Only populated after a failed submit; undefined until then. */
+  shipZipError?: string;
+  onShipZipChange?: (shipZip: string) => void;
 };
 
 const deliveryOptions: {
@@ -52,8 +61,8 @@ const deliveryOptions: {
   {
     value: "Ship",
     label: "Ship It",
-    detail: "Mailed to your address",
-    price: `+$${DECAL_SHIPPING_PRICE}`,
+    detail: "USPS Ground Advantage, priced by weight and ZIP",
+    price: `from $${SHIPPING_TIERS[0].price}`,
   },
 ];
 
@@ -68,6 +77,9 @@ export default function DecalBuilder({
   onUpdate,
   onSelectMaterial,
   onSelectDeliveryMethod,
+  shipZip = "",
+  shipZipError,
+  onShipZipChange,
 }: Props) {
   return (
     <>
@@ -293,6 +305,48 @@ export default function DecalBuilder({
             );
           })}
         </div>
+
+        {deliveryMethod === "Ship" && (
+          <div className="mt-4" data-invalid={shipZipError ? "true" : undefined}>
+            <label
+              htmlFor="ship-zip"
+              className="block text-fine font-bold text-[var(--ink-black)]"
+            >
+              Shipping ZIP code{" "}
+              <span className="font-normal text-[var(--rush-red)]">(required)</span>
+            </label>
+            <input
+              id="ship-zip"
+              type="text"
+              inputMode="numeric"
+              autoComplete="postal-code"
+              maxLength={5}
+              pattern="[0-9]{5}"
+              placeholder="01970"
+              value={shipZip}
+              aria-invalid={shipZipError ? true : undefined}
+              aria-describedby={shipZipError ? "ship-zip-error" : "ship-zip-hint"}
+              onChange={(event) =>
+                onShipZipChange?.(event.target.value.replace(/\D/g, "").slice(0, 5))
+              }
+              className={`spec mt-1 min-h-[44px] w-full bg-[var(--paper)] p-3 text-lede text-[var(--ink-black)] transition-colors duration-[120ms] ease-linear sm:max-w-[12rem] ${
+                shipZipError
+                  ? "border-2 border-[var(--rush-red)]"
+                  : "border border-[var(--rule)] hover:border-[var(--ink-black)]"
+              }`}
+            />
+            {shipZipError ? (
+              <p id="ship-zip-error" className="mt-1 text-fine font-bold text-[var(--rush-red)]">
+                {shipZipError}
+              </p>
+            ) : (
+              <p id="ship-zip-hint" className="mt-1 text-fine text-[var(--ink-muted)]">
+                Shipping is worked out from the weight of your order and where
+                it&apos;s going. The full address comes later.
+              </p>
+            )}
+          </div>
+        )}
       </div>
       )}
     </>

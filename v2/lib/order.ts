@@ -97,6 +97,7 @@ export const defaultOrder: Order = {
     needBy: "",
     deadlineType: "Flexible",
     deliveryMethod: initialDeliveryMethod,
+    shipZip: "",
   },
   pricing: {
     stickerPrice: initialStickerPrice,

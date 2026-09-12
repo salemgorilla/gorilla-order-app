@@ -61,6 +61,54 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **USPS Ground Advantage shipping — the engine, the ZIP field, and the
+  fallback; the USPS tables are EMPTY and owed by Gabe** — 2026-09-12.
+  Gabe: *"We need to figure out how much each order weighs and get cost
+  by weight and dimensions of commonly used packages or packing bags."* /
+  *"I have a business account with usps"* / *"Ground advantage works."*
+
+  `lib/shipping.ts` is the one entry point, `quoteStickerShipping()`:
+  estimates the parcel from the cart's designs (`VINYL_LB_PER_SQFT = 0.1`,
+  `WASTE = 1.25`, three `PACKAGES` by the vinyl they hold, DIM weight at
+  /166 over a cubic foot), reads the zone from the destination ZIP, and
+  looks up the Commercial rate. `lib/usps-data.ts` holds the two tables
+  it needs — **both are `[]`**. USPS's sites were egress-blocked from the
+  build environment, so they ship empty and a test pins that. While
+  either is empty, or the order has no ZIP, it returns the old dollar
+  tiers ($8/$12/$18/$25) byte-for-byte: **nothing about live shipping
+  changed with this merge.** `SHIPPING_TIERS`/`DECAL_SHIPPING_PRICE`/
+  `getShippingPrice` are re-exported from `lib/pricing.ts`, so imports
+  did not move. `quoteStickerCart` takes optional `items` + `destZip` and
+  returns `shippingNote` — "Shipping (tiered on order size) — est. 1.23
+  lb, small box" today; "USPS Ground Advantage to 02116 (zone 2), small
+  box at ~1.2 lb" once the tables are in. The note goes on the shop
+  email ("Shipping basis") and the Printavo customer note; never to the
+  customer.
+
+  **The ZIP field**: `production.shipZip`, shown under the delivery
+  cards only when "Ship It" is selected, digits only, 5 max, required
+  when shipping (`FieldKey "shipZip"`, step `details`). Shown on the
+  review summary ("Ship to 02116") and in the copyable quote. The "Ship
+  It" card now reads "from $8 — USPS Ground Advantage, priced by weight
+  and ZIP" instead of "+$12".
+
+  **Trap found and fixed in the same PR**: the first browser drive
+  submitted a 4-digit ZIP and reached the confirmation screen. The rule
+  was in `getOrderFieldErrors` (the red box) but not in
+  `getOrderValidationErrors` (the list SUBMIT reads) — two lists, hand-
+  copied. `tests/shipping.test.ts` now asserts the two agree for every
+  key the sticker flow can raise; a new FieldKey that reaches only one
+  of them fails there.
+
+  **To turn it on, Gabe supplies two tables** (instructions at the top of
+  `lib/usps-data.ts`): the USPS Domestic Zone Chart for origin 019 as
+  `[fromPrefix, toPrefix, zone]` triples, and his account's Commercial
+  Ground Advantage rate card, one row per weight step, nine zone prices
+  each. Plus **one weighed order** to correct `VINYL_LB_PER_SQFT`, which
+  is a spec-sheet guess (100 × 3" ≈ 1.2 lb boxed). Filling the tables
+  changes a billed figure, so it gets its own PR and its own Reconciled
+  row.
+
 - **$45 sticker order minimum** — 2026-09-12 (#158). Gabe: *"Let's have a
   minimum of $45 for stickers."* Before this, one 3" sticker quoted $15.70
   and auto-billed.

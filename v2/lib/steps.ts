@@ -94,6 +94,7 @@ export const FIELD_STEP: Record<FieldKey, StepId> = {
   printLocations: "details",
   specialOrderNotes: "details",
   garmentLines: "details",
+  shipZip: "details",
   needBy: "details",
 
   // Artwork — the upload box.

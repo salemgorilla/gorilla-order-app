@@ -626,7 +626,12 @@ export function buildQuoteEmail(input: {
       line(
         "Shipping",
         shippingPrice > 0 ? money(shippingPrice) : "Free (local pickup)"
-      )
+      ),
+      // How that figure was reached — weight and zone, or the old tiers —
+      // so the shop can check the label against the quote. Shop-only.
+      ...(shippingPrice > 0 && str(pricing.shippingNote)
+        ? [line("Shipping basis", str(pricing.shippingNote))]
+        : [])
     );
   }
 
@@ -906,7 +911,7 @@ export function buildQuoteEmail(input: {
     line(
       "Delivery",
       str(production.deliveryMethod) === "Ship"
-        ? "Ship to customer"
+        ? `Ship to customer${str(production.shipZip) ? ` — ZIP ${str(production.shipZip)}` : ""}`
         : "Local pickup in Salem"
     ),
     ``,

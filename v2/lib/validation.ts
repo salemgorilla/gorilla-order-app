@@ -41,6 +41,11 @@ export function getEmailError(email: string) {
   return null;
 }
 
+/** Five digits, nothing else. ZIP+4 is accepted by taking the first five. */
+export function isUsZip(value: unknown): boolean {
+  return /^\d{5}$/.test(String(value ?? "").trim().slice(0, 5)) && String(value ?? "").trim().length >= 5;
+}
+
 /** The subset of FieldKey that belongs to one design rather than the order. */
 export type ItemFieldKey = "artwork" | "width" | "height" | "quantity";
 
@@ -107,7 +112,9 @@ export type FieldKey =
   | "printLocations"
   | "specialOrderNotes"
   /** The apparel cart's extra garment lines — see lib/apparel-cart-lines. */
-  | "garmentLines";
+  | "garmentLines"
+  /** Stickers, when shipped: the ZIP that decides the USPS zone. */
+  | "shipZip";
 
 /** Field key -> the short message shown under that field. */
 export type FieldErrors = Partial<Record<FieldKey, string>>;
@@ -140,6 +147,15 @@ export function getOrderFieldErrors(
 
   if (firstBroken) {
     Object.assign(errors, getItemFieldErrors(firstBroken));
+  }
+
+  // Only when shipping, and only stickers come through here. The ZIP is
+  // what the USPS zone — and so the shipping price — is read from, and a
+  // shipped order with no ZIP is one the app cannot price honestly.
+  if (order.production.deliveryMethod === "Ship") {
+    if (!isUsZip(order.production.shipZip)) {
+      errors.shipZip = "Enter the 5-digit ZIP code we're shipping to.";
+    }
   }
 
   if (!order.production.needBy) {
@@ -196,6 +212,15 @@ export function getOrderValidationErrors(order: Order) {
 
   if (fields.needBy) {
     problems.push({ field: "needBy", message: fields.needBy });
+  }
+
+  // The field list above is what SUBMIT reads. The ZIP rule was in
+  // getOrderFieldErrors for a day before it was here, and in that day a
+  // shipped order with a four-digit ZIP went straight through to the
+  // payment link — the box turned red on the details step and nothing
+  // else cared. Every key in FieldKey that can fail has to be in this list.
+  if (fields.shipZip) {
+    problems.push({ field: "shipZip", message: fields.shipZip });
   }
 
   if (fields.customerName) {

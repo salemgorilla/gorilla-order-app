@@ -3,6 +3,7 @@ import {
   getStickerUnitMaterialPrice,
   quoteStickerCart,
 } from "./pricing";
+import { MAX_STICKER_SIZE_INCHES } from "./units";
 
 /**
  * Which submissions self-bill, and what they are billed.
@@ -148,7 +149,15 @@ export function repriceStickers(order: Record<string, unknown>) {
    * is the automatic payment link. Refusing the order outright would lose a
    * real customer over a field we can ask about.
    */
-  const unpriceable = pricedItems.some((item) => item.linePrice <= 0);
+  const unpriceable = pricedItems.some(
+    (item) =>
+      item.linePrice <= 0 ||
+      // Wider than the roll. The form refuses it too, but the form is not
+      // what decides whether money moves — this is. A 48" x 96" "sticker"
+      // priced perfectly well; it just could not be printed.
+      Number((item as Record<string, unknown>).widthInches) > MAX_STICKER_SIZE_INCHES ||
+      Number((item as Record<string, unknown>).heightInches) > MAX_STICKER_SIZE_INCHES
+  );
 
   /**
    * The same call the BROWSER makes in recalculateOrder.

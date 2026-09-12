@@ -3,7 +3,11 @@
 import { clampArtScaleToShape } from "../../components/preview/StickerShape";
 import OptionSelector from "../../components/OptionSelector";
 import NumberField from "../../components/ui/NumberField";
-import { sanitizeSizeInches, snapQuantity } from "../../lib/units";
+import {
+  MAX_STICKER_SIZE_INCHES,
+  sanitizeSizeInches,
+  snapQuantity,
+} from "../../lib/units";
 import { stickerCatalog } from "../../lib/catalog";
 import { DECAL_SHIPPING_PRICE } from "../../lib/pricing";
 import type { FieldErrors } from "../../lib/validation";
@@ -74,7 +78,8 @@ export default function DecalBuilder({
       <div className="border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
         <h3 className="text-lede font-bold">Size and quantity</h3>
         <p className="mt-1 text-fine text-[var(--ink-muted)]">
-          Any size, any amount. Enter the exact width and height you need.
+          Any size up to {MAX_STICKER_SIZE_INCHES}&Prime;, any amount. Enter
+          the exact width and height you need.
         </p>
 
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -83,6 +88,7 @@ export default function DecalBuilder({
             label="Width (in)"
             value={product.widthInches}
             min={0.01}
+            max={MAX_STICKER_SIZE_INCHES}
             // "any" rather than a fixed step: a step of 0.25 made the browser
             // reject 1.1 as invalid, which is exactly what we now allow.
             step="any"
@@ -97,6 +103,7 @@ export default function DecalBuilder({
             label="Height (in)"
             value={product.heightInches}
             min={0.01}
+            max={MAX_STICKER_SIZE_INCHES}
             // "any" rather than a fixed step: a step of 0.25 made the browser
             // reject 1.1 as invalid, which is exactly what we now allow.
             step="any"

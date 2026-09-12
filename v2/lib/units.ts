@@ -15,6 +15,19 @@
 export const MIN_SIZE_INCHES = 0.01;
 
 /**
+ * The widest thing the sticker roll can print — Gabe, 2026-09-12: "My max
+ * print size is 50"." STICKERS ONLY: signs and banners have their own
+ * substrates and are not capped here.
+ *
+ * Before this the form said "any size" and meant it: 1 x 48"x96" priced at
+ * $200 and auto-billed, a banner-sized print sold as a sticker with nothing
+ * checking it could come off the machine. Held in three places — the input,
+ * the validator, and the server's repricer — because the last of those is
+ * the one that decides whether a payment link is raised.
+ */
+export const MAX_STICKER_SIZE_INCHES = 50;
+
+/**
  * A usable measurement, without forcing it onto any grid.
  *
  * Returns 0 for blank or non-positive input so a cleared field stays cleared

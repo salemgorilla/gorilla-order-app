@@ -61,6 +61,26 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **50" cap and die-cut 20%** — 2026-09-12 (#156). Gabe's answers to the
+  matrix audit: *"My max print size is 50"."* and *"Die cut should be more
+  cost than the others - add 20% remove kiss cut. Oval at 5% is good.
+  Square and rounded corners is 0%."*
+
+  `MAX_STICKER_SIZE_INCHES = 50` in `lib/units.ts`, held in THREE places
+  that read the one constant: the width/height inputs (`max`), the
+  sticker validator ("Stickers go up to 50" — for anything bigger, use
+  Signs & Banners or email us"), and `repriceStickers`, which flags an
+  over-size design `unpriceable` so no payment link is raised even if the
+  form is bypassed. Stickers only — signs and banners are not capped.
+  Before this, 1 × 48"×96" quoted $200 and auto-billed.
+
+  Die-cut ×1.18 → **×1.20**. Kiss-cut was never a shape the app offered;
+  nothing to remove. The reference pack ("100 die-cut 3" stickers", hero
+  and cross-sell) is **$99.00 = $0.99 each**. Gloss circle still $85.
+
+  Also answered, no code: chrome/holographic stay ×1.30/×1.35 ("keep as
+  is"); matte ×1.05 ("correct as is").
+
 - **The old site's modifiers, restored** — 2026-09-12 (#155). Asked which
   gaps in the matrix to close, Gabe: *"Use my hand quote for what makes
   sense."* The v1 table (`data/sticker-pricing.js`) is his pricing, and it
@@ -68,7 +88,7 @@ Working and verified:
 
   | | v1 | engine had | now |
   |---|---|---|---|
-  | die-cut | ×1.18 | free | **×1.18** |
+  | die-cut | ×1.18 | free | ×1.18 → **×1.20** (#156) |
   | oval | ×1.05 | free | **×1.05** |
   | matte | ×1.05 | free | **×1.05** |
   | chrome | ×1.30 | ×1.6 (a guess) | **×1.30** |
@@ -92,13 +112,10 @@ Working and verified:
   of goods) still pays the old $12; small orders pay $8; 5,000 × 6" now
   pays $25 instead of $12 for ~1,250 sq ft of vinyl. 146 sheet rows moved.
 
-  **Still open from that audit, needing a number only Gabe has:** a maximum
-  self-serve size. The form accepts any dimensions and 1 × 48"×96" quotes
-  $200 and auto-bills. His own history quotes decals up to 9×11 by hand
-  (Brito Ice, 2024, $10 each ×10 — the app says $5.80). Proposal: cap
-  self-serve at 12" on the long side, route bigger to the "not listed"
-  door. Needs his roll width to be right. Also still his call: no minimum
-  order (1 × 3" = $15.70, auto-billed).
+  **Answered the same day** (#156 and following): max size is the 50"
+  roll; a $45 order minimum is coming; the size drift at volume is being
+  fixed on a two-curve discount; shipping is to move to weight and
+  package size once Gabe supplies the carrier and packaging.
 
 - **A per-sticker term: $0.34 + $0.04/sq in** — 2026-09-12 (#154). Gabe:
   *"How can we fix that $0.46 for 100 - 2x2 stickers to keep same if not

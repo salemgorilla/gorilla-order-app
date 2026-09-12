@@ -9,6 +9,8 @@ type Props = {
   label: string;
   value: number;
   min: number;
+  /** Optional ceiling. The sticker size fields cap at the roll width. */
+  max?: number;
   /**
    * Accepts "any" as well as a number. Sizes use "any" — a numeric step makes
    * the browser mark anything off that grid as invalid, and sizes are no
@@ -58,6 +60,7 @@ export default function NumberField({
   label,
   value,
   min,
+  max,
   step,
   unit,
   className = "",
@@ -89,6 +92,7 @@ export default function NumberField({
           type="number"
           inputMode="decimal"
           min={min}
+          max={max}
           step={step}
           disabled={disabled}
           aria-invalid={error ? true : undefined}

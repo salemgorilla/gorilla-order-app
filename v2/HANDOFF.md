@@ -29,7 +29,7 @@ PRINTAVO_TOKEN set. It reads only. Never pay a test quote; void it after.
 | _(none yet)_ | | signs | #112 #113 #114 #122 #129 #133 | **owed** — GS-20260908-TT40U is a real auto-billed sign sitting in Printavo now |
 | GS-20260910-U38N3 | 2026-09-10 | stickers | #108 #129 #133 | ✅ **matched** — 100 × 3" circle, matte, pickup. App quoted $53.80; Printavo invoice #102567 collected **$55.60**, which is $28.80 of stickers + 6.25% MA tax + untaxed $25 setup, to the cent. Read off the Printavo payment email, not typed in. |
 | GS-20260912-81PI1 | 2026-09-12 | stickers | **#149 #151 (re-rate + volume curve)** | ✅ **matched** — Gabe's own test, same spec as Lexi's: 100 × 3" circle, pickup. App: Stickers $45.00 + Setup $40.00 = **$85.00**. Printavo Request #10568 asked for **$87.81** = $45.00 × 1.0625 + $40.00, to the cent. Read off Printavo's payment-request email. Voided by Gabe the same day. |
-| _(none yet)_ | | stickers | **#153 #154 #155 (setup $15, the cent fix, per-sticker term, v1 modifiers)** | **owed** — #153 moved money between the two invoice lines AND changed how per-line unit prices are sent to Printavo (`lineUnitPrice`, 4 dp). A **multi-design cart** is the one to check: three designs at mixed sizes, expect Printavo to match the website to the cent. Reference gloss circle $85.00 pre-tax; the die-cut pack $97.60; Lexi's matte circle $88.50 |
+| _(none yet)_ | | stickers | **#153–#157 (setup $15, the cent fix, per-sticker term, v1 modifiers, die-cut 20%, two curves)** | **owed** — #153 moved money between the two invoice lines AND changed how per-line unit prices are sent to Printavo (`lineUnitPrice`, 4 dp). A **multi-design cart** is the one to check: three designs at mixed sizes, expect Printavo to match the website to the cent. Reference gloss circle $85.00 pre-tax; the die-cut pack $97.60; Lexi's matte circle $88.50 |
 | _(none yet)_ | | apparel | #98 #132 #134 | **owed** — one catalogue garment, and one CART so the per-line size rows can be seen |
 
 **GS-20260912-81PI1 proves the new RATE** — the first real invoice at
@@ -60,6 +60,33 @@ guess**: `/api/artwork-upload` and `/api/printavo-test` report the commit
 the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
+
+- **Two volume curves, so every size holds its margin** — 2026-09-12
+  (#157). Gabe, on the size drift: *"can you fix that so the profit
+  margins stay where they need to be or higher?"*
+
+  The single `keep` curve was fitted to 3×3 and let the rest drift against
+  his old table: 2×2 ran 8–15% UNDER at volume, 4×4/5×5 7–14% OVER. The
+  drift is structural — the unit is per-piece + per-area and one
+  multiplier discounts both at the same rate, but his old table discounted
+  small stickers less than big ones. `STICKER_VOLUME_TIERS` now carries
+  `{piece, area}` pairs, solved per tier so **every v1 size (2×2, 3×3,
+  4×4, 5×5) prices at or above the re-anchored old table with the least
+  overshoot**: 250 .96/.60, 500 .85/.47, 1000 .80/.39, 2500 .69/.39,
+  5000 .62/.36. Small came up to it, big came down to it, 3×3 sits 1–4%
+  over. 100 stays (1,1) — the $85 anchor. A test sweeps all four sizes ×
+  five tiers for `0.995 ≤ ours/v1 ≤ 1.06`.
+
+  | 1,000 pcs | was | now | v1 |
+  |---|---|---|---|
+  | 2×2 | $295 | **$349** | $348 |
+  | 3×3 | $407 | **$427** | $410 |
+  | 5×5 | $765 | **$677** | $674 |
+
+  The floor anchors rose again: 5,000 × 1" is **$1,141** and 5,000 × ½"
+  $1,087 — the handling term keeps 62% of itself at volume, and on a tiny
+  sticker handling is most of the price. That's about 22¢ a sticker for
+  five thousand one-inch stickers. 88 sheet rows moved.
 
 - **50" cap and die-cut 20%** — 2026-09-12 (#156). Gabe's answers to the
   matrix audit: *"My max print size is 50"."* and *"Die cut should be more

@@ -24,57 +24,76 @@ import {
   STICKER_VOLUME_TIERS,
   getStickerMaterialPrice,
   getStickerPrice,
-  stickerVolumeMultiplier,
+  stickerVolumeKeep,
 } from "../lib/pricing";
 
 const VINYL = "Gloss White Vinyl";
 const THREE = { widthInches: 3, heightInches: 3 };
 const total = (q: number, dims = THREE) => getStickerPrice(q, VINYL, "gloss", "", dims);
 
-describe("the shape is the old site's", () => {
-  test("the tiers are the v1 3x3 column, re-anchored to $85 at 100", () => {
-    /**
-     * data/sticker-pricing.js, the v1 site: 3x3 each at 50/100/250/500/
-     * 1000/2500/5000 = $0.58/$0.41/$0.288/$0.232/$0.198/$0.178/$0.159.
-     * Scaled so 100 pays $0.85 each, the all-in totals are the targets
-     * below. Within 1% — the tiers are rounded to two places on purpose,
-     * because a rate of 0.8177 is a number nobody set.
-     */
-    const v1Each: Record<number, number> = {
-      100: 0.41,
-      250: 0.288,
-      500: 0.232,
-      1000: 0.198,
-      2500: 0.178,
-      5000: 0.159,
-    };
+describe("the shape is the old site's — every size of it", () => {
+  /**
+   * data/sticker-pricing.js, the v1 site, re-anchored so 3x3 at 100 is $85
+   * (a factor of 85/41). Four sizes, six quantities. The rule is "at or
+   * above, with the least overshoot" — Gabe, 2026-09-12: margins "where
+   * they need to be or higher". A single-curve discount could only hold one
+   * size; this holds all four.
+   */
+  const V1: Record<number, Record<number, number>> = {
+    4: { 100: 34, 250: 58, 500: 95, 1000: 168, 2500: 365, 5000: 650 },
+    9: { 100: 41, 250: 72, 500: 116, 1000: 198, 2500: 445, 5000: 795 },
+    16: { 100: 54, 250: 92, 500: 148, 1000: 255, 2500: 585, 5000: 1040 },
+    25: { 100: 69, 250: 118, 500: 190, 1000: 325, 2500: 760, 5000: 1375 },
+  };
+  const F = 85 / 41;
+  const side: Record<number, number> = { 4: 2, 9: 3, 16: 4, 25: 5 };
 
-    for (const [qty, each] of Object.entries(v1Each).map(([k, v]) => [Number(k), v])) {
-      const target = qty * 0.85 * (each / v1Each[100]);
-      const ours = total(qty);
-      const drift = Math.abs(ours - target) / target;
+  test("at every tier from 250 up, every v1 size prices at or above the old table", () => {
+    for (const q of [250, 500, 1000, 2500, 5000]) {
+      for (const area of [4, 9, 16, 25]) {
+        const w = side[area];
+        const ours = total(q, { widthInches: w, heightInches: w });
+        const theirs = V1[area][q] * F;
+        const ratio = ours / theirs;
 
-      assert.ok(drift < 0.01, `${qty}: $${ours.toFixed(2)} vs v1-anchored $${target.toFixed(2)} (${(drift * 100).toFixed(1)}% off)`);
+        assert.ok(ratio >= 0.995, `${w}x${w} x ${q}: $${ours.toFixed(0)} is under the old table's $${theirs.toFixed(0)}`);
+        assert.ok(ratio <= 1.06, `${w}x${w} x ${q}: $${ours.toFixed(0)} overshoots the old table's $${theirs.toFixed(0)} by more than 6%`);
+      }
     }
   });
 
-  test("100 x 3\" is still exactly $85 — the curve starts here, it does not move here", () => {
+  test("100 x 3\" is still exactly $85 — the anchor, and the first tier is (1, 1)", () => {
     assert.equal(total(100), 85);
-    assert.equal(stickerVolumeMultiplier(100), 1);
+    assert.deepEqual(stickerVolumeKeep(100), { piece: 1, area: 1 });
+  });
+
+  test("at 100 the other sizes are where the hand-quote calibration put them", () => {
+    // Fixed by the $85 anchor, not by the old table: 2x2 sits 10% under it
+    // and 5x5 5% over, which is the shape Gabe approved when he chose the
+    // per-sticker term. The curves start at 250.
+    assert.equal(total(100, { widthInches: 2, heightInches: 2 }), 65);
   });
 
   test("below 100 nothing changes — the setup fee already discounts harder than v1 did there", () => {
     for (const q of [1, 10, 25, 50, 99]) {
-      assert.equal(stickerVolumeMultiplier(q), 1, String(q));
+      assert.deepEqual(stickerVolumeKeep(q), { piece: 1, area: 1 }, String(q));
+    }
+  });
+
+  test("both curves only ever go down", () => {
+    let prev = stickerVolumeKeep(1);
+    for (let q = 2; q <= 6000; q += 1) {
+      const now = stickerVolumeKeep(q);
+      assert.ok(now.piece <= prev.piece + 1e-12 && now.area <= prev.area + 1e-12, `${q}`);
+      prev = now;
     }
   });
 
   test("above the last tier the discount holds rather than deepening forever", () => {
     const last = STICKER_VOLUME_TIERS[STICKER_VOLUME_TIERS.length - 1];
 
-    assert.equal(stickerVolumeMultiplier(last.at), last.keep);
-    assert.equal(stickerVolumeMultiplier(last.at * 4), last.keep);
-    assert.equal(stickerVolumeMultiplier(1_000_000), last.keep);
+    assert.deepEqual(stickerVolumeKeep(last.at), { piece: last.piece, area: last.area });
+    assert.deepEqual(stickerVolumeKeep(last.at * 4), { piece: last.piece, area: last.area });
   });
 });
 
@@ -155,9 +174,9 @@ describe("no cliffs, at any quantity", () => {
 
 describe("what it applies to, and what it leaves alone", () => {
   test("material only — setup is labour and does not get cheaper by the roll", () => {
-    // 1,000 x 3": material 1000 x 9 x (70/900) x 0.56 = $392, setup untouched.
-    assert.equal(getStickerMaterialPrice(1000, VINYL, "", THREE), 392);
-    assert.equal(total(1000), 392 + STICKER_SETUP_FEE);
+    // 1,000 x 3": (0.34 x 0.80 + 9 x 0.04 x 0.39) x 1000 = $412.40, setup untouched.
+    assert.equal(getStickerMaterialPrice(1000, VINYL, "", THREE), 412.4);
+    assert.equal(total(1000), 412.4 + STICKER_SETUP_FEE);
   });
 
   test("premium material is discounted on the same curve, then marked up", () => {

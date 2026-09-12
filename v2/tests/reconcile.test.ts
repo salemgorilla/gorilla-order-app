@@ -393,3 +393,63 @@ describe("the report is readable by someone holding two browser tabs", () => {
     assert.match(report, /void it/i);
   });
 });
+
+/**
+ * A RUN THAT CHECKED NOTHING MUST NOT READ AS A NEAR-PASS.
+ *
+ * When the record could not be read at all, every check is UNKNOWN. The
+ * verdict line used to say "No mismatches — but something could not be
+ * checked", which is true and badly misleading: nothing was compared, and
+ * the reconciliation is still owed. The individual checks used to invent
+ * causes too — the headline one blamed a missing customer note on a record
+ * nobody had read.
+ */
+describe("a record that could not be read", () => {
+  const why =
+    "Printavo says GS-20260908-TT40U is an Invoice, and the detail query " +
+    "reads quote(id:) only — so no figures came back.";
+
+  const input = {
+    quoteNumber: "GS-20260908-TT40U",
+    visualId: "1291",
+    detailUnavailable: why,
+  };
+
+  test("every check defers to the real reason instead of guessing", () => {
+    const result = reconcileQuote(input);
+
+    assert.ok(result.checks.length > 0);
+    for (const check of result.checks) {
+      assert.equal(check.status, "unknown");
+      // The old wording blamed the customer note. Nothing may claim that
+      // about a record that was never read.
+      assert.doesNotMatch(check.detail, /carries no 'WEBSITE ESTIMATE/);
+    }
+
+    assert.match(result.checks[0].detail, /Invoice/);
+    assert.equal(result.incomplete, true);
+  });
+
+  test("the verdict says nothing was checked", () => {
+    const report = formatReconcileReport(input, reconcileQuote(input));
+
+    assert.match(report, /NOTHING WAS CHECKED/);
+    assert.doesNotMatch(report, /No mismatches/);
+    assert.match(report, /still unreconciled/i);
+  });
+
+  test("a partial read still reads as a partial read, not a blackout", () => {
+    // One check lands, one cannot: the ordinary incomplete case, which must
+    // keep its old wording.
+    const report = formatReconcileReport(
+      { quoteNumber: "GS-1", printavoTotal: 55.6, customerNote: "WEBSITE ESTIMATE\nTotal: $55.60" },
+      reconcileQuote({
+        quoteNumber: "GS-1",
+        printavoTotal: 55.6,
+        customerNote: "WEBSITE ESTIMATE\nTotal: $55.60",
+      })
+    );
+
+    assert.doesNotMatch(report, /NOTHING WAS CHECKED/);
+  });
+});

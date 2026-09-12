@@ -29,7 +29,7 @@ PRINTAVO_TOKEN set. It reads only. Never pay a test quote; void it after.
 | _(none yet)_ | | signs | #112 #113 #114 #122 #129 #133 | **owed** — GS-20260908-TT40U is a real auto-billed sign sitting in Printavo now |
 | GS-20260910-U38N3 | 2026-09-10 | stickers | #108 #129 #133 | ✅ **matched** — 100 × 3" circle, matte, pickup. App quoted $53.80; Printavo invoice #102567 collected **$55.60**, which is $28.80 of stickers + 6.25% MA tax + untaxed $25 setup, to the cent. Read off the Printavo payment email, not typed in. |
 | GS-20260912-81PI1 | 2026-09-12 | stickers | **#149 #151 (re-rate + volume curve)** | ✅ **matched** — Gabe's own test, same spec as Lexi's: 100 × 3" circle, pickup. App: Stickers $45.00 + Setup $40.00 = **$85.00**. Printavo Request #10568 asked for **$87.81** = $45.00 × 1.0625 + $40.00, to the cent. Read off Printavo's payment-request email. Voided by Gabe the same day. |
-| _(none yet)_ | | stickers | **#153 (setup $15 + the cent fix)** | **owed** — #153 moved money between the two invoice lines AND changed how per-line unit prices are sent to Printavo (`lineUnitPrice`, 4 dp). A **multi-design cart** is the one to check: three designs at mixed sizes, expect Printavo to match the website to the cent. Reference single order now $85.00 pre-tax / **$89.38** collected |
+| _(none yet)_ | | stickers | **#153 #154 (setup $15, the cent fix, the per-sticker term)** | **owed** — #153 moved money between the two invoice lines AND changed how per-line unit prices are sent to Printavo (`lineUnitPrice`, 4 dp). A **multi-design cart** is the one to check: three designs at mixed sizes, expect Printavo to match the website to the cent. Reference single order now $85.00 pre-tax / **$89.38** collected |
 | _(none yet)_ | | apparel | #98 #132 #134 | **owed** — one catalogue garment, and one CART so the per-line size rows can be seen |
 
 **GS-20260912-81PI1 proves the new RATE** — the first real invoice at
@@ -60,6 +60,37 @@ guess**: `/api/artwork-upload` and `/api/printavo-test` report the commit
 the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
+
+- **A per-sticker term: $0.34 + $0.04/sq in** — 2026-09-12 (#154). Gabe:
+  *"How can we fix that $0.46 for 100 - 2x2 stickers to keep same if not
+  higher profit margins to make up for less profitability at smaller
+  quantity and scale of sticker?"*
+
+  Pure area pricing can only be right at ONE size. His hand quotes (2×2
+  $0.75, 3×3 $1.00, 5×6 $1.75) are not proportional to area — 7.5× the
+  area costs 2.3× — because every sticker is cut, weeded and packed
+  whatever its size. Fitted: ~$0.63/sticker + $0.038/sq in. The v1 site's
+  table had the same shape (2×2 column = 83% of 3×3, not 44%).
+
+  Now `unit = ($0.34 + area × $0.04) × keep(qty)`, calibrated so 100 × 3"
+  is still exactly $85. At 100: **2×2 $0.65** (was $0.46, hand $0.75),
+  3×3 $0.85 (unchanged), **5×6 $1.69** (was $2.48, hand $1.75). Both ends
+  within 15% now, one under, one over. Premium markup still on the whole
+  unit so chrome stays "60% more" (100 × 3" chrome $127, unchanged).
+
+  **This is also the price floor** the code has said was missing since it
+  was written. A 1" sticker cannot price below $0.34 of handling, so
+  **5,000 × 1" went from $198 to $908** and 5,000 × 0.5" to $837.50. Gabe
+  asked for margins on small stickers; this is what that costs a bulk
+  order of tiny ones. 168 price-sheet rows moved; the 3" column did not.
+
+  **One guard nearly went.** `unpriceable` is "priced at zero", which used
+  to fall out of area × rate when a design had no dimensions. The
+  per-sticker term is NOT zero when the area is — the first suite run had
+  a design with no size pricing at $0.34 each and BILLING. Now
+  `getStickerUnitMaterialPrice` returns 0 for area ≤ 0 explicitly, and the
+  four tests that hold that guard pass again. Lesson written into the
+  function: no size, no price, not $0.34.
 
 - **Setup $15, rate 70/900 — and a one-cent Printavo bug found on the way**
   — 2026-09-12 (#153). Gabe: *"Can we make the set up lower and the sq

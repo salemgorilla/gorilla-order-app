@@ -2,10 +2,35 @@
 //
 // Supplied by Gorilla Salem 2026-08-05, RE-RATED 2026-09-11:
 //
-//   price per sticker = (area in sq in x $0.0778) + ($15 / quantity)
+//   price per sticker = $0.34 + (area in sq in x $0.04) + ($15 / quantity)
 //
-// Material is area-based, and a $15 setup fee is amortised across the run.
-// That is why small runs cost more per sticker.
+// A fixed amount per sticker, an amount per square inch, and a $15 setup fee
+// amortised across the run. That is why small runs cost more per sticker.
+//
+// ── THE PER-STICKER TERM, 2026-09-12 ──────────────────────────────────────
+// Gabe: "How can we fix that $0.46 for 100 - 2x2 stickers to keep same if
+// not higher profit margins to make up for less profitability at smaller
+// quantity and scale of sticker?"
+//
+// Pure area pricing can only be right at one size. His own hand quotes
+// (Boston Children's, 2025-05-15: 2x2 $0.75, 3x3 $1.00, 5x6 $1.75) are NOT
+// proportional to area — a 5x6 has 7.5x the area of a 2x2 and costs 2.3x —
+// because every sticker is cut, weeded and packed whatever its size. Fitted,
+// those three prices are about $0.63 per sticker plus $0.038 per square
+// inch. The old v1 site's table had the same shape: its 2x2 column was 83%
+// of its 3x3 column, not 44%.
+//
+// So the unit is now $0.34 per sticker + $0.04 per square inch, calibrated
+// so 100 x 3" is still exactly $85 (0.34 + 9 x 0.04 = $0.70 of stickers).
+// At 100 pieces a 2x2 went from $0.46 to $0.65 each and a 5x6 from $2.48 to
+// $1.69, against his $0.75 and $1.75 — both within 15%, one under and one
+// over, instead of one at 61% and the other at 142%.
+//
+// It is also, in effect, the price floor this file has said was missing
+// since it was written: a 1" sticker used to price at $0.078 of material,
+// and now cannot price below $0.38 before the volume curve. 5,000 x 1"
+// went from $198 to $908, which is the per-sticker term doing exactly what
+// it is for.
 //
 // ── REBALANCED 2026-09-12: LESS ON SETUP, MORE ON THE RATE ────────────────
 // Gabe: "Can we make the set up lower and the sq inch price higher? I want
@@ -77,10 +102,18 @@
 // as the bounding box (size x size), matching the shop's own reference matrix.
 
 /**
- * Material cost per square inch. $0.032 until 2026-09-11, $0.05 for a day,
- * then rebalanced against the setup fee — see the header for both.
+ * Per square inch. $0.032 until 2026-09-11, $0.05 for a day, 70/900 for an
+ * afternoon, then $0.04 once the per-sticker term below took over the part
+ * of the price that was never really about area — see the header.
  */
-const MATERIAL_RATE_PER_SQ_IN = 70 / 900;
+const MATERIAL_RATE_PER_SQ_IN = 0.04;
+
+/**
+ * Per sticker, whatever its size. Cutting, weeding, packing — the part of
+ * the price that a 1" sticker and a 6" sticker have in common. See the
+ * header for the fit against Gabe's hand quotes that produced it.
+ */
+const STICKER_PER_PIECE = 0.34;
 
 /**
  * THE VOLUME BREAK — the old site's curve, put back.
@@ -278,13 +311,12 @@ export function getShippingPrice(deliveryMethod: string) {
 /**
  * Total price for the whole run.
  *
- * NOTE ON THE MISSING FLOOR: the shop's matrix says a minimum floor is
- * "REMOVED for testing". Nothing here reinstates one, so small sizes at high
- * quantities still go low — after the 2026-09-12 rebalance, 5,000 x 1"
- * comes to about $198 and 5,000 x 0.5" to about $61. Those are real prices this
- * function will quote, and stickers self-check-out, so they are charged
- * automatically with nobody in the loop. The re-rate lifted them; it did not
- * put a floor under them.
+ * NOTE ON THE FLOOR: the shop's matrix said a minimum floor was "REMOVED
+ * for testing", and for a month nothing reinstated one — 5,000 x 0.5" priced
+ * at $65, auto-billed. The per-sticker term (STICKER_PER_PIECE, 2026-09-12)
+ * is the floor in effect: no sticker prices below $0.34 of handling before
+ * the volume curve, so 5,000 x 0.5" is now about $823 and 5,000 x 1" about
+ * $908. Those are real prices this function will quote unattended.
  */
 export function getStickerPrice(
   quantity: number,
@@ -361,8 +393,28 @@ export function getStickerUnitMaterialPrice(
   const qty = Math.max(1, Math.floor(quantity || 0));
   const area = getAreaSqIn(size ?? '3"', dims);
 
+  /**
+   * NO SIZE, NO PRICE — not $0.34.
+   *
+   * Every guard downstream reads "priced at zero" as "could not be priced":
+   * repriceStickers withholds the payment link on it, the Printavo plan
+   * says "invoice by hand", the add-on strip hides the pack. Before the
+   * per-sticker term existed that fell out of the arithmetic, because
+   * area x rate is zero when the area is. The per-sticker term is NOT zero
+   * when the area is, and the first run of the suite after adding it showed
+   * a design with no dimensions pricing at $0.34 each and BILLING — a live
+   * payable link for 1,000 stickers of no particular size, which is the
+   * exact failure the guard was written for. So the zero is explicit now.
+   */
+  if (!(area > 0)) return 0;
+
+  // The premium markup is applied to the WHOLE unit, per-sticker term
+  // included, so chrome and holographic stay a plain "60% more" the shop can
+  // quote from memory. The stricter reading — markup on the material inches
+  // only, since weeding chrome costs what weeding vinyl costs — would drop
+  // chrome 100 x 3" from $127 to $107, and nobody has asked for that.
   const materialPerSticker =
-    area * MATERIAL_RATE_PER_SQ_IN *
+    (STICKER_PER_PIECE + area * MATERIAL_RATE_PER_SQ_IN) *
     stickerVolumeMultiplier(qty) *
     (isPremiumMaterial(material) ? PREMIUM_MATERIAL_MARKUP : 1);
 

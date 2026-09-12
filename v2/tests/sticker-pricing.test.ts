@@ -33,8 +33,10 @@ import { repriceStickers } from "../lib/sticker-repricing";
  */
 
 const VINYL = "Gloss White Vinyl";
-// 70/900: whatever makes 100 x 3" come to $70 of stickers at a $15 setup.
-const RATE = 70 / 900;
+// $0.34 per sticker + $0.04 per square inch: 100 x 3" is $70 of stickers at a
+// $15 setup, which is the $85 everything is anchored to.
+const RATE = 0.04;
+const PER_PIECE = 0.34;
 
 describe("the formula is the formula", () => {
   test("material is area x rate x quantity", () => {
@@ -51,7 +53,7 @@ describe("the formula is the formula", () => {
     // 2 x 6 = 12 sq in, not 36 and not 4.
     assert.equal(
       getStickerMaterialPrice(100, VINYL, "", { widthInches: 2, heightInches: 6 }),
-      Math.round(12 * RATE * 100 * 100) / 100
+      Math.round((PER_PIECE + 12 * RATE) * 100 * 100) / 100
     );
   });
 
@@ -281,8 +283,8 @@ describe("nothing auto-bills at a price nobody set", () => {
     );
 
     assert.equal(priced.unpriceable, false);
-    // 100 x 12 sq in x (70/900) = $93.33.
-    assert.equal(priced.serverTotal, 93.33 + STICKER_SETUP_FEE);
+    // 100 x ($0.34 + 12 sq in x $0.04) = $82.
+    assert.equal(priced.serverTotal, 82 + STICKER_SETUP_FEE);
   });
 
   test("a non-sticker order is never flagged by this", () => {

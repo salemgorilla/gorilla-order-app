@@ -74,7 +74,7 @@ export default function OrderSummary({ order }: Props) {
           label="Delivery"
           value={
             order.production.deliveryMethod === "Ship"
-              ? "Ship"
+              ? `Ship${order.production.shipZip ? ` to ${order.production.shipZip}` : ""}`
               : "Local Pickup"
           }
         />

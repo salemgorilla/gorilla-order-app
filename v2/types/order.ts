@@ -112,6 +112,13 @@ export type Production = {
   needBy: string;
   deadlineType: DeadlineType;
   deliveryMethod: DeliveryMethod;
+  /**
+   * Where a shipped sticker order is going — five digits, stickers only.
+   * USPS Ground Advantage is priced by weight AND zone (Gabe, 2026-09-12:
+   * "Ground advantage works"), and the zone needs a destination. Optional
+   * on the type because quotes from before today never asked.
+   */
+  shipZip?: string;
 };
 
 export type Pricing = {
@@ -134,6 +141,13 @@ export type Pricing = {
    */
   minimumPrice?: number;
   shippingPrice: number;
+  /**
+   * How the shipping was priced — "USPS Ground Advantage to 02116 (zone 2),
+   * small box at ~1.6 lb" or "Shipping (tiered on order size)". Goes to the
+   * shop email and the Printavo note, never to the customer. Optional
+   * because quotes from before 2026-09-12 do not carry it.
+   */
+  shippingNote?: string;
   total: number;
 };
 

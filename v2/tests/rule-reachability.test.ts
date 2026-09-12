@@ -70,6 +70,12 @@ const REACHABLE: Record<FieldKey, () => string | undefined> = {
   needBy: () => getOrderFieldErrors(emptyStickerOrder).needBy,
   customerName: () => getOrderFieldErrors(emptyStickerOrder).customerName,
   customerEmail: () => getOrderFieldErrors(emptyStickerOrder).customerEmail,
+  // Only when shipping is chosen — pickup has nowhere to ship to.
+  shipZip: () =>
+    getOrderFieldErrors({
+      ...emptyStickerOrder,
+      production: { ...emptyStickerOrder.production, deliveryMethod: "Ship", shipZip: "" },
+    } as typeof emptyStickerOrder).shipZip,
 
   // Apparel — the two keys only apparel can raise.
   specialOrderNotes: () =>

@@ -169,6 +169,14 @@ describe("the server really does route through it", () => {
       const direct = quoteStickerCart({
         materialPrices: items.map((item) => item.lineExact),
         deliveryMethod: cart.deliveryMethod,
+        // The parcel weight comes from the same designs, so the shipping
+        // note — which names the estimated weight — must agree too.
+        items: cart.items.map((item) => ({
+          quantity: Number(item.quantity),
+          widthInches: Number(item.widthInches),
+          heightInches: Number(item.heightInches),
+        })),
+        destZip: "",
       });
 
       assert.deepEqual(
@@ -177,6 +185,7 @@ describe("the server really does route through it", () => {
           setupPrice: server.setupPrice,
           minimumPrice: server.minimumPrice,
           shippingPrice: server.shippingPrice,
+          shippingNote: (server as Record<string, unknown>).shippingNote,
           total: server.total,
         },
         direct

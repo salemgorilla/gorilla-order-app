@@ -1245,6 +1245,12 @@ export default function Home() {
     const pricing = quoteStickerCart({
       materialPrices: priced.map((entry) => entry.materialPrice),
       deliveryMethod: nextOrder.production.deliveryMethod,
+      items: priced.map((entry) => ({
+        quantity: entry.item.quantity,
+        widthInches: entry.item.widthInches,
+        heightInches: entry.item.heightInches,
+      })),
+      destZip: nextOrder.production.shipZip,
     });
 
     return {
@@ -2945,7 +2951,7 @@ Needed In Hand: ${order.production.needBy || "Not entered"}
 Deadline Type: ${order.production.deadlineType}
 Delivery: ${
       order.production.deliveryMethod === "Ship"
-        ? "Ship to customer"
+        ? `Ship to customer${order.production.shipZip ? ` (ZIP ${order.production.shipZip})` : ""}`
         : "Local pickup in Salem"
     }`;
 
@@ -4197,6 +4203,9 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                         onSelectDeliveryMethod={(deliveryMethod) =>
                           updateProduction({ deliveryMethod })
                         }
+                        shipZip={order.production.shipZip ?? ""}
+                        shipZipError={showFieldErrors ? fieldErrors.shipZip : undefined}
+                        onShipZipChange={(shipZip) => updateProduction({ shipZip })}
                         onUpdate={(updates) => updateItem(updates, item.id)}
                         onSelectMaterial={(material) =>
                           updateItem(

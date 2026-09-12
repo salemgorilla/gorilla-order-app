@@ -106,6 +106,8 @@
  * afternoon, then $0.04 once the per-sticker term below took over the part
  * of the price that was never really about area — see the header.
  */
+import { quoteStickerShipping } from "./shipping";
+
 const MATERIAL_RATE_PER_SQ_IN = 0.04;
 
 /**
@@ -377,35 +379,15 @@ function getAreaSqIn(size: string | number, dims?: StickerDimensions) {
 
 
 /**
- * Shipping, tiered by what is being shipped — the old site's own tiers.
- *
- * It was a flat $12 at any quantity, so 5,000 x 6" stickers — about 1,250
- * square feet of vinyl — shipped for the same as 25 x 1". The v1 site
- * stepped it by the goods subtotal: $8 to $75, $12 to $200, $18 to $500,
- * $25 above. Those are Gabe's numbers (2026-09-12: "use my hand quote for
- * what makes sense"), so they are what this charges. Local pickup is free.
- *
- * Stepped, not sloped, deliberately: a customer reads "$18 shipping" as a
- * fact about parcels, not a function of their cart, and the steps are far
- * enough apart that no order sits on a boundary by accident.
+ * Shipping lives in lib/shipping.ts now: USPS Ground Advantage by weight and
+ * zone once the USPS tables are filled, the old site's dollar tiers until
+ * then. The names below are re-exported so nothing that imported them from
+ * here has to move.
  */
-export const SHIPPING_TIERS: ReadonlyArray<{ upTo: number | null; price: number }> = [
-  { upTo: 75, price: 8 },
-  { upTo: 200, price: 12 },
-  { upTo: 500, price: 18 },
-  { upTo: null, price: 25 },
-];
-
-/** The old flat rate, which is now the $75–$200 tier. Tests read it. */
-export const DECAL_SHIPPING_PRICE = 12;
+export { SHIPPING_TIERS, DECAL_SHIPPING_PRICE } from "./shipping";
 
 export function getShippingPrice(deliveryMethod: string, goodsSubtotal = 0) {
-  if (deliveryMethod !== "Ship") return 0;
-
-  const subtotal = Math.max(0, Number(goodsSubtotal) || 0);
-  const tier = SHIPPING_TIERS.find((t) => t.upTo === null || subtotal <= t.upTo);
-
-  return tier ? tier.price : SHIPPING_TIERS[SHIPPING_TIERS.length - 1].price;
+  return quoteStickerShipping({ deliveryMethod, goodsSubtotal }).price;
 }
 
 /**
@@ -593,6 +575,8 @@ export type StickerCartQuote = {
   /** The top-up to STICKER_ORDER_MINIMUM, or 0. Its own line everywhere. */
   minimumPrice: number;
   shippingPrice: number;
+  /** How the shipping was priced — one line for the shop email and Printavo. */
+  shippingNote: string;
   total: number;
 };
 
@@ -605,6 +589,10 @@ export function quoteStickerCart(input: {
    */
   materialPrices: readonly number[];
   deliveryMethod: string;
+  /** The designs, for the parcel weight. Optional: without them, tiers. */
+  items?: ReadonlyArray<{ quantity: number; widthInches: number; heightInches: number }>;
+  /** Where it ships. Optional: without it, tiers. */
+  destZip?: string;
 }): StickerCartQuote {
   const stickerPrice =
     Math.round(input.materialPrices.reduce((sum, price) => sum + price, 0) * 100) /
@@ -619,13 +607,20 @@ export function quoteStickerCart(input: {
   const goods = Math.round((stickerPrice + setupPrice + minimumPrice) * 100) / 100;
   // Tiered on the goods — stickers, setup and the minimum — never on
   // shipping itself.
-  const shippingPrice = getShippingPrice(input.deliveryMethod, goods);
+  const shipping = quoteStickerShipping({
+    deliveryMethod: input.deliveryMethod,
+    goodsSubtotal: goods,
+    items: input.items,
+    destZip: input.destZip,
+  });
+  const shippingPrice = shipping.price;
 
   return {
     stickerPrice,
     setupPrice,
     minimumPrice,
     shippingPrice,
+    shippingNote: shipping.note,
     total: Math.round((goods + shippingPrice) * 100) / 100,
   };
 }

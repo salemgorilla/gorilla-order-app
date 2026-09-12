@@ -1327,6 +1327,9 @@ export function buildPrintavoQuotePlan(input: {
     `Delivery: ${
       deliveryMethod === "Ship" ? "SHIP to customer" : "LOCAL PICKUP in Salem"
     }`,
+    ...(deliveryMethod === "Ship" && str(production.shipZip)
+      ? [`Ship to ZIP: ${str(production.shipZip)}`]
+      : []),
     "",
     "WEBSITE ESTIMATE",
     `Total: $${total.toFixed(2)}`,
@@ -1343,7 +1346,11 @@ export function buildPrintavoQuotePlan(input: {
         ["Per design: see the line items"]
       : [`Each: $${unitPrice.toFixed(2)}`]),
     ...(shippingPrice > 0
-      ? [`Shipping: $${shippingPrice.toFixed(2)}`]
+      ? [
+          `Shipping: $${shippingPrice.toFixed(2)}${
+            str(pricing.shippingNote) ? ` — ${str(pricing.shippingNote)}` : ""
+          }`,
+        ]
       : ["Shipping: Free (local pickup)"]),
     "",
     // Add-ons live in the note, NOT in the line items. Two reasons: the line

@@ -172,6 +172,7 @@ export function repriceStickers(order: Record<string, unknown>) {
     setupPrice,
     minimumPrice,
     shippingPrice,
+    shippingNote,
     total: serverTotal,
   } = quoteStickerCart({
     // The EXACT four-decimal lines, not the per-line figures rounded for the
@@ -182,6 +183,18 @@ export function repriceStickers(order: Record<string, unknown>) {
     // one rounding, and the same call the browser makes.
     materialPrices: pricedItems.map((item) => item.lineExact),
     deliveryMethod: String(production.deliveryMethod || ""),
+    // The parcel is weighed from the SERVER's view of the items, and the ZIP
+    // is whatever the customer typed — the same two inputs the browser used,
+    // so the shipping it showed is the shipping this bills.
+    items: pricedItems.map((item) => {
+      const raw = item as Record<string, unknown>;
+      return {
+        quantity: Number(raw.quantity) || 0,
+        widthInches: Number(raw.widthInches) || 0,
+        heightInches: Number(raw.heightInches) || 0,
+      };
+    }),
+    destZip: String(production.shipZip || ""),
   });
 
   return {
@@ -197,6 +210,7 @@ export function repriceStickers(order: Record<string, unknown>) {
         setupPrice,
         minimumPrice,
         shippingPrice,
+        shippingNote,
         total: serverTotal,
       },
     },

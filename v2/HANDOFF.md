@@ -61,6 +61,15 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **Dibond at $15/sqft, both gauges** — 2026-09-14. Gabe: *"Can you
+  change dibond price to $15 per sq ft?"* Was $11 (1/8") and $13.50
+  (1/4"); now $15 for either, in `signsPricingConfig.rigid.
+  perSqftByMaterial`. Double-sided follows the second-side rule, so
+  $25.00/sqft both sides. Signs are hand-invoiced, so no Reconciled row
+  is owed. Sheet rows: 24×18 Dibond, drilled holes — $60 (was $48 /
+  $55.50), five for $240 (was $180 / $217.50). Dibond is now the dearest
+  rigid stock, above Aluminum 080 at $13.50.
+
 - **USPS Ground Advantage shipping — the engine, the ZIP field, and the
   fallback; the USPS tables are EMPTY and owed by Gabe** — 2026-09-12.
   Gabe: *"We need to figure out how much each order weighs and get cost

@@ -206,30 +206,31 @@ export const signsPricingConfig = {
 
   rigid: {
     // Price per square foot by material, from the rigid sign board.
+    //
+    // +$4 on every material — Gabe, 2026-09-14: "add $4 to all the rigid
+    // sign materials per sq ft" (Dibond 1/8" $11 → $15 was the first of
+    // them). The three bands were $9 / $11 / $13.50.
     perSqftByMaterial: {
-      'PVC 1/8"': 9,
-      'Corrugated 1/4"': 9,
+      'PVC 1/8"': 13,
+      'Corrugated 1/4"': 13,
 
-      'PVC 1/4"': 11,
-      'AlumaCorr 0.2"': 11,
-      "Aluminum 040": 11,
-      'Corrugated 1/2"': 11,
-
-      'PVC 1/2"': 13.5,
-      'AlumaCorr 0.4"': 13.5,
-      "Aluminum 080": 13.5,
-
-      // Both Dibond thicknesses — Gabe, 2026-09-14: "change dibond price
-      // to $15 per sq ft." One price for the stock, whichever gauge.
       'Dibond 1/8"': 15,
-      'Dibond 1/4"': 15,
+      'PVC 1/4"': 15,
+      'AlumaCorr 0.2"': 15,
+      "Aluminum 040": 15,
+      'Corrugated 1/2"': 15,
+
+      'PVC 1/2"': 17.5,
+      'AlumaCorr 0.4"': 17.5,
+      "Aluminum 080": 17.5,
+      'Dibond 1/4"': 17.5,
     } as Record<string, number>,
 
     /**
      * The SECOND side of a rigid sign costs one third less than the first —
      * Gabe, 2026-09-05. So a double-sided rigid sign is the material's rate
-     * times (1 + 2/3): PVC 1/8" at $9 prints both sides at $15.00/sqft,
-     * Dibond at $15 at $25.00. Relative to the material, which the
+     * times (1 + 2/3): PVC 1/8" at $13 prints both sides at $21.67/sqft,
+     * Dibond 1/4" at $17.50 at $29.17. Relative to the material, which the
      * flat +$8/sqft it replaces was not — that made the cheap stock's second
      * side dearer, proportionally, than the dear stock's.
      *

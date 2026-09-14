@@ -211,10 +211,10 @@ minimumOrder`; `tests/signs-minimum.test.ts`.
 | Custom size | **no charge** — a custom size costs the same as a standard one on every sign type |
 | Banner, per sqft | 13 oz $9.00 · 18 oz $12.50 · mesh $9.00 — hems and standard grommets included |
 | No-hem credit | 18 oz only: −$2.50 per linear ft of perimeter |
-| Double-sided | 18 oz: +$8.00/sqft · 13 oz: **sewn** — two panels + $11.00/linear ft · **rigid: the second side at two thirds of the material's rate** (Gabe, 2026-09-05 — PVC ⅛″ $15.00/sqft both sides, Dibond $25.00; replaced a flat +$8) · yard signs: own column |
+| Double-sided | 18 oz: +$8.00/sqft · 13 oz: **sewn** — two panels + $11.00/linear ft · **rigid: the second side at two thirds of the material's rate** (Gabe, 2026-09-05 — PVC ⅛″ $21.67/sqft both sides, Dibond ¼″ $29.17; replaced a flat +$8) · yard signs: own column |
 | Banner add-ons | pole pockets $15 flat · wind slits $6 flat · webbing/D-rings/rope $6/linear ft (Gorilla's own rates, excluded from the 2 Aug raise on purpose) |
 | Poster | $5.50/sqft |
-| Rigid, per sqft | PVC ⅛" / Corrugated ¼" $9.00 · PVC ¼", AlumaCorr 0.2", Aluminum 040, Corrugated ½" $11.00 · PVC ½", AlumaCorr 0.4", Aluminum 080 $13.50 · Dibond ⅛" and ¼" $15.00 (Gabe, 2026-09-14) |
+| Rigid, per sqft | PVC ⅛" / Corrugated ¼" $13.00 · Dibond ⅛", PVC ¼", AlumaCorr 0.2", Aluminum 040, Corrugated ½" $15.00 · PVC ½", AlumaCorr 0.4", Aluminum 080, Dibond ¼" $17.50 (Gabe, 2026-09-14: +$4 on every rigid material) |
 | Rigid finishing | "Drilled Holes" / "No Holes" — **no charge either way** |
 
 ### D7 — the website's adders, reconciled and (partly) built

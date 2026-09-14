@@ -115,8 +115,8 @@ banner | 1   | 96x24   | 18 oz Heavy Duty Vinyl    | single | Hemmed + Grommets 
 yard   | 10  | 18x24   | Coroplast                 | single | Signs Only         | roundedCorners            | 200.00
 yard   | 10  | 18x24   | Coroplast                 | single | Signs Only         | roundedCorners+holes      | 250.00
 yard   | 1   | 18x24   | Coroplast                 | single | With Step Stakes   | holes                     | 53.50
-rigid  | 4   | 24x18   | PVC 1/8"                  | single | Standard           | holes                     | 143.00
-rigid  | 4   | 24x18   | PVC 1/8"                  | double | Standard           | roundedCorners+holes      | 235.00
+rigid  | 4   | 24x18   | PVC 1/8"                  | single | Standard           | holes                     | 191.00
+rigid  | 4   | 24x18   | PVC 1/8"                  | double | Standard           | roundedCorners+holes      | 315.04
 banner | 1   | 72x36   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | velcro:top                | 186.00
 banner | 1   | 72x36   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | velcro:sides              | 186.00
 banner | 1   | 72x36   | 13 oz Scrim Vinyl         | single | Hemmed + Grommets  | velcro:all                | 213.00
@@ -171,34 +171,34 @@ poster | 1   | 36x24   | Indoor Poster Paper       | single | Standard          
 poster | 5   | 36x24   | Indoor Poster Paper       | single | Standard           | -                         | 180.00
 poster | 1   | 48x36   | Indoor Poster Paper       | single | Standard           | -                         | 81.00
 poster | 5   | 48x36   | Indoor Poster Paper       | single | Standard           | -                         | 345.00
-rigid  | 1   | 24x18   | PVC 1/8"                  | single | Drilled Holes      | -                         | 42.00
-rigid  | 5   | 24x18   | PVC 1/8"                  | single | Drilled Holes      | -                         | 150.00
-rigid  | 1   | 24x18   | PVC 1/4"                  | single | Drilled Holes      | -                         | 48.00
-rigid  | 5   | 24x18   | PVC 1/4"                  | single | Drilled Holes      | -                         | 180.00
-rigid  | 1   | 24x18   | PVC 1/2"                  | single | Drilled Holes      | -                         | 55.50
-rigid  | 5   | 24x18   | PVC 1/2"                  | single | Drilled Holes      | -                         | 217.50
+rigid  | 1   | 24x18   | PVC 1/8"                  | single | Drilled Holes      | -                         | 54.00
+rigid  | 5   | 24x18   | PVC 1/8"                  | single | Drilled Holes      | -                         | 210.00
+rigid  | 1   | 24x18   | PVC 1/4"                  | single | Drilled Holes      | -                         | 60.00
+rigid  | 5   | 24x18   | PVC 1/4"                  | single | Drilled Holes      | -                         | 240.00
+rigid  | 1   | 24x18   | PVC 1/2"                  | single | Drilled Holes      | -                         | 67.50
+rigid  | 5   | 24x18   | PVC 1/2"                  | single | Drilled Holes      | -                         | 277.50
 rigid  | 1   | 24x18   | Dibond 1/8"               | single | Drilled Holes      | -                         | 60.00
 rigid  | 5   | 24x18   | Dibond 1/8"               | single | Drilled Holes      | -                         | 240.00
-rigid  | 1   | 24x18   | Dibond 1/4"               | single | Drilled Holes      | -                         | 60.00
-rigid  | 5   | 24x18   | Dibond 1/4"               | single | Drilled Holes      | -                         | 240.00
-rigid  | 1   | 24x18   | AlumaCorr 0.2"            | single | Drilled Holes      | -                         | 48.00
-rigid  | 5   | 24x18   | AlumaCorr 0.2"            | single | Drilled Holes      | -                         | 180.00
-rigid  | 1   | 24x18   | AlumaCorr 0.4"            | single | Drilled Holes      | -                         | 55.50
-rigid  | 5   | 24x18   | AlumaCorr 0.4"            | single | Drilled Holes      | -                         | 217.50
-rigid  | 1   | 24x18   | Aluminum 040              | single | Drilled Holes      | -                         | 48.00
-rigid  | 5   | 24x18   | Aluminum 040              | single | Drilled Holes      | -                         | 180.00
-rigid  | 1   | 24x18   | Aluminum 080              | single | Drilled Holes      | -                         | 55.50
-rigid  | 5   | 24x18   | Aluminum 080              | single | Drilled Holes      | -                         | 217.50
-rigid  | 1   | 24x18   | Corrugated 1/4"           | single | Drilled Holes      | -                         | 42.00
-rigid  | 5   | 24x18   | Corrugated 1/4"           | single | Drilled Holes      | -                         | 150.00
-rigid  | 1   | 24x18   | Corrugated 1/2"           | single | Drilled Holes      | -                         | 48.00
-rigid  | 5   | 24x18   | Corrugated 1/2"           | single | Drilled Holes      | -                         | 180.00
-rigid  | 2   | 18x12   | PVC 1/8"                  | single | Drilled Holes      | -                         | 42.00
-rigid  | 2   | 18x12   | PVC 1/8"                  | double | Drilled Holes      | -                         | 60.00
-rigid  | 2   | 36x24   | PVC 1/8"                  | single | Drilled Holes      | -                         | 123.00
-rigid  | 2   | 36x24   | PVC 1/8"                  | double | Drilled Holes      | -                         | 195.00
-rigid  | 2   | 96x48   | PVC 1/8"                  | single | Drilled Holes      | -                         | 591.00
-rigid  | 2   | 96x48   | PVC 1/8"                  | double | Drilled Holes      | -                         | 975.00
+rigid  | 1   | 24x18   | Dibond 1/4"               | single | Drilled Holes      | -                         | 67.50
+rigid  | 5   | 24x18   | Dibond 1/4"               | single | Drilled Holes      | -                         | 277.50
+rigid  | 1   | 24x18   | AlumaCorr 0.2"            | single | Drilled Holes      | -                         | 60.00
+rigid  | 5   | 24x18   | AlumaCorr 0.2"            | single | Drilled Holes      | -                         | 240.00
+rigid  | 1   | 24x18   | AlumaCorr 0.4"            | single | Drilled Holes      | -                         | 67.50
+rigid  | 5   | 24x18   | AlumaCorr 0.4"            | single | Drilled Holes      | -                         | 277.50
+rigid  | 1   | 24x18   | Aluminum 040              | single | Drilled Holes      | -                         | 60.00
+rigid  | 5   | 24x18   | Aluminum 040              | single | Drilled Holes      | -                         | 240.00
+rigid  | 1   | 24x18   | Aluminum 080              | single | Drilled Holes      | -                         | 67.50
+rigid  | 5   | 24x18   | Aluminum 080              | single | Drilled Holes      | -                         | 277.50
+rigid  | 1   | 24x18   | Corrugated 1/4"           | single | Drilled Holes      | -                         | 54.00
+rigid  | 5   | 24x18   | Corrugated 1/4"           | single | Drilled Holes      | -                         | 210.00
+rigid  | 1   | 24x18   | Corrugated 1/2"           | single | Drilled Holes      | -                         | 60.00
+rigid  | 5   | 24x18   | Corrugated 1/2"           | single | Drilled Holes      | -                         | 240.00
+rigid  | 2   | 18x12   | PVC 1/8"                  | single | Drilled Holes      | -                         | 54.00
+rigid  | 2   | 18x12   | PVC 1/8"                  | double | Drilled Holes      | -                         | 80.01
+rigid  | 2   | 36x24   | PVC 1/8"                  | single | Drilled Holes      | -                         | 171.00
+rigid  | 2   | 36x24   | PVC 1/8"                  | double | Drilled Holes      | -                         | 275.04
+rigid  | 2   | 96x48   | PVC 1/8"                  | single | Drilled Holes      | -                         | 847.00
+rigid  | 2   | 96x48   | PVC 1/8"                  | double | Drilled Holes      | -                         | 1401.88
 `;
 
 type Row = {

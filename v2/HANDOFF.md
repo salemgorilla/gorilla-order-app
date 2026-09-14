@@ -61,14 +61,20 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
-- **Dibond at $15/sqft, both gauges** — 2026-09-14. Gabe: *"Can you
-  change dibond price to $15 per sq ft?"* Was $11 (1/8") and $13.50
-  (1/4"); now $15 for either, in `signsPricingConfig.rigid.
-  perSqftByMaterial`. Double-sided follows the second-side rule, so
-  $25.00/sqft both sides. Signs are hand-invoiced, so no Reconciled row
-  is owed. Sheet rows: 24×18 Dibond, drilled holes — $60 (was $48 /
-  $55.50), five for $240 (was $180 / $217.50). Dibond is now the dearest
-  rigid stock, above Aluminum 080 at $13.50.
+- **Rigid signs: +$4/sqft on every material** — 2026-09-14. Gabe: *"Can
+  you change dibond price to $15 per sq ft?"* → *"The 1/8" — and add $4
+  to all the rigid sign materials per sq ft."* Dibond 1/8" $11 → $15 was
+  the first of them; the same +$4 went on the other ten. The three bands
+  are now $13 / $15 / $17.50 (were $9 / $11 / $13.50), in
+  `signsPricingConfig.rigid.perSqftByMaterial`. #160 had briefly put
+  BOTH Dibond gauges at $15; this supersedes it — Dibond 1/4" is $17.50.
+  Double-sided follows the second-side rule, so PVC 1/8" is $21.67 both
+  sides and Dibond 1/4" $29.17. Note the engine rounds that per-sqft
+  rate to the cent before multiplying, so a 2 × 96×48 double-sided PVC
+  quote reads $1,401.88 rather than the exact $1,401.67 — consistent with
+  the rate it shows, and signs are hand-invoiced, so left as is. All 30
+  rigid sheet rows regenerated (24×18 PVC 1/8" with holes: $54, was $42).
+  No Reconciled row owed.
 
 - **USPS Ground Advantage shipping — the engine, the ZIP field, and the
   fallback; the USPS tables are EMPTY and owed by Gabe** — 2026-09-12.

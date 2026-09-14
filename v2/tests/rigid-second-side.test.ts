@@ -24,9 +24,9 @@ describe("rigid, double-sided: the second side at two thirds", () => {
   });
 
   for (const [material, rate, both] of [
-    ['PVC 1/8"', 9, 15],
+    ['PVC 1/8"', 13, 21.67],
     ['Dibond 1/8"', 15, 25],
-    ['Dibond 1/4"', 15, 25],
+    ['Dibond 1/4"', 17.5, 29.17],
   ] as const) {
     test(`${material}: $${rate}/sqft single, $${both}/sqft both sides`, () => {
       // 24" x 18" is 3 sqft; subtotal is the product line, before setup.
@@ -58,7 +58,7 @@ describe("rigid, double-sided: the second side at two thirds", () => {
     const note = sqft('PVC 1/8"', true).lines.find((l) => /second side/.test(l.label));
 
     assert.ok(note);
-    assert.match(note.label, /\$6\.00\/sqft/);
+    assert.match(note.label, /\$8\.67\/sqft/);
     assert.match(note.label, /a third less/);
   });
 

@@ -25,8 +25,8 @@ describe("rigid, double-sided: the second side at two thirds", () => {
 
   for (const [material, rate, both] of [
     ['PVC 1/8"', 9, 15],
-    ['Dibond 1/8"', 11, 18.33],
-    ['Dibond 1/4"', 13.5, 22.5],
+    ['Dibond 1/8"', 15, 25],
+    ['Dibond 1/4"', 15, 25],
   ] as const) {
     test(`${material}: $${rate}/sqft single, $${both}/sqft both sides`, () => {
       // 24" x 18" is 3 sqft; subtotal is the product line, before setup.

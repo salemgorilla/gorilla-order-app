@@ -158,6 +158,10 @@ export type Pricing = {
   discountPrice?: number;
   /** The code, upper-case, or "". */
   discountCode?: string;
+  /** The goods figures before the code — what the receipt shows. */
+  stickerListPrice?: number;
+  setupListPrice?: number;
+  minimumListPrice?: number;
   total: number;
 };
 

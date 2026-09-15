@@ -108,4 +108,5 @@ export const defaultOrder: Order = {
   },
   addOns: [],
   addOnsNote: "",
+  discount: null,
 };

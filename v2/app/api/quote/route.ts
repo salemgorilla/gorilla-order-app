@@ -355,6 +355,14 @@ export async function POST(request: Request) {
      */
     const repricing = describeRepricing(priceCheck);
 
+    if (priced.discountRejected) {
+      console.warn(
+        `DISCOUNT CODE REJECTED on ${quoteNumber}: "${String(
+          (order.discount as Record<string, unknown> | null)?.code || ""
+        )}" is not a configured code — repriced at list.`
+      );
+    }
+
     if (priceCheck.mismatch) {
       console.error(
         `PRICE MISMATCH on ${quoteNumber}: browser said $${priceCheck.clientTotal}, server computed $${priceCheck.serverTotal}. Charging the server figure.`
@@ -730,6 +738,10 @@ export async function POST(request: Request) {
       artworkAnalysis,
       // Null on the overwhelming majority of orders, where the two agreed.
       repricing,
+      // The code the customer typed that is not one of ours, if any.
+      discountRejected: priced.discountRejected
+        ? String((order.discount as Record<string, unknown> | null)?.code || "")
+        : null,
       /**
        * Whether a sign-up has anywhere to go.
        *
@@ -1058,6 +1070,10 @@ export async function POST(request: Request) {
         delivered: reachedShop,
         billed: Boolean(checkout?.ready),
         deposit: Boolean(checkout?.deposit),
+        discount: String(
+          (pricedOrder.pricing as Record<string, unknown> | undefined)
+            ?.discountCode || ""
+        ),
         /**
          * Why it did not bill — from the gate that actually applies.
          *

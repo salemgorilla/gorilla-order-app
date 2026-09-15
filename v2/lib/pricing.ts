@@ -106,6 +106,7 @@
  * afternoon, then $0.04 once the per-sticker term below took over the part
  * of the price that was never really about area — see the header.
  */
+import { applyDiscountToUnit, type Discount } from "./discount";
 import { quoteStickerShipping } from "./shipping";
 
 const MATERIAL_RATE_PER_SQ_IN = 0.04;
@@ -427,7 +428,8 @@ export function getStickerMaterialPrice(
   material: string,
   size?: string,
   dims?: StickerDimensions,
-  shape?: string
+  shape?: string,
+  discount?: Discount | null
 ) {
   const qty = Math.max(1, Math.floor(quantity || 0));
 
@@ -437,7 +439,7 @@ export function getStickerMaterialPrice(
   // per line and then summing is how the website came to quote $470.56 for a
   // cart Printavo would bill at $470.57. The cart sums these exact figures
   // and rounds ONCE (quoteStickerCart), which is what Printavo does.
-  return Math.round(getStickerUnitMaterialPrice(qty, material, size, dims, shape) * qty * 10000) / 10000;
+  return Math.round(getStickerUnitMaterialPrice(qty, material, size, dims, shape, discount) * qty * 10000) / 10000;
 }
 
 /**
@@ -473,7 +475,13 @@ export function getStickerUnitMaterialPrice(
   material: string,
   size?: string,
   dims?: StickerDimensions,
-  shape?: string
+  shape?: string,
+  /**
+   * A percent code comes off HERE, at the unit, to four decimals — so the
+   * discounted figure is the one Printavo stores and multiplies. See
+   * lib/discount.ts. A free-shipping code does nothing to the unit.
+   */
+  discount?: Discount | null
 ) {
   const qty = Math.max(1, Math.floor(quantity || 0));
   const area = getAreaSqIn(size ?? '3"', dims);
@@ -501,7 +509,7 @@ export function getStickerUnitMaterialPrice(
     shapeMultiplier(shape) *
     materialMultiplier(material);
 
-  return Number(materialPerSticker.toFixed(4));
+  return applyDiscountToUnit(Number(materialPerSticker.toFixed(4)), discount);
 }
 
 /** Per-sticker price, for display. Derived, never a separate calculation. */
@@ -577,6 +585,15 @@ export type StickerCartQuote = {
   shippingPrice: number;
   /** How the shipping was priced — one line for the shop email and Printavo. */
   shippingNote: string;
+  /**
+   * What a discount code took off the sticker goods, as a positive number,
+   * or 0. Already reflected in `stickerPrice` — this is the row that says
+   * so, never a second subtraction. Free-shipping codes show as $0 shipping
+   * instead and leave this at 0.
+   */
+  discountPrice: number;
+  /** The code that did it, upper-case, or "". */
+  discountCode: string;
   total: number;
 };
 
@@ -593,6 +610,14 @@ export function quoteStickerCart(input: {
   items?: ReadonlyArray<{ quantity: number; widthInches: number; heightInches: number }>;
   /** Where it ships. Optional: without it, tiers. */
   destZip?: string;
+  /**
+   * The UNDISCOUNTED lines, when a percent code is applied — one per
+   * design, same order as materialPrices — so the discount row can say
+   * what came off. Absent means no percent code.
+   */
+  listPrices?: readonly number[];
+  /** The validated code, if any. The engine never validates; the server does. */
+  discount?: Discount | null;
 }): StickerCartQuote {
   const stickerPrice =
     Math.round(input.materialPrices.reduce((sum, price) => sum + price, 0) * 100) /
@@ -602,6 +627,15 @@ export function quoteStickerCart(input: {
   // exactly $25, so a single-design order prices identically to before the
   // cart existed.
   const setupPrice = getCartSetupFee(input.materialPrices.length);
+  // What the percent code took off — the list lines less the discounted
+  // ones, rounded once like everything else here. The minimum below is
+  // measured AFTER the discount: a code brings an order down to the floor,
+  // never through it, because $45 is what the shop does work for.
+  const listTotal = input.listPrices
+    ? Math.round(input.listPrices.reduce((sum, price) => sum + price, 0) * 100) / 100
+    : stickerPrice;
+  const discountPrice =
+    input.discount?.kind === "percent" ? Math.max(0, Math.round((listTotal - stickerPrice) * 100) / 100) : 0;
   const minimumPrice =
     Math.max(0, Math.round((STICKER_ORDER_MINIMUM - stickerPrice - setupPrice) * 100)) / 100;
   const goods = Math.round((stickerPrice + setupPrice + minimumPrice) * 100) / 100;
@@ -613,14 +647,18 @@ export function quoteStickerCart(input: {
     items: input.items,
     destZip: input.destZip,
   });
-  const shippingPrice = shipping.price;
+  // A free-shipping code zeroes the line; the note says why, for the shop.
+  const freeShipping = input.discount?.kind === "shipping" && shipping.price > 0;
+  const shippingPrice = freeShipping ? 0 : shipping.price;
 
   return {
     stickerPrice,
     setupPrice,
     minimumPrice,
     shippingPrice,
-    shippingNote: shipping.note,
+    shippingNote: freeShipping ? `Free shipping (code ${input.discount!.code})` : shipping.note,
+    discountPrice,
+    discountCode: input.discount ? input.discount.code : "",
     total: Math.round((goods + shippingPrice) * 100) / 100,
   };
 }

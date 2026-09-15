@@ -167,6 +167,7 @@ import { parseSizeInches } from "../components/preview/StickerShape";
 
 import QuoteConfirmationScreen from "../features/QuoteConfirmation";
 import QuoteReviewCard from "../features/QuoteReviewCard";
+import DiscountCodeCard from "../features/DiscountCodeCard";
 import DecalBuilder from "../features/decals/DecalBuilder";
 import DecalPreviewCard from "../features/decals/DecalPreviewCard";
 import ApparelBuilder from "../features/apparel/ApparelBuilder";
@@ -1195,7 +1196,10 @@ export default function Home() {
    * computed keeps the number shown, the number charged and the size cut
    * identical, and keeps float noise like 1.7500000000000002 out of the order.
    */
-  function priceStickerItem(item: (typeof order.items)[number]) {
+  function priceStickerItem(
+    item: (typeof order.items)[number],
+    discount: typeof order.discount = null
+  ) {
     const finish = getDecalFinishFromMaterial(item.material);
 
     const widthInches = sanitizeSizeInches(item.widthInches);
@@ -1230,13 +1234,23 @@ export default function Home() {
         item.material,
         item.size,
         { widthInches, heightInches },
+        item.shape,
+        discount
+      ),
+      // The same line at list, so the discount row can say what came off.
+      listPrice: getStickerMaterialPrice(
+        quantityForPricing,
+        item.material,
+        item.size,
+        { widthInches, heightInches },
         item.shape
       ),
     };
   }
 
   function recalculateOrder(nextOrder: typeof order) {
-    const priced = nextOrder.items.map(priceStickerItem);
+    const discount = nextOrder.discount ?? null;
+    const priced = nextOrder.items.map((item) => priceStickerItem(item, discount));
 
     // The same call the SERVER makes in repriceStickers. Adding these up was
     // written out in both places; the browser showing one total while the
@@ -1251,6 +1265,8 @@ export default function Home() {
         heightInches: entry.item.heightInches,
       })),
       destZip: nextOrder.production.shipZip,
+      listPrices: priced.map((entry) => entry.listPrice),
+      discount,
     });
 
     return {
@@ -1258,6 +1274,32 @@ export default function Home() {
       items: priced.map((entry) => entry.item),
       pricing: { ...nextOrder.pricing, ...pricing },
     };
+  }
+
+  /**
+   * The review step's discount box. Asks the server whether the code is
+   * good and applies what it is told; the server looks it up again on
+   * submit (lib/sticker-repricing.ts), so this can show a price but never
+   * set one.
+   */
+  async function applyDiscountCode(code: string): Promise<string | null> {
+    try {
+      const response = await fetch("/api/discount-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const data = (await response.json()) as { valid?: boolean; discount?: typeof order.discount };
+      if (!data.valid || !data.discount) return "That code isn't valid.";
+      setOrder((prev) => recalculateOrder({ ...prev, discount: data.discount ?? null }));
+      return null;
+    } catch {
+      return "Couldn't check that code just now — try again.";
+    }
+  }
+
+  function removeDiscountCode() {
+    setOrder((prev) => recalculateOrder({ ...prev, discount: null }));
   }
 
   /**
@@ -2046,6 +2088,8 @@ export default function Home() {
       production: order.production,
       addOns: order.addOns,
       addOnsNote: order.addOnsNote,
+      // Stickers only — the other flows carry null. Re-validated on submit.
+      discount: isSignsSelected || isApparelSelected ? null : order.discount ?? null,
       /**
        * Present only on the shop's own terminal. The SERVER reads this to
        * decide that no payment link is generated — see app/api/quote/route.ts.
@@ -3362,7 +3406,10 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       item.material,
       item.size,
       { widthInches: item.widthInches, heightInches: item.heightInches },
-      item.shape
+      item.shape,
+      // Net of a discount code, like every other figure on the page — the
+      // sticky bar read $0.78 while this card still said $0.85.
+      order.discount ?? null
     );
 
     return (material + share) / Math.max(1, item.quantity);
@@ -4505,6 +4552,18 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             />
 
             <ArtworkAnalysisCard analysis={artworkAnalysis} />
+
+            {/* Stickers only: the one flow with a price the code can come
+                off. Signs and apparel are quoted by hand, and a code the
+                shop applies by hand needs no box. */}
+            {!isApparelSelected && !isSignsSelected && (
+              <DiscountCodeCard
+                applied={order.discount ?? null}
+                saving={order.pricing.discountPrice ?? 0}
+                onApply={applyDiscountCode}
+                onRemove={removeDiscountCode}
+              />
+            )}
 
             <QuoteReviewCard
               isApparelSelected={isApparelSelected}

@@ -176,11 +176,22 @@ export default function OrderSummary({ order }: Props) {
           />
         )}
 
+        {/* A code's saving, as its own row. The Stickers figure above is
+            already the discounted one; this row is what says so. */}
+        {(order.pricing.discountPrice ?? 0) > 0 && (
+          <SummaryRow
+            label={`Discount (${order.pricing.discountCode || "code"})`}
+            value={`−$${(order.pricing.discountPrice ?? 0).toFixed(2)}`}
+          />
+        )}
+
         <SummaryRow
           label="Shipping"
           value={
             order.pricing.shippingPrice > 0
               ? `$${order.pricing.shippingPrice.toFixed(2)}`
+              : order.production.deliveryMethod === "Ship" && order.discount?.kind === "shipping"
+              ? `Free (code ${order.discount.code})`
               : "Free (pickup)"
           }
         />

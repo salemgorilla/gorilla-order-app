@@ -67,7 +67,8 @@ Working and verified:
   and invent more as we go."* / *"code would discount before it gets to
   printavo, or it could be added as a line item with negative money."*
   Then the list: **FAMFRE 40%, DOUBLEDIME 20%, DIME 10% — "off order not
-  including shipping" — and FIPPY = free shipping.**
+  including shipping" — and FIPPY = free shipping.** Same day: **SOCIALPATH
+  5%**, *"a social media code"*.
 
   BEFORE Printavo, by decision. "Off the order" means stickers, setup AND
   the $45 minimum top-up all take the percent; shipping never does. The

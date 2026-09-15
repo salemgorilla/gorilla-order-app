@@ -60,8 +60,14 @@ describe("the code list", () => {
       { code: "DOUBLEDIME", kind: "percent", percent: 20 },
       { code: "DIME", kind: "percent", percent: 10 },
       { code: "FIPPY", kind: "shipping" },
+      { code: "SOCIALPATH", kind: "percent", percent: 5 },
     ]);
-    assert.equal(allDiscountCodes({}).length, 4);
+    assert.equal(allDiscountCodes({}).length, 5);
+    // 5% on the reference 100 x 3" circle: $85 → $80.75.
+    const social = findDiscountCode("socialpath")!;
+    const list = getStickerMaterialPrice(100, "Gloss White Vinyl", undefined, { widthInches: 3, heightInches: 3 }, "Circle");
+    const off = getStickerMaterialPrice(100, "Gloss White Vinyl", undefined, { widthInches: 3, heightInches: 3 }, "Circle", social);
+    assert.equal(quoteStickerCart({ materialPrices: [off], listPrices: [list], deliveryMethod: "Pickup", discount: social }).total, 80.75);
     assert.deepEqual(findDiscountCode("fippy"), { code: "FIPPY", kind: "shipping" });
   });
 
@@ -80,7 +86,7 @@ describe("the code list", () => {
     const codes = allDiscountCodes({ DISCOUNT_CODES: "vip=15%,dime=11%" });
     assert.deepEqual(findDiscountCode("v i p", codes), { code: "VIP", kind: "percent", percent: 15 });
     assert.deepEqual(findDiscountCode("DIME", codes), { code: "DIME", kind: "percent", percent: 11 }, "env wins on a duplicate");
-    assert.equal(codes.length, 5);
+    assert.equal(codes.length, 6);
     assert.equal(findDiscountCode("nope", codes), null);
     assert.equal(findDiscountCode("", codes), null);
     assert.equal(normalizeDiscountCode(" salem 10 "), "SALEM10");

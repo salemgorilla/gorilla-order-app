@@ -258,6 +258,12 @@ export function buildQuoteEmail(input: {
    */
   repricing?: RepricingNote | null;
   /**
+   * A discount code the customer sent that is NOT one of ours. The order
+   * was repriced at list; this says so beside the total, because a
+   * customer who typed a code expects to see it come off.
+   */
+  discountRejected?: string | null;
+  /**
    * Whether a newsletter sign-up has anywhere to go. The route passes
    * isNewsletterConfigured(); see buildCustomerLines for why false is the
    * only value that changes anything.
@@ -543,6 +549,15 @@ export function buildQuoteEmail(input: {
     estimateLines.push(line(input.repricing.label, input.repricing.detail));
   }
 
+  if (input.discountRejected) {
+    estimateLines.push(
+      line(
+        "Discount code",
+        `"${input.discountRejected}" is NOT a configured code — priced at full price. The customer may expect a discount.`
+      )
+    );
+  }
+
   if (signs) {
     // Itemised breakdown straight from the pricing engine. $0 lines are kept
     // deliberately: they carry the "quoted separately" finishing add-ons the
@@ -618,6 +633,20 @@ export function buildQuoteEmail(input: {
        * blank to suppress, it is a bug worth seeing.
        */
       line("Setup", money(pricing.setupPrice)),
+      // A discount code, when one applied. The Stickers figure above is
+      // already net of it — folded into the unit prices Printavo bills.
+      ...(str(pricing.discountCode)
+        ? [
+            line(
+              "Discount",
+              `${str(pricing.discountCode)} — ${
+                Number(pricing.discountPrice) > 0
+                  ? `-${money(pricing.discountPrice)} off the stickers (in the unit prices)`
+                  : "free shipping"
+              }`
+            ),
+          ]
+        : []),
       // Only when it applies. Unlike setup, a $0.00 here is the normal case
       // and would read as a fee that failed to compute.
       ...(Number(pricing.minimumPrice) > 0
@@ -1122,6 +1151,8 @@ export async function sendQuoteEmail(input: {
   proofsDropped?: boolean;
   /** Forwarded to buildQuoteEmail; null whenever the two prices agreed. */
   repricing?: RepricingNote | null;
+  /** Forwarded to buildQuoteEmail; the code that was refused, if any. */
+  discountRejected?: string | null;
   /** Whether this order self-bills — see shopPaymentNote in lib/auto-bill. */
   paymentNote?: string | null;
   /** Forwarded to buildQuoteEmail — see buildCustomerLines. */

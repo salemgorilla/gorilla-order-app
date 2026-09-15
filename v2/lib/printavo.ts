@@ -1351,7 +1351,20 @@ export function buildPrintavoQuotePlan(input: {
             str(pricing.shippingNote) ? ` — ${str(pricing.shippingNote)}` : ""
           }`,
         ]
+      : deliveryMethod === "Ship" && str(pricing.shippingNote)
+      ? [`Shipping: $0.00 — ${str(pricing.shippingNote)}`]
       : ["Shipping: Free (local pickup)"]),
+    // The code, and what it did. A percent code is ALREADY in the sticker
+    // unit prices on the rows below — do not take it off again.
+    ...(str(pricing.discountCode)
+      ? [
+          `Discount code ${str(pricing.discountCode)}: ${
+            num(pricing.discountPrice) > 0
+              ? `-$${num(pricing.discountPrice).toFixed(2)} off the stickers, already in the unit prices`
+              : "free shipping"
+          }`,
+        ]
+      : []),
     "",
     // Add-ons live in the note, NOT in the line items. Two reasons: the line
     // item builder below filters out anything with amount <= 0, which would

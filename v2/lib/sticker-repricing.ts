@@ -1,3 +1,5 @@
+import { isDiscountShape, type Discount } from "./discount";
+import { findDiscountCode } from "./discount-codes";
 import {
   getStickerMaterialPrice,
   getStickerUnitMaterialPrice,
@@ -61,7 +63,13 @@ export function isStickerOrder(order: Record<string, unknown>) {
  * through: they are hand-quoted or priced by a different engine, and nothing
  * auto-bills them.
  */
-export function repriceStickers(order: Record<string, unknown>) {
+export function repriceStickers(
+  order: Record<string, unknown>,
+  options: {
+    /** The code list to validate against. Tests inject; production reads env. */
+    discountCodes?: readonly Discount[];
+  } = {}
+) {
   const clientPricing = (order.pricing || {}) as Record<string, unknown>;
   const clientTotal = Number(clientPricing.total) || 0;
 
@@ -70,10 +78,26 @@ export function repriceStickers(order: Record<string, unknown>) {
       order,
       mismatch: false,
       unpriceable: false,
+      discountRejected: false,
       clientTotal,
       serverTotal: clientTotal,
     };
   }
+
+  /**
+   * The discount, LOOKED UP AGAIN from the code — never taken from the
+   * payload's `kind`/`percent`. The browser was told what its code is
+   * worth by /api/discount-code; a browser that says otherwise is repriced
+   * at whatever the code is really worth, or at list when the code is not
+   * one of ours. `discountRejected` is the flag the shop email reads.
+   */
+  const claimed = isDiscountShape(order.discount) ? order.discount : null;
+  const discount = claimed
+    ? options.discountCodes
+      ? findDiscountCode(claimed.code, options.discountCodes)
+      : findDiscountCode(claimed.code)
+    : null;
+  const discountRejected = Boolean(claimed) && !discount;
 
   const product = (order.product || {}) as Record<string, unknown>;
   const production = (order.production || {}) as Record<string, unknown>;
@@ -108,16 +132,19 @@ export function repriceStickers(order: Record<string, unknown>) {
     return {
       ...item,
       // The line, exact to four decimals. What the total is summed from.
-      lineExact: getStickerMaterialPrice(quantity, material, size, dims, shape),
+      // Discounted, when a code applies — see lib/discount.ts.
+      lineExact: getStickerMaterialPrice(quantity, material, size, dims, shape, discount),
+      // The same line at list, for the discount row.
+      lineListExact: getStickerMaterialPrice(quantity, material, size, dims, shape),
       // The line, to the cent. What the shop email prints beside the design.
       linePrice:
         Math.round(
-          getStickerMaterialPrice(quantity, material, size, dims, shape) * 100
+          getStickerMaterialPrice(quantity, material, size, dims, shape, discount) * 100
         ) / 100,
       // The unit Printavo will store — four decimals, and THE figure
       // lib/printavo.ts puts on the row. Not derived from linePrice: dividing
       // a rounded total back into a unit is how the two came to differ.
-      lineUnitPrice: getStickerUnitMaterialPrice(quantity, material, size, dims, shape),
+      lineUnitPrice: getStickerUnitMaterialPrice(quantity, material, size, dims, shape, discount),
     };
   });
 
@@ -173,6 +200,8 @@ export function repriceStickers(order: Record<string, unknown>) {
     minimumPrice,
     shippingPrice,
     shippingNote,
+    discountPrice,
+    discountCode,
     total: serverTotal,
   } = quoteStickerCart({
     // The EXACT four-decimal lines, not the per-line figures rounded for the
@@ -195,6 +224,8 @@ export function repriceStickers(order: Record<string, unknown>) {
       };
     }),
     destZip: String(production.shipZip || ""),
+    listPrices: pricedItems.map((item) => item.lineListExact),
+    discount,
   });
 
   return {
@@ -204,6 +235,9 @@ export function repriceStickers(order: Record<string, unknown>) {
       // [product] above, and writing that back would invent a one-design cart
       // on a payload that never had one.
       ...(Array.isArray(order.items) ? { items: pricedItems } : {}),
+      // The discount as the SERVER found it — null when the code was not
+      // ours, so nothing downstream repeats an unearned claim.
+      discount,
       pricing: {
         ...clientPricing,
         stickerPrice,
@@ -211,12 +245,15 @@ export function repriceStickers(order: Record<string, unknown>) {
         minimumPrice,
         shippingPrice,
         shippingNote,
+        discountPrice,
+        discountCode,
         total: serverTotal,
       },
     },
     // Cents of float drift are not worth shouting about; real tampering is.
     mismatch: Math.abs(serverTotal - clientTotal) > 0.01,
     unpriceable,
+    discountRejected,
     clientTotal,
     serverTotal,
   };

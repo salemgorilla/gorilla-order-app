@@ -61,7 +61,49 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
-- **Rigid signs: +$4/sqft on every material** — 2026-09-14. Gabe: *"Can
+- **Discount codes on the review step — stickers only; NO CODES LIVE YET**
+  — 2026-09-15. Gabe: *"can we add a discount code section at the
+  checkout page? I could give you a list of codes that are always working,
+  and invent more as we go."* / *"code would discount before it gets to
+  printavo, or it could be added as a line item with negative money."*
+
+  BEFORE Printavo, by decision. A percent code is folded into each
+  design's four-decimal unit price (`applyDiscountToUnit`, lib/discount.ts)
+  so the invoice uses the arithmetic that already reconciles to the cent,
+  and MA tax follows the discounted price on its own. No negative line
+  item: unverified against Printavo's API, and a rejected line fails a
+  live customer's quote. Two kinds exist — `NN%` off the sticker goods
+  (not setup, shipping or the minimum) and `shipping` (zeroes the
+  shipping line). A flat "$5 off" waits on a Printavo probe.
+
+  **Where codes live — server only, never in the page.** `BUILT_IN_CODES`
+  in lib/discount-codes.ts (empty — Gabe's list goes there, one line
+  each) plus the `DISCOUNT_CODES` env var, `CODE=10%,CODE2=shipping`,
+  env winning on a duplicate, malformed entries skipped and logged. The
+  browser asks `/api/discount-code` whether one code is good and applies
+  what it is told; **submit looks the code up AGAIN** in
+  `repriceStickers` and bills what the code is really worth — a
+  fabricated `percent: 90` on a real 10% code bills at 10%, an unknown
+  code bills at list, sets `discountRejected`, warns in the log
+  (`DISCOUNT CODE REJECTED`) and puts a "Discount code: NOT a configured
+  code" line beside the total in the shop email. A code brings an order
+  down to the $45 minimum, never through it.
+
+  Surfaces: review-step card (`features/DiscountCodeCard.tsx`), summary
+  row "Discount (CODE) −$7.00", shop email "Discount:" line, Printavo
+  customer note "Discount code X: -$7.00 off the stickers, already in the
+  unit prices", `QUOTE_SUBMITTED … code=X`. `Pricing.discountPrice` /
+  `discountCode`, `Order.discount` (null on signs/apparel).
+
+  Verified in Chromium: "nope" refused; "salem 10" → "SALEM10 applied —
+  10% off stickers — you save $7.00", Stickers $63.00, total $81.94
+  (tax on $63); payload carries the code; invoice arithmetic equals the
+  quote (tests/discount-codes.test.ts). **Owed: Gabe's code list**, and a
+  Reconciled row the first time a real coded order bills — the unit-price
+  fold is the same path as every other sticker figure, but it has not met
+  a real invoice yet.
+
+ — 2026-09-14. Gabe: *"Can
   you change dibond price to $15 per sq ft?"* → *"The 1/8" — and add $4
   to all the rigid sign materials per sq ft."* Dibond 1/8" $11 → $15 was
   the first of them; the same +$4 went on the other ten. The three bands

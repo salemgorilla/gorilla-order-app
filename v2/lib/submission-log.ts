@@ -82,6 +82,8 @@ export type SubmissionFacts = {
   reason?: string;
   /** Taken on the shop's own terminal. */
   kiosk: boolean;
+  /** The discount code that applied, upper-case, or "" / absent. */
+  discount?: string;
 };
 
 /** Quotes a value only when it would otherwise break a field=value scan. */
@@ -119,6 +121,12 @@ export function describeSubmission(facts: SubmissionFacts): string {
     field("deposit", facts.deposit),
     field("kiosk", facts.kiosk),
   ];
+
+  // Only when one applied — the common case is none, and "code=" on every
+  // line is noise.
+  if (facts.discount) {
+    parts.push(field("code", facts.discount));
+  }
 
   // Only when it did not bill — on an ordinary order the reason is "it
   // billed", and repeating that on every line is what makes a log unread.

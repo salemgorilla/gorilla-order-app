@@ -1,3 +1,5 @@
+import type { Discount } from "../lib/discount";
+
 export type DeadlineType = "Firm" | "Flexible";
 
 export type DeliveryMethod = "Pickup" | "Ship";
@@ -148,6 +150,14 @@ export type Pricing = {
    * because quotes from before 2026-09-12 do not carry it.
    */
   shippingNote?: string;
+  /**
+   * What a discount code took off the sticker goods, or 0 — already
+   * reflected in stickerPrice; this is the row that says so. Optional
+   * because quotes from before 2026-09-15 do not carry it.
+   */
+  discountPrice?: number;
+  /** The code, upper-case, or "". */
+  discountCode?: string;
   total: number;
 };
 
@@ -194,4 +204,10 @@ export type Order = {
   addOns: AddOn[];
   /** Free-text catch-all for anything the list does not cover. */
   addOnsNote: string;
+  /**
+   * The discount code the customer applied on the review step, as
+   * /api/discount-code described it. Stickers only. The server looks the
+   * code up again on submit and bills what the code is really worth.
+   */
+  discount?: Discount | null;
 };

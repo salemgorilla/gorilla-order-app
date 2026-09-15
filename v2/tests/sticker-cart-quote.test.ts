@@ -186,6 +186,8 @@ describe("the server really does route through it", () => {
           minimumPrice: server.minimumPrice,
           shippingPrice: server.shippingPrice,
           shippingNote: (server as Record<string, unknown>).shippingNote,
+          discountPrice: server.discountPrice,
+          discountCode: (server as Record<string, unknown>).discountCode,
           total: server.total,
         },
         direct

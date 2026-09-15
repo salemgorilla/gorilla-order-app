@@ -215,7 +215,7 @@ minimumOrder`; `tests/signs-minimum.test.ts`.
 | Banner add-ons | pole pockets $15 flat · wind slits $6 flat · webbing/D-rings/rope $6/linear ft (Gorilla's own rates, excluded from the 2 Aug raise on purpose) |
 | Poster | $5.50/sqft |
 | Rigid, per sqft | PVC ⅛" / Corrugated ¼" $13.00 · Dibond ⅛", PVC ¼", AlumaCorr 0.2", Aluminum 040, Corrugated ½" $15.00 · PVC ½", AlumaCorr 0.4", Aluminum 080, Dibond ¼" $17.50 (Gabe, 2026-09-14: +$4 on every rigid material) |
-| Discount codes (stickers) | `NN%` off the sticker goods, folded into each design's 4-dp unit price before Printavo; or `shipping` = $0 shipping. Never below the $45 minimum. Codes: `BUILT_IN_CODES` in lib/discount-codes.ts + `DISCOUNT_CODES` env (`SALEM10=10%,FREESHIP=shipping`). None live as of 2026-09-15. |
+| Discount codes (stickers) | `NN%` off the ORDER not including shipping — stickers (folded into each design's 4-dp unit price), setup and the $45 minimum top-up all take it, to the cent, before Printavo; or `shipping` = $0 shipping. Shipping tiers on list goods. Live: FAMFRE 40%, DOUBLEDIME 20%, DIME 10%, FIPPY free shipping (Gabe, 2026-09-15). More via `DISCOUNT_CODES` env (`CODE=15%,CODE2=shipping`). |
 | Rigid finishing | "Drilled Holes" / "No Holes" — **no charge either way** |
 
 ### D7 — the website's adders, reconciled and (partly) built

@@ -202,6 +202,9 @@ export function repriceStickers(
     shippingNote,
     discountPrice,
     discountCode,
+    stickerListPrice,
+    setupListPrice,
+    minimumListPrice,
     total: serverTotal,
   } = quoteStickerCart({
     // The EXACT four-decimal lines, not the per-line figures rounded for the
@@ -247,6 +250,9 @@ export function repriceStickers(
         shippingNote,
         discountPrice,
         discountCode,
+        stickerListPrice,
+        setupListPrice,
+        minimumListPrice,
         total: serverTotal,
       },
     },

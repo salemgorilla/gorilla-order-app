@@ -837,6 +837,11 @@ export function buildPrintavoQuotePlan(input: {
   const quantity = Math.max(1, num(product.quantity, 1));
   const total = num(pricing.total);
   const shippingPrice = num(pricing.shippingPrice);
+  // " — net of code DIME" on the fee rows a percent code changed.
+  const discountSuffix =
+    num(pricing.discountPrice) > 0 && str(pricing.discountCode)
+      ? ` — net of code ${str(pricing.discountCode)}`
+      : "";
   const deliveryMethod = str(production.deliveryMethod, "Pickup");
 
   // Signs send an itemised breakdown (product line, setup fee, add-ons). Split
@@ -1355,12 +1360,13 @@ export function buildPrintavoQuotePlan(input: {
       ? [`Shipping: $0.00 — ${str(pricing.shippingNote)}`]
       : ["Shipping: Free (local pickup)"]),
     // The code, and what it did. A percent code is ALREADY in the sticker
-    // unit prices on the rows below — do not take it off again.
+    // unit prices, the setup row and the minimum row below — do not take
+    // it off again.
     ...(str(pricing.discountCode)
       ? [
           `Discount code ${str(pricing.discountCode)}: ${
             num(pricing.discountPrice) > 0
-              ? `-$${num(pricing.discountPrice).toFixed(2)} off the stickers, already in the unit prices`
+              ? `-$${num(pricing.discountPrice).toFixed(2)} off the order (not shipping), already in the unit prices, setup and minimum rows`
               : "free shipping"
           }`,
         ]
@@ -1703,9 +1709,9 @@ export function buildPrintavoQuotePlan(input: {
         ? [
             {
               description:
-                stickerItems.length > 1
+                (stickerItems.length > 1
                   ? `Setup and artwork prep (${stickerItems.length} designs)`
-                  : "Setup and artwork prep",
+                  : "Setup and artwork prep") + discountSuffix,
               itemNumber: SKU.DECAL_SETUP,
               price: money(pricing.setupPrice),
               /**
@@ -1734,7 +1740,7 @@ export function buildPrintavoQuotePlan(input: {
       ...(!apparel && !signs && num(pricing.minimumPrice) > 0
         ? [
             {
-              description: `Minimum order ($${STICKER_ORDER_MINIMUM} for stickers)`,
+              description: `Minimum order ($${STICKER_ORDER_MINIMUM} for stickers)${discountSuffix}`,
               itemNumber: SKU.DECAL_MINIMUM,
               price: money(pricing.minimumPrice),
               taxed: false,

@@ -106,7 +106,7 @@
  * afternoon, then $0.04 once the per-sticker term below took over the part
  * of the price that was never really about area — see the header.
  */
-import { applyDiscountToUnit, type Discount } from "./discount";
+import { applyDiscountToUnit, discountFactor, type Discount } from "./discount";
 import { quoteStickerShipping } from "./shipping";
 
 const MATERIAL_RATE_PER_SQ_IN = 0.04;
@@ -594,6 +594,15 @@ export type StickerCartQuote = {
   discountPrice: number;
   /** The code that did it, upper-case, or "". */
   discountCode: string;
+  /**
+   * The three goods figures BEFORE the code, for the receipt: the site and
+   * the shop email show these with the discount as a real subtraction,
+   * while Printavo carries the net figures in its rows. Equal to the net
+   * figures when no percent code applies.
+   */
+  stickerListPrice: number;
+  setupListPrice: number;
+  minimumListPrice: number;
   total: number;
 };
 
@@ -626,24 +635,36 @@ export function quoteStickerCart(input: {
   // $25 for the first design, $12.50 for each after. One design returns
   // exactly $25, so a single-design order prices identically to before the
   // cart existed.
-  const setupPrice = getCartSetupFee(input.materialPrices.length);
-  // What the percent code took off — the list lines less the discounted
-  // ones, rounded once like everything else here. The minimum below is
-  // measured AFTER the discount: a code brings an order down to the floor,
-  // never through it, because $45 is what the shop does work for.
-  const listTotal = input.listPrices
+  const setupListPrice = getCartSetupFee(input.materialPrices.length);
+
+  /**
+   * A percent code is "off the order, not including shipping" (Gabe,
+   * 2026-09-15), so it comes off all three goods figures. The stickers
+   * arrived here already net (folded into the 4dp units, which is what
+   * Printavo multiplies); setup and the minimum are fee rows at count 1,
+   * so they take the percent here, to the cent. The minimum is measured
+   * at LIST — a $45-floored order with FAMFRE on it is $27, because the
+   * code is off the order and the floor is part of the order.
+   */
+  const factor = discountFactor(input.discount);
+  const stickerListPrice = input.listPrices
     ? Math.round(input.listPrices.reduce((sum, price) => sum + price, 0) * 100) / 100
     : stickerPrice;
-  const discountPrice =
-    input.discount?.kind === "percent" ? Math.max(0, Math.round((listTotal - stickerPrice) * 100) / 100) : 0;
-  const minimumPrice =
-    Math.max(0, Math.round((STICKER_ORDER_MINIMUM - stickerPrice - setupPrice) * 100)) / 100;
+  const minimumListPrice =
+    Math.max(0, Math.round((STICKER_ORDER_MINIMUM - stickerListPrice - setupListPrice) * 100)) / 100;
+  const setupPrice = Math.round(setupListPrice * factor * 100) / 100;
+  const minimumPrice = Math.round(minimumListPrice * factor * 100) / 100;
+
+  const listGoods = Math.round((stickerListPrice + setupListPrice + minimumListPrice) * 100) / 100;
   const goods = Math.round((stickerPrice + setupPrice + minimumPrice) * 100) / 100;
-  // Tiered on the goods — stickers, setup and the minimum — never on
-  // shipping itself.
+  const discountPrice = input.discount?.kind === "percent" ? Math.max(0, Math.round((listGoods - goods) * 100) / 100) : 0;
+
+  // Tiered on the goods at LIST — stickers, setup and the minimum — never
+  // on shipping itself, and never cheaper because a code was used: the
+  // parcel is the same parcel.
   const shipping = quoteStickerShipping({
     deliveryMethod: input.deliveryMethod,
-    goodsSubtotal: goods,
+    goodsSubtotal: listGoods,
     items: input.items,
     destZip: input.destZip,
   });
@@ -659,6 +680,9 @@ export function quoteStickerCart(input: {
     shippingNote: freeShipping ? `Free shipping (code ${input.discount!.code})` : shipping.note,
     discountPrice,
     discountCode: input.discount ? input.discount.code : "",
+    stickerListPrice,
+    setupListPrice,
+    minimumListPrice,
     total: Math.round((goods + shippingPrice) * 100) / 100,
   };
 }

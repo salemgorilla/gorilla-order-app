@@ -168,6 +168,7 @@ import { parseSizeInches } from "../components/preview/StickerShape";
 import QuoteConfirmationScreen from "../features/QuoteConfirmation";
 import QuoteReviewCard from "../features/QuoteReviewCard";
 import DiscountCodeCard from "../features/DiscountCodeCard";
+import { applyDiscountToUnit } from "../lib/discount";
 import DecalBuilder from "../features/decals/DecalBuilder";
 import DecalPreviewCard from "../features/decals/DecalPreviewCard";
 import ApparelBuilder from "../features/apparel/ApparelBuilder";
@@ -3412,7 +3413,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       order.discount ?? null
     );
 
-    return (material + share) / Math.max(1, item.quantity);
+    return (material + applyDiscountToUnit(share, order.discount ?? null)) / Math.max(1, item.quantity);
   }
 
   const unitPrice = getItemUnitPrice(order.items[0]);

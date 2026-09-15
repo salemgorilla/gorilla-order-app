@@ -8,9 +8,10 @@
  * item with negative money in price."
  *
  * It comes off BEFORE Printavo. A percent code is folded into each sticker
- * design's four-decimal unit price, so the invoice is built from the same
- * arithmetic that already reconciles to the cent (unit x qty, summed once)
- * and Massachusetts tax follows the discounted price on its own. A negative
+ * design's four-decimal unit price, and into the setup and minimum fee
+ * rows to the cent, so the invoice is built from the same arithmetic that
+ * already reconciles to the cent (unit x qty, summed once) and
+ * Massachusetts tax follows the discounted price on its own. A negative
  * line item is unverified against Printavo's API, and a rejected line on a
  * live order fails the whole quote, so it is not used.
  *
@@ -23,7 +24,11 @@ export type Discount =
   | {
       code: string;
       kind: "percent";
-      /** 1–100. Off the sticker goods only — not setup, shipping or the minimum. */
+      /**
+       * 1–100. Off the ORDER, not including shipping — Gabe, 2026-09-15:
+       * "40% off order not including shipping". Stickers, setup and the
+       * minimum top-up all take it; the shipping line does not.
+       */
       percent: number;
     }
   | {
@@ -45,15 +50,20 @@ export function normalizeDiscountCode(raw: unknown): string {
  */
 export function applyDiscountToUnit(unit: number, discount?: Discount | null): number {
   if (!discount || discount.kind !== "percent") return unit;
-  const factor = 1 - Math.min(100, Math.max(0, discount.percent)) / 100;
-  return Number((unit * factor).toFixed(4));
+  return Number((unit * discountFactor(discount)).toFixed(4));
 }
 
-/** "10% off stickers" / "Free shipping" — the customer-facing phrase. */
+/** "10% off your order (not shipping)" / "Free shipping" — the customer-facing phrase. */
 export function describeDiscount(discount: Discount): string {
   return discount.kind === "percent"
-    ? `${discount.percent}% off stickers`
+    ? `${discount.percent}% off your order (not shipping)`
     : "Free shipping";
+}
+
+/** The multiplier a percent code applies; 1 for anything else. */
+export function discountFactor(discount?: Discount | null): number {
+  if (!discount || discount.kind !== "percent") return 1;
+  return 1 - Math.min(100, Math.max(0, discount.percent)) / 100;
 }
 
 /** True when the payload's `discount` is well-formed enough to look up. */

@@ -152,9 +152,13 @@ export default function OrderSummary({ order }: Props) {
       <div className="my-8 border-t border-[var(--rule)]" />
 
       <div className="space-y-3">
+        {/* The goods at LIST, then the code as a real subtraction — the
+            way a receipt reads. pricing.stickerPrice etc. are the NET
+            figures (tax and Printavo run on those); the list figures are
+            beside them for exactly this row. */}
         <SummaryRow
           label="Stickers"
-          value={`$${order.pricing.stickerPrice.toFixed(2)}`}
+          value={`$${(order.pricing.stickerListPrice ?? order.pricing.stickerPrice).toFixed(2)}`}
         />
 
         <SummaryRow
@@ -163,24 +167,24 @@ export default function OrderSummary({ order }: Props) {
               ? `Setup (${designs} designs)`
               : "Setup"
           }
-          value={`$${order.pricing.setupPrice.toFixed(2)}`}
+          value={`$${(order.pricing.setupListPrice ?? order.pricing.setupPrice).toFixed(2)}`}
         />
 
         {/* The $45 minimum, when it applies. Its own row so a customer
             paying $45 for seven stickers sees a policy, not a unit price
             that does not multiply. */}
-        {(order.pricing.minimumPrice ?? 0) > 0 && (
+        {(order.pricing.minimumListPrice ?? order.pricing.minimumPrice ?? 0) > 0 && (
           <SummaryRow
             label="Minimum order"
-            value={`$${(order.pricing.minimumPrice ?? 0).toFixed(2)}`}
+            value={`$${(order.pricing.minimumListPrice ?? order.pricing.minimumPrice ?? 0).toFixed(2)}`}
           />
         )}
 
-        {/* A code's saving, as its own row. The Stickers figure above is
-            already the discounted one; this row is what says so. */}
         {(order.pricing.discountPrice ?? 0) > 0 && (
           <SummaryRow
-            label={`Discount (${order.pricing.discountCode || "code"})`}
+            label={`Discount (${order.pricing.discountCode || "code"}${
+              order.discount?.kind === "percent" ? `, ${order.discount.percent}% off` : ""
+            })`}
             value={`−$${(order.pricing.discountPrice ?? 0).toFixed(2)}`}
           />
         )}

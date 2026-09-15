@@ -25,8 +25,15 @@
 import { normalizeDiscountCode, type Discount } from "./discount";
 
 export const BUILT_IN_CODES: readonly Discount[] = [
-  // { code: "SALEM10", kind: "percent", percent: 10 },
-  // { code: "FREESHIP", kind: "shipping" },
+  // Gabe, 2026-09-15 — "always working":
+  //   FAMFRE=40% off order not including shipping
+  //   DOUBLEDIME=20% off order not including shipping
+  //   DIME=10% off order not including shipping
+  //   FIPPY=Free shipping
+  { code: "FAMFRE", kind: "percent", percent: 40 },
+  { code: "DOUBLEDIME", kind: "percent", percent: 20 },
+  { code: "DIME", kind: "percent", percent: 10 },
+  { code: "FIPPY", kind: "shipping" },
 ];
 
 /** Parse "CODE=10%,CODE2=shipping". Bad entries are dropped, not thrown. */

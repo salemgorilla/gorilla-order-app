@@ -611,7 +611,7 @@ export function buildQuoteEmail(input: {
     }
   } else {
     estimateLines.push(
-      line("Stickers", money(pricing.stickerPrice)),
+      line("Stickers", money(pricing.stickerListPrice ?? pricing.stickerPrice)),
       /**
        * The setup fee, which this breakdown used to omit entirely.
        *
@@ -632,25 +632,27 @@ export function buildQuoteEmail(input: {
        * design and $12.50 for each one after, so $0.00 here is not a tidy
        * blank to suppress, it is a bug worth seeing.
        */
-      line("Setup", money(pricing.setupPrice)),
-      // A discount code, when one applied. The Stickers figure above is
-      // already net of it — folded into the unit prices Printavo bills.
+      line("Setup", money(pricing.setupListPrice ?? pricing.setupPrice)),
+      // Only when it applies. Unlike setup, a $0.00 here is the normal case
+      // and would read as a fee that failed to compute.
+      ...(Number(pricing.minimumListPrice ?? pricing.minimumPrice) > 0
+        ? [line("Minimum order", money(pricing.minimumListPrice ?? pricing.minimumPrice))]
+        : []),
+      // A discount code, when one applied. The three lines above are at
+      // LIST and this is the subtraction; Printavo carries the net figures
+      // in its rows instead (unit prices, setup, minimum), so the invoice
+      // shows no discount row and the same total.
       ...(str(pricing.discountCode)
         ? [
             line(
               "Discount",
               `${str(pricing.discountCode)} — ${
                 Number(pricing.discountPrice) > 0
-                  ? `-${money(pricing.discountPrice)} off the stickers (in the unit prices)`
+                  ? `-${money(pricing.discountPrice)} off the order, not shipping (Printavo: net unit prices, setup and minimum; no discount row)`
                   : "free shipping"
               }`
             ),
           ]
-        : []),
-      // Only when it applies. Unlike setup, a $0.00 here is the normal case
-      // and would read as a fee that failed to compute.
-      ...(Number(pricing.minimumPrice) > 0
-        ? [line("Minimum order", money(pricing.minimumPrice))]
         : []),
       line(
         "Shipping",

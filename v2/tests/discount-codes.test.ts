@@ -54,9 +54,15 @@ function printavoTotal(plan: ReturnType<typeof buildPrintavoQuotePlan>) {
 }
 
 describe("the code list", () => {
-  test("ships with no live codes until Gabe's list arrives", () => {
-    assert.equal(BUILT_IN_CODES.length, 0);
-    assert.equal(allDiscountCodes({}).length, 0);
+  test("Gabe's four always-working codes are built in", () => {
+    assert.deepEqual(BUILT_IN_CODES, [
+      { code: "FAMFRE", kind: "percent", percent: 40 },
+      { code: "DOUBLEDIME", kind: "percent", percent: 20 },
+      { code: "DIME", kind: "percent", percent: 10 },
+      { code: "FIPPY", kind: "shipping" },
+    ]);
+    assert.equal(allDiscountCodes({}).length, 4);
+    assert.deepEqual(findDiscountCode("fippy"), { code: "FIPPY", kind: "shipping" });
   });
 
   test("parses CODE=NN% and CODE=shipping from env, skipping junk without throwing", () => {
@@ -71,8 +77,10 @@ describe("the code list", () => {
   });
 
   test("env codes merge over built-ins and lookup is case- and space-insensitive", () => {
-    const codes = allDiscountCodes({ DISCOUNT_CODES: "vip=15%" });
+    const codes = allDiscountCodes({ DISCOUNT_CODES: "vip=15%,dime=11%" });
     assert.deepEqual(findDiscountCode("v i p", codes), { code: "VIP", kind: "percent", percent: 15 });
+    assert.deepEqual(findDiscountCode("DIME", codes), { code: "DIME", kind: "percent", percent: 11 }, "env wins on a duplicate");
+    assert.equal(codes.length, 5);
     assert.equal(findDiscountCode("nope", codes), null);
     assert.equal(findDiscountCode("", codes), null);
     assert.equal(normalizeDiscountCode(" salem 10 "), "SALEM10");
@@ -80,7 +88,7 @@ describe("the code list", () => {
 
   test("a bad env entry does not break the good ones beside it", () => {
     const codes = allDiscountCodes({ DISCOUNT_CODES: "GOOD=10%,,=5%,BROKEN" });
-    assert.equal(codes.length, 1);
+    assert.equal(codes.length, BUILT_IN_CODES.length + 1);
   });
 });
 
@@ -90,11 +98,11 @@ describe("the arithmetic", () => {
     assert.equal(applyDiscountToUnit(0.8533, CODES[0]), 0.768);
     assert.equal(applyDiscountToUnit(0.85, CODES[1]), 0.85);
     assert.equal(applyDiscountToUnit(0.85, null), 0.85);
-    assert.equal(describeDiscount(CODES[0]), "10% off stickers");
+    assert.equal(describeDiscount(CODES[0]), "10% off your order (not shipping)");
     assert.equal(describeDiscount(CODES[1]), "Free shipping");
   });
 
-  test("the reference 100 x 3\" circle: $85 at list, $78 with SALEM10 (setup untouched)", () => {
+  test("the reference 100 x 3\" circle: $85 at list, $76.50 with a 10% code — setup takes it too", () => {
     const list = getStickerMaterialPrice(100, "Gloss White Vinyl", undefined, { widthInches: 3, heightInches: 3 }, "Circle");
     const off = getStickerMaterialPrice(100, "Gloss White Vinyl", undefined, { widthInches: 3, heightInches: 3 }, "Circle", CODES[0]);
     assert.equal(list, 70);
@@ -103,19 +111,39 @@ describe("the arithmetic", () => {
 
     const cart = quoteStickerCart({ materialPrices: [off], listPrices: [list], deliveryMethod: "Pickup", discount: CODES[0] });
     assert.equal(cart.stickerPrice, 63);
-    assert.equal(cart.discountPrice, 7);
+    assert.equal(cart.stickerListPrice, 70);
+    assert.equal(cart.setupPrice, 13.5);
+    assert.equal(cart.setupListPrice, 15);
+    assert.equal(cart.discountPrice, 8.5);
     assert.equal(cart.discountCode, "SALEM10");
-    assert.equal(cart.setupPrice, 15);
-    assert.equal(cart.total, 78);
+    assert.equal(cart.total, 76.5);
+    // 40% off: FAMFRE on the same order.
+    const fam = quoteStickerCart({ materialPrices: [getStickerMaterialPrice(100, "Gloss White Vinyl", undefined, { widthInches: 3, heightInches: 3 }, "Circle", { code: "FAMFRE", kind: "percent", percent: 40 })], listPrices: [list], deliveryMethod: "Pickup", discount: { code: "FAMFRE", kind: "percent", percent: 40 } });
+    assert.equal(fam.total, 51);
+    assert.equal(fam.discountPrice, 34);
   });
 
-  test("a code brings an order down to the $45 minimum, never through it", () => {
+  test("the code is off the ORDER — the $45 minimum top-up takes it too", () => {
     // 20 x 2x2 gloss squares: $10 of stickers + $15 setup, topped to $45 (Catherine's order).
     const list = getStickerMaterialPrice(20, "Gloss White Vinyl", undefined, { widthInches: 2, heightInches: 2 }, "Square Corners");
     const off = getStickerMaterialPrice(20, "Gloss White Vinyl", undefined, { widthInches: 2, heightInches: 2 }, "Square Corners", CODES[0]);
     const cart = quoteStickerCart({ materialPrices: [off], listPrices: [list], deliveryMethod: "Pickup", discount: CODES[0] });
-    assert.equal(cart.discountPrice, 1);
-    assert.equal(cart.total, STICKER_ORDER_MINIMUM);
+    assert.equal(cart.minimumListPrice, 20);
+    assert.equal(cart.minimumPrice, 18);
+    assert.equal(cart.setupPrice, 13.5);
+    assert.equal(cart.stickerPrice, 9);
+    assert.equal(cart.discountPrice, 4.5);
+    assert.equal(cart.total, STICKER_ORDER_MINIMUM - 4.5);
+  });
+
+  test("shipping is tiered on the list goods — a code never buys a cheaper tier", () => {
+    // 3 x 3 x 500 gloss: about $244 of stickers at list, the $18 tier ($200–$500).
+    const list = getStickerMaterialPrice(500, "Gloss White Vinyl", undefined, { widthInches: 3, heightInches: 3 }, "Circle");
+    const fam = { code: "FAMFRE", kind: "percent", percent: 40 } as const;
+    const off = getStickerMaterialPrice(500, "Gloss White Vinyl", undefined, { widthInches: 3, heightInches: 3 }, "Circle", fam);
+    const plain = quoteStickerCart({ materialPrices: [list], deliveryMethod: "Ship" });
+    const coded = quoteStickerCart({ materialPrices: [off], listPrices: [list], deliveryMethod: "Ship", discount: fam });
+    assert.equal(coded.shippingPrice, plain.shippingPrice);
   });
 
   test("a free-shipping code zeroes shipping and nothing else", () => {
@@ -139,21 +167,25 @@ describe("the server never trusts the browser's discount", () => {
     const pricing = priced.order.pricing as Record<string, number | string>;
     assert.equal(priced.discountRejected, false);
     assert.equal(pricing.stickerPrice, 63);
-    assert.equal(pricing.discountPrice, 7);
+    assert.equal(pricing.setupPrice, 13.5);
+    assert.equal(pricing.discountPrice, 8.5);
     assert.equal(pricing.discountCode, "SALEM10");
-    assert.equal(pricing.total, 78);
+    assert.equal(pricing.total, 76.5);
     assert.equal(priced.unpriceable, false);
 
     const plan = buildPrintavoQuotePlan({ quoteNumber: "GS-TEST", order: priced.order, artworkAnalysis: null });
     assert.equal(plan.lineItems[0].price, 0.63);
-    assert.equal(printavoTotal(plan), 78);
-    assert.equal(plan.feeLineItems.some((f) => f.price < 0), false, "no negative line item — the discount is in the unit prices");
-    assert.match(plan.customerNote, /Discount code SALEM10: -\$7\.00 off the stickers, already in the unit prices/);
+    const setup = plan.feeLineItems.find((f) => f.itemNumber === "GORILLA-DECAL-SETUP");
+    assert.equal(setup?.price, 13.5);
+    assert.match(setup?.description ?? "", /net of code SALEM10/);
+    assert.equal(printavoTotal(plan), 76.5);
+    assert.equal(plan.feeLineItems.some((f) => f.price < 0), false, "no negative line item — the discount is in the rows");
+    assert.match(plan.customerNote, /Discount code SALEM10: -\$8\.50 off the order \(not shipping\), already in the unit prices, setup and minimum rows/);
   });
 
   test("a fabricated 90% claim on a real 10% code bills at 10%", () => {
     const priced = repriceStickers(order({ discount: { code: "SALEM10", kind: "percent", percent: 90 } }), { discountCodes: CODES });
-    assert.equal((priced.order.pricing as Record<string, number>).total, 78);
+    assert.equal((priced.order.pricing as Record<string, number>).total, 76.5);
     assert.deepEqual(priced.order.discount, CODES[0]);
   });
 
@@ -201,10 +233,13 @@ describe("the server never trusts the browser's discount", () => {
   test("the shop email carries the discount line; the log carries the code", () => {
     const priced = repriceStickers(order({ discount: { code: "SALEM10", kind: "percent", percent: 10 } }), { discountCodes: CODES });
     const text = buildQuoteEmail({ quoteNumber: "GS-T", receivedAt: new Date().toISOString(), order: priced.order, artworkAnalysis: null }).text;
-    assert.match(text, /Discount: SALEM10 — -\$7\.00 off the stickers \(in the unit prices\)/);
-    assert.match(text, /Stickers: \$63\.00/);
+    assert.match(text, /Discount: SALEM10 — -\$8\.50 off the order, not shipping/);
+    // The receipt reads at list, with the subtraction — not the net lines.
+    assert.match(text, /Stickers: \$70\.00/);
+    assert.match(text, /Setup: \$15\.00/);
+    assert.match(text, /Estimated Total: \$76\.50/);
 
-    const line = describeSubmission({ quoteNumber: "GS-T", flow: "stickers", door: "priced", quantity: 100, total: 78, needBy: "", earliest: "", artwork: "form", delivered: true, billed: true, deposit: false, kiosk: false, discount: "SALEM10" });
+    const line = describeSubmission({ quoteNumber: "GS-T", flow: "stickers", door: "priced", quantity: 100, total: 76.5, needBy: "", earliest: "", artwork: "form", delivered: true, billed: true, deposit: false, kiosk: false, discount: "SALEM10" });
     assert.match(line, / code=SALEM10$/);
     assert.doesNotMatch(describeSubmission({ quoteNumber: "GS-T", flow: "stickers", door: "priced", quantity: 100, total: 85, needBy: "", earliest: "", artwork: "form", delivered: true, billed: true, deposit: false, kiosk: false, discount: "" }), /code=/);
   });

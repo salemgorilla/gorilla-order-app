@@ -179,17 +179,13 @@ describe("the server really does route through it", () => {
         destZip: "",
       });
 
+      // Every figure the engine returns, read off the server's pricing by
+      // the engine's own keys — so a new field in quoteStickerCart is
+      // covered here the day it is added, not the day someone remembers.
       assert.deepEqual(
-        {
-          stickerPrice: server.stickerPrice,
-          setupPrice: server.setupPrice,
-          minimumPrice: server.minimumPrice,
-          shippingPrice: server.shippingPrice,
-          shippingNote: (server as Record<string, unknown>).shippingNote,
-          discountPrice: server.discountPrice,
-          discountCode: (server as Record<string, unknown>).discountCode,
-          total: server.total,
-        },
+        Object.fromEntries(
+          Object.keys(direct).map((key) => [key, (server as Record<string, unknown>)[key]])
+        ),
         direct
       );
     });

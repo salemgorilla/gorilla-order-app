@@ -30,10 +30,12 @@ export const BUILT_IN_CODES: readonly Discount[] = [
   //   DOUBLEDIME=20% off order not including shipping
   //   DIME=10% off order not including shipping
   //   FIPPY=Free shipping
+  //   SOCIALPATH=5% off order — "a social media code" (same day)
   { code: "FAMFRE", kind: "percent", percent: 40 },
   { code: "DOUBLEDIME", kind: "percent", percent: 20 },
   { code: "DIME", kind: "percent", percent: 10 },
   { code: "FIPPY", kind: "shipping" },
+  { code: "SOCIALPATH", kind: "percent", percent: 5 },
 ];
 
 /** Parse "CODE=10%,CODE2=shipping". Bad entries are dropped, not thrown. */

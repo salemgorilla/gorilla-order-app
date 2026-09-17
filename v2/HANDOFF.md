@@ -61,6 +61,42 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **Every Printavo order says which pipeline it is** — 2026-09-17. Gabe,
+  asking to automate "paid in full" into the **Lab Order Placed** status:
+  *"For all but the apparel products."*
+
+  Printavo's automations are account-wide — one trigger, every order — so
+  "all but apparel" needs something ON the order naming the pipeline.
+  Nothing did: a sticker quote, a banner and a 24-shirt run were tagged
+  identically (`#GorillaOrder`, `#WebQuote`, `#Unconfirmed`). Every quote
+  now also carries exactly one of **`#Stickers` / `#Signs` / `#Apparel`**,
+  from the same flow test the line items and the note already use, so the
+  tag cannot disagree with the invoice it is on. A test pins "exactly one,
+  always present" — a missing tag on some third case is a filter with a
+  silent hole, and the hole would be an apparel order swept into the lab
+  workflow by an automation written to skip it.
+
+  **The automation itself is Gabe's to set, in Printavo, not code.** Its
+  suite has a "paid in full" trigger and a "change status" action. Whether
+  a trigger can be CONDITIONED on a tag is unverified — Printavo's support
+  site and API docs are both blocked by this sandbox's egress proxy, so
+  nobody here has read the page. If it can, the tag is the filter. If it
+  cannot, the fallback is app-side and is NOT built: a scheduled sweep of
+  recently-paid orders calling a status mutation. Do not build that until
+  the UI question is answered — the setting is five minutes and the sweep
+  is a moving part forever.
+
+  **Why apparel is the exception it is:** it is the one flow this app never
+  bills (`lib/auto-bill.ts` — apparel must not acquire a payment link), so
+  every apparel payment is one Gabe invoiced by hand, and those should not
+  be swept into the lab workflow.
+
+  **Also worth knowing before setting it:** orders over **$4,999.99** are
+  asked for a 50% deposit (`DEPOSIT_FRACTION`), which will not fire a "paid
+  in full" trigger. And the customer tracker already maps "Lab Order
+  Placed" to "Order received", step 1 of 4 — so `/track` starts showing it
+  the day the automation is switched on, with no change here.
+
 - **The artwork drop-off station — `/dropoff`, NOT `/kiosk`** — 2026-09-17,
   from Gabe's kiosk brief. A single-purpose counter screen where somebody who
   has already ordered looks the order up and sends artwork for it, from a USB

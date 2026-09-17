@@ -1458,6 +1458,22 @@ export function buildPrintavoQuotePlan(input: {
     // Tags are sent raw, not through asciiSafe() — keep them ASCII.
     tags: [
       "#GorillaOrder",
+      /**
+       * WHICH PRODUCT THIS IS — the tag Printavo needs to tell them apart.
+       *
+       * Gabe, 2026-09-17, on automating "paid in full" into Lab Order Placed:
+       * *"For all but the apparel products."* Nothing on a Printavo order
+       * said which pipeline it came from, so an account-wide automation had
+       * no way to skip apparel — and apparel is the one flow this app never
+       * bills, so its payments are the hand-invoiced ones that should not be
+       * swept into the lab workflow.
+       *
+       * Exactly one of the three, always present, so a filter can be written
+       * as "is #Apparel" or "is not #Apparel" without a missing-tag case in
+       * the middle. Same flow test the line items and the note already use,
+       * so the tag cannot disagree with the invoice it is on.
+       */
+      apparel ? "#Apparel" : signs ? "#Signs" : "#Stickers",
       // Two different jobs to work, so two different tags to filter on.
       ...(kiosk ? ["#InStore", "#PayAtCounter"] : ["#WebQuote"]),
       "#Unconfirmed",

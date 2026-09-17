@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { lookupOrderStatus } from "../../../lib/printavo";
+import { rateLimited, requestKey } from "../../../lib/rate-limit";
 import { toCustomerStatus, TOTAL_STEPS } from "../../../lib/order-status";
 
 /**
@@ -25,40 +26,16 @@ import { toCustomerStatus, TOTAL_STEPS } from "../../../lib/order-status";
  */
 
 /**
- * Crude per-IP throttle.
+ * Ten lookups a minute per IP.
  *
- * In-process, so on serverless it is per-instance and a determined attacker
- * spread across instances gets more than this implies. It is not the defence
- * — requiring the email is. This exists to make casual enumeration from one
- * machine tedious, and it is honest about being no more than that.
+ * The throttle itself moved to lib/rate-limit.ts when the drop-off station
+ * needed the identical thing — see the note there on what it is and is not.
+ * It is not the defence here; requiring the email is.
  */
-const WINDOW_MS = 60_000;
 const MAX_PER_WINDOW = 10;
-const hits = new Map<string, number[]>();
-
-function rateLimited(key: string) {
-  const now = Date.now();
-  const recent = (hits.get(key) || []).filter((at) => now - at < WINDOW_MS);
-  recent.push(now);
-  hits.set(key, recent);
-
-  // Unbounded growth would be a slow leak on a long-lived instance.
-  if (hits.size > 5000) {
-    for (const [k, times] of hits) {
-      if (!times.some((at) => now - at < WINDOW_MS)) hits.delete(k);
-    }
-  }
-
-  return recent.length > MAX_PER_WINDOW;
-}
 
 export async function POST(request: Request) {
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown";
-
-  if (rateLimited(ip)) {
+  if (rateLimited("order-status", requestKey(request), MAX_PER_WINDOW)) {
     return NextResponse.json(
       {
         ok: false,

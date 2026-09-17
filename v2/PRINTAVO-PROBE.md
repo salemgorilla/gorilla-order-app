@@ -6,6 +6,27 @@ Everything in Phases 2 and 3 of the repeat-customer spec assumes the answer is
 yes. Nobody has checked. This file is the probe, ready to paste, so whoever has
 a Printavo login can answer it in about five minutes.
 
+## 2026-09-17 — there IS a schema probe now, and it is not the thing this file refused
+
+`/api/printavo-schema` (admin-guarded) answers "does the API have X?" from the
+live account. It is a **third fixed query** beside `/api/printavo-test` and
+`/api/order-status`, and it returns **introspection names only** — mutation
+names, query names, and the field names of types you name. It cannot read an
+order, a customer, a price or a payment, and it cannot mutate anything.
+
+    /api/printavo-schema?secret=…&like=invoice
+    /api/printavo-schema?secret=…&type=QuoteCreateInput&type=InvoiceCreateInput
+
+It was built because four separate pieces of work were each blocked on a
+question of this exact shape — can an order be created as an invoice, can a
+status be set, can a file be attached, can a Power Scheduler type of work be
+assigned — and every one had been answered "unverified" and routed around.
+Guessing at any of them means guessing at the path that takes money.
+
+**The line in this file still stands for the query below.** Listing one
+contact's ORDERS is business data, and that still has no endpoint. The probe
+tells you whether such a query exists; it will not run it.
+
 ## Why it is not answered here
 
 This coding environment has no `PRINTAVO_EMAIL` / `PRINTAVO_TOKEN`, and the app

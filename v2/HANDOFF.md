@@ -61,6 +61,34 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **Quote vs invoice is a property of the STATUS — answered, nothing to
+  build** — 2026-09-17. Gabe: *"I want new app orders to appear in invoices
+  list"* / *"Can you make all paid lab orders show as invoices?"*
+
+  In Printavo every status has a checkbox in `My Account > Customize Invoice
+  Statuses`: checked means a job in that status is a **Quote**, unchecked
+  means it is an **Invoice**. Moving a job from a checked status to an
+  unchecked one moves it from the Quotes page to the Invoices page. There is
+  no `invoiceCreate` and no convert action, because an invoice is not a
+  different object — it is the same order wearing an invoice-flagged status.
+
+  App orders sit in Quotes because `quoteCreate` sets no status (deliberately
+  — every web order lands `#Unconfirmed` for review), so they take Printavo's
+  default and nothing has ever moved them off it.
+
+  **Gabe's three September questions are therefore one job, all in Printavo:**
+  `Lab Order Placed` unchecked in Customize Invoice Statuses, plus one
+  automation — trigger *paid in full*, action *change status to Lab Order
+  Placed*, skipping `#Apparel` (the tag added in #166). That one rule sets the
+  status, moves the order into Invoices, and, if the same rule can assign a
+  task list, puts it on Power Scheduler.
+
+  **Deliberately NOT built:** an app-side sweep calling `statusUpdate`. It
+  duplicates a native automation, mutates the money path on a timer, and needs
+  a status id nobody here has. Details and the mutation list in
+  PRINTAVO-PROBE.md; `/api/printavo-schema` (#168) confirms them against the
+  live account.
+
 - **Every Printavo order says which pipeline it is** — 2026-09-17. Gabe,
   asking to automate "paid in full" into the **Lab Order Placed** status:
   *"For all but the apparel products."*

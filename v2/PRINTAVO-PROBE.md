@@ -6,6 +6,48 @@ Everything in Phases 2 and 3 of the repeat-customer spec assumes the answer is
 yes. Nobody has checked. This file is the probe, ready to paste, so whoever has
 a Printavo login can answer it in about five minutes.
 
+## ANSWERED 2026-09-17 — quote vs invoice is a property of the STATUS
+
+Gabe: *"I want new app orders to appear in invoices list … An order is no
+longer a quote once it is approved and paid for by user."* and then *"Can you
+make all paid lab orders show as invoices?"*
+
+**There is nothing to build, and nothing to convert.** In Printavo every
+status carries a checkbox, set in `My Account > Customize Invoice Statuses`:
+
+- **checked** — a job in this status is a **Quote**, and lives on the Quotes page
+- **unchecked** — a job in this status is an **Invoice**, and lives on the Invoices page
+
+Changing a job from a checked status to an unchecked one moves it from the
+Quotes list to the Invoices list. That is the whole mechanism. There is no
+`invoiceCreate` and no convert-to-invoice action, because an invoice is not a
+different object — it is the same order wearing an invoice-flagged status.
+
+**Which is why app orders sit in Quotes.** `quoteCreate` sets no status
+(deliberately — every web order lands `#Unconfirmed` for review), so Printavo
+gives them the default, and nothing has ever moved them off it.
+
+**So all three of Gabe's September questions are one job:**
+
+1. `Lab Order Placed` must be UNCHECKED in Customize Invoice Statuses.
+2. One automation: trigger *paid in full*, action *change status to Lab Order
+   Placed*, skipping `#Apparel`.
+
+That one rule sets the status, moves the order into Invoices, and — if the
+same rule can assign a task list — puts it on Power Scheduler. No code.
+
+**What the API could do instead, if the automation ever cannot.** `statusUpdate`
+exists (so does `invoiceUpdate`, `taskCreate`, `taskUpdate`, `quoteUpdate`;
+there is no `invoiceCreate`). The app-side version would be a scheduled sweep
+for orders with nothing outstanding, calling `statusUpdate`. **Not built, on
+purpose:** it duplicates a native automation, it mutates the money path on a
+timer, and it needs a status id nobody here has. Ask for the setting first.
+
+> Mutation names above are from search-result summaries, not a page anybody
+> here has read — printavo.com and support.printavo.com are both blocked by
+> the egress proxy. `/api/printavo-schema` confirms them against the live
+> account in one request; run it before relying on any of them.
+
 ## 2026-09-17 — there IS a schema probe now, and it is not the thing this file refused
 
 `/api/printavo-schema` (admin-guarded) answers "does the API have X?" from the

@@ -240,6 +240,140 @@ async function printavoRequest<T = AnyRecord>(
 }
 
 /**
+ * WHAT THE API ACTUALLY OFFERS — schema only, never data.
+ *
+ * ── WHY THIS IS NOT THE THING PRINTAVO-PROBE.md REFUSED ───────────────────
+ * That file draws a hard line, and it is the right one: *"the app exposes no
+ * endpoint that runs arbitrary GraphQL … adding one would mean shipping an
+ * arbitrary-GraphQL endpoint to production to answer a research question.
+ * That trade is not worth making."*
+ *
+ * This is not that. It is a THIRD FIXED QUERY beside the two that already
+ * exist, and the only thing it can return is the shape of the API:
+ * introspection names. It cannot read an order, a customer, a price or a
+ * payment, and it cannot mutate anything, because the query is a constant
+ * here and the only thing a caller chooses is which TYPE NAME to ask about
+ * — validated to an identifier before it is sent.
+ *
+ * ── WHY IT WAS WORTH BUILDING ─────────────────────────────────────────────
+ * Four pieces of work are blocked on questions of the form "does the API
+ * have X": can an order be created as an invoice rather than a quote, can a
+ * status be set, can a file be attached, can a Power Scheduler type of work
+ * be assigned. Printavo's docs and support site are both blocked by this
+ * sandbox's egress proxy, so every one has been answered "unverified" and
+ * routed around.
+ *
+ * Guessing at any of them means guessing at the path that takes money. One
+ * admin-guarded, read-only, schema-only endpoint answers all four and every
+ * one after them, from the live account rather than a search-result summary.
+ */
+/**
+ * Identifiers only, ten at a time.
+ *
+ * A GraphQL type name cannot contain a brace, a quote, a space or a newline
+ * — so anything that does is not a type name, it is someone trying to make
+ * the probe's query mean something else. Rejected before it is sent, never
+ * escaped on the way out, because escaping is a thing you can get wrong and
+ * a whitelist is not.
+ *
+ * Exported so the rule can be tested directly rather than inferred from the
+ * behaviour of a function that needs live credentials to run.
+ */
+export function safeSchemaTypeNames(typeNames: readonly unknown[]): string[] {
+  return typeNames
+    .map((name) => String(name ?? "").trim())
+    .filter((name) => /^[A-Za-z_][A-Za-z0-9_]{0,80}$/.test(name))
+    .slice(0, 10);
+}
+
+export async function describePrintavoSchema(typeNames: string[] = []): Promise<{
+  ok: boolean;
+  mutations?: string[];
+  queries?: string[];
+  types?: Record<string, string[] | null>;
+  error?: string;
+}> {
+  if (!isConfigured()) {
+    return { ok: false, error: "Printavo is not configured." };
+  }
+
+  const safe = safeSchemaTypeNames(typeNames);
+
+  const names = (fields: unknown) =>
+    Array.isArray(fields)
+      ? (fields as AnyRecord[]).map((field) => str(field.name)).filter(Boolean).sort()
+      : [];
+
+  try {
+    const data = await printavoRequest<AnyRecord>(
+      `query GorillaSchemaProbe {
+         __schema {
+           mutationType { fields { name } }
+           queryType { fields { name } }
+         }
+       }`
+    );
+
+    const schema = (data.__schema as AnyRecord) || {};
+    const mutationType = (schema.mutationType as AnyRecord) || {};
+    const queryType = (schema.queryType as AnyRecord) || {};
+
+    // Input fields for the named types — the shape a caller needs once they
+    // know a mutation exists. Still names only.
+    const types: Record<string, string[] | null> = {};
+
+    for (const name of safe) {
+      try {
+        const typeData = await printavoRequest<AnyRecord>(
+          `query GorillaSchemaType($name: String!) {
+             __type(name: $name) {
+               name
+               inputFields { name type { name kind ofType { name kind } } }
+               fields { name }
+             }
+           }`,
+          { name }
+        );
+
+        const type = typeData.__type as AnyRecord | null;
+
+        if (!type) {
+          types[name] = null;
+          continue;
+        }
+
+        const describe = (field: AnyRecord) => {
+          const fieldType = (field.type as AnyRecord) || {};
+          const inner = (fieldType.ofType as AnyRecord) || {};
+          const label = str(fieldType.name) || str(inner.name) || str(fieldType.kind);
+          return `${str(field.name)}: ${label}`;
+        };
+
+        types[name] = Array.isArray(type.inputFields)
+          ? (type.inputFields as AnyRecord[]).map(describe)
+          : Array.isArray(type.fields)
+          ? (type.fields as AnyRecord[]).map((field) => str(field.name))
+          : [];
+      } catch {
+        types[name] = null;
+      }
+    }
+
+    return {
+      ok: true,
+      mutations: names(mutationType.fields),
+      queries: names(queryType.fields),
+      types,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Schema probe failed.",
+    };
+  }
+}
+
+/**
  * Verifies PRINTAVO_EMAIL / PRINTAVO_TOKEN by querying the account.
  * Handy for confirming credentials before relying on quote pushing.
  */

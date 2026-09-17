@@ -250,3 +250,74 @@ describe("the newsletter list, which fails in two separate ways", () => {
     assert.deepEqual(capability?.fix, []);
   });
 });
+
+describe("the drop-off station reports both halves of what it needs", () => {
+  const saved = { ...process.env };
+
+  beforeEach(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in saved)) delete process.env[key];
+    }
+    Object.assign(process.env, saved);
+    // Both halves start clear; each case sets what it is about.
+    delete process.env.DROPOFF_SECRET;
+    delete process.env.ADMIN_SECRET;
+    delete process.env.BLOB_READ_WRITE_TOKEN;
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in saved)) delete process.env[key];
+    }
+    Object.assign(process.env, saved);
+  });
+
+  const dropoff = () =>
+    getConfigHealth().capabilities.find((c) => c.key === "dropoff-station");
+
+  test("no secret is OFF, and names both things still missing", () => {
+    const station = dropoff();
+
+    assert.equal(station?.state, "off");
+    assert.match(station!.summary, /hand their file to the counter/);
+    assert.deepEqual(station?.fix, [
+      "DROPOFF_SECRET (or ADMIN_SECRET)",
+      "BLOB_READ_WRITE_TOKEN",
+    ]);
+  });
+
+  test("ADMIN_SECRET alone is enough to sign a session", () => {
+    process.env.ADMIN_SECRET = "x";
+    assert.notEqual(dropoff()?.state, "off");
+  });
+
+  /**
+   * The case that matters most, and the one a boolean would have hidden:
+   * the screen works right up to the moment a customer taps their artwork
+   * in, and then there is nowhere to put it. "Degraded" with the reason
+   * said out loud, not "live".
+   */
+  test("a secret but no blob store is DEGRADED, and says why", () => {
+    process.env.DROPOFF_SECRET = "x";
+
+    const station = dropoff();
+
+    assert.equal(station?.state, "degraded");
+    assert.match(station!.summary, /nowhere to put a file/);
+    assert.deepEqual(station?.fix, ["BLOB_READ_WRITE_TOKEN"]);
+  });
+
+  test("both set is live, with nothing left to do", () => {
+    process.env.DROPOFF_SECRET = "x";
+    process.env.BLOB_READ_WRITE_TOKEN = "y";
+
+    const station = dropoff();
+
+    assert.equal(station?.state, "live");
+    assert.deepEqual(station?.fix, []);
+  });
+
+  test("an appliance that cannot run at all raises the flag", () => {
+    assert.equal(getConfigHealth().needsAttention, true);
+  });
+});

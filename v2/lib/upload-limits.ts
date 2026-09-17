@@ -1,3 +1,4 @@
+import { isDropoffTokenShape } from "./dropoff";
 import { isValidHandoffToken } from "./handoff";
 
 /**
@@ -137,6 +138,7 @@ export const MULTIPART_THRESHOLD_BYTES = 8 * 1024 * 1024;
  *
  *   quote-artwork/<file>          the quote form
  *   handoff/<token>/<file>        a customer's phone, token shape enforced
+ *   dropoff/<token>/<file>        the drop-off station, token shape enforced
  *
  * One segment after the prefix, so the store cannot be used as a tree. No
  * traversal, no absolute paths, no control characters — the pathname becomes
@@ -183,6 +185,22 @@ export function isAllowedUploadPath(pathname: unknown): pathname is string {
   // Two copies of "what a hand-off token looks like" is how the check and the
   // generator come to disagree.
   if (handoff) return isValidHandoffToken(handoff[1]);
+
+  /**
+   * The drop-off station. A THIRD named shape, not a loosening of the two
+   * above: same one-segment-after-the-prefix rule, same traversal ban, and
+   * the token shape asked of the module that mints it.
+   *
+   * Shape is all this can check. Whether the signature is good — and so
+   * whether the session is real and unexpired — is decided by
+   * readDropoffToken on the routes that act on a session. A shape-valid
+   * token with a bad signature can put a file in a prefix nobody is
+   * listening to and reach nothing else: /api/dropoff/files and
+   * /api/dropoff/done both verify the signature before they answer.
+   */
+  const dropoff = /^dropoff\/([^/]+)\/([^/]+)$/.exec(path);
+
+  if (dropoff) return isDropoffTokenShape(dropoff[1]);
 
   return false;
 }

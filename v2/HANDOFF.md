@@ -61,6 +61,86 @@ the build stamp for why it must never be a typed-in string again.
 
 Working and verified:
 
+- **The artwork drop-off station — `/dropoff`, NOT `/kiosk`** — 2026-09-17,
+  from Gabe's kiosk brief. A single-purpose counter screen where somebody who
+  has already ordered looks the order up and sends artwork for it, from a USB
+  stick or from their own phone.
+
+  **It is not at `/kiosk`, and that is the one place it departs from the
+  brief.** `/kiosk` is the ORDER DESK: the full quote flow with a staff PIN
+  gate, running at the counter, taking orders today (lib/kiosk.ts). The brief
+  asked for `/kiosk` because it was written without knowing that route was
+  occupied — it also asked the app to "use the existing Printavo MCP tools",
+  which are Claude's tooling and not something a deployed Next.js app can
+  call. Putting this at `/kiosk` would have deleted a working terminal to
+  build a different appliance. Both exist; the Pi is pointed at whichever URL
+  that device is for, which is one word in the Chromium launch command on
+  hardware that is not built yet.
+
+  **The identity check is `/track`'s, deliberately.** Order number AND the
+  email on the order, through `lookupOrderStatus`, with wrong-number and
+  wrong-email answering identically so the screen cannot be used as an oracle
+  for whether an order exists. The brief proposed last-4-of-phone as
+  "lightweight": it is weaker, not lighter — four digits is ten thousand
+  values on a screen any passer-by can touch, a phone number is not a secret,
+  and the order lookup does not even fetch one today. Worth revisiting after
+  Gabe has used it at the counter; not a default.
+
+  **It brings its own keyboard** (`components/dropoff/TouchKeyboard.tsx`).
+  Chromium `--kiosk` on a Pi has no on-screen keyboard — that is an OS
+  component nobody would maintain on a machine no one logs into — and the
+  brief's "numeric keypad" could not have typed a single real order number,
+  which has letters in it (GS-20260914-T6JBK). Two layouts, one component:
+  A-Z/0-9 for the number, lower-case plus @ and .com for the email.
+
+  **The session is a signed token** (`lib/dropoff-token.ts`), naming one
+  order, expiring in 20 minutes, with no server-side record — the counter
+  screen and the customer's phone are two devices talking to stateless
+  functions, and the token is the only thing they can both hold. Unsigned, it
+  would be forgeable into any order number, which is the lookup gate defeated
+  by typing a URL. Secret is `DROPOFF_SECRET`, falling back to `ADMIN_SECRET`
+  (safe here and not for unsubscribe: these die in 20 minutes, those live in
+  inboxes for years). With neither set the screen says "hand it to the
+  counter" rather than pretending to work.
+
+  Files land in blob storage under `dropoff/<token>/`, a THIRD named shape in
+  `isAllowedUploadPath` — same one-segment rule, same traversal ban, token
+  shape asked of the module that mints it. On "Done" the shop gets one email
+  naming the order and linking each file; the files are NOT pushed onto the
+  Printavo record, because whether that API takes a file upload is still an
+  open question in PRINTAVO-PROBE.md and a customer must not be told "sent"
+  on the strength of an unproven call. `QUOTE_SUBMITTED`'s sibling line is
+  `DROPOFF_COMPLETED order= files= notified=`.
+
+  **A real bug this found, worth more than the feature:** the phone page
+  imported the token module for one regex, and that module imports
+  `node:crypto` — so the page died at build time with "Reading from
+  node:crypto is not handled by plugins". `tsc` passes on that happily; only
+  loading the page finds it. The same import had gone into
+  `lib/upload-limits.ts`, which `lib/artwork-upload.ts` imports, which EVERY
+  quote in the app uploads through — one line from taking stickers, signs and
+  apparel uploads down at once. The shape check now lives in the client-safe
+  `lib/dropoff.ts`, and a test walks the client-reachable modules and their
+  imports one hop out looking for `node:` builtins.
+
+  Also: the in-process rate limiter that `/api/order-status` grew inline is
+  now `lib/rate-limit.ts`, used by both, bucketed so the two endpoints never
+  spend each other's budget.
+
+  Verified in Chromium at 1024×600, 1280×800 and 1920×1080 — the three
+  plausible Pi screens: no page overflows, and "Start over" is on screen at
+  every size (at 600px the keyboard drops to exactly 48px keys, the floor,
+  which is its own test). Zero links anywhere in the flow, also a test.
+  Refusal path exercised against a real (unconfigured) Printavo; the
+  confirmed screen, QR, polling and phone page exercised end to end.
+
+  **Owed before it works in the shop:** (1) `DROPOFF_SECRET` or
+  `ADMIN_SECRET` set in Vercel; (2) **the blob store connected** — it is
+  still throwing "This store does not exist" in production, and this whole
+  appliance is an upload appliance, so it is dead until that is fixed;
+  (3) the hardware. Untested against a real USB stick on a real Pi — the
+  brief flags the native picker as a build-time decision and it still is.
+
 - **Discount codes on the review step — stickers only; four codes live**
   — 2026-09-15. Gabe: *"can we add a discount code section at the
   checkout page? I could give you a list of codes that are always working,

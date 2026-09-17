@@ -170,6 +170,13 @@ Working and verified:
   Refusal path exercised against a real (unconfigured) Printavo; the
   confirmed screen, QR, polling and phone page exercised end to end.
 
+  **`/api/health` reports it** (2026-09-17, added right after): `off` with
+  no signing secret — the station refuses every lookup — and `degraded`
+  with a secret but no blob store, which is the state worth naming, because
+  the screen looks up orders perfectly well and then has nowhere to put a
+  file, with the customer standing there. A boolean would have called that
+  "live".
+
   **Owed before it works in the shop:** (1) `DROPOFF_SECRET` or
   `ADMIN_SECRET` set in Vercel; (2) **the blob store connected** — it is
   still throwing "This store does not exist" in production, and this whole

@@ -200,6 +200,37 @@ export function getConfigHealth(): {
     fix: blob ? [] : ["BLOB_READ_WRITE_TOKEN (optional)"],
   });
 
+  // ---- the drop-off station ------------------------------------------------
+  /**
+   * /dropoff needs BOTH halves, and they fail differently.
+   *
+   * Without a signing secret it cannot start a session at all — the screen
+   * says "hand it to the counter" and that is the whole appliance. Without a
+   * blob store it looks up orders perfectly well and then has nowhere to put
+   * a file, which is worse than off: a customer stands there, taps their
+   * artwork in, and it goes nowhere.
+   *
+   * So the states are earned separately rather than reported as one boolean,
+   * and each says what a person standing at the screen would experience.
+   */
+  const dropoffSecret = has("DROPOFF_SECRET") || has("ADMIN_SECRET");
+
+  capabilities.push({
+    key: "dropoff-station",
+    name: "Artwork drop-off station (/dropoff)",
+    state: !dropoffSecret ? "off" : blob ? "live" : "degraded",
+    summary: !dropoffSecret
+      ? "The station refuses every lookup and tells the customer to hand their file to the counter. Nothing can be uploaded."
+      : blob
+      ? "A customer can look their order up and send artwork from a USB stick or their phone."
+      : "Orders look up fine, but there is nowhere to put a file — an upload fails at the screen with the customer standing there. Connect the blob store before putting this on the counter.",
+    fix: !dropoffSecret
+      ? ["DROPOFF_SECRET (or ADMIN_SECRET)", ...(blob ? [] : ["BLOB_READ_WRITE_TOKEN"])]
+      : blob
+      ? []
+      : ["BLOB_READ_WRITE_TOKEN"],
+  });
+
   // ---- apparel -------------------------------------------------------------
   /**
    * The garment catalogue, and — when it is dark — enough to tell WHY.

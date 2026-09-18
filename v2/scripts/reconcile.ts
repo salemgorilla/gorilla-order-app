@@ -70,13 +70,17 @@ async function main() {
    * A detail-query failure is loud but NOT fatal: the search proved the
    * order exists and gave us its Printavo number, which is enough for a
    * human to open it and finish by eye. Exiting here would throw that away.
+   *
+   * `recordUnread` separates "nothing came back at all" from "a field was
+   * missing". The checks must not explain an absence whose cause they never
+   * saw — see ReconcileInput.detailUnavailable.
    */
+  const recordUnread =
+    order.total === undefined && order.customerNote === undefined;
+
   if (order.error) {
-    console.error(
-      `\nPrintavo answered the search but not the detail query: ${order.error}` +
-        "\nThe read shape has never been proven against the live account — " +
-        "run again with --raw and settle it.\n"
-    );
+    console.error(`\nPrintavo answered the search but not the detail query.`);
+    console.error(`${order.error}\n`);
   }
 
   const result = reconcileQuote({
@@ -86,6 +90,7 @@ async function main() {
     amountOutstanding: order.amountOutstanding,
     customerNote: order.customerNote,
     lineItems: order.lineItems,
+    detailUnavailable: recordUnread ? order.error : undefined,
   });
 
   console.log(formatReconcileReport({ ...order }, result));

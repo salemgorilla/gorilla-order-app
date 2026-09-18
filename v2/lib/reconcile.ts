@@ -71,6 +71,13 @@ export type ReconcileInput = {
   amountOutstanding?: number;
   /** The customer note, which carries the app's own figure. */
   customerNote?: string;
+  /**
+   * Set when the record itself could not be read — the detail query came
+   * back empty. Every field above is then absent because nothing arrived,
+   * NOT because the order lacks it, and each check says so rather than
+   * guessing at a cause it cannot see.
+   */
+  detailUnavailable?: string;
   /** Line items as read back. Shape unproven — absent is UNKNOWN, not a fail. */
   lineItems?: Array<{
     description?: string;
@@ -131,8 +138,9 @@ function sizeRowsCheck(input: ReconcileInput): ReconcileCheck {
     return {
       name: "Size rows",
       status: "unknown",
-      detail:
-        "No line items came back — see the line-item check for what to do.",
+      detail: input.detailUnavailable
+        ? "The record was not read at all — see the Total line above."
+        : "No line items came back — see the line-item check for what to do.",
     };
   }
 
@@ -185,11 +193,12 @@ function lineSumCheck(input: ReconcileInput): ReconcileCheck {
     return {
       name: "Line items add up",
       status: "unknown",
-      detail:
-        "Printavo returned no line items for this order. Either the read " +
-        "query's shape is wrong (it has never been proven — see " +
-        "fetchQuoteForReconciliation) or the order really has none. Run with " +
-        "--raw and settle it once.",
+      detail: input.detailUnavailable
+        ? "The record was not read at all — see the Total line above."
+        : "Printavo returned no line items for this order. Either the read " +
+          "query's shape is wrong (it has never been proven — see " +
+          "fetchQuoteForReconciliation) or the order really has none. Run " +
+          "with --raw and settle it once.",
     };
   }
 
@@ -269,12 +278,13 @@ export function reconcileQuote(input: ReconcileInput): {
         input.printavoTotal === undefined
           ? undefined
           : money(input.printavoTotal),
-      detail:
-        quotedTotal === null
-          ? "The Printavo customer note carries no 'WEBSITE ESTIMATE / Total:' " +
-            "line. Orders created before that note existed will not have one; " +
-            "a recent order that does not is worth looking at."
-          : "Printavo returned no total for this order.",
+      detail: input.detailUnavailable
+        ? input.detailUnavailable
+        : quotedTotal === null
+        ? "The Printavo customer note carries no 'WEBSITE ESTIMATE / Total:' " +
+          "line. Orders created before that note existed will not have one; " +
+          "a recent order that does not is worth looking at."
+        : "Printavo returned no total for this order.",
     });
   } else {
     const delta = round2(input.printavoTotal - quotedTotal);
@@ -380,9 +390,25 @@ export function formatReconcileReport(
     lines.push("");
   }
 
+  /**
+   * "No mismatches" is true of a run that checked nothing, and reads as a
+   * near-pass. It is not one: a blackout proves nothing at all, and the
+   * reconciliation is still owed. Said separately so the two cannot be
+   * mistaken for each other at a glance.
+   *
+   * Keyed off the record being unread, NOT off every check being unknown.
+   * Those are different: an order predating the WEBSITE ESTIMATE note has
+   * no check that can land either, and it was still genuinely read — the
+   * total came back. Calling that a blackout would be the same species of
+   * lie this whole change is fixing.
+   */
+  const nothingChecked = Boolean(input.detailUnavailable);
+
   lines.push(
     result.ok
-      ? result.incomplete
+      ? nothingChecked
+        ? "NOTHING WAS CHECKED — this order is still unreconciled. Read the ???? lines."
+        : result.incomplete
         ? "No mismatches — but something could not be checked. Read the ???? lines."
         : "Everything checked matches."
       : "MISMATCH. Do not ship another billed-figure change until this is understood."

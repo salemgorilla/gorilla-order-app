@@ -360,7 +360,9 @@ describe("the token says which store it is for, so the app can just say so", () 
     const advice = describeBlobHealth(health);
     assert.ok(advice);
     assert.match(advice, /not shaped like a blob token/i);
-    assert.match(advice, /quotation marks/i);
+    // And it names WHICH defect, rather than listing the candidates — see
+    // the shape suite below for why that second step was needed.
+    assert.match(advice, /quotation mark/i);
   });
 
   test("a store id is also reported when the store is healthy", async () => {
@@ -416,5 +418,96 @@ describe("nothing past the store id is ever read", () => {
     // A client token, not a read-write one. Different prefix, same shape.
     assert.equal(readTokenStoreId("vercel_blob_client_X548kEBykUffj6EJ_x"), null);
     assert.equal(readTokenStoreId("vercel_blob_rw_short_secretsecret"), null);
+  });
+});
+
+/**
+ * "NOT A BLOB TOKEN" IS NOT AN ANSWER EITHER.
+ *
+ * The first production run of the store-id comparison came back with
+ * `tokenStoreId: null` — so the value in BLOB_READ_WRITE_TOKEN was not a
+ * blob token at all, which is a real finding and immediately raised the
+ * next question: not a blob token HOW.
+ *
+ * Quotation marks from a pasted .env line, the variable NAME pasted along
+ * with the value, a truncated copy, a leading newline. Every one of them is
+ * invisible in the Vercel UI, which shows the value as dots, and every one
+ * produces the identical "Access denied". None of them need the value
+ * itself to identify — a length, a segment count and four booleans separate
+ * all of them, and none can be run backwards into a credential.
+ */
+describe("when the token is not a token, it says how", () => {
+  async function shapeAdvice(value: string) {
+    process.env.BLOB_READ_WRITE_TOKEN = value;
+    const health = await checkBlobStore({ ask: store(DENIED) });
+    return { health, advice: String(describeBlobHealth(health)) };
+  }
+
+  test("a whole .env line pasted into the value box", async () => {
+    const { health, advice } = await shapeAdvice(
+      `BLOB_READ_WRITE_TOKEN="${tokenFor("X548kEBykUffj6EJ")}"`
+    );
+
+    assert.equal(health.tokenShape?.hasVariableName, true);
+    assert.match(advice, /variable's own name/i);
+    assert.match(advice, /value only/i);
+  });
+
+  test("quotation marks Vercel does not strip", async () => {
+    const { health, advice } = await shapeAdvice(`"${tokenFor("X548kEBykUffj6EJ")}"`);
+
+    assert.equal(health.tokenShape?.hasQuotes, true);
+    assert.match(advice, /quotation mark/i);
+  });
+
+  test("a newline that came along with the copy", async () => {
+    const { health, advice } = await shapeAdvice(`\n${tokenFor("X548kEBykUffj6EJ")}`);
+
+    assert.equal(health.tokenShape?.hasSurroundingWhitespace, true);
+    assert.match(advice, /whitespace at one end/i);
+    assert.match(advice, /invisible in the dashboard/i);
+  });
+
+  test("a truncated copy is counted, not guessed at", async () => {
+    const { health, advice } = await shapeAdvice("vercel_blob_rw_X548kEBykUffj6EJ");
+
+    assert.equal(health.tokenShape?.segments, 4);
+    assert.match(advice, /4 underscore-separated parts/);
+    assert.match(advice, /cut short/i);
+  });
+
+  test("something that is not a blob token at all", async () => {
+    const { health, advice } = await shapeAdvice("prv_liveMode_someOtherCredential");
+
+    assert.equal(health.tokenShape?.hasPrefix, false);
+    assert.match(advice, /not a blob read-write token at all/i);
+    assert.match(advice, /\.env\.local/);
+  });
+
+  test("a variable set to nothing", async () => {
+    // Distinct from UNSET, which is a different fix entirely — and the two
+    // are indistinguishable in a dashboard that shows every value as dots.
+    const { health, advice } = await shapeAdvice("");
+
+    assert.equal(health.hasToken, false, "an empty string is not a credential");
+    assert.doesNotMatch(advice, /empty value/i, "reported as malformed, not missing");
+    assert.match(advice, /BLOB_READ_WRITE_TOKEN/);
+  });
+
+  test("a token that parses carries no shape at all", async () => {
+    // A healthy deployment has nothing to explain, and should not publish a
+    // character count of its credential to every visitor for no reason.
+    const { health } = await shapeAdvice(tokenFor("X548kEBykUffj6EJ"));
+
+    assert.equal(health.tokenShape, null);
+  });
+
+  test("the shape never carries a character of the token", async () => {
+    const secret = "sup3rsecretvalue0000";
+    const { health, advice } = await shapeAdvice(`"vercel_blob_rw_X548kEBykUffj6EJ_${secret}"`);
+
+    const reported = JSON.stringify(health) + advice;
+    assert.doesNotMatch(reported, new RegExp(secret));
+    assert.doesNotMatch(reported, /X548kEBykUffj6EJ/, "the id came from an unparsed token");
   });
 });

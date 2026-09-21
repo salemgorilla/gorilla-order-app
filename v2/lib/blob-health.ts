@@ -54,6 +54,14 @@ export type BlobHealth = {
    */
   tokenStoreId: string | null;
   projectStoreId: string | null;
+  /**
+   * HOW the token is malformed, when it is. Null when it parsed, and null
+   * when there is no token at all — both are already fully explained.
+   *
+   * Counts and booleans only; see TokenShape for why it can never carry a
+   * character of the credential.
+   */
+  tokenShape: TokenShape | null;
 };
 
 /**
@@ -91,6 +99,54 @@ export function readTokenStoreId(token: string | undefined): string | null {
   const id = parts[3];
 
   return /^[A-Za-z0-9]{8,40}$/.test(id) ? id : null;
+}
+
+/**
+ * WHAT IS WRONG WITH THE TOKEN, WITHOUT READING THE TOKEN.
+ *
+ * ── WHY COUNTS AND BOOLEANS, NOT CONTENT ──────────────────────────────────
+ * When readTokenStoreId returns null the value in BLOB_READ_WRITE_TOKEN is
+ * not a blob token, and the next question is always the same: not a blob
+ * token HOW. Quotation marks from a pasted .env line, the variable name
+ * pasted along with the value, a truncated copy, a leading newline — every
+ * one of them is invisible in the Vercel UI, which renders the value as
+ * dots, and every one produces the identical "Access denied".
+ *
+ * None of that needs the value itself. A length, a segment count and four
+ * booleans separate all of them, and none of them can be run backwards into
+ * a credential. Nothing here returns a character of the token.
+ *
+ * Reported ONLY when the token fails to parse. A token that parses has
+ * nothing to explain, and a healthy deployment should not be publishing a
+ * character count of its credential to every visitor for no reason.
+ */
+export type TokenShape = {
+  /** Characters as stored. Zero means the variable is set and empty. */
+  length: number;
+  /** Underscore-separated parts. A read-write token has at least five. */
+  segments: number;
+  /** Does it start with `vercel_blob_rw_`? */
+  hasPrefix: boolean;
+  /** Whitespace at either end — invisible in the UI and in the error. */
+  hasSurroundingWhitespace: boolean;
+  /** A quote at either end: a .env line pasted with its quoting intact. */
+  hasQuotes: boolean;
+  /** The variable's own NAME pasted in front of its value. */
+  hasVariableName: boolean;
+};
+
+export function describeTokenShape(token: string): TokenShape {
+  const trimmed = token.trim();
+  const unquoted = trimmed.replace(/^["']|["']$/g, "");
+
+  return {
+    length: token.length,
+    segments: token.split("_").length,
+    hasPrefix: token.startsWith("vercel_blob_rw_"),
+    hasSurroundingWhitespace: trimmed.length !== token.length,
+    hasQuotes: unquoted.length !== trimmed.length,
+    hasVariableName: /^\s*["']?BLOB_READ_WRITE_TOKEN\s*=/.test(token),
+  };
 }
 
 const OK_TTL_MS = 60_000;
@@ -175,7 +231,8 @@ export async function checkBlobStore(
       error: null,
       hasToken: false,
       tokenStoreId: null,
-      projectStoreId: process.env.BLOB_STORE_ID?.trim() || null,
+      projectStoreId: readProjectStoreId(),
+      tokenShape: null,
     };
   }
 
@@ -273,10 +330,16 @@ async function probe(
  * BLOB_STORE_ID that no longer describes where the files are going, and the
  * next person to trust that variable is debugging the wrong store.
  */
-function storeIds(token: string): Pick<BlobHealth, "tokenStoreId" | "projectStoreId"> {
+function storeIds(
+  token: string
+): Pick<BlobHealth, "tokenStoreId" | "projectStoreId" | "tokenShape"> {
+  const tokenStoreId = readTokenStoreId(token);
+
   return {
-    tokenStoreId: readTokenStoreId(token),
+    tokenStoreId,
     projectStoreId: readProjectStoreId(),
+    // Only when there is something to explain — see TokenShape.
+    tokenShape: tokenStoreId ? null : describeTokenShape(token),
   };
 }
 
@@ -350,6 +413,57 @@ export function describeBlobHealth(health: BlobHealth): string | null {
  * Two days went into that loop here: reconnecting a store that was never
  * broken, and re-pasting a token that belonged to another store.
  */
+/**
+ * The one sentence that ends the guessing, chosen from the shape.
+ *
+ * Ordered by how often each one has actually happened to a pasted
+ * credential, and only ONE is reported: a list of four maybes is how a
+ * diagnostic gets skimmed past. Falls back to the raw measurements, which
+ * are still enough to recognise a truncated paste from an empty box.
+ */
+function namePasteDefect(shape: TokenShape | null): string {
+  if (!shape) return "";
+
+  if (shape.length === 0) {
+    return "The variable is set to an empty value.";
+  }
+
+  if (shape.hasVariableName) {
+    return (
+      "It begins with the variable's own name, so a whole .env line was " +
+      "pasted into the value box — Vercel wants the value only."
+    );
+  }
+
+  if (shape.hasQuotes) {
+    return (
+      "It begins or ends with a quotation mark, which a .env line carries " +
+      "and Vercel does not strip."
+    );
+  }
+
+  if (shape.hasSurroundingWhitespace) {
+    return (
+      "It has whitespace at one end — a space or a newline that came along " +
+      "with the copy and is invisible in the dashboard."
+    );
+  }
+
+  if (!shape.hasPrefix) {
+    return (
+      "It does not begin vercel_blob_rw_, so this is not a blob read-write " +
+      "token at all — check it was copied from the store's .env.local tab " +
+      "and not from somewhere else."
+    );
+  }
+
+  if (shape.segments < 5) {
+    return `It has ${shape.segments} underscore-separated parts and a token has at least five, so the copy was cut short.`;
+  }
+
+  return `It is ${shape.length} characters in ${shape.segments} parts, and the store ID between vercel_blob_rw_ and the next underscore is not a valid one.`;
+}
+
 function nextAction(health: BlobHealth): string {
   const meanwhile =
     "Until then the app correctly advertises the smaller inline limit and " +
@@ -361,8 +475,8 @@ function nextAction(health: BlobHealth): string {
   if (!health.tokenStoreId) {
     return (
       "BLOB_READ_WRITE_TOKEN is set but is not shaped like a blob token: it " +
-      "should read vercel_blob_rw_<store>_<secret>. Check for quotation " +
-      "marks, a trailing newline or a truncated paste, then redeploy. " +
+      `should read vercel_blob_rw_<store>_<secret>. ${namePasteDefect(health.tokenShape)} ` +
+      "Replace the whole value with a freshly copied token and redeploy. " +
       meanwhile
     );
   }

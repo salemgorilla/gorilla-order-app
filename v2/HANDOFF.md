@@ -1052,7 +1052,21 @@ Working and verified:
   asserts the secret half appears in neither the health object nor the
   advice.
 
-  2,314 tests pass (8 new), tsc clean, eslint at the 13-warning baseline.
+  **First production run, same afternoon: `tokenStoreId: null`.** So the
+  value sitting in `BLOB_READ_WRITE_TOKEN` is not a blob token at all —
+  which is a real finding, and immediately raised the next question. Not a
+  blob token HOW? Quotation marks from a pasted `.env` line, the variable
+  name pasted along with the value, a truncated copy, a leading newline:
+  four causes, four fixes, all invisible in a UI that renders the value as
+  dots, all reported as "Access denied".
+
+  `describeTokenShape()` answers it without reading the value — a length, a
+  segment count and four booleans, none of which can be run backwards into a
+  credential, reported ONLY when the token fails to parse. `nextAction()`
+  then names ONE defect rather than listing candidates, because a list of
+  four maybes is how a diagnostic gets skimmed past.
+
+  2,322 tests pass (16 new), tsc clean, eslint at the 13-warning baseline.
 
 - **Every garment gets a size breakdown, not just the first one** —
   2026-09-08, Gabe: "When I added another garment in the apparel button,

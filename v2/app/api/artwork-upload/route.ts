@@ -102,6 +102,10 @@ export async function GET() {
       // read here or anywhere else.
       tokenStoreId: health.tokenStoreId,
       projectStoreId: health.projectStoreId,
+      // Present ONLY when the token failed to parse, and then only as
+      // counts and booleans — never a character of it. "Not a blob token"
+      // is where the last round of guessing started; this says how.
+      tokenShape: health.tokenShape,
       // The SDK's own sentence, unedited. "This store does not exist" names
       // the fix; a paraphrase would not.
       storeError: health.error,

@@ -44,7 +44,54 @@ export type BlobHealth = {
   error: string | null;
   /** False when there is no token to probe with — a different problem. */
   hasToken: boolean;
+  /**
+   * The store the TOKEN belongs to, next to the store the PROJECT names.
+   *
+   * Both are store ids, not secrets — BLOB_STORE_ID is a plain environment
+   * variable anyone with dashboard access reads, and the token carries the
+   * same id in its third segment. Nothing after that segment is ever read
+   * or reported. See readTokenStoreId.
+   */
+  tokenStoreId: string | null;
+  projectStoreId: string | null;
 };
+
+/**
+ * WHICH STORE DOES THIS TOKEN BELONG TO?
+ *
+ * ── WHY THIS EXISTS ───────────────────────────────────────────────────────
+ * A blob token is `vercel_blob_rw_<storeId>_<secret>`. When it does not
+ * match the store the project names, every call fails with:
+ *
+ *   Vercel Blob: Access denied, please provide a valid token for this resource.
+ *
+ * Which is true, and useless. It is the same sentence you get for a revoked
+ * token, an expired one, or one from another team — so the reader is left
+ * guessing, and the guesses are all dashboard work. Gabe spent the better
+ * part of two days on exactly that loop: reconnecting a store that was
+ * healthy, and re-pasting a token that belonged to something else.
+ *
+ * The app had the answer the whole time. The token names its store; the
+ * project names its store; comparing them is a string comparison. It just
+ * never looked.
+ *
+ * ── WHAT IT WILL AND WILL NOT READ ────────────────────────────────────────
+ * The third underscore-separated segment, and nothing else. The secret is
+ * the fourth segment onward and is never touched, never logged and never
+ * returned. A token of an unexpected shape returns null rather than a
+ * guess — a wrong store id in a diagnostic is worse than none.
+ */
+export function readTokenStoreId(token: string | undefined): string | null {
+  const parts = String(token ?? "").split("_");
+
+  // vercel / blob / rw / <storeId> / <secret…>
+  if (parts.length < 5) return null;
+  if (parts[0] !== "vercel" || parts[1] !== "blob" || parts[2] !== "rw") return null;
+
+  const id = parts[3];
+
+  return /^[A-Za-z0-9]{8,40}$/.test(id) ? id : null;
+}
 
 const OK_TTL_MS = 60_000;
 const FAIL_TTL_MS = 10_000;
@@ -123,7 +170,13 @@ export async function checkBlobStore(
 
   if (!token) {
     // No probe to run, and no cache: the answer is already free.
-    return { reachable: false, error: null, hasToken: false };
+    return {
+      reachable: false,
+      error: null,
+      hasToken: false,
+      tokenStoreId: null,
+      projectStoreId: process.env.BLOB_STORE_ID?.trim() || null,
+    };
   }
 
   if (cached) {
@@ -194,7 +247,12 @@ async function probe(
   try {
     await withDeadline(ask(token), timeoutMs);
 
-    return { reachable: true, error: null, hasToken: true };
+    return {
+      reachable: true,
+      error: null,
+      hasToken: true,
+      ...storeIds(token),
+    };
   } catch (error) {
     return {
       reachable: false,
@@ -202,8 +260,44 @@ async function probe(
       // that names the fix, and paraphrasing it would have cost a week.
       error: error instanceof Error ? error.message : String(error),
       hasToken: true,
+      ...storeIds(token),
     };
   }
+}
+
+/**
+ * The two store ids, read the same way on every path.
+ *
+ * Reported whether the probe passed or failed. A reachable store whose ids
+ * disagree is worth seeing too: it means the project is holding a
+ * BLOB_STORE_ID that no longer describes where the files are going, and the
+ * next person to trust that variable is debugging the wrong store.
+ */
+function storeIds(token: string): Pick<BlobHealth, "tokenStoreId" | "projectStoreId"> {
+  return {
+    tokenStoreId: readTokenStoreId(token),
+    projectStoreId: readProjectStoreId(),
+  };
+}
+
+/**
+ * BLOB_STORE_ID, in the same spelling the token uses.
+ *
+ * ── WHY IT IS NOT JUST `.trim()` ──────────────────────────────────────────
+ * The two sources disagree on the prefix. Vercel writes BLOB_STORE_ID as
+ * `store_X548kEBykUffj6EJ`, and the token embeds the same store as
+ * `…_rw_X548kEBykUffj6EJ_…` with no prefix. The SDK itself reconciles them
+ * (normalizeStoreId strips `store_` before use), and anything that compares
+ * the raw strings reports a mismatch on a perfectly correct pair.
+ *
+ * That wrong answer would be worse than no answer: the whole point of this
+ * diagnostic is to stop someone re-pasting a token that was fine.
+ */
+function readProjectStoreId(): string | null {
+  const raw = process.env.BLOB_STORE_ID?.trim();
+  if (!raw) return null;
+
+  return raw.startsWith("store_") ? raw.slice("store_".length) : raw;
 }
 
 /**
@@ -233,11 +327,75 @@ export function describeBlobHealth(health: BlobHealth): string | null {
       ? health.error
       : `The blob store did not answer: ${health.error}.`;
 
-  return (
-    `${what} ` +
-    "Check Vercel → Storage: a store that was deleted and recreated gets a " +
-    "new ID and a new token. Reconnect it to Production and redeploy. " +
+  return `${what} ${nextAction(health)}`;
+}
+
+/**
+ * WHICH DASHBOARD ACTION, given what the two store ids say.
+ *
+ * ── WHY THE GENERIC ADVICE WAS NOT ENOUGH ─────────────────────────────────
+ * "Reconnect the store and redeploy" is the right answer to one of these
+ * failures and a waste of an afternoon for the other two. The SDK cannot
+ * tell them apart — every one of them comes back as:
+ *
+ *   Vercel Blob: Access denied, please provide a valid token for this resource.
+ *
+ * The app can. A read-write token names its store in plain text, the
+ * project names its store in BLOB_STORE_ID, and the Connect-to-Project
+ * button is what writes the second one. So when they disagree, the store is
+ * fine and the PASTED TOKEN is from somewhere else — which is the one
+ * conclusion nobody reaches by staring at the dashboard, because the store
+ * row looks healthy in every single case.
+ *
+ * Two days went into that loop here: reconnecting a store that was never
+ * broken, and re-pasting a token that belonged to another store.
+ */
+function nextAction(health: BlobHealth): string {
+  const meanwhile =
     "Until then the app correctly advertises the smaller inline limit and " +
-    "artwork over it is collected by email."
+    "artwork over it is collected by email.";
+
+  // A token that is not shaped like a token. Usually a paste that brought
+  // quotation marks, a newline, or only half the string with it — all three
+  // invisible in the Vercel UI, which shows the value as dots.
+  if (!health.tokenStoreId) {
+    return (
+      "BLOB_READ_WRITE_TOKEN is set but is not shaped like a blob token: it " +
+      "should read vercel_blob_rw_<store>_<secret>. Check for quotation " +
+      "marks, a trailing newline or a truncated paste, then redeploy. " +
+      meanwhile
+    );
+  }
+
+  if (health.projectStoreId && health.projectStoreId !== health.tokenStoreId) {
+    return (
+      `That token belongs to store ${health.tokenStoreId}, but this project ` +
+      `is connected to store ${health.projectStoreId}. The store is fine — ` +
+      "the token is from a different one. Open Vercel → Storage → the store " +
+      `whose ID ends ${health.projectStoreId}, copy its read-write token, ` +
+      "replace BLOB_READ_WRITE_TOKEN in Production with it, and redeploy. " +
+      meanwhile
+    );
+  }
+
+  // The ids agree, or there is nothing to compare against. The credential
+  // itself is the suspect: revoked, rotated, or left behind by a store that
+  // was deleted and recreated under the same name.
+  //
+  // The two cases are worded apart because only one of them has actually
+  // ruled the store id out. Claiming a match that was never checked is how
+  // a diagnostic starts sending people past the real fault.
+  const named = health.projectStoreId
+    ? `The token names store ${health.tokenStoreId}, which is the store this ` +
+      "project is connected to, so the ID is not the problem — the " +
+      "credential is."
+    : `The token names store ${health.tokenStoreId}, and BLOB_STORE_ID is ` +
+      "not set, so there is nothing to check it against.";
+
+  return (
+    `${named} In Vercel → Storage open that store, generate a fresh ` +
+    "read-write token, replace BLOB_READ_WRITE_TOKEN in Production with it, " +
+    "and redeploy. A store that was deleted and recreated gets a new ID and " +
+    `a new token. ${meanwhile}`
   );
 }

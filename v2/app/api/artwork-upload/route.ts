@@ -91,6 +91,17 @@ export async function GET() {
       BLOB_READ_WRITE_TOKEN: hasReadWriteToken,
       BLOB_STORE_ID: hasStoreId,
       blobVarNames,
+      // WHICH STORE each side names — the one comparison that separates
+      // "the store is gone" from "this token is from another store", which
+      // the SDK reports with the same sentence and the dashboard shows as a
+      // healthy row either way. See lib/blob-health.ts, readTokenStoreId.
+      //
+      // Store IDs, NOT secrets. BLOB_STORE_ID is a plain environment
+      // variable, and the token carries the same id in the clear as its
+      // third underscore-separated segment; nothing after that segment is
+      // read here or anywhere else.
+      tokenStoreId: health.tokenStoreId,
+      projectStoreId: health.projectStoreId,
       // The SDK's own sentence, unedited. "This store does not exist" names
       // the fix; a paraphrase would not.
       storeError: health.error,

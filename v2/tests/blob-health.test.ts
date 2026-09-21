@@ -32,6 +32,7 @@ import { afterEach, beforeEach, describe, test } from "node:test";
 import {
   checkBlobStore,
   describeBlobHealth,
+  readTokenStoreId,
   resetBlobHealthCache,
 } from "../lib/blob-health";
 
@@ -244,5 +245,176 @@ describe("the probe never becomes the outage", () => {
 
     assert.equal(health.reachable, false);
     assert.match(String(health.error), /ENOTFOUND|fetch/i);
+  });
+});
+
+/**
+ * THE SENTENCE THAT COST TWO DAYS.
+ *
+ * Every one of these failures reports the same thing from the SDK:
+ *
+ *   Vercel Blob: Access denied, please provide a valid token for this resource.
+ *
+ * — a revoked token, a rotated one, a token from another store, a paste
+ * that brought quotation marks along. The dashboard shows a healthy store
+ * row for all four. So the only thing anyone can do with that sentence is
+ * guess, and every guess is dashboard work: reconnect the store, redeploy,
+ * re-paste the token, redeploy again.
+ *
+ * The app could always tell them apart. A read-write token spells its store
+ * out in the clear, the project names its store in BLOB_STORE_ID, and
+ * comparing two strings is not hard. It simply never looked.
+ */
+const DENIED = {
+  ok: false as const,
+  message: "Access denied, please provide a valid token for this resource",
+};
+
+const realStoreId = process.env.BLOB_STORE_ID;
+
+/** A token for a named store, shaped the way the SDK parses one. */
+function tokenFor(storeId: string) {
+  return `vercel_blob_rw_${storeId}_abcdefghijklmnopqrstuvwxyz`;
+}
+
+afterEach(() => {
+  if (realStoreId === undefined) {
+    delete process.env.BLOB_STORE_ID;
+  } else {
+    process.env.BLOB_STORE_ID = realStoreId;
+  }
+});
+
+describe("the token says which store it is for, so the app can just say so", () => {
+  test("a token from another store is named as such, and the store is cleared", async () => {
+    process.env.BLOB_READ_WRITE_TOKEN = tokenFor("WRONGSTORE00000a");
+    process.env.BLOB_STORE_ID = "store_X548kEBykUffj6EJ";
+
+    const health = await checkBlobStore({ ask: store(DENIED) });
+
+    assert.equal(health.tokenStoreId, "WRONGSTORE00000a");
+    assert.equal(health.projectStoreId, "X548kEBykUffj6EJ");
+
+    const advice = describeBlobHealth(health);
+    assert.ok(advice);
+    // Both ids, so the reader can match them against the dashboard by eye.
+    assert.match(advice, /WRONGSTORE00000a/);
+    assert.match(advice, /X548kEBykUffj6EJ/);
+    // And the conclusion, stated — not left to be inferred. This is the
+    // sentence that would have ended it on day one.
+    assert.match(advice, /store is fine/i);
+    assert.match(advice, /from a different one/i);
+  });
+
+  test("the store_ prefix is not a mismatch", async () => {
+    /**
+     * THE FALSE POSITIVE THAT WOULD HAVE MADE THIS WORSE THAN SILENCE.
+     *
+     * Vercel writes BLOB_STORE_ID as `store_X548kEBykUffj6EJ`; the token
+     * embeds the same store with no prefix. A raw string comparison calls
+     * a correct pair a mismatch and sends someone off to replace a token
+     * that was never wrong — which is precisely the loop this is meant to
+     * end. The SDK reconciles them the same way (normalizeStoreId).
+     */
+    process.env.BLOB_READ_WRITE_TOKEN = tokenFor("X548kEBykUffj6EJ");
+    process.env.BLOB_STORE_ID = "store_X548kEBykUffj6EJ";
+
+    const health = await checkBlobStore({ ask: store(DENIED) });
+
+    assert.equal(health.tokenStoreId, health.projectStoreId);
+
+    const advice = describeBlobHealth(health);
+    assert.ok(advice);
+    assert.doesNotMatch(advice, /different one/i, "a correct pair called wrong");
+    // The ids agree, so the credential is the suspect — say that instead.
+    assert.match(advice, /credential is/i);
+    assert.match(advice, /fresh read-write token/i);
+  });
+
+  test("with no BLOB_STORE_ID it does not claim the ids agree", async () => {
+    // Nothing was checked, so nothing is asserted. A diagnostic that says
+    // "the ID is not the problem" without having looked sends the reader
+    // straight past the fault.
+    process.env.BLOB_READ_WRITE_TOKEN = tokenFor("X548kEBykUffj6EJ");
+    delete process.env.BLOB_STORE_ID;
+
+    const health = await checkBlobStore({ ask: store(DENIED) });
+
+    assert.equal(health.projectStoreId, null);
+
+    const advice = describeBlobHealth(health);
+    assert.ok(advice);
+    assert.match(advice, /nothing to check it against/i);
+  });
+
+  test("a token that is not shaped like one says so, rather than guessing", async () => {
+    // A paste that brought quotation marks with it. Invisible in the Vercel
+    // UI, which shows the value as dots, and it produces the same "Access
+    // denied" as every other cause.
+    process.env.BLOB_READ_WRITE_TOKEN = `"${tokenFor("X548kEBykUffj6EJ")}"`;
+
+    const health = await checkBlobStore({ ask: store(DENIED) });
+
+    assert.equal(health.tokenStoreId, null, "a store id was invented from a bad token");
+
+    const advice = describeBlobHealth(health);
+    assert.ok(advice);
+    assert.match(advice, /not shaped like a blob token/i);
+    assert.match(advice, /quotation marks/i);
+  });
+
+  test("a store id is also reported when the store is healthy", async () => {
+    // A reachable store whose ids disagree is worth seeing too: it means
+    // BLOB_STORE_ID no longer describes where files are going, and the next
+    // person to trust that variable debugs the wrong store.
+    process.env.BLOB_READ_WRITE_TOKEN = tokenFor("X548kEBykUffj6EJ");
+    process.env.BLOB_STORE_ID = "store_X548kEBykUffj6EJ";
+
+    const health = await checkBlobStore({ ask: store(LIVE) });
+
+    assert.equal(health.reachable, true);
+    assert.equal(health.tokenStoreId, "X548kEBykUffj6EJ");
+    assert.equal(health.projectStoreId, "X548kEBykUffj6EJ");
+  });
+});
+
+describe("nothing past the store id is ever read", () => {
+  test("the secret half of the token does not appear anywhere", async () => {
+    /**
+     * THE LINE THIS FEATURE IS NOT ALLOWED TO CROSS.
+     *
+     * The store id is public — it is a plain environment variable and it
+     * shows in the dashboard. Everything after it is the credential. This
+     * endpoint is read by the customer's browser on page load, so a leak
+     * here is a leak to everyone who opens the order form.
+     */
+    const secret = "sup3rsecretvalue0000";
+    process.env.BLOB_READ_WRITE_TOKEN = `vercel_blob_rw_X548kEBykUffj6EJ_${secret}`;
+    process.env.BLOB_STORE_ID = "store_OTHERSTORE00000";
+
+    const health = await checkBlobStore({ ask: store(DENIED) });
+    const reported = JSON.stringify(health) + String(describeBlobHealth(health));
+
+    assert.doesNotMatch(reported, new RegExp(secret));
+    assert.equal(health.tokenStoreId, "X548kEBykUffj6EJ");
+  });
+
+  test("a token with underscores in the secret still reads one segment", async () => {
+    process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_X548kEBykUffj6EJ_aa_bb_cc";
+
+    const health = await checkBlobStore({ ask: store(DENIED) });
+
+    assert.equal(health.tokenStoreId, "X548kEBykUffj6EJ");
+  });
+
+  test("readTokenStoreId refuses to guess", () => {
+    // A wrong store id in a diagnostic is worse than none — it is the kind
+    // of wrong answer that gets believed and acted on.
+    assert.equal(readTokenStoreId(undefined), null);
+    assert.equal(readTokenStoreId(""), null);
+    assert.equal(readTokenStoreId("vercel_blob_rw_onlythreeparts"), null);
+    // A client token, not a read-write one. Different prefix, same shape.
+    assert.equal(readTokenStoreId("vercel_blob_client_X548kEBykUffj6EJ_x"), null);
+    assert.equal(readTokenStoreId("vercel_blob_rw_short_secretsecret"), null);
   });
 });

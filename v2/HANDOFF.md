@@ -1005,6 +1005,55 @@ Working and verified:
   stops the app lying about it in the meantime, and makes the canary say so
   every morning until it is fixed.
 
+- **The app now says WHICH store the token is for** — 2026-09-21.
+
+  Four production checks in a row came back with the same sentence:
+
+      Vercel Blob: Access denied, please provide a valid token for this resource.
+
+  `BLOB_READ_WRITE_TOKEN` set, `BLOB_STORE_ID` set, store row healthy in the
+  dashboard, deployment READY. That sentence is what the SDK says for a
+  revoked token, a rotated one, a token belonging to a DIFFERENT store, and
+  a paste that brought quotation marks with it — four different fixes, one
+  string, and no way to tell them apart from the dashboard. Two days went
+  into guessing: reconnecting a store that was never broken, and re-pasting
+  a token that belonged to something else.
+
+  **The answer was in the token the whole time.** A read-write token is
+  `vercel_blob_rw_<storeId>_<secret>` — the store is in the clear, and the
+  SDK itself reads it that way (`token.split("_")[3]`). The project names
+  its store in `BLOB_STORE_ID`, which is written by the Connect-to-Project
+  button. Two strings; comparing them is not hard. Nothing ever looked.
+
+  `readTokenStoreId()` in `lib/blob-health.ts` reads the third segment and
+  nothing else, and `/api/artwork-upload` reports `tokenStoreId` and
+  `projectStoreId` beside the error. `describeBlobHealth()` then names the
+  action instead of a status:
+
+  - ids disagree → *"That token belongs to store A, but this project is
+    connected to store B. The store is fine — the token is from a different
+    one."*
+  - ids agree → the credential is the suspect; generate a fresh token.
+  - no `BLOB_STORE_ID` → says there was nothing to check against, rather
+    than claiming a match it never made.
+  - token not shaped like a token → names quotation marks, a trailing
+    newline and a truncated paste, all three invisible in the Vercel UI,
+    which renders the value as dots.
+
+  **`store_` is not a mismatch.** Vercel writes `BLOB_STORE_ID` as
+  `store_X548kEBykUffj6EJ`; the token embeds the same store with no prefix.
+  A raw comparison calls a correct pair wrong and sends someone to replace a
+  token that was fine — the exact loop this is meant to end. Normalised the
+  way the SDK normalises it, with a test pinning it.
+
+  **Store ids, never the secret.** The id is public — a plain environment
+  variable, visible in the dashboard. Everything after it is the credential,
+  and this endpoint is read by the customer's browser on page load. A test
+  asserts the secret half appears in neither the health object nor the
+  advice.
+
+  2,314 tests pass (8 new), tsc clean, eslint at the 13-warning baseline.
+
 - **Every garment gets a size breakdown, not just the first one** —
   2026-09-08, Gabe: "When I added another garment in the apparel button,
   there was no way to enter the size breakdown. Can you make sure that each

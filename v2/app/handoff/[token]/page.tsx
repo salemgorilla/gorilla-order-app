@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useState } from "react";
-import { upload } from "@vercel/blob/client";
+import { uploadPresigned } from "@vercel/blob/client";
 
 import { handoffPrefix, isValidHandoffToken } from "../../../lib/handoff";
 import { formatBytes, MAX_BLOB_ARTWORK_BYTES } from "../../../lib/upload-limits";
@@ -41,7 +41,7 @@ export default function HandoffPage({
     setError("");
 
     try {
-      await upload(`${handoffPrefix(token)}${file.name}`, file, {
+      await uploadPresigned(`${handoffPrefix(token)}${file.name}`, file, {
         access: "public",
         handleUploadUrl: "/api/artwork-upload",
       });

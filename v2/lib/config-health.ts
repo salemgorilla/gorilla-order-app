@@ -19,6 +19,10 @@
  */
 
 import { looksLikeEmailAddress } from "./email";
+import {
+  readBlobCredential,
+  readClientUploadsReady,
+} from "./blob-health";
 
 export type CapabilityState = "live" | "degraded" | "off";
 
@@ -152,7 +156,11 @@ export function getConfigHealth(): {
   // sign-up is kept; the SECRET is what makes an unsubscribe link work. A
   // deployment can keep a list it must not mail, and that is a real state
   // worth naming rather than rounding to "on" or "off".
-  const listStore = has("BLOB_READ_WRITE_TOKEN");
+  // NOT has("BLOB_READ_WRITE_TOKEN"). Vercel connects blob stores with OIDC
+  // now and issues no static token, so a token check reports a perfectly
+  // working store as missing — which is exactly the wrong turn that cost
+  // three days on the artwork path. Server-side put/list resolve OIDC first.
+  const listStore = readBlobCredential() !== "none";
   const unsubscribe = has("NEWSLETTER_SECRET");
 
   capabilities.push({
@@ -188,7 +196,9 @@ export function getConfigHealth(): {
   });
 
   // ---- artwork uploads -----------------------------------------------------
-  const blob = has("BLOB_READ_WRITE_TOKEN");
+  // The client-upload path needs a credential of either kind AND the
+  // webhook public key — see lib/blob-health.ts, readClientUploadsReady.
+  const blob = readClientUploadsReady();
 
   capabilities.push({
     key: "artwork-uploads",
@@ -197,7 +207,9 @@ export function getConfigHealth(): {
     summary: blob
       ? "Artwork goes straight to blob storage, up to 100 MB."
       : "Artwork rides in the request body, so the ceiling is 3.5 MB. Bigger files still submit the order — the shop is told to collect them by email.",
-    fix: blob ? [] : ["BLOB_READ_WRITE_TOKEN (optional)"],
+    fix: blob
+      ? []
+      : ["connect a blob store in Vercel → Storage (sets BLOB_STORE_ID and BLOB_WEBHOOK_PUBLIC_KEY), then redeploy"],
   });
 
   // ---- the drop-off station ------------------------------------------------
@@ -225,10 +237,10 @@ export function getConfigHealth(): {
       ? "A customer can look their order up and send artwork from a USB stick or their phone."
       : "Orders look up fine, but there is nowhere to put a file — an upload fails at the screen with the customer standing there. Connect the blob store before putting this on the counter.",
     fix: !dropoffSecret
-      ? ["DROPOFF_SECRET (or ADMIN_SECRET)", ...(blob ? [] : ["BLOB_READ_WRITE_TOKEN"])]
+      ? ["DROPOFF_SECRET (or ADMIN_SECRET)", ...(blob ? [] : ["a connected blob store"])]
       : blob
       ? []
-      : ["BLOB_READ_WRITE_TOKEN"],
+      : ["a connected blob store"],
   });
 
   // ---- apparel -------------------------------------------------------------

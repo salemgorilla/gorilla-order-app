@@ -1,8 +1,16 @@
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
+import { issueSignedToken } from "@vercel/blob";
+import {
+  handleUploadPresigned,
+  type HandleUploadPresignedBody,
+} from "@vercel/blob/client";
 import { NextResponse } from "next/server";
 
 import { describeBuild } from "../../../lib/build-stamp";
-import { checkBlobStore, describeBlobHealth } from "../../../lib/blob-health";
+import {
+  checkBlobStore,
+  describeBlobHealth,
+  readBlobCredential,
+} from "../../../lib/blob-health";
 import {
   isAllowedUploadPath,
   MAX_BLOB_ARTWORK_BYTES,
@@ -134,7 +142,41 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  /**
+   * PRESIGNED, NOT A CLIENT TOKEN — AND WHY IT HAD TO CHANGE.
+   *
+   * This route used handleUpload, which mints a client token through
+   * getReadWriteBlobTokenFromOptionsOrEnv. That helper has NO OIDC branch:
+   * it reads BLOB_READ_WRITE_TOKEN and nothing else. Vercel no longer
+   * issues a static read-write token when you connect a blob store — the
+   * store's own .env.local tab hands out BLOB_STORE_ID alone — so this
+   * route depended on a credential the platform had stopped providing, and
+   * the only way to satisfy it was to paste one in by hand.
+   *
+   * That paste is what failed, repeatedly and invisibly, for three days:
+   * a value cut short at the store id, which still mints a client token
+   * (the store id is segment 3 and survives truncation) and then fails in
+   * the CUSTOMER's browser at upload time.
+   *
+   * handleUploadPresigned + issueSignedToken resolve through
+   * BlobCommandOptions, which prefers OIDC — the credential every other
+   * blob call in this app already uses. No static secret exists to paste,
+   * truncate, leak or revoke.
+   *
+   * IT IS ALSO A TIGHTER GRANT. The old client token authorised the
+   * browser against the store. A delegation authorises ONE pathname, ONE
+   * operation, under a size cap, until an expiry. The endpoint is public —
+   * a customer uploading artwork has no account and no session — so the
+   * scope of what it hands out is the only control there is.
+   *
+   * REQUIRES BLOB_WEBHOOK_PUBLIC_KEY. handleUploadPresigned throws without
+   * it even when no completion callback is used. Vercel writes it when the
+   * store is connected, alongside BLOB_STORE_ID.
+   */
+  if (readBlobCredential() === "none") {
+    // 501 is what the client reads as "fall back to sending the file
+    // inline". Keeps the form working on a deployment with no blob store
+    // instead of breaking it.
     return NextResponse.json(
       { error: "Blob storage is not configured on this deployment." },
       { status: 501 }
@@ -142,45 +184,57 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = (await request.json()) as HandleUploadBody;
+    const body = (await request.json()) as HandleUploadPresignedBody;
 
-    const result = await handleUpload({
+    const result = await handleUploadPresigned({
       request,
       body,
-      onBeforeGenerateToken: async (pathname) => {
+      getSignedToken: async (pathname) => {
         /**
-         * WHERE the token may write, not just how much it may write.
+         * WHERE the browser may write, not just how much.
          *
-         * This endpoint has to be public — a customer uploading artwork has
-         * no account and no session — so the scope of the token it mints is
-         * the only control there is. The pathname arrives from the caller and
-         * was previously ignored, which made this a public licence to write
-         * anything, anywhere in the shop's blob store, 100 MB at a time.
-         *
-         * Rejected by throwing: handleUpload surfaces it as the 400 below,
-         * and no token is ever generated.
+         * The pathname arrives from the caller and was once ignored, which
+         * made this a public licence to write anything, anywhere in the
+         * shop's store. Rejected by throwing: the error surfaces as the 400
+         * below and no delegation is ever issued.
          */
         if (!isAllowedUploadPath(pathname)) {
           console.error(`ARTWORK UPLOAD REFUSED for path: ${pathname}`);
           throw new Error("That upload path is not allowed.");
         }
 
-        return {
-          // Deliberately NOT restricting content types. Print artwork arrives
-          // with unreliable MIME: Windows Chrome reports "" for .eps and
-          // "application/postscript" for .ai, and an allowlist would reject
-          // the exact files this shop is sent most. Size and path are the
-          // real guards.
+        const token = await issueSignedToken({
+          // Scoped to this one path. NOT a "*" wildcard — that would hand
+          // a browser store-wide write and undo the guard above.
+          pathname,
+          operations: ["put"],
+          // Enforced in the delegation itself, so it holds even if the
+          // url options below were ever relaxed.
           maximumSizeInBytes: MAX_BLOB_ARTWORK_BYTES,
-          // Two customers uploading "logo.png" must not overwrite each other.
-          addRandomSuffix: true,
+        });
+
+        return {
+          token,
+          urlOptions: {
+            // Deliberately NOT restricting content types. Print artwork
+            // arrives with unreliable MIME: Windows Chrome reports "" for
+            // .eps and "application/postscript" for .ai, and an allowlist
+            // would reject the files this shop is sent most. Size and path
+            // are the real guards.
+            maximumSizeInBytes: MAX_BLOB_ARTWORK_BYTES,
+            // Two customers uploading "logo.png" must not overwrite each
+            // other. Carried as a signed query parameter and applied by the
+            // API when it stores the object, so the delegation above still
+            // names the path the caller asked for.
+            addRandomSuffix: true,
+          },
         };
       },
     });
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error("ARTWORK UPLOAD TOKEN ERROR");
+    console.error("ARTWORK UPLOAD PRESIGN ERROR");
     console.error(error);
 
     return NextResponse.json(

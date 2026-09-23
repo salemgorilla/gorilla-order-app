@@ -687,40 +687,60 @@ describe("a failing OIDC deployment is not a token problem", () => {
  * opposite direction.
  */
 describe("reachable is not the same promise as uploadable", () => {
-  async function oidcWithBrokenToken() {
-    // Exactly production's state. No env VERCEL_OIDC_TOKEN, because the
-    // real one is a request header this code cannot see.
+  const realWebhookKey = process.env.BLOB_WEBHOOK_PUBLIC_KEY;
+
+  afterEach(() => {
+    if (realWebhookKey === undefined) {
+      delete process.env.BLOB_WEBHOOK_PUBLIC_KEY;
+    } else {
+      process.env.BLOB_WEBHOOK_PUBLIC_KEY = realWebhookKey;
+    }
+  });
+
+  /** Production's exact state: OIDC, a webhook key, and a junk token. */
+  async function productionState() {
+    // No env VERCEL_OIDC_TOKEN, because the real one arrives as a
+    // per-request header this code cannot see.
     delete process.env.VERCEL_OIDC_TOKEN;
     process.env.BLOB_STORE_ID = "store_X548kEBykUffj6EJ";
+    process.env.BLOB_WEBHOOK_PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----";
     process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_X548kEBykUffj6EJ";
 
     return checkBlobStore({ ask: store(LIVE) });
   }
 
-  test("a live store does not make a broken token uploadable", async () => {
-    const health = await oidcWithBrokenToken();
+  test("the junk token no longer decides whether uploads work", async () => {
+    /**
+     * THE POINT OF THE MIGRATION. This same state reported
+     * clientUploadsReady:false while the route used handleUpload, which
+     * resolves only through getReadWriteBlobTokenFromOptionsOrEnv. The
+     * presigned route resolves through BlobCommandOptions and prefers
+     * OIDC, so a token that cannot be parsed is simply not consulted.
+     */
+    const health = await productionState();
 
-    assert.equal(health.reachable, true, "the store really did answer");
+    assert.equal(health.reachable, true);
+    assert.equal(health.tokenStoreId, null, "the token is still junk");
     assert.equal(
       health.clientUploadsReady,
-      false,
-      "handleUpload cannot mint a client token from a token that does not parse"
+      true,
+      "the presigned path does not need a static token"
     );
   });
 
   test("the credential is credited to OIDC by elimination", async () => {
     // The store answered, and the only other credential present cannot be
-    // parsed — so the call cannot have used it. That is proof, not a guess.
-    const health = await oidcWithBrokenToken();
+    // parsed — so the call cannot have used it. Proof, not a guess.
+    const health = await productionState();
 
     assert.equal(health.credential, "oidc");
   });
 
-  test("a usable token is still reported as read-write", async () => {
-    // The elimination only fires when the token is unusable. A working
-    // token on a deployment with no visible OIDC must not be relabelled.
+  test("a usable token on a deployment with no OIDC is not relabelled", async () => {
+    // The elimination fires only when the token is unusable.
     delete process.env.VERCEL_OIDC_TOKEN;
-    process.env.BLOB_STORE_ID = "store_X548kEBykUffj6EJ";
+    delete process.env.BLOB_STORE_ID;
+    process.env.BLOB_WEBHOOK_PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----";
     process.env.BLOB_READ_WRITE_TOKEN = tokenFor("X548kEBykUffj6EJ");
 
     const health = await checkBlobStore({ ask: store(LIVE) });
@@ -729,16 +749,33 @@ describe("reachable is not the same promise as uploadable", () => {
     assert.equal(health.clientUploadsReady, true);
   });
 
-  test("an OIDC-only project cannot do client uploads either", async () => {
-    // No token at all is the cleanest version of the same gap, and the one
-    // the presigned migration exists to close. Honest answer: not ready.
-    delete process.env.BLOB_READ_WRITE_TOKEN;
-    process.env.VERCEL_OIDC_TOKEN = "oidc-jwt";
+  test("no webhook key means no client uploads, healthy store or not", async () => {
+    /**
+     * NOT OPTIONAL. handleUploadPresigned reads BLOB_WEBHOOK_PUBLIC_KEY and
+     * throws "Missing webhook public key" before it looks at anything else,
+     * even with no onUploadCompleted callback wired up. Vercel writes it
+     * when a store is connected — so a project missing it has a
+     * half-finished connection, and saying so here beats discovering it in
+     * a customer's browser.
+     */
+    delete process.env.BLOB_WEBHOOK_PUBLIC_KEY;
     process.env.BLOB_STORE_ID = "store_X548kEBykUffj6EJ";
+    process.env.BLOB_READ_WRITE_TOKEN = tokenFor("X548kEBykUffj6EJ");
 
     const health = await checkBlobStore({ ask: store(LIVE) });
 
-    assert.equal(health.reachable, true);
+    assert.equal(health.reachable, true, "the store itself is fine");
+    assert.equal(health.clientUploadsReady, false);
+  });
+
+  test("no credential at all cannot upload either", async () => {
+    delete process.env.BLOB_READ_WRITE_TOKEN;
+    delete process.env.VERCEL_OIDC_TOKEN;
+    delete process.env.BLOB_STORE_ID;
+    process.env.BLOB_WEBHOOK_PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----";
+
+    const health = await checkBlobStore({ ask: store(LIVE) });
+
     assert.equal(health.clientUploadsReady, false);
   });
 });

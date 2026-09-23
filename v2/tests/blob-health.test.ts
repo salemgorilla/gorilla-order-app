@@ -661,3 +661,84 @@ describe("a failing OIDC deployment is not a token problem", () => {
     assert.equal(health.tokenStoreId, null);
   });
 });
+
+/**
+ * A HEALTHY STORE AND BROKEN UPLOADS, AT THE SAME TIME.
+ *
+ * ── WHAT WENT LIVE FOR ONE DEPLOYMENT ─────────────────────────────────────
+ * Making the probe resolve credentials the way the app does was correct,
+ * and it immediately produced this on production (build 5b06328):
+ *
+ *   configured: true, reachable: true, credential: "read-write",
+ *   tokenStoreId: null, tokenShape: { length: 31, segments: 4 }
+ *
+ * Both of those last two lines are wrong, and the first is dangerous.
+ *
+ * The store answered because server-side calls resolve OIDC first — and on
+ * Vercel the OIDC token arrives as the per-request `x-vercel-oidc-token`
+ * header, which an env read cannot see, so it was credited to a read-write
+ * token that cannot even be parsed.
+ *
+ * Meanwhile handleUpload — the client-upload path — has NO OIDC branch. It
+ * resolves through getReadWriteBlobTokenFromOptionsOrEnv and was still
+ * using that same broken token. So `configured` said yes, the upload box
+ * advertised 100 MB, the real ceiling was 3.5 MB, and anything above it is
+ * dropped from the quote. That is the 1 Sep failure exactly, from the
+ * opposite direction.
+ */
+describe("reachable is not the same promise as uploadable", () => {
+  async function oidcWithBrokenToken() {
+    // Exactly production's state. No env VERCEL_OIDC_TOKEN, because the
+    // real one is a request header this code cannot see.
+    delete process.env.VERCEL_OIDC_TOKEN;
+    process.env.BLOB_STORE_ID = "store_X548kEBykUffj6EJ";
+    process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_X548kEBykUffj6EJ";
+
+    return checkBlobStore({ ask: store(LIVE) });
+  }
+
+  test("a live store does not make a broken token uploadable", async () => {
+    const health = await oidcWithBrokenToken();
+
+    assert.equal(health.reachable, true, "the store really did answer");
+    assert.equal(
+      health.clientUploadsReady,
+      false,
+      "handleUpload cannot mint a client token from a token that does not parse"
+    );
+  });
+
+  test("the credential is credited to OIDC by elimination", async () => {
+    // The store answered, and the only other credential present cannot be
+    // parsed — so the call cannot have used it. That is proof, not a guess.
+    const health = await oidcWithBrokenToken();
+
+    assert.equal(health.credential, "oidc");
+  });
+
+  test("a usable token is still reported as read-write", async () => {
+    // The elimination only fires when the token is unusable. A working
+    // token on a deployment with no visible OIDC must not be relabelled.
+    delete process.env.VERCEL_OIDC_TOKEN;
+    process.env.BLOB_STORE_ID = "store_X548kEBykUffj6EJ";
+    process.env.BLOB_READ_WRITE_TOKEN = tokenFor("X548kEBykUffj6EJ");
+
+    const health = await checkBlobStore({ ask: store(LIVE) });
+
+    assert.equal(health.credential, "read-write");
+    assert.equal(health.clientUploadsReady, true);
+  });
+
+  test("an OIDC-only project cannot do client uploads either", async () => {
+    // No token at all is the cleanest version of the same gap, and the one
+    // the presigned migration exists to close. Honest answer: not ready.
+    delete process.env.BLOB_READ_WRITE_TOKEN;
+    process.env.VERCEL_OIDC_TOKEN = "oidc-jwt";
+    process.env.BLOB_STORE_ID = "store_X548kEBykUffj6EJ";
+
+    const health = await checkBlobStore({ ask: store(LIVE) });
+
+    assert.equal(health.reachable, true);
+    assert.equal(health.clientUploadsReady, false);
+  });
+});

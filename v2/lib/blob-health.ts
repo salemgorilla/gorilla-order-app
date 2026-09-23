@@ -50,6 +50,24 @@ export type BlobHealth = {
    */
   credential: BlobCredential;
   /**
+   * CAN A CUSTOMER'S BROWSER UPLOAD? Not the same as `reachable`, and the
+   * difference is customer-facing.
+   *
+   * Server-side calls resolve OIDC first, so the store answers this probe
+   * happily on a deployment whose read-write token is rubbish. Client
+   * uploads go through handleUpload, which resolves ONLY through
+   * getReadWriteBlobTokenFromOptionsOrEnv — no OIDC branch exists in that
+   * path. So a project on OIDC with a broken token has a perfectly healthy
+   * store AND broken client uploads, at the same time.
+   *
+   * On 2026-09-23 this endpoint briefly reported `configured: true` in
+   * exactly that state, which is the 1 Sep failure again: the upload box
+   * advertises 100 MB, the real ceiling is 3.5 MB, and anything above it is
+   * dropped from the quote. `configured` now reads THIS field, not
+   * `reachable && a token exists`.
+   */
+  clientUploadsReady: boolean;
+  /**
    * The store the TOKEN belongs to, next to the store the PROJECT names.
    *
    * Both are store ids, not secrets — BLOB_STORE_ID is a plain environment
@@ -97,6 +115,20 @@ export type BlobHealth = {
  */
 export type BlobCredential = "oidc" | "read-write" | "none";
 
+/**
+ * NOTE — WHY THIS CANNOT SIMPLY READ THE ENV.
+ *
+ * On Vercel the OIDC token is delivered PER REQUEST as the
+ * `x-vercel-oidc-token` header; `process.env.VERCEL_OIDC_TOKEN` is only a
+ * fallback (@vercel/oidc, get-vercel-oidc-token-sync.js:26). So an env read
+ * alone reports "read-write" on a deployment that is in fact authenticating
+ * with OIDC — which this file did, for one deployment, on 2026-09-23.
+ *
+ * The header is not visible from here, so the honest resolution uses the
+ * probe's own RESULT: if the store answered and the read-write token cannot
+ * even be parsed, the credential that answered was necessarily OIDC. That
+ * is elimination, not a guess. See creditFor.
+ */
 export function readBlobCredential(): BlobCredential {
   // Mirrors resolveBlobAuth's order deliberately. If the SDK ever reorders
   // these, this reports the wrong credential and the tests below are how
@@ -279,6 +311,7 @@ export async function checkBlobStore(
       error: null,
       hasToken: false,
       credential,
+      clientUploadsReady: false,
       tokenStoreId: null,
       projectStoreId: readProjectStoreId(),
       tokenShape: null,
@@ -353,13 +386,26 @@ async function probe(
   ask: () => Promise<void>,
   timeoutMs: number
 ): Promise<BlobHealth> {
-  const credential = readBlobCredential();
   const hasToken = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  const ids = storeIds();
+
+  // handleUpload has no OIDC branch — it needs a read-write token it can
+  // parse. An unparseable one still mints a client token (the store id is
+  // segment 3 and survives truncation), so the failure lands in the
+  // CUSTOMER's browser at upload time rather than here. See clientUploadsReady.
+  const clientUploadsReady = Boolean(ids.tokenStoreId);
 
   try {
     await withDeadline(ask(), timeoutMs);
 
-    return { reachable: true, error: null, hasToken, credential, ...storeIds() };
+    return {
+      reachable: true,
+      error: null,
+      hasToken,
+      credential: creditFor(true, ids.tokenStoreId),
+      clientUploadsReady,
+      ...ids,
+    };
   } catch (error) {
     return {
       reachable: false,
@@ -367,10 +413,26 @@ async function probe(
       // that names the fix, and paraphrasing it would have cost a week.
       error: error instanceof Error ? error.message : String(error),
       hasToken,
-      credential,
-      ...storeIds(),
+      credential: creditFor(false, ids.tokenStoreId),
+      clientUploadsReady,
+      ...ids,
     };
   }
+}
+
+/**
+ * Which credential answered, established by elimination where it can be.
+ *
+ * The env read cannot see the per-request OIDC header (see
+ * readBlobCredential), so it under-reports OIDC. But a store that ANSWERED
+ * on a deployment whose read-write token does not even parse cannot have
+ * been reached with that token — the credential was OIDC, proven, not
+ * guessed. That is the exact state this project is in, and reporting it as
+ * "read-write" sent a day into the wrong variable.
+ */
+function creditFor(reachable: boolean, tokenStoreId: string | null): BlobCredential {
+  if (reachable && !tokenStoreId) return "oidc";
+  return readBlobCredential();
 }
 
 /**

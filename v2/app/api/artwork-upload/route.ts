@@ -70,9 +70,19 @@ export async function GET() {
   const stamp = describeBuild();
 
   return NextResponse.json({
-    // The credential AND the store. Either one missing means the direct
-    // path is unavailable and the customer must be told the smaller number.
-    configured: hasReadWriteToken && health.reachable,
+    // CAN THE BROWSER ACTUALLY UPLOAD? Not "is the store alive".
+    //
+    // These came apart on 2026-09-23 and the endpoint briefly promised
+    // 100 MB while every client upload was failing. Server-side calls
+    // resolve OIDC first, so the store probe passed; handleUpload has no
+    // OIDC branch and was still using a read-write token that does not
+    // parse. Healthy store, broken uploads, and `hasReadWriteToken &&
+    // reachable` answered true to both.
+    //
+    // The browser reads this to choose between advertising 100 MB and
+    // 3.5 MB, and anything over 3.5 MB is dropped from the quote, so a
+    // wrong yes here costs a customer their artwork. See clientUploadsReady.
+    configured: health.reachable && health.clientUploadsReady,
     // Kept separate so a reader can tell "no token" from "token, dead
     // store" without reading the prose — they have different fixes.
     reachable: health.reachable,
@@ -97,6 +107,9 @@ export async function GET() {
       // on OIDC does not need BLOB_READ_WRITE_TOKEN at all, and chasing
       // that variable while OIDC is in use is days of wasted work.
       credential: health.credential,
+      // Split out because they are now genuinely different answers: the
+      // store can be reachable while client uploads are not ready.
+      clientUploadsReady: health.clientUploadsReady,
       // WHICH STORE each side names — the one comparison that separates
       // "the store is gone" from "this token is from another store", which
       // the SDK reports with the same sentence and the dashboard shows as a

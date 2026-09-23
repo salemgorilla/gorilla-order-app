@@ -57,6 +57,26 @@ export default function UploadBox({
   error = null,
 }: Props) {
   const [isDragging, setIsDragging] = useState(false);
+  /**
+   * The browser could not decode the chosen file as an image.
+   *
+   * ── WHY THIS IS NOT AN EDGE CASE HERE ─────────────────────────────────
+   * A print shop is sent PDF, AI, EPS, PSD and TIFF all day, and an <img>
+   * renders none of them. The object URL is created for EVERY file, so the
+   * thumbnail branch always fired and a customer dropping a PDF got an
+   * empty green square under a heading that said "Artwork received".
+   *
+   * Reported 2026-09-23 as "I dropped a 5mb file and it accepted it. but
+   * no preview" — the file had uploaded perfectly. Only the thumbnail was
+   * blank, which reads exactly like a failure, and this box has already
+   * been reported as broken twice for looking like it had done nothing.
+   *
+   * Keyed to previewUrl so choosing a different file clears it: without
+   * that, one PDF would suppress the thumbnail of every image chosen
+   * after it for the life of the page.
+   */
+  const [undecodable, setUndecodable] = useState<string | null>(null);
+  const canPreview = Boolean(previewUrl) && undecodable !== previewUrl;
   const inputRef = useRef<HTMLInputElement>(null);
 
   // dragenter/dragleave fire for every child element crossed, so a naive
@@ -125,12 +145,16 @@ export default function UploadBox({
     >
       <div className="flex flex-col items-center justify-center text-center">
         <div className="mb-5 grid h-20 w-20 place-items-center overflow-hidden bg-[var(--gorilla-green)] text-display text-white">
-          {previewUrl && fileName ? (
+          {canPreview && fileName ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={previewUrl}
+              src={previewUrl ?? undefined}
               alt=""
               className="h-full w-full object-contain"
+              // A format the browser cannot draw is not an error worth
+              // showing — the file is fine and already uploading. Fall
+              // back to the mark that says so.
+              onError={() => setUndecodable(previewUrl ?? null)}
             />
           ) : (
             <span>{isDragging ? "⬇️" : fileName ? "✓" : "📁"}</span>

@@ -779,3 +779,80 @@ describe("reachable is not the same promise as uploadable", () => {
     assert.equal(health.clientUploadsReady, false);
   });
 });
+
+/**
+ * DELETING THE DEAD TOKEN MUST NOT TAKE UPLOADS DOWN WITH IT.
+ *
+ * ── THE NEAR MISS ─────────────────────────────────────────────────────────
+ * readBlobCredential checked `VERCEL_OIDC_TOKEN && BLOB_STORE_ID`. On a live
+ * Vercel deployment the first of those is EMPTY — the OIDC token arrives as
+ * the per-request `x-vercel-oidc-token` header (@vercel/oidc,
+ * get-vercel-oidc-token-sync.js:26) — so the only reason it ever returned
+ * anything other than "none" in production was the leftover, broken
+ * read-write token sitting in the env.
+ *
+ * Which the migration asks you to delete. Delete it, redeploy, and:
+ *   - checkBlobStore short-circuits on "none" and never probes
+ *   - clientUploadsReady goes false, so the box drops to 3.5 MB
+ *   - the upload route answers 501 to every customer
+ *
+ * The clean-up step would have broken the thing it was cleaning up after.
+ * These pin the store id as the durable signal instead.
+ */
+describe("a connected store is the credential, with or without a token", () => {
+  const realVercel = process.env.VERCEL;
+
+  afterEach(() => {
+    if (realVercel === undefined) delete process.env.VERCEL;
+    else process.env.VERCEL = realVercel;
+  });
+
+  test("on Vercel, a store id alone is OIDC — no token required", () => {
+    // Production after the clean-up: no token, no env OIDC token (it is a
+    // request header), just the store id Vercel wrote.
+    delete process.env.BLOB_READ_WRITE_TOKEN;
+    delete process.env.VERCEL_OIDC_TOKEN;
+    process.env.BLOB_STORE_ID = "store_X548kEBykUffj6EJ";
+    process.env.VERCEL = "1";
+
+    assert.equal(readBlobCredential(), "oidc", "deleting the dead token killed OIDC");
+  });
+
+  test("and the upload path stays open through the deletion", async () => {
+    delete process.env.BLOB_READ_WRITE_TOKEN;
+    delete process.env.VERCEL_OIDC_TOKEN;
+    process.env.BLOB_STORE_ID = "store_X548kEBykUffj6EJ";
+    process.env.BLOB_WEBHOOK_PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----";
+    process.env.VERCEL = "1";
+
+    const health = await checkBlobStore({ ask: store(LIVE) });
+
+    assert.equal(calls, 1, "the probe was skipped, so the store was never asked");
+    assert.equal(health.reachable, true);
+    assert.equal(
+      health.clientUploadsReady,
+      true,
+      "the route would answer 501 to every customer"
+    );
+  });
+
+  test("off Vercel, a real token still wins over a bare store id", () => {
+    // Local dev: no OIDC runtime, so the token is the only thing that can
+    // authenticate and must not be shadowed.
+    delete process.env.VERCEL;
+    delete process.env.VERCEL_OIDC_TOKEN;
+    process.env.BLOB_STORE_ID = "store_X548kEBykUffj6EJ";
+    process.env.BLOB_READ_WRITE_TOKEN = tokenFor("X548kEBykUffj6EJ");
+
+    assert.equal(readBlobCredential(), "read-write");
+  });
+
+  test("nothing at all is still none", () => {
+    delete process.env.VERCEL;
+    delete process.env.VERCEL_OIDC_TOKEN;
+    delete process.env.BLOB_STORE_ID;
+    delete process.env.BLOB_READ_WRITE_TOKEN;
+
+    assert.equal(readBlobCredential(), "none");
+  });
+});

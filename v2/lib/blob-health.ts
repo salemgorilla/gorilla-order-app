@@ -134,14 +134,38 @@ export type BlobCredential = "oidc" | "read-write" | "none";
  * is elimination, not a guess. See creditFor.
  */
 export function readBlobCredential(): BlobCredential {
-  // Mirrors resolveBlobAuth's order deliberately. If the SDK ever reorders
-  // these, this reports the wrong credential and the tests below are how
-  // that gets noticed.
-  const oidc = process.env.VERCEL_OIDC_TOKEN?.trim();
+  const oidcEnv = process.env.VERCEL_OIDC_TOKEN?.trim();
   const storeId = process.env.BLOB_STORE_ID?.trim();
+  const readWrite = process.env.BLOB_READ_WRITE_TOKEN?.trim();
 
-  if (oidc && storeId) return "oidc";
-  if (process.env.BLOB_READ_WRITE_TOKEN?.trim()) return "read-write";
+  /**
+   * BLOB_STORE_ID IS THE DURABLE SIGNAL, NOT VERCEL_OIDC_TOKEN.
+   *
+   * This checked `VERCEL_OIDC_TOKEN && BLOB_STORE_ID` and would have taken
+   * the whole upload path down the moment the leftover read-write token was
+   * deleted — which is the exact clean-up this migration asks for.
+   *
+   * On Vercel the OIDC token arrives as the per-request
+   * `x-vercel-oidc-token` header; `process.env.VERCEL_OIDC_TOKEN` is only a
+   * fallback (@vercel/oidc, get-vercel-oidc-token-sync.js:26). So on a live
+   * deployment that env var is EMPTY while OIDC works perfectly. Requiring
+   * it meant: delete the dead token, redeploy, and readBlobCredential
+   * returns "none" — which skips the probe, forces clientUploadsReady
+   * false, and makes the upload route answer 501 to every customer.
+   *
+   * The store id is what the connect flow writes and what OIDC is scoped
+   * to, so a connected store plus a Vercel runtime IS the OIDC case. Where
+   * neither is certain the probe decides, which is the right arbiter — a
+   * credential that cannot authenticate shows up as a failed probe rather
+   * than as a guess made here.
+   */
+  if (storeId && (oidcEnv || process.env.VERCEL)) return "oidc";
+
+  // Local dev with a real token and no OIDC runtime.
+  if (readWrite) return "read-write";
+
+  // A store id and nothing else: report it and let the probe be the judge.
+  if (storeId) return "oidc";
 
   return "none";
 }

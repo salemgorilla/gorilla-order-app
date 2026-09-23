@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
-import { upload } from "@vercel/blob/client";
+import { uploadPresigned } from "@vercel/blob/client";
 
 import {
   DROPOFF_IDLE_MS,
@@ -217,7 +217,7 @@ export default function DropoffStation() {
 
     try {
       for (const file of Array.from(picked)) {
-        await upload(`${dropoffPrefix(session.token)}${file.name}`, file, {
+        await uploadPresigned(`${dropoffPrefix(session.token)}${file.name}`, file, {
           access: "public",
           handleUploadUrl: "/api/artwork-upload",
         });

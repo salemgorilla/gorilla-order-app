@@ -1,4 +1,4 @@
-import { upload } from "@vercel/blob/client";
+import { uploadPresigned } from "@vercel/blob/client";
 
 import {
   MULTIPART_THRESHOLD_BYTES,
@@ -126,7 +126,7 @@ export async function uploadArtworkToBlob(
     // Prefixed so the authorising route can tell a legitimate quote upload
     // from an arbitrary path somebody asked for — see isAllowedUploadPath.
     // A bare filename is indistinguishable from anything else.
-    const uploadPromise = upload(`${QUOTE_ARTWORK_PREFIX}${file.name}`, file, {
+    const uploadPromise = uploadPresigned(`${QUOTE_ARTWORK_PREFIX}${file.name}`, file, {
       access: "public",
       handleUploadUrl: "/api/artwork-upload",
       // Big files go up in parallel chunks with per-chunk retry, so one

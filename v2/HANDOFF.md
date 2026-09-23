@@ -1005,6 +1005,63 @@ Working and verified:
   stops the app lying about it in the meantime, and makes the canary say so
   every morning until it is fixed.
 
+- **Client uploads no longer need a static blob token** — 2026-09-23.
+
+  The whole three-day saga had one cause, and it was not a bad paste.
+  **Vercel does not issue a static read-write token for this store.** The
+  store's own `.env.local` Quickstart tab hands out `BLOB_STORE_ID` and
+  nothing else — it is an OIDC store. So `BLOB_READ_WRITE_TOKEN` was
+  assembled by hand from the store id, came out as the 31-character
+  `vercel_blob_rw_X548kEBykUffj6EJ`, and reproduced identically on the
+  second attempt because it was constructed, not copied.
+
+  **Two of our own bugs sat on top of that, and both were worse.**
+
+  1. `checkBlobStore` probed with `list({ token })`. Nothing else in the app
+     passes a token — every other call lets the SDK resolve, and the SDK
+     prefers OIDC (`resolveBlobAuth`, `chunk-OYCIHDFF.js:161`). So the probe
+     forced itself onto the one broken credential and reported the whole
+     store dead. **The store was working the entire time.** Fixed in #172.
+  2. Fixing that flipped `configured` to `true` — `reachable && a token
+     exists` — while client uploads were still broken. For one deployment
+     the box advertised 100 MB against a real 3.5 MB ceiling. That is the
+     1 Sep failure again. Fixed in #173; `configured` is now
+     `reachable && clientUploadsReady`.
+
+  **The migration (#174).** `handleUpload` resolves through
+  `getReadWriteBlobTokenFromOptionsOrEnv`, which has no OIDC branch — it
+  reads `BLOB_READ_WRITE_TOKEN` and nothing else. So the route depended on
+  a credential the platform had stopped providing. It now uses
+  `handleUploadPresigned` + `issueSignedToken`, which resolve through
+  `BlobCommandOptions` and prefer OIDC. **No static secret exists to paste,
+  truncate, leak or revoke.**
+
+  It is also a TIGHTER grant. The old client token authorised the browser
+  against the store; a delegation authorises one pathname, one operation,
+  under a size cap, until an expiry. `isAllowedUploadPath()` still gates it
+  and the delegation is scoped to that exact path — never a `"*"` wildcard,
+  which would hand a browser store-wide write.
+
+  All four callers switched together (`lib/artwork-upload.ts`, the dropoff
+  send page, the handoff page, `DropoffStation`) because the route now
+  speaks a different protocol. A stale tab sending the old
+  `blob.generate-client-token` gets a 400 and falls back inline.
+
+  **`BLOB_WEBHOOK_PUBLIC_KEY` is now required** — `handleUploadPresigned`
+  throws without it even with no completion callback. Vercel writes it when
+  the store is connected.
+
+  `lib/config-health.ts` kept three capabilities keyed to
+  `BLOB_READ_WRITE_TOKEN` and would have reported a working OIDC store as
+  missing. Now credential-based.
+
+  **NOT VERIFIED FROM THE SANDBOX:** the browser's PUT to a presigned URL.
+  Egress to `*.vercel.app`, `blob.vercel-storage.com` and
+  labs.gorillasalem.com is blocked, so the one leg that cannot be exercised
+  here is the real upload. Local smoke passes (23 checks, including the
+  blob-failure fallback) and the 501 no-credential contract holds. **One
+  file over 3.5 MB dropped into the live form settles it.**
+
 - **The app now says WHICH store the token is for** — 2026-09-21.
 
   Four production checks in a row came back with the same sentence:

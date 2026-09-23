@@ -53,18 +53,22 @@ export type BlobHealth = {
    * CAN A CUSTOMER'S BROWSER UPLOAD? Not the same as `reachable`, and the
    * difference is customer-facing.
    *
-   * Server-side calls resolve OIDC first, so the store answers this probe
-   * happily on a deployment whose read-write token is rubbish. Client
-   * uploads go through handleUpload, which resolves ONLY through
-   * getReadWriteBlobTokenFromOptionsOrEnv — no OIDC branch exists in that
-   * path. So a project on OIDC with a broken token has a perfectly healthy
-   * store AND broken client uploads, at the same time.
+   * It used to require a parseable BLOB_READ_WRITE_TOKEN, because the old
+   * client-upload path (handleUpload) resolved through
+   * getReadWriteBlobTokenFromOptionsOrEnv, which has no OIDC branch. So a
+   * project on OIDC with a broken token had a perfectly healthy store AND
+   * broken client uploads at the same time — and on 2026-09-23 this
+   * endpoint briefly reported `configured: true` in exactly that state,
+   * which is the 1 Sep failure again: box advertises 100 MB, real ceiling
+   * is 3.5 MB, anything above it dropped from the quote.
    *
-   * On 2026-09-23 this endpoint briefly reported `configured: true` in
-   * exactly that state, which is the 1 Sep failure again: the upload box
-   * advertises 100 MB, the real ceiling is 3.5 MB, and anything above it is
-   * dropped from the quote. `configured` now reads THIS field, not
-   * `reachable && a token exists`.
+   * The route now uses handleUploadPresigned + issueSignedToken, which
+   * resolve through BlobCommandOptions and prefer OIDC. So the requirement
+   * is no longer a static token — it is a credential of EITHER kind, plus
+   * BLOB_WEBHOOK_PUBLIC_KEY, which handleUploadPresigned throws without
+   * even when no completion callback is used.
+   *
+   * `configured` reads THIS field, never `reachable && a token exists`.
    */
   clientUploadsReady: boolean;
   /**
@@ -389,11 +393,10 @@ async function probe(
   const hasToken = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
   const ids = storeIds();
 
-  // handleUpload has no OIDC branch — it needs a read-write token it can
-  // parse. An unparseable one still mints a client token (the store id is
-  // segment 3 and survives truncation), so the failure lands in the
-  // CUSTOMER's browser at upload time rather than here. See clientUploadsReady.
-  const clientUploadsReady = Boolean(ids.tokenStoreId);
+  // What the presigned route actually needs. NOT a static token — see
+  // clientUploadsReady, and app/api/artwork-upload/route.ts for why that
+  // dependency was removed rather than repaired.
+  const clientUploadsReady = readClientUploadsReady();
 
   try {
     await withDeadline(ask(), timeoutMs);
@@ -430,6 +433,23 @@ async function probe(
  * guessed. That is the exact state this project is in, and reporting it as
  * "read-write" sent a day into the wrong variable.
  */
+/**
+ * Everything handleUploadPresigned needs, and nothing it does not.
+ *
+ * The webhook key is not optional: handleUploadPresigned reads
+ * BLOB_WEBHOOK_PUBLIC_KEY and throws "Missing webhook public key" before it
+ * looks at anything else, even with no onUploadCompleted callback wired up.
+ * Vercel writes it when a store is connected, next to BLOB_STORE_ID — so a
+ * project missing it has a half-finished connection, which is worth saying
+ * out loud rather than discovering in a customer's browser.
+ */
+export function readClientUploadsReady(): boolean {
+  return (
+    readBlobCredential() !== "none" &&
+    Boolean(process.env.BLOB_WEBHOOK_PUBLIC_KEY?.trim())
+  );
+}
+
 function creditFor(reachable: boolean, tokenStoreId: string | null): BlobCredential {
   if (reachable && !tokenStoreId) return "oidc";
   return readBlobCredential();

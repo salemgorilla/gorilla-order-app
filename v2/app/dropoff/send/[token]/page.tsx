@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useState } from "react";
-import { upload } from "@vercel/blob/client";
+import { uploadPresigned } from "@vercel/blob/client";
 
 import { dropoffPrefix, isDropoffTokenShape } from "../../../../lib/dropoff";
 import { formatBytes, MAX_BLOB_ARTWORK_BYTES } from "../../../../lib/upload-limits";
@@ -47,7 +47,7 @@ export default function DropoffSendPage({
 
     try {
       for (const file of Array.from(files)) {
-        await upload(`${dropoffPrefix(token)}${file.name}`, file, {
+        await uploadPresigned(`${dropoffPrefix(token)}${file.name}`, file, {
           access: "public",
           handleUploadUrl: "/api/artwork-upload",
         });

@@ -262,7 +262,14 @@ describe("the drop-off station reports both halves of what it needs", () => {
     // Both halves start clear; each case sets what it is about.
     delete process.env.DROPOFF_SECRET;
     delete process.env.ADMIN_SECRET;
+    // EVERY way a blob store can be credentialled, not just the token.
+    // Vercel connects stores with OIDC now and issues no static token, so
+    // clearing only BLOB_READ_WRITE_TOKEN would leave a store configured
+    // and these cases would be testing nothing.
     delete process.env.BLOB_READ_WRITE_TOKEN;
+    delete process.env.BLOB_STORE_ID;
+    delete process.env.BLOB_WEBHOOK_PUBLIC_KEY;
+    delete process.env.VERCEL_OIDC_TOKEN;
   });
 
   afterEach(() => {
@@ -282,7 +289,7 @@ describe("the drop-off station reports both halves of what it needs", () => {
     assert.match(station!.summary, /hand their file to the counter/);
     assert.deepEqual(station?.fix, [
       "DROPOFF_SECRET (or ADMIN_SECRET)",
-      "BLOB_READ_WRITE_TOKEN",
+      "a connected blob store",
     ]);
   });
 
@@ -304,12 +311,17 @@ describe("the drop-off station reports both halves of what it needs", () => {
 
     assert.equal(station?.state, "degraded");
     assert.match(station!.summary, /nowhere to put a file/);
-    assert.deepEqual(station?.fix, ["BLOB_READ_WRITE_TOKEN"]);
+    assert.deepEqual(station?.fix, ["a connected blob store"]);
   });
 
   test("both set is live, with nothing left to do", () => {
     process.env.DROPOFF_SECRET = "x";
-    process.env.BLOB_READ_WRITE_TOKEN = "y";
+    // An OIDC store, which is what Vercel provisions — no static token.
+    // This case would have failed before the credential check replaced the
+    // token check, on a configuration that works perfectly.
+    process.env.VERCEL_OIDC_TOKEN = "oidc-jwt";
+    process.env.BLOB_STORE_ID = "store_X548kEBykUffj6EJ";
+    process.env.BLOB_WEBHOOK_PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----";
 
     const station = dropoff();
 

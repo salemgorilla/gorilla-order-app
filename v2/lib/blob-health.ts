@@ -42,8 +42,13 @@ export type BlobHealth = {
   reachable: boolean;
   /** Why not, verbatim from the SDK. Null when reachable. */
   error: string | null;
-  /** False when there is no token to probe with — a different problem. */
+  /** False when there is no read-write token set. NOT the same as unusable. */
   hasToken: boolean;
+  /**
+   * WHICH credential the SDK will actually use — the thing this probe was
+   * getting wrong. See readBlobCredential.
+   */
+  credential: BlobCredential;
   /**
    * The store the TOKEN belongs to, next to the store the PROJECT names.
    *
@@ -63,6 +68,47 @@ export type BlobHealth = {
    */
   tokenShape: TokenShape | null;
 };
+
+/**
+ * WHICH CREDENTIAL WILL THE SDK ACTUALLY USE?
+ *
+ * ── THE BUG THIS EXISTS FOR ───────────────────────────────────────────────
+ * This file probed the store by passing `token: BLOB_READ_WRITE_TOKEN`
+ * explicitly. Nothing else in the app does that — every other blob call
+ * (lib/subscriber-store.ts, the dropoff and handoff routes) calls `list`
+ * and `put` with no token at all and lets the SDK resolve credentials.
+ *
+ * Those are not the same question, because the SDK prefers OIDC:
+ *
+ *   resolveBlobAuth (chunk-OYCIHDFF.js:161)
+ *     1. options.token          ← only when passed EXPLICITLY
+ *     2. VERCEL_OIDC_TOKEN + BLOB_STORE_ID
+ *     3. env BLOB_READ_WRITE_TOKEN
+ *
+ * So a project holding a broken read-write token and a working OIDC pair
+ * runs fine everywhere — and this probe, alone, forced itself onto the
+ * broken credential and reported the whole store dead. The health check was
+ * the only thing failing, and it was failing because of how it asked.
+ *
+ * The probe now asks the way the app asks. This function exists to say
+ * which credential answered, because "it works" and "it works via OIDC" are
+ * different facts and the second one is the one that survives a token being
+ * deleted.
+ */
+export type BlobCredential = "oidc" | "read-write" | "none";
+
+export function readBlobCredential(): BlobCredential {
+  // Mirrors resolveBlobAuth's order deliberately. If the SDK ever reorders
+  // these, this reports the wrong credential and the tests below are how
+  // that gets noticed.
+  const oidc = process.env.VERCEL_OIDC_TOKEN?.trim();
+  const storeId = process.env.BLOB_STORE_ID?.trim();
+
+  if (oidc && storeId) return "oidc";
+  if (process.env.BLOB_READ_WRITE_TOKEN?.trim()) return "read-write";
+
+  return "none";
+}
 
 /**
  * WHICH STORE DOES THIS TOKEN BELONG TO?
@@ -214,7 +260,7 @@ export async function checkBlobStore(
      * Vercel Blob API and hangs. It did, for two debugging rounds. That is
      * why this parameter exists.
      */
-    ask?: (token: string) => Promise<void>;
+    ask?: () => Promise<void>;
     /** Shorter deadline, for tests. Production uses PROBE_TIMEOUT_MS. */
     timeoutMs?: number;
   } = {}
@@ -222,14 +268,17 @@ export async function checkBlobStore(
   const now = options.now ?? Date.now();
   const ask = options.ask ?? listOneBlob;
   const timeoutMs = options.timeoutMs ?? PROBE_TIMEOUT_MS;
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  const credential = readBlobCredential();
 
-  if (!token) {
-    // No probe to run, and no cache: the answer is already free.
+  if (credential === "none") {
+    // Nothing to probe WITH. Not "the store is broken" — there is no
+    // credential of either kind, which is a different sentence and a
+    // different fix. No probe to run, and no cache: the answer is free.
     return {
       reachable: false,
       error: null,
       hasToken: false,
+      credential,
       tokenStoreId: null,
       projectStoreId: readProjectStoreId(),
       tokenShape: null,
@@ -243,7 +292,7 @@ export async function checkBlobStore(
 
   if (inFlight) return inFlight;
 
-  inFlight = probe(token, ask, timeoutMs)
+  inFlight = probe(ask, timeoutMs)
     .then((value) => {
       cached = { at: now, value };
       return value;
@@ -262,10 +311,14 @@ export async function checkBlobStore(
  * store is a perfectly healthy store. Limit 1 keeps it the cheapest call
  * that still proves the store answers.
  */
-async function listOneBlob(token: string): Promise<void> {
+async function listOneBlob(): Promise<void> {
   await list({
     limit: 1,
-    token,
+    // NO `token`. That is the point — see readBlobCredential. Passing one
+    // explicitly overrides OIDC and probes a credential the rest of the app
+    // never uses, which is how this check spent days reporting a dead store
+    // that every other blob call in the project was reading fine.
+    //
     // Passed so the SDK can abandon its own request and stop retrying. The
     // deadline that actually holds is the race in probe() — see
     // PROBE_TIMEOUT_MS for the measurement behind that.
@@ -297,27 +350,25 @@ function withDeadline<T>(work: Promise<T>, ms: number): Promise<T> {
 }
 
 async function probe(
-  token: string,
-  ask: (token: string) => Promise<void>,
+  ask: () => Promise<void>,
   timeoutMs: number
 ): Promise<BlobHealth> {
-  try {
-    await withDeadline(ask(token), timeoutMs);
+  const credential = readBlobCredential();
+  const hasToken = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 
-    return {
-      reachable: true,
-      error: null,
-      hasToken: true,
-      ...storeIds(token),
-    };
+  try {
+    await withDeadline(ask(), timeoutMs);
+
+    return { reachable: true, error: null, hasToken, credential, ...storeIds() };
   } catch (error) {
     return {
       reachable: false,
       // The SDK's own words. "This store does not exist" is the sentence
       // that names the fix, and paraphrasing it would have cost a week.
       error: error instanceof Error ? error.message : String(error),
-      hasToken: true,
-      ...storeIds(token),
+      hasToken,
+      credential,
+      ...storeIds(),
     };
   }
 }
@@ -330,16 +381,20 @@ async function probe(
  * BLOB_STORE_ID that no longer describes where the files are going, and the
  * next person to trust that variable is debugging the wrong store.
  */
-function storeIds(
-  token: string
-): Pick<BlobHealth, "tokenStoreId" | "projectStoreId" | "tokenShape"> {
+function storeIds(): Pick<
+  BlobHealth,
+  "tokenStoreId" | "projectStoreId" | "tokenShape"
+> {
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
   const tokenStoreId = readTokenStoreId(token);
 
   return {
     tokenStoreId,
     projectStoreId: readProjectStoreId(),
-    // Only when there is something to explain — see TokenShape.
-    tokenShape: tokenStoreId ? null : describeTokenShape(token),
+    // Only when there is a token AND something to explain about it — see
+    // TokenShape. A project running on OIDC with no token at all has no
+    // shape to report, and reporting one would invent a problem.
+    tokenShape: token && !tokenStoreId ? describeTokenShape(token) : null,
   };
 }
 
@@ -370,11 +425,12 @@ function readProjectStoreId(): string | null {
 export function describeBlobHealth(health: BlobHealth): string | null {
   if (health.reachable) return null;
 
-  if (!health.hasToken) {
+  if (health.credential === "none") {
     return (
-      "BLOB_READ_WRITE_TOKEN is not set — client uploads cannot use OIDC. " +
-      "Copy the read-write token from the blob store into this project's " +
-      "Production environment variables, then redeploy."
+      "No blob credential of either kind is set. Connect a blob store in " +
+      "Vercel → Storage, which provisions BLOB_STORE_ID, and redeploy so " +
+      "the deployment is issued a VERCEL_OIDC_TOKEN. A static " +
+      "BLOB_READ_WRITE_TOKEN also works but is not required."
     );
   }
 
@@ -465,6 +521,22 @@ function namePasteDefect(shape: TokenShape | null): string {
 }
 
 function nextAction(health: BlobHealth): string {
+  // OIDC failing is a different animal from a bad token, and the token
+  // diagnostics below would send the reader to a credential the SDK did not
+  // even use. Which credential answered is the first thing to establish.
+  if (health.credential === "oidc") {
+    return (
+      `The deployment authenticated with OIDC against store ` +
+      `${health.projectStoreId ?? "(BLOB_STORE_ID unset)"} and the store ` +
+      "still refused it. BLOB_READ_WRITE_TOKEN is not involved and " +
+      "replacing it will not help. Check that the store named by " +
+      "BLOB_STORE_ID still exists and is connected to this project in " +
+      "Vercel → Storage, then redeploy. " +
+      "Until then the app correctly advertises the smaller inline limit " +
+      "and artwork over it is collected by email."
+    );
+  }
+
   const meanwhile =
     "Until then the app correctly advertises the smaller inline limit and " +
     "artwork over it is collected by email.";

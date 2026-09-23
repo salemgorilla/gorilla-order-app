@@ -27,11 +27,13 @@
  * reports is the sentence the SDK actually produces.
  */
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { afterEach, beforeEach, describe, test } from "node:test";
 
 import {
   checkBlobStore,
   describeBlobHealth,
+  readBlobCredential,
   readTokenStoreId,
   resetBlobHealthCache,
 } from "../lib/blob-health";
@@ -509,5 +511,153 @@ describe("when the token is not a token, it says how", () => {
     const reported = JSON.stringify(health) + advice;
     assert.doesNotMatch(reported, new RegExp(secret));
     assert.doesNotMatch(reported, /X548kEBykUffj6EJ/, "the id came from an unparsed token");
+  });
+});
+
+/**
+ * THE PROBE WAS ASKING A QUESTION THE APP NEVER ASKS.
+ *
+ * ── THE BUG ───────────────────────────────────────────────────────────────
+ * checkBlobStore probed with `list({ token: BLOB_READ_WRITE_TOKEN })`.
+ * Nothing else in this app passes a token: lib/subscriber-store.ts and the
+ * dropoff and handoff routes all call `list`/`put` bare and let the SDK
+ * resolve credentials. Those are different questions, because the SDK
+ * prefers OIDC (resolveBlobAuth, chunk-OYCIHDFF.js:161):
+ *
+ *   1. options.token            ← only when passed EXPLICITLY
+ *   2. VERCEL_OIDC_TOKEN + BLOB_STORE_ID
+ *   3. env BLOB_READ_WRITE_TOKEN
+ *
+ * So a project with a broken read-write token and a working OIDC pair runs
+ * fine everywhere — and this probe, alone, forced itself onto the broken
+ * credential and reported the whole store dead. Production spent days
+ * answering "Access denied" for a store the rest of the app could read.
+ */
+const realOidc = process.env.VERCEL_OIDC_TOKEN;
+
+afterEach(() => {
+  if (realOidc === undefined) {
+    delete process.env.VERCEL_OIDC_TOKEN;
+  } else {
+    process.env.VERCEL_OIDC_TOKEN = realOidc;
+  }
+});
+
+describe("the probe asks the way the app asks", () => {
+  test("listOneBlob passes no token — the regression guard", async () => {
+    /**
+     * Read as SOURCE deliberately. The credential the SDK picks is decided
+     * inside undici, which this suite cannot observe (see the note on the
+     * injected `ask`), so the only place to catch a re-added `token:` is
+     * the call site. This repo already tests source this way for client
+     * bundle safety; the reasoning is the same — the failure is invisible
+     * from the outside until production shows it.
+     */
+    const src = await readFile(new URL("../lib/blob-health.ts", import.meta.url), "utf8");
+    const listCall = src.slice(src.indexOf("async function listOneBlob"));
+    const body = listCall.slice(0, listCall.indexOf("\n}"));
+
+    assert.doesNotMatch(
+      body,
+      /^\s*token[,:]/m,
+      "listOneBlob passes a token again — it now probes a credential the rest of the app does not use"
+    );
+    assert.match(body, /limit: 1/);
+  });
+
+  test("OIDC wins over a read-write token, as the SDK does it", () => {
+    process.env.VERCEL_OIDC_TOKEN = "oidc-jwt";
+    process.env.BLOB_STORE_ID = "store_X548kEBykUffj6EJ";
+    process.env.BLOB_READ_WRITE_TOKEN = tokenFor("X548kEBykUffj6EJ");
+
+    assert.equal(readBlobCredential(), "oidc");
+  });
+
+  test("OIDC needs BOTH halves — a token alone is not OIDC", () => {
+    // BLOB_STORE_ID without VERCEL_OIDC_TOKEN is the state of every local
+    // dev machine. Calling that "oidc" would report a credential that
+    // cannot authenticate anything.
+    delete process.env.VERCEL_OIDC_TOKEN;
+    process.env.BLOB_STORE_ID = "store_X548kEBykUffj6EJ";
+    process.env.BLOB_READ_WRITE_TOKEN = tokenFor("X548kEBykUffj6EJ");
+
+    assert.equal(readBlobCredential(), "read-write");
+  });
+
+  test("neither half set is 'none', not 'broken'", () => {
+    delete process.env.VERCEL_OIDC_TOKEN;
+    delete process.env.BLOB_STORE_ID;
+    delete process.env.BLOB_READ_WRITE_TOKEN;
+
+    assert.equal(readBlobCredential(), "none");
+  });
+
+  test("a project on OIDC alone is probed, not written off", async () => {
+    // The old code returned early on a missing BLOB_READ_WRITE_TOKEN and
+    // never asked the store anything. An OIDC-only project — which is what
+    // Vercel provisions now — was reported dead without being tried.
+    delete process.env.BLOB_READ_WRITE_TOKEN;
+    process.env.VERCEL_OIDC_TOKEN = "oidc-jwt";
+    process.env.BLOB_STORE_ID = "store_X548kEBykUffj6EJ";
+
+    const health = await checkBlobStore({ ask: store(LIVE) });
+
+    assert.equal(calls, 1, "an OIDC project was never asked");
+    assert.equal(health.reachable, true);
+    assert.equal(health.credential, "oidc");
+    assert.equal(health.hasToken, false, "and it needs no token to be true");
+    assert.equal(describeBlobHealth(health), null);
+  });
+
+  test("no token and no OIDC does not probe, and says which fix", async () => {
+    delete process.env.BLOB_READ_WRITE_TOKEN;
+    delete process.env.VERCEL_OIDC_TOKEN;
+    delete process.env.BLOB_STORE_ID;
+
+    const health = await checkBlobStore({ ask: store(LIVE) });
+
+    assert.equal(calls, 0, "probed with no credential to probe with");
+    assert.equal(health.credential, "none");
+
+    const advice = String(describeBlobHealth(health));
+    assert.match(advice, /Storage/);
+    // The old advice demanded a static token. That is now the optional one.
+    assert.match(advice, /not required/i);
+  });
+});
+
+describe("a failing OIDC deployment is not a token problem", () => {
+  test("the advice says so, instead of sending you back to the token", async () => {
+    /**
+     * THE EXACT SHAPE OF THE LOST DAYS. A project on OIDC, holding a
+     * left-over read-write token that is garbage. Every token diagnostic in
+     * this file would fire on that token — and the SDK never used it.
+     */
+    process.env.VERCEL_OIDC_TOKEN = "oidc-jwt";
+    process.env.BLOB_STORE_ID = "store_X548kEBykUffj6EJ";
+    process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_X548kEBykUffj6EJ";
+
+    const health = await checkBlobStore({ ask: store(DENIED) });
+
+    assert.equal(health.credential, "oidc");
+
+    const advice = String(describeBlobHealth(health));
+    assert.match(advice, /authenticated with OIDC/i);
+    assert.match(advice, /BLOB_READ_WRITE_TOKEN is not involved/i);
+    assert.match(advice, /replacing it will not help/i);
+    // And it must NOT repeat the truncation advice for a credential that
+    // played no part in the failure.
+    assert.doesNotMatch(advice, /cut short/i);
+  });
+
+  test("with no token at all there is no shape to report", async () => {
+    delete process.env.BLOB_READ_WRITE_TOKEN;
+    process.env.VERCEL_OIDC_TOKEN = "oidc-jwt";
+    process.env.BLOB_STORE_ID = "store_X548kEBykUffj6EJ";
+
+    const health = await checkBlobStore({ ask: store(DENIED) });
+
+    assert.equal(health.tokenShape, null, "invented a token problem out of no token");
+    assert.equal(health.tokenStoreId, null);
   });
 });

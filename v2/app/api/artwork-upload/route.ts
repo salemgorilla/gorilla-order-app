@@ -91,6 +91,12 @@ export async function GET() {
       BLOB_READ_WRITE_TOKEN: hasReadWriteToken,
       BLOB_STORE_ID: hasStoreId,
       blobVarNames,
+      // WHICH credential the SDK resolves — "oidc" or "read-write". The
+      // single most useful field here, because the two fail differently and
+      // the dashboard shows the same healthy store row for both. A project
+      // on OIDC does not need BLOB_READ_WRITE_TOKEN at all, and chasing
+      // that variable while OIDC is in use is days of wasted work.
+      credential: health.credential,
       // WHICH STORE each side names — the one comparison that separates
       // "the store is gone" from "this token is from another store", which
       // the SDK reports with the same sentence and the dashboard shows as a

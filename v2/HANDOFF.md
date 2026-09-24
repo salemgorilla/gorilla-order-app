@@ -1005,6 +1005,81 @@ Working and verified:
   stops the app lying about it in the meantime, and makes the canary say so
   every morning until it is fixed.
 
+- **An adversarial review of the blob work found eight things** — 2026-09-24.
+
+  A fresh reviewer was given the whole `845d4c9..d169a97` range and the SDK
+  source, with no knowledge of the reasoning behind any of it. Everything
+  below passed 2,357 tests before it was found.
+
+  **The self-test lied in two ways, both only reachable in production.**
+
+  - It picked the failing step's NAME from `steps.length`, with three arms
+    for four steps. A throw in step 4 — a slow `head()`, a 404 from
+    read-after-write lag, a transient 5xx — was recorded as *"PUT to
+    presigned url"* a second time with `ok:false`, beside the `ok:true`
+    entry that step had already written, and the summary then blamed the
+    PUT for a failure that happened after it succeeded. Naming the leg is
+    the entire reason the endpoint exists. It is tracked by name now.
+  - A 200 PUT whose body did not parse as `{url}` returned early, **past
+    the cleanup block**, leaving an object in the store forever — and
+    because the leak warning keyed off `storedPathname`, null in exactly
+    that case, it said nothing. There is now a `wrote` flag, cleanup is on
+    every path, and an unnamed leak is still reported.
+
+  **It also overstated its own fidelity.** The comment claimed everything
+  but the pathname was "identical" to the customer's path. The PUT was a
+  bare `fetch` missing every header `requestApi` sends, and the
+  `access: "public"` passed to `presignUrl` is inert for a put. A
+  self-test that overstates itself produces a FALSE red, which is the
+  failure it exists to prevent from the other side. The headers are set
+  explicitly and the three real differences are now written down.
+
+  **`isAllowedUploadPath` validated a string the caller never wrote.** It
+  trimmed, then checked prefix, traversal, control characters and length
+  against the trimmed value — while the route signed and wrote the
+  ORIGINAL. `" quote-artwork/x.png"`, one leading space, passed a guard
+  whose only job is to confine a public endpoint to two prefixes, and
+  produced a presigned PUT for a key in neither. Whitespace is now
+  **refused, not trimmed**: trimming would leave the caller to normalise
+  identically, which is the split that opened the hole.
+
+  **The public POST minted unlimited 100 MB grants.** Per-request scope
+  bounds what one grant does; it is not a bound on how many exist, and
+  with `addRandomSuffix` every anonymous POST writes a NEW object. Now
+  rate-limited to 30 per caller per minute through the shared limiter —
+  generous enough for a multi-design cart with retries, and honest about
+  being per-instance.
+
+  **The public GET was an unauthenticated infrastructure inventory.** No
+  credential material — that was checked more than once — but every
+  anonymous page load received both store ids, every `BLOB*` variable
+  name, the upstream API's verbatim error and a multi-sentence operational
+  runbook. The browser reads exactly one field, `configured`. `detail` is
+  behind `ADMIN_SECRET` now, degrading open when no admin secret is
+  configured at all so a bare deployment is not locked out of its own
+  diagnostics.
+
+  **Two smaller ones.** `creditFor` credited a working read-write token to
+  OIDC on hosts with no OIDC runtime, because `readTokenStoreId` is strict
+  enough to return null for a valid token whose store id contains a hyphen
+  — and then told the reader that token "is not involved". Gated on OIDC
+  actually being available. And the POST's 501 — the status the client
+  reads as "fall back inline" — was only returned for `credential ===
+  "none"`; with a store connected but `BLOB_WEBHOOK_PUBLIC_KEY` missing it
+  fell through to a 400 instead. It now gates on the same condition the
+  GET reports as `configured`.
+
+  Verified against a running server: `detail` absent publicly, present
+  with the secret, absent with a wrong one; POST 501 with no credential;
+  exactly 30 POSTs allowed before 429; Chromium smoke green.
+
+  **Two findings were examined and deliberately not changed.** The
+  `undecodable` preview key is sound — `URL.createObjectURL` returns a
+  fresh URL per call, so no valid image can match a stale key. And
+  `MULTIPART_THRESHOLD_BYTES = Infinity` breaks nothing: the stall guard
+  still fires on a single 100 MB PUT, because `createPutMethod` passes
+  `onUploadProgress` through on the single-PUT branch.
+
 - **The press hero line had never once worked** — 2026-09-24.
 
   Production logged this on every single call to `/api/press`:

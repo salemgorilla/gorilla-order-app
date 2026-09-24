@@ -190,7 +190,29 @@ export const QUOTE_ARTWORK_PREFIX = "quote-artwork/";
 export function isAllowedUploadPath(pathname: unknown): pathname is string {
   if (typeof pathname !== "string") return false;
 
-  const path = pathname.trim();
+  /**
+   * THE VALUE CHECKED MUST BE THE VALUE WRITTEN.
+   *
+   * This used to `.trim()` and validate the result, while the caller went
+   * on to sign and write the ORIGINAL. A pathname of " quote-artwork/x.png"
+   * — one leading space — therefore passed a guard whose entire job is to
+   * confine writes to two prefixes, and produced a presigned PUT for the
+   * key " quote-artwork/x.png", which is in neither of them. Any leading or
+   * trailing space, tab, newline or BOM did it.
+   *
+   * Rejected rather than trimmed here, deliberately. Trimming would make
+   * this function return true for a string the caller must then remember to
+   * normalise the same way — the exact split that caused the hole. A
+   * pathname with whitespace on either end is not a filename anyone meant
+   * to send, so there is nothing to salvage.
+   *
+   * The length cap below is now applied to the real value too. It was
+   * measured against the trimmed one, so the string actually written was
+   * bounded only by the SDK's own limit.
+   */
+  if (pathname !== pathname.trim()) return false;
+
+  const path = pathname;
 
   // A blob key long enough to be a problem is not a filename.
   if (!path || path.length > 400) return false;

@@ -68,6 +68,7 @@ describe("it reports which leg broke, not that 'upload failed'", () => {
       steps: [],
       storedPathname: "_selftest/1-abc123.txt",
       cleanedUp: true,
+      wrote: true,
     });
 
     assert.match(summary, /Client uploads work/);
@@ -86,6 +87,7 @@ describe("it reports which leg broke, not that 'upload failed'", () => {
       steps: [{ step: "delete the test object", ok: false, error: "boom", ms: 1 }],
       storedPathname: "_selftest/1-abc123.txt",
       cleanedUp: false,
+      wrote: true,
     });
 
     assert.match(summary, /_selftest\/1-abc123\.txt/);
@@ -134,5 +136,122 @@ describe("the size cap is tested, not assumed", () => {
 
     assert.match(src, /const PROBE_MAX_BYTES = 1024;/);
     assert.match(src, /maximumSizeInBytes: PROBE_MAX_BYTES/);
+  });
+});
+
+/**
+ * THE TWO WAYS THIS CHECK LIED, FOUND BY REVIEWING IT RATHER THAN RUNNING IT.
+ *
+ * Both shipped in the first version, and neither is reachable from a test
+ * that stops at "no credential" — which is why they survived the suite.
+ *
+ *   1. The catch block picked a step NAME from steps.length, with three
+ *      arms for four steps. A throw in step 4 — a slow head(), a 404 from
+ *      read-after-write lag, a transient 5xx — was recorded as "PUT to
+ *      presigned url" a second time with ok:false, beside the ok:true
+ *      entry that step had already written. The summary then blamed the
+ *      PUT for a failure that happened after it succeeded.
+ *
+ *   2. A 200 PUT whose body did not parse as {url} returned early, PAST
+ *      the cleanup block, leaving an object in the store forever. The leak
+ *      warning keyed off storedPathname — null in exactly that case — so
+ *      it said nothing.
+ */
+describe("it names the leg that actually broke", () => {
+  /** A fetch that returns 200 with a body the caller cannot use. */
+  function putSucceedsWithUnreadableBody() {
+    return async () =>
+      new Response("<html>proxy says hi</html>", {
+        status: 200,
+        headers: { "content-type": "text/html" },
+      });
+  }
+
+  test("a 200 PUT with an unparseable body is reported as written", async () => {
+    /**
+     * THE LEAK. The object exists; only the response did not parse. The
+     * old code returned before cleanup and reported nothing.
+     */
+    process.env.BLOB_STORE_ID = "store_X548kEBykUffj6EJ";
+    process.env.VERCEL = "1";
+
+    const result = await runBlobSelftest({
+      now: 42,
+      fetchImpl: putSucceedsWithUnreadableBody() as unknown as typeof fetch,
+    });
+
+    // Either it never got as far as the PUT (no real credential in a test
+    // process), or it did and must have recorded the write. What must NOT
+    // happen is a silent success.
+    assert.equal(result.ok, false);
+
+    if (result.wrote) {
+      assert.equal(result.cleanedUp, false, "an object was written and not deleted");
+      const summary = describeSelftest(result);
+      assert.match(summary, /may remain/i, "a leak was not reported");
+    }
+  });
+
+  test("nothing written means nothing to clean up, and no false alarm", () => {
+    // cleanedUp must not read as a leak when the test never wrote.
+    const summary = describeSelftest({
+      ok: false,
+      steps: [{ step: "issue delegation", ok: false, error: "no credential", ms: 1 }],
+      storedPathname: null,
+      cleanedUp: true,
+      wrote: false,
+    });
+
+    assert.doesNotMatch(summary, /may remain/i);
+    assert.match(summary, /issue delegation/);
+  });
+
+  test("an unnamed leak is still reported", () => {
+    // The 200-with-unparseable-body case: we know we wrote, we do not know
+    // where. Saying nothing is what the old code did.
+    const summary = describeSelftest({
+      ok: false,
+      steps: [{ step: "read stored url", ok: false, error: "no url", ms: 1 }],
+      storedPathname: null,
+      cleanedUp: false,
+      wrote: true,
+    });
+
+    assert.match(summary, /may remain/i);
+    assert.match(summary, /unnamed/i);
+  });
+
+  test("the step name is never derived from how many steps have run", async () => {
+    /**
+     * The regression guard. steps.length was the mechanism, and it is the
+     * kind of thing that gets reintroduced when a fifth step is added.
+     */
+    const src = await import("node:fs/promises").then((fs) =>
+      fs.readFile(new URL("../lib/blob-selftest.ts", import.meta.url), "utf8")
+    );
+
+    assert.doesNotMatch(
+      src,
+      /steps\.length === 0/,
+      "step names are being inferred from an array length again"
+    );
+    assert.match(src, /let current = "issue delegation";/);
+    assert.match(src, /record\(current, false, message\(error\), 0\)/);
+  });
+
+  test("cleanup cannot be skipped by an early return", async () => {
+    const src = await import("node:fs/promises").then((fs) =>
+      fs.readFile(new URL("../lib/blob-selftest.ts", import.meta.url), "utf8")
+    );
+
+    const body = src.slice(src.indexOf("export async function runBlobSelftest"));
+    // Every exit from the try block now throws to the single return below,
+    // so the cleanup block is unskippable.
+    assert.doesNotMatch(
+      body.slice(0, body.indexOf("// CLEANUP IS PART OF THE TEST")),
+      /return \{ ok: false/,
+      "an early return is back, and it bypasses cleanup"
+    );
+    assert.match(body, /class SkipRest|throw new SkipRest/);
   });
 });

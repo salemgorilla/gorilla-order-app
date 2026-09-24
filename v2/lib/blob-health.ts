@@ -475,7 +475,22 @@ export function readClientUploadsReady(): boolean {
 }
 
 function creditFor(reachable: boolean, tokenStoreId: string | null): BlobCredential {
-  if (reachable && !tokenStoreId) return "oidc";
+  /**
+   * The elimination only holds where OIDC is actually available.
+   *
+   * readTokenStoreId is strict — five underscore-separated parts and
+   * /^[A-Za-z0-9]{8,40}$/ on the third. A perfectly good read-write token
+   * whose store id falls outside that parses to null, and on a host with
+   * no OIDC runtime this then credited a successful probe to "oidc" and
+   * told the reader that BLOB_READ_WRITE_TOKEN "is not involved and
+   * replacing it will not help" — about the only credential in play.
+   *
+   * Gated on the same signal readBlobCredential uses, so the two cannot
+   * disagree about whether OIDC exists on this deployment.
+   */
+  const oidcAvailable = readBlobCredential() === "oidc";
+
+  if (reachable && !tokenStoreId && oidcAvailable) return "oidc";
   return readBlobCredential();
 }
 

@@ -111,8 +111,44 @@ export const MAX_ATTACHED_ARTWORK_LABEL = "3.5 MB";
 export const MAX_BLOB_ARTWORK_BYTES = 100 * 1024 * 1024;
 export const MAX_BLOB_ARTWORK_LABEL = "100 MB";
 
-/** Above this the file is uploaded in parallel chunks rather than one request. */
-export const MULTIPART_THRESHOLD_BYTES = 8 * 1024 * 1024;
+/**
+ * MULTIPART IS OFF, AND THIS IS WHY IT IS A CONSTANT RATHER THAN A DELETION.
+ *
+ * Above this size the client would upload in parallel chunks instead of one
+ * request. It is set past MAX_BLOB_ARTWORK_BYTES, so nothing reaches it and
+ * every file goes as a single PUT.
+ *
+ * ── WHY ───────────────────────────────────────────────────────────────────
+ * The client-upload path is presigned now (see app/api/artwork-upload),
+ * and multipart does not survive that route in @vercel/blob 2.7.0.
+ * handleUploadPresigned takes the caller's `multipart` flag, hands it to
+ * getSignedToken — and then never passes it to presign:
+ *
+ *     const presignedUrlPayload = await presign(token, {
+ *       ...urlOptionsWithCallback, operation: "put", pathname
+ *     });                                  // client.js:347
+ *
+ * `operation` is always "put", and PresignPutUrlOptions omits `operation`
+ * entirely, so there is no supported way to return the presigned POST to
+ * /mpu that the SDK's own docs say multipart requires.
+ *
+ * ── WHAT IT COSTS ─────────────────────────────────────────────────────────
+ * Parallel chunking with per-chunk retry, so a dropped connection restarts
+ * the upload instead of resuming one chunk. Multipart earns that complexity
+ * at hundreds of megabytes; this shop's ceiling is 100 MB and its real
+ * files are tens. The stall guard in lib/artwork-upload.ts already ends a
+ * dead connection in 30 seconds, so the failure mode is unchanged — it
+ * costs a restart on a genuinely flaky line.
+ *
+ * ── WHAT IT BUYS ──────────────────────────────────────────────────────────
+ * ONE code path for every size. A 5 MB file and a 20 MB file used to differ
+ * in how they uploaded, which meant a passing test at 5 MB said nothing
+ * about 20 MB. Now testing any size tests them all.
+ *
+ * Restoring multipart means verifying it end to end against a real store
+ * first — not flipping this number back.
+ */
+export const MULTIPART_THRESHOLD_BYTES = Number.POSITIVE_INFINITY;
 
 /**
  * Where a client upload is allowed to write.

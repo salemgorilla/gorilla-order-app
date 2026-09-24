@@ -1005,6 +1005,65 @@ Working and verified:
   stops the app lying about it in the meantime, and makes the canary say so
   every morning until it is fixed.
 
+- **The app tests its own upload path now** — 2026-09-24.
+
+  `/api/blob-selftest?secret=…` runs the four legs a customer's browser
+  runs, against the real store: **issue a delegation → presign a PUT → PUT
+  bytes → confirm the object exists**, then deletes what it wrote.
+
+  **Why.** Between 21 and 24 Sep client uploads broke three times for three
+  unrelated reasons — a truncated read-write token; the health probe
+  passing that token explicitly so it tested a credential nothing else
+  used; and `readBlobCredential` returning `"none"` once the token was
+  deleted, which made the upload route answer 501 to every customer. All
+  three were found by Gabe dropping a file and reporting back, and
+  `/api/artwork-upload` called the store healthy throughout — because
+  **listing a blob and uploading one are different questions** and only the
+  first was ever asked.
+
+  It also closes the gap that made this slow to diagnose: egress from the
+  agent sandbox is blocked to `*.vercel.app`, `blob.vercel-storage.com` and
+  the live domain, so the browser's PUT could never be exercised from here.
+  This runs it server-side instead, including `addRandomSuffix` under a
+  path-scoped delegation — the one part of the presigned path that was
+  shipped unverified.
+
+  - **Admin-guarded, fails closed**, like `/api/health` and
+    `/api/printavo-schema`. It performs a real write, so a public version
+    would be a free way to run up the shop's bill.
+  - **Writes to `_selftest/`**, a prefix `isAllowedUploadPath()` refuses, so
+    a self-test object can never be taken for artwork and a customer can
+    never aim a file at it. Pinned by a test.
+  - **Cleans up, and says so when it could not.** A self-test that leaks
+    objects is worse than none.
+  - **Reports per step**, so a failure names which leg broke. "Upload
+    failed" is the sentence that cost three days; "PUT to presigned url:
+    HTTP 403" ends it in a minute.
+  - **200 even on failure** — it is a report; a non-2xx makes it look like
+    the endpoint broke rather than the thing it measures.
+  - The delegation cap is 1 KB, deliberately tight: a generous cap would
+    make a passing run silent about whether `maximumSizeInBytes` is
+    enforced at all, and that cap is the only thing between a public upload
+    endpoint and 100 MB writes.
+
+  Verified locally: 401 without the secret, 401 with a wrong one, and a
+  `"nothing to test"` 503 with no blob credential.
+
+- **20 MB artwork needed no new ceiling** — 2026-09-24.
+
+  `MAX_BLOB_ARTWORK_BYTES` has been 100 MB throughout. What stood in the
+  way was that above 8 MB the client switched to **multipart**, and
+  multipart does not survive the presigned route in `@vercel/blob` 2.7.0:
+  `handleUploadPresigned` takes the caller's flag, hands it to
+  `getSignedToken`, and never passes it to `presign`, which always emits
+  `operation: "put"` (`client.js:347`). `PresignPutUrlOptions` omits
+  `operation`, so the presigned `POST` to `/mpu` the docs require cannot be
+  produced.
+
+  `MULTIPART_THRESHOLD_BYTES` is now `Infinity`. One code path for every
+  size — which matters because a passing test at 5 MB used to say nothing
+  about 20 MB.
+
 - **Client uploads no longer need a static blob token** — 2026-09-23.
 
   The whole three-day saga had one cause, and it was not a bad paste.

@@ -1005,6 +1005,59 @@ Working and verified:
   stops the app lying about it in the meantime, and makes the canary say so
   every morning until it is fixed.
 
+- **The press hero line had never once worked** — 2026-09-24.
+
+  Production logged this on every single call to `/api/press`:
+
+      Printavo: Argument 'sortOn' on Field 'invoices' has an invalid value
+      (CREATED_AT_DESC). Expected type 'OrderSortField'.
+
+  So `fetchRecentInvoicesForPress` returned an error string every time and
+  "on the press this week" has been silently absent since it shipped.
+  Nothing broke loudly, because the feature withholds itself rather than
+  failing — correct behaviour, and exactly why nobody noticed.
+
+  **The argument is removed, not replaced.** The valid members of
+  `OrderSortField` are not knowable from here (the live schema is
+  unreachable from CI and the sandbox) and guessing an enum is how this
+  broke the first time. Ordering moved into `sortNewestFirst`, which is
+  testable, sorts a copy, and puts rows with an unparseable `createdAt`
+  last rather than discarding them.
+
+  **One thing still unproven:** whether `invoices(first:)` returns newest
+  or oldest first. If oldest, the window filter in `lib/press-activity.ts`
+  drops everything and the hero renders exactly as it does today — no worse
+  than the error it replaces. `/api/press?secret=` returns the raw
+  response, so one look settles it.
+
+- **The canary watched the wrong boolean** — 2026-09-24.
+
+  It checked `reachable` on `/api/artwork-upload`. Between 21 and 24 Sep
+  that stayed **true** through three separate outages in which no customer
+  could upload anything — the store answered every probe while the
+  credential the CLIENT path needed did not work. A green canary said so
+  every morning.
+
+  It now checks `configured` (`reachable && clientUploadsReady`), which is
+  the boolean the browser actually reads to choose between advertising
+  100 MB and 3.5 MB, and it reports `credential` and `clientUploadsReady`
+  in the failure text.
+
+  A fifth step runs `/api/blob-selftest` end to end, skipped unless
+  `ADMIN_SECRET` is in the repository's Actions secrets. **Add it to turn
+  the deepest check on** — without it the canary still runs, just without
+  proof that an upload completes.
+
+  `secrets` is NOT available in a step-level `if`, so the secret is bound
+  at job level and the step tests `env.ADMIN_SECRET`. Testing
+  `secrets.ADMIN_SECRET` directly evaluates to empty and the step silently
+  never runs, which is worse than no check.
+
+  Both node snippets were extracted from the YAML and run against real
+  payloads: today's production JSON passes, the three-day-outage state
+  fails, the 1 Sep dead-store state fails, and a self-test that passed but
+  could not delete its object warns without failing.
+
 - **The app tests its own upload path now** — 2026-09-24.
 
   `/api/blob-selftest?secret=…` runs the four legs a customer's browser

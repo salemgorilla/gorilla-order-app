@@ -13,10 +13,14 @@
 #   2. /api/printavo-test says the shop's Printavo credentials still work
 #   3. /api/ss-catalog still serves real garments (the check that would
 #      have caught the 401 in one day instead of seven)
-#   4. /api/artwork-upload can still reach the blob store — a credential
-#      like any other, and it rotted silently for a week (1 Sep: "This
-#      store does not exist" on a real customer's upload, while the
-#      endpoint reported itself configured)
+#   4. /api/artwork-upload reports uploads as CONFIGURED — not merely that
+#      the store is reachable. Those came apart between 21 and 24 Sep:
+#      the store answered every probe while three separate faults stopped
+#      any customer uploading, and a canary watching `reachable` stayed
+#      green through all of it
+#   5. /api/blob-selftest actually completes an upload, when ADMIN_SECRET
+#      is available to this workflow — the only check that proves the
+#      customer's path rather than the store's health
 name: Production canary
 
 on:
@@ -30,6 +34,12 @@ jobs:
   canary:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # Job-level, deliberately: the `secrets` context is NOT available in a
+    # step-level `if`, but `env` is. Testing `secrets.ADMIN_SECRET` directly
+    # in a step condition silently evaluates to empty and the step never
+    # runs — a check that quietly never fires is worse than no check.
+    env:
+      ADMIN_SECRET: ${{ secrets.ADMIN_SECRET }}
     steps:
       - name: Homepage renders with the price anchor
         run: |
@@ -94,13 +104,71 @@ jobs:
             process.stdin.on("data", (c) => (raw += c));
             process.stdin.on("end", () => {
               const r = JSON.parse(raw);
-              if (r.reachable !== true) {
+
+              // REACHABLE IS NOT THE PROMISE THE BROWSER READS.
+              //
+              // This checked r.reachable, and between 21 and 24 Sep that
+              // stayed TRUE through three separate outages in which no
+              // customer could upload anything. The store was fine every
+              // time; the credential the CLIENT path needed was not. A
+              // green canary said so each morning.
+              //
+              // `configured` is the one the browser reads to choose between
+              // advertising 100 MB and 3.5 MB, and it is now
+              // reachable && clientUploadsReady. That is the promise worth
+              // watching, so that is what this watches.
+              if (r.configured !== true) {
                 console.error(
-                  "::error::The artwork blob store is unreachable — customers are on the 3.5 MB inline limit and larger files are collected by email. " +
+                  "::error::Artwork uploads are NOT working — customers are on the 3.5 MB inline limit and larger files are collected by email. " +
+                    "reachable=" + r.reachable +
+                    " clientUploadsReady=" + r.detail?.clientUploadsReady +
+                    " credential=" + r.detail?.credential + ". " +
                     (r.detail?.needed ?? "no detail")
                 );
                 process.exit(1);
               }
-              console.log("Blob store reachable, build " + r.build);
+              console.log(
+                "Artwork uploads configured via " + r.detail?.credential +
+                  ", build " + r.build
+              );
+            });
+          '
+
+      - name: An artwork upload actually completes, end to end
+        # Skipped when the secret is absent, so the canary keeps working
+        # without it. Add ADMIN_SECRET to the repository's Actions secrets
+        # to turn the deepest check on.
+        if: ${{ env.ADMIN_SECRET != '' }}
+        run: |
+          # THE CHECK EVERY OTHER ONE MISSED.
+          #
+          # Listing a blob and uploading one are different questions, and
+          # until now only the first was ever asked. This runs the four legs
+          # a customer's browser runs — issue a delegation, presign a PUT,
+          # push bytes through it, confirm the object landed — and deletes
+          # what it wrote. See lib/blob-selftest.ts.
+          json=$(curl -sS --max-time 60             -H "x-admin-secret: $ADMIN_SECRET"             https://labs.gorillasalem.com/api/blob-selftest)
+          echo "$json" | node -e '
+            let raw = "";
+            process.stdin.on("data", (c) => (raw += c));
+            process.stdin.on("end", () => {
+              const r = JSON.parse(raw);
+              if (r.ok !== true) {
+                // Per step, so the log names WHICH leg broke. "Upload
+                // failed" is the sentence that cost three days.
+                const failed = (r.steps ?? []).find((s) => !s.ok);
+                console.error(
+                  "::error::" + (r.summary ?? "The upload self-test failed.") +
+                    (failed ? ` [${failed.step}: ${failed.error}]` : "")
+                );
+                process.exit(1);
+              }
+              if (r.cleanedUp === false) {
+                console.error(
+                  "::warning::The self-test could not delete its test object" +
+                    (r.storedPathname ? " at " + r.storedPathname : "") + "."
+                );
+              }
+              console.log("Upload path verified end to end via " + r.credential);
             });
           '

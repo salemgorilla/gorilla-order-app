@@ -2440,7 +2440,52 @@ export async function lookupOrderStatus(input: {
  * recognise comes back as an error string, the hero renders exactly as it
  * does without it, and /api/press?secret= returns the raw response so the
  * shape can be settled in one look instead of a deploy each time.
+ *
+ * ── NO `sortOn`, AND WHY NOT A DIFFERENT ONE ──────────────────────────────
+ * This asked for `sortOn: CREATED_AT_DESC` and production answered, on
+ * every single call:
+ *
+ *   Printavo: Argument 'sortOn' on Field 'invoices' has an invalid value
+ *   (CREATED_AT_DESC). Expected type 'OrderSortField'.
+ *
+ * So the feature had never worked — the hero line has been silently absent
+ * since it shipped. The argument is gone rather than replaced, because the
+ * valid members of `OrderSortField` are not known here and guessing one is
+ * how this failed the first time. Ordering is done below, on `createdAt`,
+ * by code whose behaviour is testable.
+ *
+ * That leaves ONE thing unproven: whether `invoices(first:)` returns newest
+ * or oldest first. If it is oldest, the window filter in press-activity
+ * drops everything and the hero renders exactly as it does today — no
+ * worse than the error it replaces. `/api/press?secret=` returns the raw
+ * response, so one look settles it, which is the whole reason that probe
+ * exists.
  */
+/**
+ * Newest first, decided here rather than asked of the API.
+ *
+ * The `sortOn` argument that used to do this was rejected on every call
+ * (see below), and its valid values are not known from this side. Sorting
+ * locally is a behaviour with a test instead of an enum with a guess.
+ *
+ * Anything without a parseable `createdAt` sorts last rather than being
+ * dropped: press-activity already treats an unparseable date as outside
+ * the window, and silently discarding rows here would hide a shape change
+ * that the raw probe exists to reveal.
+ */
+function sortNewestFirst(nodes: AnyRecord[] | undefined): AnyRecord[] | undefined {
+  if (!Array.isArray(nodes)) return nodes;
+
+  const at = (node: AnyRecord) => {
+    const raw = node?.createdAt;
+    if (typeof raw !== "string") return Number.NEGATIVE_INFINITY;
+    const parsed = Date.parse(raw);
+    return Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
+  };
+
+  return [...nodes].sort((a, b) => at(b) - at(a));
+}
+
 export async function fetchRecentInvoicesForPress(input: { first?: number } = {}): Promise<{
   orders: AnyRecord[];
   error?: string;
@@ -2454,7 +2499,7 @@ export async function fetchRecentInvoicesForPress(input: { first?: number } = {}
   try {
     const data = await printavoRequest<{ invoices?: { nodes?: AnyRecord[] } }>(
       `query GorillaPressActivity($first: Int!) {
-         invoices(first: $first, sortOn: CREATED_AT_DESC) {
+         invoices(first: $first) {
            nodes {
              id
              createdAt
@@ -2471,7 +2516,7 @@ export async function fetchRecentInvoicesForPress(input: { first?: number } = {}
       { first: Math.min(50, Math.max(1, input.first ?? 40)) }
     );
 
-    const nodes = data.invoices?.nodes;
+    const nodes = sortNewestFirst(data.invoices?.nodes);
 
     if (!Array.isArray(nodes)) {
       return {

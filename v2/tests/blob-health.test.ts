@@ -688,12 +688,18 @@ describe("a failing OIDC deployment is not a token problem", () => {
  */
 describe("reachable is not the same promise as uploadable", () => {
   const realWebhookKey = process.env.BLOB_WEBHOOK_PUBLIC_KEY;
+  const realVercelFlag = process.env.VERCEL;
 
   afterEach(() => {
     if (realWebhookKey === undefined) {
       delete process.env.BLOB_WEBHOOK_PUBLIC_KEY;
     } else {
       process.env.BLOB_WEBHOOK_PUBLIC_KEY = realWebhookKey;
+    }
+    if (realVercelFlag === undefined) {
+      delete process.env.VERCEL;
+    } else {
+      process.env.VERCEL = realVercelFlag;
     }
   });
 
@@ -705,6 +711,10 @@ describe("reachable is not the same promise as uploadable", () => {
     process.env.BLOB_STORE_ID = "store_X548kEBykUffj6EJ";
     process.env.BLOB_WEBHOOK_PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----";
     process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_X548kEBykUffj6EJ";
+    // The half this originally left out. Without it the fixture is a
+    // LOCAL machine holding a junk token, not production — and crediting
+    // that to OIDC is the mislabelling creditFor was tightened to stop.
+    process.env.VERCEL = "1";
 
     return checkBlobStore({ ask: store(LIVE) });
   }
@@ -737,8 +747,11 @@ describe("reachable is not the same promise as uploadable", () => {
   });
 
   test("a usable token on a deployment with no OIDC is not relabelled", async () => {
-    // The elimination fires only when the token is unusable.
+    // The elimination fires only when the token is unusable AND OIDC is
+    // actually available. Neither holds here: no store id, no Vercel
+    // runtime, and a token that parses.
     delete process.env.VERCEL_OIDC_TOKEN;
+    delete process.env.VERCEL;
     delete process.env.BLOB_STORE_ID;
     process.env.BLOB_WEBHOOK_PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----";
     process.env.BLOB_READ_WRITE_TOKEN = tokenFor("X548kEBykUffj6EJ");
@@ -854,5 +867,59 @@ describe("a connected store is the credential, with or without a token", () => {
     delete process.env.BLOB_READ_WRITE_TOKEN;
 
     assert.equal(readBlobCredential(), "none");
+  });
+});
+
+/**
+ * A GOOD TOKEN MUST NOT BE BLAMED FOR SOMEONE ELSE'S FAILURE.
+ *
+ * `creditFor` credits a successful probe to OIDC when the read-write token
+ * cannot be parsed — sound, because a token the SDK cannot read cannot
+ * have answered. But readTokenStoreId is strict (five parts, and
+ * /^[A-Za-z0-9]{8,40}$/ on the third), so a perfectly valid token whose
+ * store id falls outside that shape also parses to null.
+ *
+ * On a host with no OIDC runtime that produced: probe succeeds via the
+ * token, credential reported as "oidc", and the advice telling the reader
+ * that BLOB_READ_WRITE_TOKEN "is not involved and replacing it will not
+ * help" — about the only credential in play.
+ */
+describe("the elimination only fires where OIDC actually exists", () => {
+  const realVercel2 = process.env.VERCEL;
+
+  afterEach(() => {
+    if (realVercel2 === undefined) delete process.env.VERCEL;
+    else process.env.VERCEL = realVercel2;
+  });
+
+  test("an unparseable token off-Vercel is still read-write, not OIDC", async () => {
+    // A store id with a hyphen: legal for Vercel, refused by the strict
+    // shape check, and there is no OIDC runtime here to have answered.
+    delete process.env.VERCEL;
+    delete process.env.VERCEL_OIDC_TOKEN;
+    delete process.env.BLOB_STORE_ID;
+    process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_has-a-hyphen_secretsecret";
+
+    const health = await checkBlobStore({ ask: store(LIVE) });
+
+    assert.equal(health.tokenStoreId, null, "the shape check is strict, as designed");
+    assert.equal(
+      health.credential,
+      "read-write",
+      "a working token was credited to a credential this host does not have"
+    );
+  });
+
+  test("the same token ON Vercel with a store id is still OIDC", async () => {
+    // Here the elimination is sound: OIDC is available and the token
+    // cannot be read, so the call that succeeded used OIDC.
+    process.env.VERCEL = "1";
+    delete process.env.VERCEL_OIDC_TOKEN;
+    process.env.BLOB_STORE_ID = "store_X548kEBykUffj6EJ";
+    process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_has-a-hyphen_secretsecret";
+
+    const health = await checkBlobStore({ ask: store(LIVE) });
+
+    assert.equal(health.credential, "oidc");
   });
 });

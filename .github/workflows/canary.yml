@@ -97,7 +97,13 @@ jobs:
           # named had been deleted. The browser reads this answer to decide
           # whether to advertise a 100 MB or a 3.5 MB ceiling, so a wrong yes
           # is the app promising a limit it cannot honour.
-          json=$(curl -sS --max-time 30 https://labs.gorillasalem.com/api/artwork-upload)
+          # The detail block is admin-guarded now, so send the secret when
+          # this workflow has one. Harmless when it does not — the check
+          # below runs on `configured`, which is public, and only the
+          # failure MESSAGE loses its specifics.
+          json=$(curl -sS --max-time 30 \
+            -H "x-admin-secret: $ADMIN_SECRET" \
+            https://labs.gorillasalem.com/api/artwork-upload)
           echo "$json"
           echo "$json" | node -e '
             let raw = "";

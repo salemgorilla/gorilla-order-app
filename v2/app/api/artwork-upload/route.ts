@@ -5,12 +5,23 @@ import {
 } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
 
+import { adminSecretMatches, isAdminSecretConfigured } from "../../../lib/admin-auth";
 import { describeBuild } from "../../../lib/build-stamp";
 import {
   checkBlobStore,
   describeBlobHealth,
-  readBlobCredential,
+  readClientUploadsReady,
 } from "../../../lib/blob-health";
+
+/**
+ * Signed upload grants per caller per minute.
+ *
+ * A cart with several designs, each retried once or twice over a shaky
+ * connection, has to fit comfortably inside this. It is a ceiling on
+ * abuse, not a quota on customers.
+ */
+const MAX_GRANTS_PER_WINDOW = 30;
+import { rateLimited, requestKey } from "../../../lib/rate-limit";
 import {
   isAllowedUploadPath,
   MAX_BLOB_ARTWORK_BYTES,
@@ -34,7 +45,7 @@ import {
  * guess, and guessing high is exactly the failure this whole change fixes.
  * Reports only a boolean — never the token.
  */
-export async function GET() {
+export async function GET(request: Request) {
   /**
    * CONFIGURED MEANS "AN UPLOAD WILL SUCCEED", AND NOTHING WEAKER.
    *
@@ -77,6 +88,35 @@ export async function GET() {
 
   const stamp = describeBuild();
 
+  /**
+   * THE DETAIL BLOCK IS FOR AN OPERATOR, NOT FOR EVERY VISITOR.
+   *
+   * The browser reads exactly one field here — `configured` — to choose
+   * between advertising 100 MB and 3.5 MB. Everything under `detail` is
+   * for a human debugging: which credential the deployment authenticates
+   * with, both store ids, the names of every BLOB* variable, the upstream
+   * API's verbatim error, and `needed`, which is a multi-sentence
+   * operational runbook naming BLOB_STORE_ID's value and the dashboard
+   * steps to take.
+   *
+   * None of it is credential material — that was checked, deliberately and
+   * more than once. But it is an unauthenticated inventory of the shop's
+   * infrastructure served to every anonymous page load, and the same
+   * change that added most of it put /api/blob-selftest behind
+   * ADMIN_SECRET for precisely this reason. The inconsistency was the
+   * finding.
+   *
+   * Guarded, not removed: it is genuinely useful and it stays one URL
+   * away. When ADMIN_SECRET is not configured at all there is no secret to
+   * check against, and on a deployment with no admin credential the
+   * diagnostics are the only way in — so it degrades open there rather
+   * than locking the operator out of their own health check.
+   */
+  const provided =
+    request.headers.get("x-admin-secret") ||
+    new URL(request.url).searchParams.get("secret");
+  const maySeeDetail = !isAdminSecretConfigured() || adminSecretMatches(provided);
+
   return NextResponse.json({
     // CAN THE BROWSER ACTUALLY UPLOAD? Not "is the store alive".
     //
@@ -105,7 +145,8 @@ export async function GET() {
     // it gets believed. See lib/build-stamp.ts.
     build: stamp.label,
     buildDetail: stamp,
-    detail: {
+    // Present only for an operator. See maySeeDetail.
+    detail: !maySeeDetail ? undefined : {
       BLOB_READ_WRITE_TOKEN: hasReadWriteToken,
       BLOB_STORE_ID: hasStoreId,
       blobVarNames,
@@ -173,7 +214,45 @@ export async function POST(request: Request) {
    * it even when no completion callback is used. Vercel writes it when the
    * store is connected, alongside BLOB_STORE_ID.
    */
-  if (readBlobCredential() === "none") {
+  /**
+   * A CEILING ON HOW MANY GRANTS ONE CALLER GETS.
+   *
+   * This endpoint is public by necessity — a customer uploading artwork
+   * has no account and no session — and every successful POST hands back
+   * a signed licence to write MAX_BLOB_ARTWORK_BYTES into the shop's
+   * store. With addRandomSuffix on, each one writes a NEW object rather
+   * than overwriting, so nothing bounded how much an anonymous caller
+   * could put there: 100 MB per request, as fast as they could ask.
+   *
+   * Per-request scope is a control on what one grant may do. It is not a
+   * control on how many grants exist, and the route's own comment claimed
+   * the former covered the latter.
+   *
+   * Generous on purpose — a real cart with several designs, each retried
+   * over a bad connection, is a legitimate burst. This is the same crude
+   * per-instance throttle /api/order-status uses, and it is honest about
+   * being no more than that: it makes bulk abuse from one machine tedious,
+   * and the size cap in the delegation is what bounds any single write.
+   */
+  if (rateLimited("artwork-upload", requestKey(request), MAX_GRANTS_PER_WINDOW)) {
+    return NextResponse.json(
+      {
+        error:
+          "Too many upload requests just now. Give it a minute and try again.",
+      },
+      { status: 429 }
+    );
+  }
+
+  // The 501 the client reads as "fall back to sending the file inline".
+  //
+  // Widened from `credential === "none"` to the same condition the GET
+  // reports as `configured`. With a store connected but
+  // BLOB_WEBHOOK_PUBLIC_KEY missing, this used to fall through to
+  // handleUploadPresigned, which throws "Missing webhook public key" and
+  // was caught below as a 400 — so the fallback still happened, but the
+  // 501 contract these comments lean on was not actually honoured.
+  if (!readClientUploadsReady()) {
     // 501 is what the client reads as "fall back to sending the file
     // inline". Keeps the form working on a deployment with no blob store
     // instead of breaking it.

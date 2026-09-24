@@ -129,9 +129,11 @@ export async function uploadArtworkToBlob(
     const uploadPromise = uploadPresigned(`${QUOTE_ARTWORK_PREFIX}${file.name}`, file, {
       access: "public",
       handleUploadUrl: "/api/artwork-upload",
-      // Big files go up in parallel chunks with per-chunk retry, so one
-      // flaky moment on a shop's connection does not restart a 60 MB
-      // upload.
+      // Always false today — the threshold is infinite because multipart
+      // does not survive the presigned route (see MULTIPART_THRESHOLD_BYTES
+      // for the SDK line that drops the flag). Kept as an expression rather
+      // than a hard `false` so restoring it is one constant, and so this
+      // stays wired to the reason instead of looking like a stray literal.
       multipart: file.size > MULTIPART_THRESHOLD_BYTES,
       abortSignal: stall.signal,
       onUploadProgress: ({ loaded, percentage }) => {

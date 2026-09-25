@@ -8,11 +8,21 @@ license: MIT
 
 A comprehensive verification system for Claude Code sessions.
 
-> **Adapted for this repo, 2026-09-24.** The commands below are the ones that
-> actually work here. Three of the original's phases assumed a project shape
-> this repo does not have — a `src/` tree, a coverage-enabled test runner,
-> `npm run lint` — and a phase that silently does nothing reads in the report
-> as a phase that passed. Structure, name and report format are unchanged.
+> **Adapted for this repo. Last checked 2026-09-25 against `main`.** The
+> commands below are the ones that actually work here. Two of the original's
+> phases assumed a project shape this repo does not have — a `src/` tree and
+> a coverage-enabled test runner — and a phase that silently does nothing
+> reads in the report as a phase that passed. Structure, name and report
+> format are unchanged.
+>
+> **This file went stale inside a day, which is the failure it warns about.**
+> On 2026-09-24 it said "there is no `npm run lint` script in this repo";
+> there is (`"lint": "eslint"`). It gave a test glob that missed
+> `tests/*.test.tsx`, so the day the first `.tsx` test landed this skill
+> would have run a suite with a whole file silently absent. Both are fixed
+> below. **Before trusting any number here, check it** — `cat
+> v2/package.json` takes five seconds and is the only thing that cannot be
+> out of date.
 
 ## When to Use
 
@@ -53,26 +63,35 @@ Report all type errors. Fix critical ones before continuing.
 
 ### Phase 3: Lint Check
 ```bash
-cd v2 && npx eslint . 2>&1 | grep problems
+cd v2 && npm run lint 2>&1 | grep problems     # or: npx eslint .
 ```
 
-**The baseline is 13 problems, 0 errors.** A different number means this change
-moved it — find out which and why before continuing. `grep problems`, not
-`tail -1`: the last line is not reliably the summary.
+**The baseline is 13 problems, 0 errors** (2026-09-25). A different number
+means this change moved it — find out which and why before continuing.
+`grep problems`, not `tail -1`: the last line is not reliably the summary.
 
-There is no `npm run lint` script in this repo.
+`npm run lint` is `eslint` with no arguments, which lints the whole project.
+The default exit behaviour is the right gate and is what CI relies on: non-zero
+on any ERROR, zero on warnings, so the deliberate `<img>` warnings stay visible
+without blocking.
 
 ### Phase 4: Test Suite
 ```bash
-cd v2 && npx tsx --test tests/*.test.ts 2>&1 | grep -E "^# (tests|pass|fail|skipped|todo)"
+cd v2 && npm test 2>&1 | grep -E "^# (tests|pass|fail|skipped|todo)"
 
-# Coverage, when the number is wanted (slower):
-cd v2 && npx tsx --test --experimental-test-coverage tests/*.test.ts 2>&1 \
+# Coverage, when the number is wanted (~4 minutes):
+cd v2 && npx tsx --test --experimental-test-coverage tests/*.test.ts tests/*.test.tsx 2>&1 \
   | grep -E "^# all files"
 ```
 
 **`tsx`, never `node --test`** — the suite is TypeScript and `node --test`
 cannot load it.
+
+**Prefer `npm test` over typing the glob**, and if you do type it, include
+`tests/*.test.tsx`. Component tests render the real React component with
+`react-dom/server` and live in `.tsx` files; a `tests/*.test.ts` glob skips
+every one of them and reports a green suite. That is not hypothetical — this
+file shipped that glob.
 
 Report:
 - Total tests: X
@@ -80,7 +99,9 @@ Report:
 - Failed: X
 - **Skipped / todo: X** — these are not passes. A suite that goes green by
   skipping is the failure this skill exists to catch.
-- Coverage: X% (was 90.27% line / 91.97% branch on 2026-09-24)
+- Coverage: X% (89.63% line / 91.62% branch across 2,467 tests on
+  2026-09-25 — it drifts down as code lands faster than tests, which is
+  information, not a failure)
 
 ### Phase 5: Security Scan
 ```bash
@@ -134,17 +155,49 @@ The phases above check that the code is sound. They cannot tell you it is
   shipped was caught by a human running the real thing. None were caught by
   reading code.
   ```bash
-  cd v2 && (setsid nohup npm run dev -- -p 3005 > /tmp/dev.log 2>&1 &)
-  SMOKE_URL=http://localhost:3005 \
+  cd v2 && (setsid nohup npm run dev -- -p 3021 > /tmp/dev.log 2>&1 < /dev/null &)
+  for i in $(seq 1 45); do curl -sf -o /dev/null http://localhost:3021 && break; sleep 1; done
+  SMOKE_URL=http://localhost:3021 \
     SMOKE_CHROMIUM=/opt/pw-browsers/chromium-1194/chrome-linux/chrome \
     npm run test:e2e
   ```
-  Never `pkill -f` to clean up — it matches the agent's own shell. Use a
-  different port.
+  The suite drives all three flows to review, asserts the signs total against
+  `quoteSignsCart` + `getSignsTotals`, and snapshots each flow's summary
+  LABELS — a dropped spec row fails and names which row.
+
+  **Never `pkill -f` to clean up** — it matches the agent's own shell and has
+  killed a session here. Kill by PID:
+  ```bash
+  kill $(fuser 3021/tcp 2>/dev/null | tr -d " ")
+  ```
 
 - **Anything touching a billed figure ends with a Printavo reconciliation**,
   not a passing test: `npm run reconcile -- GS-XXXXXXXX-XXXXX`, recorded in
   HANDOFF.md's `## Reconciled` table. See AGENTS.md.
+
+  ```bash
+  cd v2 && npm run reconcile:debt   # what is owed, and what is unreconciled
+  ```
+
+  It walks git from the newest PR any row covers, flags money-path commits,
+  and separately lists the rows still marked `**owed**`. **Writing a row
+  records the debt; only a Printavo invoice clears it** — so a report saying
+  "every one has reached a row" is not a report saying nothing is owed. Read
+  both halves. It is a warning and always exits 0, deliberately.
+
+- **A second opinion on the sticker maths**, independent of the suite:
+
+  ```bash
+  cd v2 && npm run audit:oracle
+  ```
+
+  `verification/independent-oracle.ts` re-derives the total from the business
+  rules in prose and compares 1,625 configurations. It imports one function
+  from `lib/` and restates every constant, so it can catch a mistake the
+  tests share with the code — which `tests/price-sheet.test.ts` structurally
+  cannot. Deliberately outside `tests/` and outside CI. After a re-rate,
+  update its constants FROM THE DECISION; copying them out of
+  `lib/pricing.ts` is the one move that makes the file worthless.
 
 - **Mutation-test every new guard.** A check that has never failed is unproven.
   Reintroduce the bug, confirm that test fails and only that test, revert.

@@ -1938,6 +1938,49 @@ export function buildPrintavoQuotePlan(input: {
          */
         taxed: isSignsFeeLine(l) ? false : salesTaxRate !== null,
       })),
+      /**
+       * THE ADD-ONS, AS REAL ROWS — AT ZERO, AND THAT IS THE WHOLE POINT.
+       *
+       * Gabe, 2026-09-25, after a test order: "I checked to add a banner but
+       * when I completed the quote, neither the banner nor the cost was
+       * added to the bill." Both halves were true, and only one was a
+       * defect. The request DID arrive — it was written into the customer
+       * note — but a note is not something you can see on an invoice at a
+       * glance, and the shop had no row to work from.
+       *
+       * ── WHY THE PRICE IS $0 AND MUST STAY $0 ──────────────────────────
+       * createPaymentRequest sends no amount, so Printavo bills its OWN
+       * `amountOutstanding` — the sum of these rows. Stickers, signs and
+       * banners auto-bill with no human in the loop. So a priced row here
+       * is not "showing the banner on the quote", it is CHARGING A CARD
+       * $177 for a banner with no artwork, no confirmed size and no proof,
+       * scoped by one checkbox on a checkout page.
+       *
+       * At zero the row is visible, itemised and filterable, the customer
+       * is charged exactly what they were quoted, and the shop puts the
+       * real price on it when they have the spec. The figure they need is
+       * right there in the description.
+       *
+       * If these ever need to bill, the change is NOT to price this row.
+       * It is to decide, deliberately, that an unspecced item may be
+       * auto-charged — and that is a decision about lib/auto-bill.ts, with
+       * a Printavo reconciliation behind it.
+       */
+      ...addOns
+        .filter((a) => str(a.label))
+        .map((a) => ({
+          description: `REQUESTED - ${str(a.label)}\n${
+            a.quoteRequired
+              ? "To be priced by the shop."
+              : `Website figure $${num(a.amount).toFixed(2)} - confirm the spec, then price this row.`
+          }`,
+          itemNumber: SKU.ADD_ON_REQUEST,
+          // NOT a price. See above.
+          price: money(0),
+          // Nothing to tax on a zero row, and taxing it would imply it is
+          // part of what was sold.
+          taxed: false,
+        })),
     ],
     salesTaxRate,
   };

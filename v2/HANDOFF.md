@@ -1005,6 +1005,49 @@ Working and verified:
   stops the app lying about it in the meantime, and makes the canary say so
   every morning until it is fixed.
 
+- **A ticked add-on is a row on the quote now, and still never a charge** —
+  2026-09-25.
+
+  Gabe, after a test order (GS-20260925-A87QL): *"I checked to add a banner
+  but when I completed the quote, neither the banner nor the cost was added
+  to the bill."* Both halves were true and only one was a defect.
+
+  **Nothing was lost.** A browser drive confirmed `order.addOns` reached the
+  server intact — right label, $177 — and it was written into the Printavo
+  customer note. The estimate deliberately excluded it, exactly as
+  `lib/addons.ts` says: *"Add-ons are quote requests, not purchases."*
+
+  **What was wrong:** a note is not something anyone reads off an invoice at
+  a glance, and the shop had no row to work from. Each ticked add-on is now
+  a real line item — `GORILLA-ADDON-REQUEST`, described
+  `REQUESTED - <label>` with the website figure underneath — positioned
+  after the product rows and tagged `#Upsell`.
+
+  **THE ROW IS PRICED AT $0, AND MUST STAY THERE.**
+  `createPaymentRequest` sends no amount, so Printavo bills its own
+  `amountOutstanding` — the sum of these rows — and stickers, signs and
+  banners auto-bill with no human in the loop. A priced row here is not
+  "showing the banner on the quote"; it is charging a card $177 for a banner
+  with no artwork, no confirmed size and no proof, scoped by one checkbox on
+  a checkout page. At zero the row is visible, itemised and filterable,
+  the customer pays exactly what they were quoted, and the shop prices it
+  once they have the spec.
+
+  If add-ons ever need to bill, the change is NOT to price this row. It is a
+  deliberate decision that an unspecced item may be auto-charged — a change
+  to `lib/auto-bill.ts`, with a Printavo reconciliation behind it.
+
+  Verified by driving a real browser through the sticker flow with the
+  banner ticked, then feeding the captured payload to the real
+  `buildPrintavoQuotePlan`: the row appears, and the summed total is
+  **identical** with and without it. Nine new tests, including the invariant
+  across all three row arrays.
+
+  **Still open, and Gabe's call:** the card shows **ADDED TO THIS QUOTE:
+  $177.00** in bold spec type above a muted grey line explaining the
+  estimate does not change. The disclaimer is accurate and outranked. It
+  misled the person who built the shop; it will mislead customers.
+
 - **An adversarial review of the blob work found eight things** — 2026-09-24.
 
   A fresh reviewer was given the whole `845d4c9..d169a97` range and the SDK

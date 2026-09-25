@@ -107,10 +107,51 @@ export default function QuoteConfirmationScreen({
   onStartNew,
   onBackToBuilder,
 }: Props) {
+  /**
+   * THE FIGURE THE CUSTOMER IS CHARGED, NOT THE ONE THEIR TAB REMEMBERS.
+   *
+   * This read `order.pricing` — client React state — while Printavo emailed
+   * a payable link for the server's repriced figure. The route logs the
+   * disagreement ("PRICE MISMATCH … Charging the server figure") and
+   * nothing reached the customer, so this screen could print $53.80 above a
+   * pay button that says $85.00. The pay button was right.
+   *
+   * A tab opened before a pricing deploy and submitted after is all it
+   * takes, and this repo re-rated stickers four times in two days.
+   *
+   * Falls back to client state when the server did not reprice this flow or
+   * an older response carried no pricing — the previous behaviour, kept for
+   * the cases where there is nothing better to show.
+   */
+  const billedPricing = quoteConfirmation?.serverPricing ?? order.pricing;
+
   // One derivation, shared with the review card, the Order Summary and the
   // sticky estimate bar. See getQuoteTotals in lib/tax — four surfaces showed
   // this figure and only one of them had tax.
-  const stickerTotals = getStickerTotals(order.pricing);
+  const stickerTotals = getStickerTotals(
+    billedPricing as unknown as {
+      stickerPrice: number;
+      setupPrice: number;
+      total: number;
+    }
+  );
+
+  /**
+   * Did the price move between what they saw and what they are charged?
+   *
+   * Said out loud, once, in plain words. The customer agreed to a number;
+   * if a different one is on the invoice they are entitled to know before
+   * they meet it on a payment screen. Cents of float drift are not worth a
+   * sentence — the threshold matches the route's own mismatch test.
+   */
+  const quotedTotal = Number(order.pricing?.total);
+  const billedTotal = Number(
+    (billedPricing as unknown as { total?: unknown })?.total
+  );
+  const priceMoved =
+    Number.isFinite(quotedTotal) &&
+    Number.isFinite(billedTotal) &&
+    Math.abs(billedTotal - quotedTotal) > 0.01;
 
   /** List the garments, or describe the configured one — shouldListGarments. */
   const listGarments = shouldListGarments(garmentLines, apparelQuote.quantity);
@@ -646,6 +687,27 @@ export default function QuoteConfirmationScreen({
                   {stickerTotals.estimatedTax > 0 && (
                     <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
                       Includes estimated {SALES_TAX.label}
+                    </p>
+                  )}
+                  {/**
+                   * SAID OUT LOUD, ONCE.
+                   *
+                   * The figure above is now the server's — what Printavo
+                   * bills — and it can differ from the one this tab was
+                   * showing before submit. A customer who agreed to a
+                   * number is entitled to learn it moved here, not on the
+                   * payment screen.
+                   *
+                   * Not an error panel: nothing has gone wrong, a stale
+                   * price was corrected. Rendered in ink so it is read,
+                   * because the muted rows above it are furniture.
+                   */}
+                  {priceMoved && (
+                    <p className="mt-3 border-t border-[var(--rule)] pt-3 text-fine font-medium leading-5 text-[var(--ink-black)]">
+                      Our prices changed while you were building this quote,
+                      so your total was recalculated — you were seeing $
+                      {quotedTotal.toFixed(2)}. This figure is what your
+                      invoice asks for.
                     </p>
                   )}
                 </>

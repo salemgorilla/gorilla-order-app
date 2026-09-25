@@ -1005,6 +1005,55 @@ Working and verified:
   stops the app lying about it in the meantime, and makes the canary say so
   every morning until it is fixed.
 
+- **The confirmation showed the browser's total; the two public endpoints
+  had no ceiling** — 2026-09-25.
+
+  **The screen and the invoice could disagree.** `QuoteConfirmation` derived
+  its total from client React state while Printavo emailed a payable link
+  for the server's repriced figure. The route has always returned that
+  figure as `quote.pricing` and always logged the disagreement —
+
+      PRICE MISMATCH on GS-…: browser said $53.80, server computed $85.00.
+      Charging the server figure.
+
+  — but nothing reached the customer, and the same screen printed two
+  different numbers, because the pay button's amount comes from Printavo
+  and was right. A tab opened before a pricing deploy and submitted after
+  is all it takes, and stickers were re-rated four times in two days.
+
+  The screen now renders `serverPricing`, falling back to client state when
+  the server did not reprice that flow. When the two differ it says so
+  plainly — *"Our prices changed while you were building this quote…"* —
+  because a customer who agreed to a number is entitled to learn it moved
+  here rather than on a payment screen.
+
+  **`/api/quote` had no rate limit.** The one public endpoint that writes a
+  Printavo record, creates a contact and emails a live payment request. An
+  unauthenticated loop with a valid $45 payload and a victim's address had
+  the shop's own Printavo account mailing them "ready to pay" without
+  limit, and created a contact per address. Now 8 per caller per minute —
+  generous, because a real customer may retry a failed submit.
+
+  **`/api/discount-code` was an unthrottled oracle.** It answers whether an
+  arbitrary string is a live discount, and the codes are short words,
+  permanent and unlimited-use. A wordlist found `FAMFRE` — 40% off every
+  order thereafter — in minutes. Now 12 guesses per caller per minute, and
+  a throttled guess returns the SAME shape as a wrong code so it learns
+  nothing. Verified against a running server: 12 × 200, then 429.
+
+  **NOT changed, deliberately:** the codes themselves. Permanent
+  unlimited-use codes are Gabe's decision ("codes that are always
+  working"); expiry and usage caps are his call, not a defect.
+
+  **Still open:** `/api/quote` has no idempotency key, so a retried submit
+  still creates a second quote and a second payment request. That needs a
+  client-supplied key and is not half-solved here.
+
+  One harness note: `requestKey` falls back to `"unknown"` without an
+  `x-forwarded-for`, which every test request lacks, so
+  `tests/quote-route.test.ts` resets the limiter between cases. Vercel
+  always sets that header, so production is keyed per caller.
+
 - **Three flow classifiers, two of which agreed** — 2026-09-25.
 
   The same question is decided in three places:

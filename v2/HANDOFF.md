@@ -1005,6 +1005,39 @@ Working and verified:
   stops the app lying about it in the meantime, and makes the canary say so
   every morning until it is fixed.
 
+- **Three flow classifiers, two of which agreed** — 2026-09-25.
+
+  The same question is decided in three places:
+
+  | | |
+  |---|---|
+  | `isStickerOrder` (`sticker-repricing.ts`) | repricing AND billing |
+  | `isSignsOrder` (`auto-bill.ts`) | the signs auto-bill |
+  | `isSigns` (`printavo.ts`) | which INVOICE rows exist |
+
+  The first two bail on `"sticker"`. The third did not. So
+  `type: "Custom Sticker Banners"` was **both**: priced against the sticker
+  table and auto-billed, then handed to `buildPrintavoQuotePlan` as signs —
+  which empties `stickerItems` and skips the setup-fee and order-minimum
+  rows entirely.
+
+  Verified before the fix: the reference pack **priced $99.00, invoiced
+  $84.00** — the $15 setup silently gone. On a small order the $45 minimum
+  goes the same way, so one sticker bills $0.84 instead of $45.00.
+  `serverTotal`, the ceiling gate and the log line all still said $99; only
+  `amountOutstanding` was short, and that is the number the card is charged.
+  `/api/quote` is public, so the type string is caller-supplied.
+
+  `isSigns` now mirrors `isSignsOrder` exactly rather than inventing a
+  fourth rule — a genuine signs payload carries `signType` and never says
+  "sticker".
+
+  **The guard is on the class, not the string.**
+  `tests/flow-classifiers-agree.test.ts` asserts that no type string can
+  make the invoice fall short of the price, over a matrix of ambiguous
+  names. Mutation-verified: removing the exclusion fails exactly the two
+  money assertions.
+
 - **`npm run reconcile` was crying wolf on every taxable order** —
   2026-09-25.
 

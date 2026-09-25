@@ -231,6 +231,47 @@ export function repriceStickers(
     discount,
   });
 
+  /**
+   * WHAT WAS ORDERED, REBUILT FROM WHAT WAS PRICED.
+   *
+   * ── THE HOLE THIS CLOSES ──────────────────────────────────────────────
+   * This function priced `items[]` and copied `product` through untouched.
+   * But for a SINGLE-DESIGN order every shop-facing and invoice-facing
+   * surface reads `product.quantity`, not the item:
+   *
+   *   lib/printavo.ts   the decal row's quantity and sizes[].count
+   *   lib/email.ts      the subject line and the Quantity row
+   *
+   * So the two could disagree, and nothing reconciled them. Verified
+   * against the real code on 2026-09-25:
+   *
+   *   product.quantity 5000, items[0].quantity 1
+   *     -> server prices ONE sticker, total $45.00 (the order minimum)
+   *     -> Printavo row reads "5000x Custom Stickers" at $0.0002 each
+   *     -> shop prints 5,000, collects $45. Correct price: ~$2,057.
+   *
+   * /api/quote is public and unauthenticated and stickers auto-bill, so
+   * that is a crafted payload away, and the true quantity appears on NO
+   * shop-facing surface for a single-design order.
+   *
+   * Invariant 2 was enforced on the PRICE and not on WHAT WAS ORDERED.
+   * `product` is a client-supplied synthesis; the server now restates its
+   * quantity and design count from the same array it priced, the way
+   * repriceSigns rebuilds its product wholesale. A forged quantity is
+   * overwritten rather than detected — there is nothing to salvage in a
+   * number that disagrees with the cart it came with.
+   *
+   * NOT touched: size, shape, material and finish. Those describe the
+   * design and are already read from the item on the row that matters
+   * (printavo.ts spreads `stickerItems[0]` over product). Quantity is the
+   * one field passed as an explicit argument, so the spread cannot correct
+   * it.
+   */
+  const orderedQuantity = pricedItems.reduce(
+    (sum, item) => sum + (Number((item as Record<string, unknown>).quantity) || 0),
+    0
+  );
+
   return {
     order: {
       ...order,
@@ -238,6 +279,11 @@ export function repriceStickers(
       // [product] above, and writing that back would invent a one-design cart
       // on a payload that never had one.
       ...(Array.isArray(order.items) ? { items: pricedItems } : {}),
+      product: {
+        ...(order.product as Record<string, unknown>),
+        ...(orderedQuantity > 0 ? { quantity: orderedQuantity } : {}),
+        designCount: pricedItems.length,
+      },
       // The discount as the SERVER found it — null when the code was not
       // ours, so nothing downstream repeats an unearned claim.
       discount,

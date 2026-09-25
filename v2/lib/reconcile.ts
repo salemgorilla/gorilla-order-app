@@ -93,14 +93,57 @@ const money = (n: number) => `$${n.toFixed(2)}`;
  * loose match would compare the wrong number and pass.
  */
 export function quotedTotalFromNote(note: string): number | null {
+  return readNoteTotal(note).value;
+}
+
+/**
+ * WHICH total, and whether it is comparable to Printavo's.
+ *
+ * ── THE FALSE MISMATCH THIS ENDS ──────────────────────────────────────────
+ * `Total:` in the note is PRE-TAX — it is `pricing.total`, and tax is
+ * Printavo's to compute. `printavoTotal` and `amountOutstanding` both
+ * INCLUDE it. So the headline check compared a pre-tax figure against a
+ * tax-inclusive one and reported a mismatch of exactly the sales tax on
+ * every taxable order — while this same file's line-sum check explicitly
+ * allows the line sum to sit under the total "because tax and shipping are
+ * added on top of them". The two checks contradicted each other.
+ *
+ * That matters more than a wrong label. AGENTS.md makes a green
+ * reconciliation the merge gate for any change to a billed figure, so
+ * either the gate blocked healthy orders or the operator learned to ignore
+ * a red Total — and being ignored is the state in which a REAL mismatch
+ * ships unnoticed.
+ *
+ * The note now also carries "Total incl. tax:", derived by the same helper
+ * the customer's screen uses. Preferred when present.
+ *
+ * ── WHY THE OLD LINE IS STILL READ ────────────────────────────────────────
+ * Every order written before this change has only `Total:`. Reconciling
+ * those is exactly what the tool is for, so they are not abandoned — they
+ * are reported as what they are: a pre-tax figure, which on a taxable order
+ * cannot be compared to Printavo's total to the cent.
+ */
+export function readNoteTotal(note: string): {
+  value: number | null;
+  /** True when the figure includes tax and is comparable to Printavo's. */
+  taxInclusive: boolean;
+} {
   const section = note.split("WEBSITE ESTIMATE")[1];
-  if (!section) return null;
+  if (!section) return { value: null, taxInclusive: false };
 
-  const match = section.match(/Total:\s*\$([\d,]+\.\d{2})/);
-  if (!match) return null;
+  const read = (pattern: RegExp) => {
+    const match = section.match(pattern);
+    if (!match) return null;
+    const value = Number(match[1].replace(/,/g, ""));
+    return Number.isFinite(value) ? value : null;
+  };
 
-  const value = Number(match[1].replace(/,/g, ""));
-  return Number.isFinite(value) ? value : null;
+  const taxed = read(/Total incl\. tax:\s*\$([\d,]+\.\d{2})/);
+  if (taxed !== null) return { value: taxed, taxInclusive: true };
+
+  // `Total:` must not match "Total incl. tax:" — anchored to the line start
+  // so the two cannot be confused on a note that carries both.
+  return { value: read(/^Total:\s*\$([\d,]+\.\d{2})/m), taxInclusive: false };
 }
 
 /** The shipping figure the app recorded, when it recorded one. */
@@ -257,7 +300,10 @@ export function reconcileQuote(input: ReconcileInput): {
   const checks: ReconcileCheck[] = [];
 
   const note = input.customerNote || "";
-  const quotedTotal = note ? quotedTotalFromNote(note) : null;
+  const noteTotal = note
+    ? readNoteTotal(note)
+    : { value: null, taxInclusive: false };
+  const quotedTotal = noteTotal.value;
 
   // ── The headline ────────────────────────────────────────────────────────
   if (quotedTotal === null || input.printavoTotal === undefined) {
@@ -279,17 +325,35 @@ export function reconcileQuote(input: ReconcileInput): {
   } else {
     const delta = round2(input.printavoTotal - quotedTotal);
 
+    /**
+     * A pre-tax note cannot be compared to a tax-inclusive total.
+     *
+     * Orders written before the note carried "Total incl. tax" have only
+     * the pre-tax figure. Calling those a MISMATCH was the false alarm that
+     * made this whole tool ignorable; calling them OK would be worse. They
+     * are UNKNOWN, with the arithmetic spelled out so a human can finish
+     * the check in one look.
+     */
+    const comparable = noteTotal.taxInclusive || delta === 0;
+
     checks.push({
       name: "Total",
-      status: delta === 0 ? "ok" : "mismatch",
+      status: delta === 0 ? "ok" : comparable ? "mismatch" : "unknown",
       quoted: money(quotedTotal),
       billed: money(input.printavoTotal),
       detail:
         delta === 0
           ? "The invoice matches the website quote to the cent."
-          : `Printavo is ${money(Math.abs(delta))} ${
+          : comparable
+          ? `Printavo is ${money(Math.abs(delta))} ${
               delta > 0 ? "ABOVE" : "BELOW"
-            } the quote. This is the figure the customer's card is charged.`,
+            } the quote. This is the figure the customer's card is charged.`
+          : `The note carries a PRE-TAX total of ${money(quotedTotal)} and ` +
+            `Printavo's ${money(input.printavoTotal)} includes tax, so these ` +
+            `cannot be compared to the cent. The difference is ` +
+            `${money(Math.abs(delta))} — check it against the sales tax on ` +
+            "this order. Orders quoted after 2026-09-25 carry a " +
+            "'Total incl. tax' line and are compared directly.",
     });
   }
 
@@ -297,20 +361,27 @@ export function reconcileQuote(input: ReconcileInput): {
   if (input.amountOutstanding !== undefined && quotedTotal !== null) {
     const delta = round2(input.amountOutstanding - quotedTotal);
     const settled = input.amountOutstanding === 0;
+    // amountOutstanding includes tax for the same reason printavoTotal does.
+    const comparable = noteTotal.taxInclusive || delta === 0;
 
     checks.push({
       name: "Outstanding",
-      status: settled || delta === 0 ? "ok" : "mismatch",
+      status:
+        settled || delta === 0 ? "ok" : comparable ? "mismatch" : "unknown",
       quoted: money(quotedTotal),
       billed: money(input.amountOutstanding),
       detail: settled
         ? "Nothing outstanding — this order has been paid or zeroed."
         : delta === 0
         ? "A payment link raised now would ask for exactly the quoted figure."
-        : `A payment link raised now would ask for ${money(
+        : comparable
+        ? `A payment link raised now would ask for ${money(
             input.amountOutstanding
           )}, not ${money(quotedTotal)}. createPaymentRequest bills this ` +
-          "field, so this is what the customer would be charged.",
+          "field, so this is what the customer would be charged."
+        : `A payment link would ask for ${money(input.amountOutstanding)}, ` +
+          `which includes tax; the note's ${money(quotedTotal)} does not. ` +
+          "Not comparable to the cent on this order.",
     });
   }
 

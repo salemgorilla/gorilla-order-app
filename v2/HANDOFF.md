@@ -1005,6 +1005,45 @@ Working and verified:
   stops the app lying about it in the meantime, and makes the canary say so
   every morning until it is fixed.
 
+- **`npm run reconcile` was crying wolf on every taxable order** —
+  2026-09-25.
+
+  `Total:` in the Printavo customer note is PRE-TAX — it is `pricing.total`,
+  and tax is Printavo's to compute. `printavoTotal` and `amountOutstanding`
+  both INCLUDE it. So the headline check compared a pre-tax figure against a
+  tax-inclusive one and reported a **mismatch of exactly the sales tax on
+  every sticker and signs order**.
+
+  The same file already knew better: its line-sum check explicitly allows
+  the line sum to sit under the total *"because tax and shipping are added
+  on top of them"*. The headline check contradicted it.
+
+  **This is why it matters more than a wrong label.** AGENTS.md makes a
+  green reconciliation the merge gate for any PR that changes a billed
+  figure. So either the gate blocked healthy orders, or the operator learned
+  to ignore a red Total — and an ignored gate is the state in which a real
+  mismatch ships. One did: the forged-quantity defect above was billing $45
+  for $2,057 of stickers.
+
+  **The note was also recording a figure nobody agreed to.** The customer
+  never saw $99.00 — every customer-facing surface renders `estimatedTotal`
+  from `lib/tax.ts`, and the reference pack reads **$104.25** on screen. The
+  note now carries `Tax (6.25% on $84.00): $5.25` and
+  `Total incl. tax: $104.25`, derived by the same helper the screen uses.
+  Never a second formula — a second derivation of the taxable base is the
+  class of bug being fixed one layer up. Omitted entirely on apparel, so an
+  exempt flow does not print a $0.00 tax line.
+
+  `readNoteTotal()` prefers the tax-inclusive line and says which it found.
+  **Orders quoted before this change are not abandoned** — reconciling those
+  is what the tool is for — they report `unknown` with the arithmetic spelled
+  out, rather than a mismatch. A pre-tax note that happens to match exactly
+  (an untaxed order) is still OK.
+
+  Verified end to end: the reference pack reconciles **green** where it
+  previously reported a $5.25 mismatch, a real $10 discrepancy is still
+  caught, and a legacy note reports unknown.
+
 - **The server priced what was ordered but did not SAY what was ordered** —
   2026-09-25. **The most serious defect found in this project.**
 

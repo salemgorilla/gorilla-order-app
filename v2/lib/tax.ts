@@ -1,3 +1,5 @@
+import { signsFeeTotal, type SignsPricingLine } from "./signs-pricing";
+
 /**
  * Sales tax.
  *
@@ -210,4 +212,65 @@ export function getSignsTotals(pricing: {
     ),
     preTaxTotal: pricing.total,
   });
+}
+
+/**
+ * WHAT THE CUSTOMER'S CARD IS ACTUALLY ASKED FOR.
+ *
+ * ── WHY THIS IS ONE FUNCTION ──────────────────────────────────────────────
+ * Two places need the taxed total: the WEBSITE ESTIMATE block in the
+ * Printavo note, and the auto-bill ceiling. They were going to derive it
+ * twice — and a second derivation of the taxable base is exactly the defect
+ * that shipped on 2026-09-25, when one caller read a `signsFeeTotal` field
+ * that nothing writes and silently taxed every signs fee.
+ *
+ * One function, both callers. A flow whose base rule changes moves here and
+ * nowhere else.
+ *
+ * ── WHY THE CEILING NEEDS IT ──────────────────────────────────────────────
+ * FULL_PAYMENT_CEILING was tested against the PRE-TAX total while
+ * createPaymentRequest bills Printavo's own `amountOutstanding`, which
+ * includes tax. So an order quoting $4,999.00 was charged $5,308.38 IN
+ * FULL, unattended — $308 over a ceiling that exists to stop exactly that.
+ *
+ * Gabe, 2026-09-25, asked which figure the $4,999.99 governs: "the amount
+ * charged (incl. tax)". Nothing is auto-charged above the ceiling.
+ *
+ * Returns null when the flow is not one this can derive a base for — the
+ * caller then has no taxed figure and must say so rather than guess.
+ */
+export function chargeableTotal(order: {
+  product?: unknown;
+  pricing?: unknown;
+}): number | null {
+  const product = (order.product || {}) as Record<string, unknown>;
+  const pricing = (order.pricing || {}) as Record<string, unknown>;
+
+  const total = Number(pricing.total);
+  if (!Number.isFinite(total)) return null;
+
+  const type = String(product.type || "").toLowerCase();
+
+  // Apparel is exempt, so the charge IS the pre-tax total.
+  if (product.supplier || product.garmentType) return total;
+
+  // Signs and banners: fees come out of the base, exactly as the invoice
+  // marks them untaxed. signsFeeTotal is the single definition of a fee.
+  if (product.signType || type.includes("sign") || type.includes("banner")) {
+    const lines = Array.isArray(pricing.lines)
+      ? (pricing.lines as SignsPricingLine[])
+      : [];
+
+    return getSignsTotals({ total, feeTotal: signsFeeTotal(lines) }).estimatedTotal;
+  }
+
+  if (type.includes("sticker")) {
+    return getStickerTotals({
+      stickerPrice: Number(pricing.stickerPrice) || 0,
+      setupPrice: Number(pricing.setupPrice) || 0,
+      total,
+    }).estimatedTotal;
+  }
+
+  return null;
 }

@@ -1,4 +1,5 @@
 import { signsFeeTotal, type SignsPricingLine } from "./signs-pricing";
+import { isApparelProduct, isSignsProduct, namesStickers } from "./order-flow";
 
 /**
  * Sales tax.
@@ -249,14 +250,38 @@ export function chargeableTotal(order: {
   const total = Number(pricing.total);
   if (!Number.isFinite(total)) return null;
 
-  const type = String(product.type || "").toLowerCase();
+  /**
+   * THE SIXTH CLASSIFIER. This function used to carry its own.
+   *
+   * #192 collapsed five into lib/order-flow and missed this one, which had
+   * its own precedence AND its own sticker rule — it tested signs BEFORE
+   * stickers and never bailed on "sticker" at all. So
+   * `{ type: "Custom Sticker Banners" }` was taxed here as a SIGN ($105.19)
+   * while the invoice built sticker rows and Printavo billed the sticker
+   * figure ($104.25): 94c of disagreement between the number the ceiling
+   * gate reads and the number the card is charged.
+   *
+   * It now asks the same predicates every other surface asks. Verified
+   * unchanged for all four legitimate flows — Custom Stickers, Vinyl
+   * Banners, Yard Signs, T-Shirts & Apparel — so the only figures that move
+   * are on type strings the app never sends.
+   *
+   * WHAT IS NOT ROUTED THROUGH classifyOrderFlow: that function is TOTAL and
+   * answers "stickers" for anything unrecognised, which is right for picking
+   * invoice rows and wrong here. A `null` means "this harness cannot derive
+   * the charge", and lib/auto-bill falls back to the server total on it.
+   * Turning an unknown type into a sticker tax calculation would be a
+   * widening, so the predicates are asked individually and the final `null`
+   * is kept.
+   */
 
   // Apparel is exempt, so the charge IS the pre-tax total.
-  if (product.supplier || product.garmentType) return total;
+  if (isApparelProduct(product)) return total;
 
   // Signs and banners: fees come out of the base, exactly as the invoice
   // marks them untaxed. signsFeeTotal is the single definition of a fee.
-  if (product.signType || type.includes("sign") || type.includes("banner")) {
+  // isSignsProduct bails on "sticker" — that is the bail this file lacked.
+  if (isSignsProduct(product)) {
     const lines = Array.isArray(pricing.lines)
       ? (pricing.lines as SignsPricingLine[])
       : [];
@@ -264,7 +289,7 @@ export function chargeableTotal(order: {
     return getSignsTotals({ total, feeTotal: signsFeeTotal(lines) }).estimatedTotal;
   }
 
-  if (type.includes("sticker")) {
+  if (namesStickers(product)) {
     return getStickerTotals({
       stickerPrice: Number(pricing.stickerPrice) || 0,
       setupPrice: Number(pricing.setupPrice) || 0,

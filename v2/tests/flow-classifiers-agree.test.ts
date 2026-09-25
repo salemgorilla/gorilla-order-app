@@ -134,6 +134,43 @@ describe("THE INVARIANT — what is priced is what is invoiced", () => {
     assert.equal(Number(invoiced.toFixed(2)), 99);
   });
 
+  test("the apparel half of the same pair, found by the sweep", () => {
+    /**
+     * `{ type: "Custom Sticker Apparel" }` — the other way the same defect
+     * shipped, live until 2026-09-25 and invisible to this file because
+     * TYPES never combined "sticker" with "apparel".
+     *
+     * Before the fix, at 100 x 3": the sticker gate said bill, the server
+     * priced $99.00, chargeableTotal said $104.25, and the invoice was built
+     * APPAREL — one $0.99 x 100 garment line, no setup row, salesTaxRate
+     * null. $5.25 of MA tax the shop remits out of pocket, the $15 setup
+     * gone, and a prepress brief reading "100x Apparel / Color: TBD /
+     * S&S style: N/A".
+     *
+     * It must now not bill at all: an order whose invoice is a garment is
+     * not one the sticker gate gets to charge a card for.
+     */
+    const order = {
+      customer: { customerName: "X", email: "x@y.com" },
+      production: { deliveryMethod: "Pickup" },
+      product: decalProduct("Custom Sticker Apparel"),
+      items: [{ id: "d1", ...decalProduct("Custom Sticker Apparel") }],
+    };
+
+    assert.equal(
+      isStickerOrder(order as never),
+      false,
+      "an apparel-shaped order still clears the sticker billing gate"
+    );
+
+    const { priced, invoiced } = invoiceFor("Custom Sticker Apparel");
+    assert.equal(
+      Number(invoiced.toFixed(2)),
+      Number(priced.toFixed(2)),
+      `priced $${priced} and invoiced $${invoiced.toFixed(2)}`
+    );
+  });
+
   test("an honest sticker order is unchanged", () => {
     const { priced, invoiced } = invoiceFor("Custom Stickers");
 

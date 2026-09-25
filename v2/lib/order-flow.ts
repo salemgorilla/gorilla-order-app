@@ -136,6 +136,37 @@ export function isStickerFlow(order: AnyRecord): boolean {
 
   if (!namesStickers(product)) return false;
 
+  /**
+   * NOR A GARMENT ORDER — the bail #192 gave the signs gate and not this one.
+   *
+   * `{ type: "Custom Sticker Apparel" }` was SHAPED as apparel — apparel
+   * invoice rows, apparel email sections — and still cleared this gate. At
+   * 100 x 3" the card was charged $99.00 against a chargeable $104.25: the
+   * apparel invoice carries no setup row and no sales tax, so $5.25 of MA
+   * tax and the $15 setup both vanish, and the shop's prepress brief reads
+   * "100x Apparel / Color: TBD / S&S style: N/A". serverTotal, the ceiling
+   * gate and the log line all still said $104.25; only amountOutstanding
+   * was short — which is, word for word, the #186 story.
+   *
+   * #192 reasoned that the field clauses below already covered apparel.
+   * They cover `supplier` and `garmentType`; they do not cover the TYPE
+   * STRING saying apparel, and /api/quote is public with no validation on
+   * product.type at all.
+   *
+   * SCOPED TO APPAREL DELIBERATELY. The obvious generalisation — "a type
+   * naming two pipelines never auto-bills" — also changes
+   * `"Custom Sticker Banners"`, which is NOT broken: #186 settled it as a
+   * sticker order and it prices and invoices consistently at $99. Only the
+   * apparel pair is inconsistent, because only apparel changes the invoice
+   * SHAPE out from under a sticker price. Fixing a settled decision because
+   * it resembles a defect is how a narrowing turns into a behaviour change
+   * nobody asked for.
+   *
+   * Narrowing only, like every other clause here: the worst case is a
+   * sticker order that does not self-check-out and gets followed up by hand.
+   */
+  if (isApparelProduct(product)) return false;
+
   return (
     !product.supplier &&
     !product.garmentType &&

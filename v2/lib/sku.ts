@@ -30,6 +30,7 @@
  *   GORILLA-APPAREL-SETUP        screens
  *   GORILLA-RUSH                 rush scheduling, both hand-quoted flows
  *   GORILLA-SHIPPING             shipping
+ *   GORILLA-ADDON-REQUEST        a ticked cross-sell, always $0 (a request)
  *
  * Every code encodes something real — the product, the charge, or the cart
  * position — which is what separates a SKU from decoration.
@@ -43,6 +44,16 @@ export const SKU = {
   APPAREL_SETUP: "GORILLA-APPAREL-SETUP",
   RUSH: "GORILLA-RUSH",
   SHIPPING: "GORILLA-SHIPPING",
+  /**
+   * A cross-sell the customer ticked at checkout, carried onto the quote as
+   * a ZERO-priced row so the shop can see and work it.
+   *
+   * One SKU for every offer deliberately: the row is a REQUEST, and what it
+   * is a request for is in the description. Filing each offer under its own
+   * code would imply these are sold items and make "what did we bill for
+   * banners" answerable from rows that never carried a price.
+   */
+  ADD_ON_REQUEST: "GORILLA-ADDON-REQUEST",
 } as const;
 
 /** The family prefix a flow files under — the review card's header chip. */

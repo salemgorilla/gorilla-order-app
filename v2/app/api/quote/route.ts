@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { rateLimited, requestKey } from "../../../lib/rate-limit";
 
 import { MAX_ATTACHED_ARTWORK_BYTES } from "../../../lib/upload-limits";
 import {
@@ -37,6 +38,15 @@ import {
   createPrintavoQuote,
   createCheckout,
 } from "../../../lib/printavo";
+
+/**
+ * Quote submissions per caller per minute.
+ *
+ * A real customer may retry a failed submit or send a second design
+ * minutes later; nobody legitimately files ten in sixty seconds.
+ */
+const MAX_QUOTES_PER_WINDOW = 8;
+
 
 // Cap the artwork we attach to an email. Big print files (large AI/PDF/PNG)
 // blow past mail-provider limits, so above this we skip the attachment and
@@ -271,6 +281,42 @@ function generateQuoteNumber() {
 }
 
 export async function POST(request: Request) {
+  /**
+   * THE ONE PUBLIC ENDPOINT THAT CREATES A PAYABLE LINK, AND IT HAD NO
+   * CEILING AT ALL.
+   *
+   * lib/rate-limit.ts guards /api/order-status, /api/dropoff/lookup and
+   * /api/artwork-upload. This — the endpoint that writes a Printavo record,
+   * creates a contact and emails a live payment request — had nothing.
+   *
+   * Two things that buys an unauthenticated caller:
+   *
+   *   1. Payment-link spam FROM THE SHOP'S OWN ACCOUNT. createCheckout
+   *      addresses the request to `customer.email`, so a loop with a valid
+   *      $45 sticker payload and a victim's address has Printavo mailing
+   *      them "ready to pay" over and over, and findOrCreateContactId
+   *      creating a Printavo contact per unique address.
+   *   2. Unbounded CRM pollution, which costs the shop real cleanup.
+   *
+   * Generous, because a real customer may legitimately retry: a failed
+   * submit, a flaky connection, a second design sent minutes later. This is
+   * a ceiling on abuse, not a quota on customers.
+   *
+   * NOT an idempotency key. A retried submit still creates a second quote —
+   * that is a separate defect needing a client-supplied key, and it is
+   * flagged in HANDOFF.md rather than half-solved here.
+   */
+  if (rateLimited("quote", requestKey(request), MAX_QUOTES_PER_WINDOW)) {
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          "Too many quote requests just now. Give it a minute and try again.",
+      },
+      { status: 429 }
+    );
+  }
+
   try {
     const {
       order,

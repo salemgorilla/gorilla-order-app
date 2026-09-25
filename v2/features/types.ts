@@ -45,6 +45,28 @@ export type QuoteConfirmation = {
    * answers "no such order". See canOfferTracker in lib/order-status.
    */
   printavoCreated?: boolean;
+  /**
+   * THE FIGURE THE CUSTOMER IS ACTUALLY CHARGED.
+   *
+   * The confirmation screen derived its total from client React state, so
+   * it showed the BROWSER's number while Printavo emailed a payable link
+   * for the server's. The route already returns the repriced figure as
+   * `quote.pricing` and already logs the disagreement —
+   *
+   *     PRICE MISMATCH on GS-…: browser said $53.80, server computed
+   *     $85.00. Charging the server figure.
+   *
+   * — but nothing reached the customer, and the same screen printed two
+   * different numbers, because the pay button's amount comes from Printavo
+   * and is real.
+   *
+   * A tab opened before a pricing deploy and submitted after is all it
+   * takes, and this repo re-rated stickers four times in two days.
+   *
+   * Absent on an older response or a flow the server does not reprice; the
+   * screen then falls back to client state exactly as before.
+   */
+  serverPricing?: Record<string, number> | null;
 };
 
 export type SsCatalogSize = {

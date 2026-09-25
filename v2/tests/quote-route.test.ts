@@ -1,7 +1,21 @@
 import assert from "node:assert/strict";
-import { after, before, describe, it } from "node:test";
+import { after, before, beforeEach, describe, it } from "node:test";
 
 import { POST } from "../app/api/quote/route";
+import { resetRateLimits } from "../lib/rate-limit";
+
+/**
+ * /api/quote is rate limited now, and this file drives it many times.
+ *
+ * requestKey falls back to "unknown" when a request carries no
+ * x-forwarded-for — which is every request built in a test — so without
+ * this the whole file shares one caller's budget and the later cases 429.
+ * Vercel always sets that header, so production is keyed per caller; this
+ * is a test-harness artefact, which is what resetRateLimits exists for.
+ */
+beforeEach(() => {
+  resetRateLimits();
+});
 
 /**
  * The submit endpoint itself, driven end to end.

@@ -2912,6 +2912,16 @@ export default function Home() {
             }
           : null,
         printavoCreated: Boolean(result.printavo?.created),
+        /**
+         * The SERVER's repriced figure, which is what Printavo bills.
+         *
+         * The route has always returned this and nothing has ever read it,
+         * so the confirmation screen rendered the browser's total beside a
+         * pay button carrying Printavo's. See QuoteConfirmation.serverPricing.
+         */
+        serverPricing:
+          (result.quote as { pricing?: Record<string, number> } | undefined)
+            ?.pricing ?? null,
       });
 
       setSubmittedProductId(selectedProductId);

@@ -37,6 +37,13 @@ jobs:
         working-directory: v2
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The reconciliation-debt step walks back to the commit HANDOFF.md's
+          # Reconciled table last covered, which is tens of commits behind a
+          # busy week. A shallow clone cannot see it; the script says so
+          # rather than reporting a debt of zero, but full history is what
+          # makes the step useful at all.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -58,6 +65,21 @@ jobs:
         # on warnings — the deliberate <img> warnings stay visible without
         # blocking, and a real error blocks.
         run: npx eslint .
+
+      - name: Reconciliation debt
+        # A WARNING, never a gate — it always exits 0, and `|| true` is a
+        # second belt so a crash in it can never fail a PR.
+        #
+        # The remedy for a debt it reports is placing a real order and
+        # reading the real Printavo invoice. No CI run can do that, and no
+        # contributor can do it from a branch at 2am. A gate nobody can
+        # satisfy gets bypassed, and a bypassed gate teaches the next
+        # session that the Reconciled table is optional — which is how it
+        # got thirty commits behind in the first place.
+        #
+        # So this prints the punch list into the job log, grouped by flow,
+        # with the rows to paste into HANDOFF.md. Seeing it is the point.
+        run: npm run reconcile:debt || true
 
       - name: Build
         # No secrets on purpose. The app treats every credential as optional

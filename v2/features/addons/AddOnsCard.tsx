@@ -111,19 +111,43 @@ export default function AddOnsCard({
 
       {(addOns.length > 0 || note.trim()) && (
         <p className="spec mt-4 border-t border-[var(--rule)] pt-3 text-spec font-bold text-[var(--ink-black)]">
+          {/**
+           * THE LOUDEST THING ON THE CARD HAS TO BE TRUE.
+           *
+           * This read "ADDED TO THIS QUOTE: $177.00" in bold spec mono,
+           * above a muted grey caption explaining the estimate does not
+           * change. Both were accurate; only one was legible. Gabe ticked
+           * the banner on a test order and reported the cost missing from
+           * the bill — and he built the shop. A customer has no chance.
+           *
+           * Mono is reserved for real values (DESIGN-SYSTEM.md: "a signal
+           * that a number means something") and 700 is the answer, so
+           * "ADDED" beside a mono figure said "this is on your bill" in the
+           * two strongest signals the system has.
+           *
+           * The figures stay — they are real, and the shop needs them. The
+           * label now carries the fact instead of contradicting it.
+           */}
+          REQUESTED, NOT CHARGED:{" "}
+          {priced > 0 ? money(priced) : "0 priced items"}
           {/* Two figures, never merged — a single total would look like it
               covered the unpriced items too. */}
-          ADDED TO THIS QUOTE:{" "}
-          {priced > 0 ? money(priced) : "0 priced items"}
           {quoteCount > 0 &&
             ` + ${quoteCount} item${quoteCount === 1 ? "" : "s"} we'll price`}
           {note.trim() ? " + your note" : ""}
         </p>
       )}
 
-      <p className="mt-3 text-spec font-medium leading-5 text-[var(--ink-muted)]">
-        These are added to the quote Gorilla Salem sends back. Your estimate
-        above doesn&apos;t change, and nothing here is charged now.
+      {/**
+       * Promoted out of furniture. At text-spec / muted this was the
+       * quietest element on the card while carrying the one fact a customer
+       * most needs. Caption weight (500) is right per the register; the
+       * caption COLOUR was not — this is load-bearing, not metadata.
+       */}
+      <p className="mt-3 text-fine font-medium leading-5 text-[var(--ink-black)]">
+        Your estimate above does not change and nothing here is charged now.
+        Gorilla Salem confirms the details and prices these on the quote they
+        send back.
       </p>
     </div>
   );

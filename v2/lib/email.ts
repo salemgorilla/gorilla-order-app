@@ -28,6 +28,7 @@ import type { RepricingNote } from "./repricing-note";
 // lives alone so the form can use it without importing this file.
 export { looksLikeEmailAddress } from "./email-address";
 import { looksLikeEmailAddress } from "./email-address";
+import { isApparelProduct, isSignsProduct } from "./order-flow";
 
 export type QuoteEmailResult = {
   sent: boolean;
@@ -55,25 +56,19 @@ function money(value: unknown) {
   return Number.isFinite(n) ? `$${n.toFixed(2)}` : "N/A";
 }
 
-function isApparel(product: AnyRecord) {
-  return (
-    str(product.type).toLowerCase().includes("apparel") ||
-    Boolean(product.supplier) ||
-    Boolean(product.garmentType)
-  );
-}
+const isApparel = isApparelProduct;
 
-function isSigns(product: AnyRecord) {
-  // Both large-format pipelines. `signType` is the load-bearing test — every
-  // payload the machinery builds carries it — and the type strings ("Vinyl
-  // Banners", "Signs", and the pre-split "Banners & Signs") are belt and
-  // braces for anything hand-fed.
-  return (
-    str(product.type).toLowerCase().includes("signs") ||
-    str(product.type).toLowerCase().includes("banner") ||
-    Boolean(product.signType)
-  );
-}
+/**
+ * From lib/order-flow — and this one CHANGES BEHAVIOUR, deliberately.
+ *
+ * #186 fixed the identical function in lib/printavo.ts so that a payload
+ * whose type says "sticker" can never be classified as signs. This file
+ * held a copy and never got the fix, so a sticker-priced, sticker-billed
+ * order was still described to the shop as a sign — wrong sections, wrong
+ * spec lines, on the brief prepress works from. No figure moves; the shop
+ * simply stops being told to make the wrong thing.
+ */
+const isSigns = isSignsProduct;
 
 function line(label: string, value: string) {
   return `${label}: ${value}`;

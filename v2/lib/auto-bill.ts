@@ -65,6 +65,37 @@
  */
 
 import { isStickerOrder } from "./sticker-repricing";
+import { chargeableTotal } from "./tax";
+
+/**
+ * THE CEILING GOVERNS WHAT THE CARD IS CHARGED, NOT THE PRE-TAX TOTAL.
+ *
+ * Both gates tested `serverTotal`, which is pre-tax — tax is Printavo's to
+ * compute. But createPaymentRequest sends NO amount, so Printavo bills its
+ * own `amountOutstanding`, which INCLUDES tax. An order quoting $4,999.00
+ * was therefore charged $5,308.38 in full, unattended: $308 over a ceiling
+ * whose whole purpose is to stop an unattended charge getting that big.
+ *
+ * Every order quoting roughly $4,705-$4,999.99 pre-tax sat in that band.
+ *
+ * Gabe, 2026-09-25, asked which figure the $4,999.99 governs: "the amount
+ * charged (incl. tax)". So the test moves to the taxed figure and nothing
+ * is auto-charged above the ceiling.
+ *
+ * FALLS BACK TO serverTotal when the taxed figure cannot be derived. That
+ * is the conservative direction on purpose: a pre-tax total is never
+ * LARGER than the taxed one, so an order that would clear the ceiling on
+ * the real number cannot be let through by the fallback — at worst it takes
+ * a deposit it did not need, which costs nobody anything.
+ *
+ * The deposit AMOUNT is untouched and stays a fraction of Printavo's own
+ * amountOutstanding (AGENTS.md). Only the DECISION used the wrong unit.
+ */
+function ceilingTotal(order: Record<string, unknown>, serverTotal: number) {
+  const charged = chargeableTotal(order as { product?: unknown; pricing?: unknown });
+
+  return charged !== null && charged >= serverTotal ? charged : serverTotal;
+}
 
 /**
  * The most an order can be asked to pay IN FULL, unattended.
@@ -240,8 +271,10 @@ export function decideSignsAutoBill(input: {
    * before the job leaves the shop (which is already the rule for delivery,
    * so it needs no new process).
    */
-  if (input.serverTotal > FULL_PAYMENT_CEILING) {
-    return { bill: true, deposit: true, reason: overCeiling(input.serverTotal) };
+  const charged = ceilingTotal(input.order, input.serverTotal);
+
+  if (charged > FULL_PAYMENT_CEILING) {
+    return { bill: true, deposit: true, reason: overCeiling(charged) };
   }
 
   return {
@@ -336,8 +369,10 @@ export function decideStickersAutoBill(input: {
 
   // Same rule as signs — see the note there. Half now, the rest before it
   // ships or is collected.
-  if (input.serverTotal > FULL_PAYMENT_CEILING) {
-    return { bill: true, deposit: true, reason: overCeiling(input.serverTotal) };
+  const charged = ceilingTotal(input.order, input.serverTotal);
+
+  if (charged > FULL_PAYMENT_CEILING) {
+    return { bill: true, deposit: true, reason: overCeiling(charged) };
   }
 
   return {

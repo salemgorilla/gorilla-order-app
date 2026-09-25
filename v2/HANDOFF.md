@@ -1005,6 +1005,39 @@ Working and verified:
   stops the app lying about it in the meantime, and makes the canary say so
   every morning until it is fixed.
 
+- **The ceiling now governs what the card is charged** — 2026-09-25.
+  **Gabe's decision.**
+
+  Both auto-bill gates tested `serverTotal`, which is PRE-TAX. But
+  `createPaymentRequest` sends no amount, so Printavo bills its own
+  `amountOutstanding`, which INCLUDES tax.
+
+  So an order quoting **$4,999.00 was charged $5,308.38 in full,
+  unattended** — $308 over a ceiling whose entire purpose is to stop an
+  unattended charge getting that big. Every order quoting roughly
+  **$4,705–$4,999.99 pre-tax** sat in that band.
+
+  Asked which figure the $4,999.99 governs, Gabe chose **"the amount
+  charged (incl. tax)"**. Nothing is auto-charged above the ceiling.
+
+  `chargeableTotal()` lives in `lib/tax.ts` and is the **one** derivation,
+  called by both the Printavo note and the ceiling. Deriving it twice is
+  precisely the defect that shipped earlier the same day.
+
+  **The fallback is conservative by construction.** When the taxed figure
+  cannot be derived it uses `serverTotal`, and a pre-tax total is never
+  LARGER than the taxed one — so an order that would clear the ceiling on
+  the real number cannot be let through. At worst it takes a deposit it did
+  not need.
+
+  **The deposit AMOUNT was never wrong** — it is a fraction of Printavo's
+  own `amountOutstanding`, per AGENTS.md. Only the DECISION used the wrong
+  unit, and only the decision moved.
+
+  Swept the whole boundary band rather than sampling it: every pre-tax
+  total from $4,700 to $4,999 whose charged figure clears the ceiling now
+  deposits. The reference pack and an ordinary $1,035 order are untouched.
+
 - **I taxed a fee I had just excluded** — 2026-09-25, same day, one change
   later.
 

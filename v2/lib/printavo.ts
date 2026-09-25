@@ -4,7 +4,11 @@ import {
   isTaxableFlow,
   SALES_TAX,
 } from "./tax";
-import { SIGNS_FEE_KINDS } from "./signs-pricing";
+import {
+  SIGNS_FEE_KINDS,
+  signsFeeTotal,
+  type SignsPricingLine,
+} from "./signs-pricing";
 import { DEPOSIT_FRACTION } from "./auto-bill";
 import { getTrackUrl } from "./order-status";
 import {
@@ -1188,8 +1192,32 @@ export function buildPrintavoQuotePlan(input: {
     if (apparel) return null;
 
     if (signs) {
-      const feeTotal = num(pricing.signsFeeTotal);
-      return getSignsTotals({ total, feeTotal });
+      /**
+       * THE FEE TOTAL, FROM THE LINES — NOT FROM A FIELD THAT NEVER EXISTED.
+       *
+       * This read `pricing.signsFeeTotal`, which NOTHING writes: the name
+       * lives only as a React prop in app/page.tsx. So it resolved to
+       * undefined, `num()` made it 0, and the whole signs total became the
+       * taxable base — taxing the setup fee that the invoice sends with
+       * `taxed: false`.
+       *
+       * Measured on a 25-yard-sign order: the note claimed $20.47 of tax on
+       * a $327.50 base where the truth is $19.53 on $312.50. Ninety-four
+       * cents overstated, and — because the reconciler now prefers the
+       * note's tax-inclusive line — a fresh false MISMATCH on every signs
+       * order. Shipped 2026-09-25 in the change that removed the previous
+       * one; caught by pricing a real signs cart rather than by the suite.
+       *
+       * `signsFeeTotal(lines)` is the single definition of what a fee is,
+       * and it is the same set `isSignsFeeLine` uses to mark those rows
+       * untaxed on the invoice, so the estimate and the invoice cannot
+       * disagree about the base.
+       */
+      const lines = Array.isArray(pricing.lines)
+        ? (pricing.lines as SignsPricingLine[])
+        : [];
+
+      return getSignsTotals({ total, feeTotal: signsFeeTotal(lines) });
     }
 
     return getStickerTotals({

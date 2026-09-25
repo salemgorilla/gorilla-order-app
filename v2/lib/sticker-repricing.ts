@@ -5,6 +5,7 @@ import {
   getStickerUnitMaterialPrice,
   quoteStickerCart,
 } from "./pricing";
+import { isStickerFlow } from "./order-flow";
 import { MAX_STICKER_SIZE_INCHES } from "./units";
 
 /**
@@ -26,34 +27,13 @@ import { MAX_STICKER_SIZE_INCHES } from "./units";
  */
 
 /** True for the sticker flow, which is the only one that self-checks-out. */
-export function isStickerOrder(order: Record<string, unknown>) {
-  const product = (order.product || {}) as Record<string, unknown>;
-  const type = String(product.type || "").toLowerCase();
-
-  // Positive requirement, checked FIRST.
-  //
-  // This used to be defined purely by absence — no supplier, no garmentType,
-  // no signType, "signs" not in the type. Membership by omission means any
-  // NEW flow that fails to set one of those fields is silently classified as
-  // stickers, gets repriced against the sticker table, and auto-generates a
-  // Printavo payment link with no human in the loop. A lead-capture or
-  // hand-quote payload is exactly the shape that slips through.
-  //
-  // Requiring the type to actually say stickers can only ever shrink the set
-  // that auto-bills, so the worst case here is a sticker order that does not
-  // self-check-out and gets followed up by hand — not a customer billed for
-  // something nobody priced.
-  if (!type.includes("sticker")) {
-    return false;
-  }
-
-  return (
-    !product.supplier &&
-    !product.garmentType &&
-    !product.signType &&
-    !type.includes("signs")
-  );
-}
+/**
+ * Re-exported from lib/order-flow, where the rule now lives beside the four
+ * predicates it has to stay consistent with. The name stays: AGENTS.md
+ * names `isStickerOrder()` as the gate that decides repricing AND billing,
+ * and a rename would silently orphan that instruction.
+ */
+export const isStickerOrder = isStickerFlow;
 
 /**
  * Recompute a sticker total from its spec, server-side.

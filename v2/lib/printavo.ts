@@ -20,6 +20,7 @@ import {
   signSku,
 } from "./sku";
 import { STICKER_ORDER_MINIMUM } from "./pricing";
+import { isApparelProduct, isSignsProduct } from "./order-flow";
 
 // Pushes each submitted quote into Printavo as a DRAFT/UNCONFIRMED quote.
 //
@@ -81,57 +82,24 @@ function money(value: unknown, fallback = 0) {
   return Math.round(num(value, fallback) * 100) / 100;
 }
 
-function isApparel(product: AnyRecord) {
-  return (
-    str(product.type).toLowerCase().includes("apparel") ||
-    Boolean(product.supplier) ||
-    Boolean(product.garmentType)
-  );
-}
+const isApparel = isApparelProduct;
 
-function isSigns(product: AnyRecord) {
-  /**
-   * A STICKER ORDER IS NEVER A SIGNS ORDER, AND THIS IS THE THIRD PLACE
-   * THAT HAS TO AGREE.
-   *
-   * Three classifiers decide the same question and two of them already bail
-   * on "sticker":
-   *
-   *   isStickerOrder  (sticker-repricing.ts)  requires "sticker"
-   *   isSignsOrder    (auto-bill.ts)          returns false on "sticker"
-   *   isSigns         (here)                  did not
-   *
-   * So `type: "Custom Sticker Banners"` was BOTH. isStickerOrder priced it
-   * against the sticker table and auto-billed it; isSigns then told
-   * buildPrintavoQuotePlan it was signs, which empties `stickerItems` and
-   * skips the setup-fee and order-minimum rows entirely.
-   *
-   * Verified on 2026-09-25: the reference pack priced at $99.00 and
-   * invoiced at $84.00 — the $15 setup silently gone. On a small order the
-   * $45 minimum goes the same way, so one sticker bills $0.84 instead of
-   * $45.00. `serverTotal`, the ceiling gate and the log line all still say
-   * $99; only `amountOutstanding` is short, and that is the number the
-   * customer's card is charged.
-   *
-   * `/api/quote` is public, so the type string is caller-supplied.
-   *
-   * Mirrors isSignsOrder exactly rather than inventing a fourth rule. A
-   * genuine signs payload carries `signType` and never says "sticker".
-   */
-  if (str(product.type).toLowerCase().includes("sticker")) {
-    return false;
-  }
-
-  // Both large-format pipelines. `signType` is the load-bearing test — every
-  // payload the machinery builds carries it — and the type strings ("Vinyl
-  // Banners", "Signs", and the pre-split "Banners & Signs") are belt and
-  // braces for anything hand-fed.
-  return (
-    str(product.type).toLowerCase().includes("signs") ||
-    str(product.type).toLowerCase().includes("banner") ||
-    Boolean(product.signType)
-  );
-}
+/**
+ * From lib/order-flow, where the sticker bail below now lives beside the
+ * other four predicates that must agree with it.
+ *
+ * WHY THE BAIL EXISTS: `type: "Custom Sticker Banners"` was BOTH a sticker
+ * order and a signs order. isStickerOrder priced it against the sticker
+ * table and auto-billed it; this then told buildPrintavoQuotePlan it was
+ * signs, which empties `stickerItems` and skips the setup-fee and
+ * order-minimum rows. Verified on 2026-09-25: the reference pack priced at
+ * $99.00 and invoiced at $84.00 — the $15 setup silently gone. On a small
+ * order the $45 minimum goes the same way, so one sticker bills $0.84
+ * instead of $45.00. `serverTotal`, the ceiling gate and the log line all
+ * still say $99; only `amountOutstanding` is short, and that is the number
+ * the customer's card is charged.
+ */
+const isSigns = isSignsProduct;
 
 /**
  * Printavo mangles non-ASCII in line-item text ("10 × $2" arrives as "10 � $2"),

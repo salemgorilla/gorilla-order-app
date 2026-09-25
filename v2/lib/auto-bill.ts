@@ -66,6 +66,7 @@
 
 import { isStickerOrder } from "./sticker-repricing";
 import { chargeableTotal } from "./tax";
+import { maySignsAutoBill } from "./order-flow";
 
 /**
  * THE CEILING GOVERNS WHAT THE CARD IS CHARGED, NOT THE PRE-TAX TOTAL.
@@ -123,20 +124,13 @@ export const DEPOSIT_FRACTION = 0.5;
  * than asking what the order is not. Anything that does not say what it is
  * gets no payment link, which is the failure direction that costs nothing.
  */
-export function isSignsOrder(order: Record<string, unknown>) {
-  const product = (order.product || {}) as Record<string, unknown>;
-  const type = String(product.type || "").toLowerCase();
-
-  // Never both. A payload claiming to be stickers is the sticker gate's
-  // business and must not be repriced or billed by this one.
-  if (type.includes("sticker")) {
-    return false;
-  }
-
-  const namesThePipeline = type.includes("sign") || type.includes("banner");
-
-  return namesThePipeline && Boolean(product.signType);
-}
+/**
+ * Re-exported from lib/order-flow. Strictly NARROWER than the shape
+ * predicate there: raising a payment link unattended demands both the type
+ * naming the pipeline and a `signType`. See maySignsAutoBill for why the
+ * two must not be collapsed.
+ */
+export const isSignsOrder = maySignsAutoBill;
 
 /**
  * Did the customer tick "my material / size / finish isn't listed"?

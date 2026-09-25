@@ -1005,6 +1005,44 @@ Working and verified:
   stops the app lying about it in the meantime, and makes the canary say so
   every morning until it is fixed.
 
+- **The server priced what was ordered but did not SAY what was ordered** —
+  2026-09-25. **The most serious defect found in this project.**
+
+  `repriceStickers` priced `items[]` and copied `product` through untouched.
+  For a SINGLE-DESIGN order, every shop-facing and invoice-facing surface
+  reads `product.quantity`, not the item — `lib/printavo.ts` for the decal
+  row's quantity and `sizes[].count`, `lib/email.ts` for the subject line
+  and the Quantity row. Nothing reconciled the two.
+
+  Reproduced against the real code before the fix:
+
+      product.quantity 5000, items[0].quantity 1
+        -> server prices ONE sticker, total $45.00 (the order minimum)
+        -> Printavo row reads "5000x Custom Stickers" at $0.0002 each
+        -> the shop prints 5,000 and collects $45. Correct price: ~$2,057.
+
+  `/api/quote` is public and unauthenticated and stickers auto-bill with no
+  human in the loop, so that was one crafted payload away. The true ordered
+  quantity appeared on **no** shop-facing surface for a single-design order
+  — the only tell anywhere was an "Each: $0.01" line in the customer note.
+
+  **Invariant 2 was enforced on the PRICE and not on WHAT WAS ORDERED.**
+  `product` is a client-supplied synthesis. The server now restates its
+  `quantity` and `designCount` from the same array it priced, the way
+  `repriceSigns` rebuilds its product wholesale. A forged quantity is
+  overwritten rather than detected — there is nothing to salvage in a number
+  that disagrees with the cart it arrived with.
+
+  Size, shape, material and finish are deliberately NOT touched: they
+  describe the design and are already read from the item on the row that
+  matters. Quantity is the one field passed to `describeStickerSpec` as an
+  explicit argument, so the item spread could not correct it.
+
+  Found by an adversarial money-path review, reproduced by hand before a
+  line was changed, and confirmed fixed the same way. The 199 committed
+  totals in `tests/price-sheet.test.ts` are unchanged, so no honest price
+  moved and no reconciliation is owed.
+
 - **The press query now answers its own next question** — 2026-09-25.
 
   Removing the invalid `sortOn` worked — that error is gone from

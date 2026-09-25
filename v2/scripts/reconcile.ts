@@ -29,7 +29,11 @@ import {
   fetchQuoteForReconciliation,
   type ReconcileQuoteResult,
 } from "../lib/printavo";
-import { formatReconcileReport, reconcileQuote } from "../lib/reconcile";
+import {
+  formatReconcileReport,
+  reconcileExitCode,
+  reconcileQuote,
+} from "../lib/reconcile";
 
 function usage(message: string): never {
   console.error(`\n${message}\n`);
@@ -90,15 +94,10 @@ async function main() {
 
   console.log(formatReconcileReport({ ...order }, result));
 
-  /**
-   * Non-zero on a MISMATCH only.
-   *
-   * An unknown exits 0 on purpose. Unknowns mean this harness could not see
-   * something — an unproven query shape, an order predating the note — and
-   * a tool that fails on its own blind spots gets muted within a week, which
-   * is exactly how the manual reconciliation stopped happening.
-   */
-  process.exit(result.ok ? 0 : 1);
+  // Non-zero on a MISMATCH only; an unknown exits 0 on purpose. The rule
+  // itself lives in lib/reconcile so it can be tested — it is the entire
+  // merge gate, and a ternary inside a script is the one line no suite sees.
+  process.exit(reconcileExitCode(result));
 }
 
 main().catch((error) => {

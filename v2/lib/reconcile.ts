@@ -468,3 +468,29 @@ export function formatReconcileReport(
 
   return lines.join("\n");
 }
+
+/**
+ * The exit code `npm run reconcile` leaves behind — the merge gate's answer.
+ *
+ * ── WHY THIS IS A FUNCTION AND NOT A TERNARY IN THE SCRIPT ────────────────
+ * AGENTS.md makes a green reconciliation the gate for any PR that changes a
+ * billed figure, and this one integer is the whole gate. Inverted, dropped,
+ * or softened to always-0, every reconciliation from then on reads green and
+ * the next pricing defect ships behind a tick. Nothing would have caught it:
+ * a script's own `process.exit` is the one line a test suite cannot see, and
+ * this repo has already shipped one check that matched nothing and passed
+ * quietly for weeks.
+ *
+ * ── WHY AN UNKNOWN IS 0 ───────────────────────────────────────────────────
+ * Unknowns mean the harness could not SEE something — an unproven line-item
+ * query shape, an order that predates the note format. A tool that fails on
+ * its own blind spots gets muted inside a week, and a muted gate is worse
+ * than no gate: it looks like coverage. `incomplete` is reported in the text
+ * of the report, where a human reads it and decides.
+ */
+export function reconcileExitCode(result: {
+  ok: boolean;
+  incomplete: boolean;
+}): 0 | 1 {
+  return result.ok ? 0 : 1;
+}

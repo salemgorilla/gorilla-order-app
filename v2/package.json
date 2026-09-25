@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test tests/*.test.ts",
+    "test": "tsx --test tests/*.test.ts tests/*.test.tsx",
     "test:e2e": "tsx tests/e2e/smoke.mjs",
     "reconcile": "tsx scripts/reconcile.ts",
     "reconcile:debt": "tsx scripts/reconciliation-debt.ts"

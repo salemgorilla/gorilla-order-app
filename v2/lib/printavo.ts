@@ -1,4 +1,9 @@
-import { isTaxableFlow, SALES_TAX } from "./tax";
+import {
+  getSignsTotals,
+  getStickerTotals,
+  isTaxableFlow,
+  SALES_TAX,
+} from "./tax";
 import { SIGNS_FEE_KINDS } from "./signs-pricing";
 import { DEPOSIT_FRACTION } from "./auto-bill";
 import { getTrackUrl } from "./order-status";
@@ -971,6 +976,7 @@ export function buildPrintavoQuotePlan(input: {
   const quantity = Math.max(1, num(product.quantity, 1));
   const total = num(pricing.total);
   const shippingPrice = num(pricing.shippingPrice);
+
   // " — net of code DIME" on the fee rows a percent code changed.
   const discountSuffix =
     num(pricing.discountPrice) > 0 && str(pricing.discountCode)
@@ -1134,6 +1140,32 @@ export function buildPrintavoQuotePlan(input: {
   );
 
   const signs = isSigns(product);
+
+  /**
+   * The taxed figure, from the same helper every screen uses.
+   *
+   * Apparel is exempt and signs need their fee total taken out of the base,
+   * which is exactly what getSignsTotals and getStickerTotals already
+   * encode — so this asks them rather than restating the rule. A second
+   * derivation of the taxable base is the bug this is fixing, one layer up.
+   *
+   * Null when the shape needed is not on the payload; the note then carries
+   * the pre-tax line alone, as it always did.
+   */
+  const quoteTotals = (() => {
+    if (apparel) return null;
+
+    if (signs) {
+      const feeTotal = num(pricing.signsFeeTotal);
+      return getSignsTotals({ total, feeTotal });
+    }
+
+    return getStickerTotals({
+      stickerPrice: num(pricing.stickerPrice),
+      setupPrice: num(pricing.setupPrice),
+      total,
+    });
+  })();
 
   const signLabel = str(product.signType, "Signs");
 
@@ -1472,6 +1504,32 @@ export function buildPrintavoQuotePlan(input: {
     "",
     "WEBSITE ESTIMATE",
     `Total: $${total.toFixed(2)}`,
+    /**
+     * THE FIGURE THE CUSTOMER ACTUALLY AGREED TO.
+     *
+     * `Total:` above is PRE-TAX — it is `pricing.total`, and tax is
+     * Printavo's to compute. But the customer was never shown that number.
+     * Every customer-facing surface renders `estimatedTotal` from
+     * lib/tax.ts: the reference pack reads $104.25 on screen, not $99.00.
+     *
+     * So the note recorded a figure nobody had agreed to, and
+     * `npm run reconcile` — which AGENTS.md makes the merge gate for any
+     * change to a billed figure — compared that pre-tax line against
+     * Printavo's tax-inclusive total and reported a MISMATCH of exactly the
+     * sales tax on EVERY taxable order. A gate that cries wolf on healthy
+     * orders is a gate that gets ignored, and being ignored is the state in
+     * which a real mismatch ships unnoticed.
+     *
+     * Derived by the SAME helper the screen uses, never a second formula —
+     * that is what lib/tax.ts is for. Omitted entirely on an exempt flow so
+     * apparel does not print a $0.00 tax line it never charges.
+     */
+    ...(quoteTotals && quoteTotals.taxed
+      ? [
+          `Tax (${SALES_TAX.ratePercent}% on $${quoteTotals.taxableSubtotal.toFixed(2)}): $${quoteTotals.estimatedTax.toFixed(2)}`,
+          `Total incl. tax: $${quoteTotals.estimatedTotal.toFixed(2)}`,
+        ]
+      : []),
     // One "each" across three different stickers is a blended average of
     // things that do not average — it read as a real per-sticker price the
     // shop could quote from. Each design's own unit price is on its own line

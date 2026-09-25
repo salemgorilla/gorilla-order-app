@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "tsx --test tests/*.test.ts",
     "test:e2e": "tsx tests/e2e/smoke.mjs",
-    "reconcile": "tsx scripts/reconcile.ts"
+    "reconcile": "tsx scripts/reconcile.ts",
+    "reconcile:debt": "tsx scripts/reconciliation-debt.ts"
   },
   "dependencies": {
     "@types/nodemailer": "^8.0.1",

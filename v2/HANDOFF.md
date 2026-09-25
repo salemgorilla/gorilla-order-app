@@ -31,6 +31,28 @@ PRINTAVO_TOKEN set. It reads only. Never pay a test quote; void it after.
 | GS-20260912-81PI1 | 2026-09-12 | stickers | **#149 #151 (re-rate + volume curve)** | ✅ **matched** — Gabe's own test, same spec as Lexi's: 100 × 3" circle, pickup. App: Stickers $45.00 + Setup $40.00 = **$85.00**. Printavo Request #10568 asked for **$87.81** = $45.00 × 1.0625 + $40.00, to the cent. Read off Printavo's payment-request email. Voided by Gabe the same day. |
 | _(none yet)_ | | stickers | **#153–#158 (setup $15, the cent fix, per-sticker term, v1 modifiers, die-cut 20%, two curves, $45 minimum)** | **owed** — #153 moved money between the two invoice lines AND changed how per-line unit prices are sent to Printavo (`lineUnitPrice`, 4 dp). A **multi-design cart** is the one to check: three designs at mixed sizes, expect Printavo to match the website to the cent. Reference gloss circle $85.00 pre-tax; the die-cut pack $97.60; Lexi's matte circle $88.50 |
 | _(none yet)_ | | apparel | #98 #132 #134 | **owed** — one catalogue garment, and one CART so the per-line size rows can be seen |
+| _(none yet)_ | | stickers | #159 #162 #163 #184 | **owed** — computed by `npm run reconcile:debt`, not recalled. USPS weight×zone shipping, discount codes folded in before Printavo, and the re-rate. One sticker order WITH a code applied and shipping chosen is the one to place |
+| _(none yet)_ | | signs | #160 #161 | **owed** — computed. Dibond at $15/sqft and +$4/sqft on every rigid material. A rigid sign, not a banner: the banner rates did not move |
+| _(none yet)_ | | all flows | #159 #162 #163 #164 #181 #185 #188 #189 | **owed** — computed. The shared surfaces: discount codes, the add-on rows, the tax-inclusive note lines and the ceiling that now governs what the card is charged. #189 is the one to check first — it changes WHICH orders take a 50% deposit, so the order to place is one over $4,999.99 pre-tax |
+
+**The three rows above were computed, not remembered** — 2026-09-25. The
+independent audit found this table's newest row covering #158 while `main`
+sat thirty commits past it, and the reason it drifted that far is that
+keeping it current was a memory exercise. It is now a command:
+
+    npm run reconcile:debt
+
+It walks git log from the newest `#NNN` any row claims to cover, flags every
+commit touching the money path, groups them by flow and prints the rows to
+paste here. CI runs it on every PR and prints the punch list into the job
+log — as a **warning that always exits 0**, deliberately. The remedy for a
+debt it reports is placing a real order and reading a real invoice, which no
+CI run can do; a gate nobody can satisfy gets bypassed, and a bypassed gate
+teaches the next session this table is optional.
+
+What it is NOT: a reconciliation. It can say which orders are worth placing
+and for which flow. Only Printavo can say whether the figures match, and
+only a human can place the order. The rows above stay **owed** until they do.
 
 **GS-20260912-81PI1 proves the new RATE** — the first real invoice at
 $0.05/sq in and $40 setup, and the figure Gabe named ("closer to $85")

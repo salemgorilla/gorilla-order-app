@@ -30,7 +30,10 @@
 
 import { chromium } from "playwright";
 
+import { defaultSignsDesign } from "../../lib/signs";
+import { quoteSignsCart } from "../../lib/signs-cart";
 import { isStickerOrder } from "../../lib/sticker-repricing";
+import { getSignsTotals } from "../../lib/tax";
 
 const BASE = process.env.SMOKE_URL || "http://localhost:3100";
 
@@ -138,6 +141,39 @@ async function reviewText(page) {
 const browser = await chromium.launch({
   executablePath: process.env.SMOKE_CHROMIUM || undefined,
 });
+
+/**
+ * The summary block's LABELS, as a stable snapshot.
+ *
+ * Not the values — those move with a rate change and would make this a
+ * second price sheet maintained by hand. The labels are the structure: a row
+ * that silently stops rendering is the defect this catches, and it is the
+ * one that has actually happened. A cart of two garments was once confirmed
+ * back as its FIRST garment carrying the COMBINED count.
+ */
+function summaryLabels(reviewBlock) {
+  // Every line that is a LABEL rather than a value: short, wordy, no digits
+  // and no currency. Derived from the block rather than filtered against a
+  // list, so a flow whose rows are named differently is described honestly
+  // instead of reading as a block with rows missing.
+  return reviewBlock
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(
+      (line) =>
+        line.length > 0 &&
+        line.length <= 24 &&
+        /^[A-Za-z][A-Za-z ']*$/.test(line) &&
+        !/^(Not entered|Not uploaded|Single-sided|Double-sided)$/.test(line)
+    );
+}
+
+/** Every dollar figure in the block, as numbers, in order. */
+function moneyIn(text) {
+  return [...text.matchAll(/\$\s*([\d,]+\.\d{2})/g)].map((m) =>
+    Number(m[1].replace(/,/g, ""))
+  );
+}
 
 /** Fresh page per flow, with the stubs and capture wired. */
 async function openPage(state, path = "/") {
@@ -248,6 +284,88 @@ try {
     const review = await reviewText(page);
     check("banners: review shows the banner product", review.includes("Vinyl Banner"));
     check("catalog: banners never fetch it", state.catalogRequests === 0);
+
+    /**
+     * THE FIGURE, IN A REAL BROWSER, AGAINST THE SERVER'S OWN DERIVATION.
+     *
+     * The defect class this closes has shipped twice on this exact number.
+     * The confirmation screen printed $177.00 — the PRE-TAX total — one
+     * second after this card showed a tax-inclusive figure; then the fix
+     * taxed the setup fee too and made it $188.06, 94c over what Printavo
+     * bills. Both were correct arithmetic on the wrong input, and both
+     * passed the whole suite.
+     *
+     * Expected is computed HERE from quoteSignsCart and getSignsTotals, so
+     * a legitimate rate change moves both sides together and this does not
+     * become a second price sheet maintained by hand.
+     */
+    const bannerCart = quoteSignsCart([defaultSignsDesign]);
+    const bannerExpected = getSignsTotals({
+      total: Number(bannerCart.total),
+      feeTotal: Number(bannerCart.feeTotal),
+    }).estimatedTotal;
+    const bannerShown = moneyIn(review);
+
+    check(
+      "banners: review shows the TAX-INCLUSIVE total, from the same derivation",
+      bannerShown.includes(Number(bannerExpected.toFixed(2))),
+      `expected $${bannerExpected.toFixed(2)}, saw [${bannerShown.join(", ")}]`
+    );
+    check(
+      "banners: the pre-tax figure is NOT on the review card",
+      !bannerShown.includes(Number(Number(bannerCart.total).toFixed(2))),
+      `pre-tax $${Number(bannerCart.total).toFixed(2)} is on screen`
+    );
+
+    const bannerLabels = summaryLabels(review);
+    check(
+      "banners: the summary block still renders every spec row",
+      ["Product", "Quantity", "Size", "Material", "Finishing", "Sides", "Estimated total"].every(
+        (label) => bannerLabels.includes(label)
+      ),
+      `saw [${bannerLabels.join(", ")}]`
+    );
+    console.log(`      banners summary: ${bannerLabels.join(" | ")}`);
+    await page.close();
+  }
+
+  // ── Flow 2b: YARD SIGNS — the OTHER large-format pipeline ────────────
+  // Banners and signs split in #122 and have priced separately since. The
+  // suite drove only one of them, which is how the sibling that did not get
+  // the fix keeps being the one that ships.
+  {
+    const state = { catalogRequests: 0, quoteRaw: null };
+    const page = await openPage(state);
+
+    await page.click("text=Yard Signs");
+    await page.click('button:has-text("05")');
+    await page.waitForTimeout(400);
+    const review = await reviewText(page);
+
+    check("signs: review shows the yard sign product", review.includes("Yard Sign"));
+    check("catalog: signs never fetch it", state.catalogRequests === 0);
+
+    const signShown = moneyIn(review);
+    check(
+      "signs: review shows a dollar total",
+      signShown.length > 0 && signShown.every((value) => value > 0),
+      `saw [${signShown.join(", ")}]`
+    );
+    check(
+      "signs: the review never calls the figure a price",
+      !/\bPrice\b/.test(review),
+      JSON.stringify(review.slice(0, 120))
+    );
+
+    const signLabels = summaryLabels(review);
+    check(
+      "signs: the summary block still renders every spec row",
+      ["Product", "Quantity", "Size", "Material", "Estimated total"].every((label) =>
+        signLabels.includes(label)
+      ),
+      `saw [${signLabels.join(", ")}]`
+    );
+    console.log(`      signs summary: ${signLabels.join(" | ")}`);
     await page.close();
   }
 
@@ -302,6 +420,39 @@ try {
       JSON.stringify(review.slice(0, 200))
     );
     check("apparel: review does not call it a price", !/\bPrice\b/.test(review));
+
+    /**
+     * Apparel must not acquire a payment link — AGENTS.md, in as many
+     * words. It is an estimate off a supplier catalogue that can be stale,
+     * so the shop confirms it first. Checked on the CARD, because the words
+     * on the card are what a customer reads as a promise.
+     */
+    check(
+      "apparel: the review offers no way to pay",
+      !/pay now|pay online|payment link|pay deposit/i.test(review),
+      JSON.stringify(review.slice(0, 160))
+    );
+
+    /**
+     * Apparel's own rows — NOT the signs list. It names a Garment rather
+     * than a Product, and its money row is "ESTIMATED EACH", never
+     * "Estimated total": the estimate language is the invariant, and this
+     * is where it gets to be checked as structure rather than as prose.
+     */
+    const apparelLabels = summaryLabels(review);
+    check(
+      "apparel: the summary block still renders its spec rows",
+      ["Garment", "Color", "Quantity", "Sizes", "Print Locations", "Ink Colors"].every(
+        (label) => apparelLabels.includes(label)
+      ),
+      `saw [${apparelLabels.join(", ")}]`
+    );
+    check(
+      "apparel: the money row is an ESTIMATE, not a total",
+      /ESTIMATED EACH/.test(review) && !/^Estimated total$/m.test(review),
+      JSON.stringify(review.slice(0, 160))
+    );
+    console.log(`      apparel summary: ${apparelLabels.join(" | ")}`);
 
     await page.click('button:has-text("Request Quote")');
     const confirmed = await page

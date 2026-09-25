@@ -68,18 +68,101 @@ to the cent. Nothing in #149 touched any of that. It did not prove the RATE
 — that is a business figure, and #149 changed it, so the row above it is
 owed and the merge rule points at the next sticker order.
 
-## Live right now — 2026-08-25 evening, `main` @ `954686e`
+## The independent audit, closed out — 2026-09-25
 
-`main` is deployed to https://labs.gorillasalem.com (Vercel, production branch
-is `main`, root directory `v2`). The custom domain is wired correctly — do NOT
-touch the `@` or `www` DNS records for gorillasalem.com, those are Squarespace
-and repointing them took the main site down once already.
+Nine items behind `GORILLA-INDEPENDENT-AUDIT-2026-09-25.md`. Status, with
+what each one actually turned up.
 
-1,171 tests passing, `tsc` clean, 0 lint errors (11 warnings, all the
-deliberate `<img>` uses). **Which build production is serving is no longer a
-guess**: `/api/artwork-upload` and `/api/printavo-test` report the commit
-("0d8b4aa (production)"), derived from Vercel's env — see the 08-23 entry on
-the build stamp for why it must never be a typed-in string again.
+| # | Item | Status |
+|---|---|---|
+| P0-1 | Reconciliation debt, computed not remembered | **done** — `npm run reconcile:debt`, wired into CI as a warning (#190) |
+| P0-2 | Standing test on the real `QuoteConfirmation` | **done** — `tests/confirmation-render.test.tsx` (#191) |
+| P0-3 | Regression test on the pre-tax vs tax-inclusive class | **done, and mostly pre-existing** — see below (#191) |
+| P1-4 | Collapse the flow classifiers | **done** — `lib/order-flow.ts` (#192) |
+| P1-5 | Fuzzed classifier test | **done** — and it found a live defect (#192) |
+| P1-6 | Extend e2e to signs, banners and apparel review | **done** |
+| P2-7 | Commit the independent oracle | **done, freshly derived** — see below |
+| P2-8 | `Invoice line:` on the customer-facing Review screen | **confirmed intentional, no change** — see below |
+| P2-9 | HANDOFF's "Live right now" heading goes stale | **done** — replaced, below |
+
+**P0-3 was already mostly done and is recorded as such.** `reconcile-tax.
+test.ts` (#185) pins the bug class inside `reconcileQuote` and `lib/
+reconcile.ts` sits at 98% line coverage. What nothing covered was the step
+AFTER the verdict: the single integer `npm run reconcile` exits with, which
+is the whole merge gate and lived in a script where no `node:test` looks.
+`reconcileExitCode()` now holds it and a test asserts the script calls it.
+
+**P1-5 found a live defect, which is the argument for sweeping over
+sampling.** `{ type: "Vinyl Banners", signType: "Banner", garmentType:
+"Tee" }` was SHAPED as apparel — apparel invoice rows, apparel email
+sections — and still cleared the signs auto-bill gate, so an apparel-shaped
+invoice acquired an automatic payment link. AGENTS.md forbids that in as
+many words. `/api/quote` is public and every one of those fields is
+caller-supplied. Same shape as #186's sticker bail, in the pair nobody had
+put side by side. The same work found that `lib/email.ts` never received
+#186's fix at all.
+
+**P2-7 could not be done as written and was done differently.** The audit's
+`oracle-test.mts` is not in this repo — it was scratch in the auditor's own
+session — so there was nothing to trim and commit. `verification/
+independent-oracle.ts` is a fresh derivation of the sticker total from the
+business rules as stated in prose: Gabe's quoted figures, the constants'
+own documentation, the reconciled invoices. It imports exactly one thing
+from `lib/` — the function under audit — and every other number is typed
+out again on purpose. `npm run audit:oracle`; 1,625 configurations agree to
+the cent. **Not in `tests/` and not in CI, deliberately**: a test that
+shares the repo's assumptions cannot catch a shared mistake, and a gate
+that goes red on every intended re-rate gets deleted. After a repricing,
+update its constants FROM THE DECISION — copying them out of
+`lib/pricing.ts` is the one move that makes the file worthless.
+
+It earned its keep on the first run: it disagreed by a cent on three
+configurations, and it was the oracle that was wrong both times — once
+missing the 4dp line rounding that mirrors how Printavo stores a unit
+price, once folding three modifiers into one multiplication. The second is
+worth remembering: **the sticker unit sits close enough to a 4dp boundary
+that multiplication ORDER moves a cent**, so a future refactor tidying
+those three multiplications into one constant is not the no-op it looks.
+
+**P2-8: intentional, and already tested.** `Invoice line: GORILLA-DECAL`
+(and `GORILLA-SIGN-VINYL-BANNER`, and the apparel codes) is on the review
+screen on purpose, so a customer can lay that screen beside the Printavo
+invoice and match it line for line. `tests/sku-agreement.test.ts` drives
+the real payload through `buildPrintavoQuotePlan` and holds the two equal,
+so the code shown is provably the code billed. No change made; recorded
+here so the next audit does not re-raise it.
+
+**Still owed, and not closed by any of this:** the six `**owed**` rows in
+the Reconciled table above. Every item here is a test, a script or a doc.
+None of them is a real order checked against a real invoice, and AGENTS.md
+is unchanged about which one counts.
+
+## How production is set up — facts that do not expire
+
+**This heading used to name a date and a commit, and both went a month
+stale** (2026-08-25, `954686e`, "1,171 tests passing") while the reader had
+no way to tell. A doc stating stale facts confidently is worse than no doc,
+because the next session acts on them. The fix is not a fresher number — it
+is not writing down a number that has somewhere better to live.
+
+So: **nothing in this section is a snapshot.** Every figure that moves has
+been replaced by where to ask for it.
+
+| Question | Where the live answer is |
+|---|---|
+| Which commit is production serving? | `/api/printavo-test` or `/api/artwork-upload` — both report it, derived from Vercel's env. Never a typed-in string; see the 08-23 entry on the build stamp for what that cost. |
+| How many tests pass? | `cd v2 && npm test`. CI runs it on every PR. |
+| Lint, types, build? | `.github/workflows/ci.yml` runs all three on every PR and push to `main`. |
+| Which billed figures are unreconciled? | `npm run reconcile:debt`, and the `## Reconciled` table above. |
+| Is production healthy right now? | `/api/health?secret=`, and the daily canary in `.github/workflows/canary.yml`. |
+
+What does NOT move, and is therefore written here:
+
+- `main` is deployed to https://labs.gorillasalem.com — Vercel, production
+  branch `main`, root directory `v2`.
+- The custom domain is wired correctly. **Do NOT touch the `@` or `www` DNS
+  records for gorillasalem.com** — those are Squarespace, and repointing
+  them took the main site down once already. Only the `labs` record is ours.
 
 Working and verified:
 

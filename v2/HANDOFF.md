@@ -1005,6 +1005,36 @@ Working and verified:
   stops the app lying about it in the meantime, and makes the canary say so
   every morning until it is fixed.
 
+- **The press query now answers its own next question** — 2026-09-25.
+
+  Removing the invalid `sortOn` worked — that error is gone from
+  production. The query got one step further and hit the next unproven
+  thing:
+
+      PRESS ACTIVITY unavailable:
+      Printavo: Field 'quantity' doesn't exist on type 'LineItem'
+
+  Which is the shape this file always warned about: the press query is the
+  one place the app READS a Printavo shape it never wrote, and the
+  published schema has been wrong for this integration before.
+
+  **The loop was the problem.** Each round cost a deploy to learn one field
+  name, and every error said precisely which thing was wrong and nothing
+  about what to use instead. `describePrintavoSchema` can answer that — it
+  is what `/api/printavo-schema` serves — but reaching it needs
+  `ADMIN_SECRET` and a person.
+
+  `explainPrintavoFieldError()` closes it. When an error matches
+  `Field 'x' doesn't exist on type 'Y'`, it asks the live schema for Y's
+  fields and puts them in the same log line. Read-only, only on failure,
+  only on that shape, and it swallows everything — a diagnostic that turns
+  a dark hero line into a failed endpoint has made things worse.
+
+  **Still unresolved:** what `LineItem` actually calls the quantity. The
+  next `/api/press` failure in the log will name it. `lib/press-activity.ts`
+  needs a real piece count, so dropping the field would turn "1,200
+  stickers this week" into "3 line items" — worse than no line.
+
 - **A ticked add-on is a row on the quote now, and still never a charge** —
   2026-09-25.
 

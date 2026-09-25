@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { adminSecretMatches } from "../../../lib/admin-auth";
-import { fetchRecentInvoicesForPress } from "../../../lib/printavo";
+import { fetchRecentInvoicesForPress,
+  explainPrintavoFieldError,
+} from "../../../lib/printavo";
 import {
   describePressActivity,
   summarisePressActivity,
@@ -80,7 +82,13 @@ export async function GET(request: Request) {
   if (error) {
     // Logged, not served. The shop finds out from the log; the visitor sees
     // a hero that simply has no press line, exactly as on a quiet week.
-    console.warn(`PRESS ACTIVITY unavailable: ${error}`);
+    //
+    // When the error names a type — "Field 'quantity' doesn't exist on type
+    // 'LineItem'" — the log line carries that type's real fields too, so the
+    // next round does not cost a deploy to learn one name. Awaited because
+    // a serverless function that returns first may never run it. See
+    // explainPrintavoFieldError: read-only, best effort, never throws.
+    console.warn(`PRESS ACTIVITY unavailable: ${await explainPrintavoFieldError(error)}`);
   }
 
   const activity = summarisePressActivity(orders);

@@ -2529,6 +2529,57 @@ function sortNewestFirst(nodes: AnyRecord[] | undefined): AnyRecord[] | undefine
   return [...nodes].sort((a, b) => at(b) - at(a));
 }
 
+/**
+ * "Field 'quantity' doesn't exist on type 'LineItem'" — so what DOES?
+ *
+ * ── WHY THIS EXISTS ───────────────────────────────────────────────────────
+ * The press query is the one place this app READS a shape it never wrote,
+ * and the published schema has been wrong for this integration before. So
+ * it is discovered a field at a time, and each round costs a deploy:
+ *
+ *   21 Sep   Argument 'sortOn' has an invalid value (CREATED_AT_DESC)
+ *   25 Sep   Field 'quantity' doesn't exist on type 'LineItem'
+ *
+ * Both were in the logs, and both said exactly which thing was wrong and
+ * nothing about what to use instead. describePrintavoSchema already answers
+ * that — it is what /api/printavo-schema serves — but reaching it needs
+ * ADMIN_SECRET and a person, so the loop stayed manual.
+ *
+ * When the error names a type, this asks the live schema for that type's
+ * fields and puts them in the same log line. The next failure carries its
+ * own answer.
+ *
+ * READ-ONLY and best effort: it runs only on a failure, only when the error
+ * matches the shape below, and any problem resolving it is swallowed. A
+ * diagnostic that can turn a degraded hero line into a thrown request has
+ * made things worse.
+ */
+const FIELD_ERROR = /Field '([^']+)' doesn't exist on type '([^']+)'/;
+
+export async function explainPrintavoFieldError(
+  error: string,
+  describe: typeof describePrintavoSchema = describePrintavoSchema
+): Promise<string> {
+  const match = FIELD_ERROR.exec(error);
+  if (!match) return error;
+
+  const [, field, typeName] = match;
+
+  try {
+    const schema = await describe([typeName]);
+    const fields = schema.types?.[typeName];
+
+    if (!Array.isArray(fields) || fields.length === 0) {
+      return `${error} (could not read the fields of ${typeName})`;
+    }
+
+    return `${error} — '${typeName}' has: ${fields.join(", ")}. Pick the one that carries '${field}'.`;
+  } catch {
+    // The probe is a nicety; the original sentence is the finding.
+    return error;
+  }
+}
+
 export async function fetchRecentInvoicesForPress(input: { first?: number } = {}): Promise<{
   orders: AnyRecord[];
   error?: string;

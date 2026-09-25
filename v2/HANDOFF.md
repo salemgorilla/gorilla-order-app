@@ -1005,6 +1005,33 @@ Working and verified:
   stops the app lying about it in the meantime, and makes the canary say so
   every morning until it is fixed.
 
+- **I taxed a fee I had just excluded** — 2026-09-25, same day, one change
+  later.
+
+  The tax lines added to the `WEBSITE ESTIMATE` block read
+  `pricing.signsFeeTotal` for the signs base. **Nothing writes that field** —
+  the name exists only as a React prop in `app/page.tsx`. So it resolved to
+  `undefined`, `num()` made it `0`, and the whole signs total became the
+  taxable base, taxing the setup fee the invoice sends `taxed: false`.
+
+  Measured on a 25-yard-sign order: the note claimed **$20.47 of tax on a
+  $327.50 base** where the truth is **$19.53 on $312.50**. Ninety-four cents
+  overstated — and because the reconciler now PREFERS the note's
+  tax-inclusive line, that was a fresh false MISMATCH on every signs order,
+  introduced by the change that removed the previous one.
+
+  The base now comes from `signsFeeTotal(pricing.lines)` — the single
+  definition of what a fee is, and the same set `isSignsFeeLine` uses to
+  mark those rows untaxed on the invoice, so the estimate and the invoice
+  cannot disagree.
+
+  **The suite was green throughout.** It was caught by pricing a real signs
+  cart and comparing the note to `getSignsTotals`, which
+  `tests/reconcile-tax.test.ts` now does on every run for both flows.
+  Mutation-verified. A field that nothing writes fails SILENTLY as a wrong
+  number rather than an error, so the guard also names the dead field
+  directly.
+
 - **The confirmation showed the browser's total; the two public endpoints
   had no ceiling** — 2026-09-25.
 

@@ -161,3 +161,87 @@ describe("the two Total lines cannot be confused", () => {
     assert.deepEqual(readNoteTotal(note()), { value: 104.25, taxInclusive: true });
   });
 });
+
+/**
+ * THE NOTE'S TAX MUST EQUAL THE TAX THE INVOICE CHARGES — ON BOTH FLOWS.
+ *
+ * ── THE BUG THIS EXISTS FOR, WHICH I SHIPPED ──────────────────────────────
+ * The first version of the tax lines read `pricing.signsFeeTotal` to find
+ * the signs fee total. NOTHING writes that field — the name lives only as a
+ * React prop in app/page.tsx. So it resolved to undefined, num() made it 0,
+ * and the WHOLE signs total became the taxable base, taxing the setup fee
+ * that the invoice sends with `taxed: false`.
+ *
+ * Measured on a 25-yard-sign order: the note claimed $20.47 of tax on a
+ * $327.50 base where the truth is $19.53 on $312.50. Ninety-four cents
+ * overstated — and because the reconciler now PREFERS the note's
+ * tax-inclusive line, that was a fresh false MISMATCH on every signs order,
+ * introduced by the change that removed the previous one.
+ *
+ * The suite was green. It was caught by pricing a real signs cart and
+ * comparing the note to getSignsTotals, which is what this now does on
+ * every run.
+ */
+describe("the note's tax equals the truth, on every flow", () => {
+  const inclFromNote = (customerNote: string) => {
+    const section = customerNote.split("WEBSITE ESTIMATE")[1] ?? "";
+    const match = section.match(/Total incl\. tax: \$([\d,]+\.\d{2})/);
+    return match ? Number(match[1].replace(/,/g, "")) : null;
+  };
+
+  test("stickers: the note matches getStickerTotals", async () => {
+    const { getStickerTotals } = await import("../lib/tax");
+    const truth = getStickerTotals({ stickerPrice: 84, setupPrice: 15, total: 99 });
+
+    assert.equal(inclFromNote(note()), truth.estimatedTotal);
+  });
+
+  test("signs: the note matches getSignsTotals, fees OUT of the base", async () => {
+    const [{ getSignsTotals }, { defaultSignsDesign }, { quoteSignsCart }, { buildSignsPayloadParts }] =
+      await Promise.all([
+        import("../lib/tax"),
+        import("../lib/signs"),
+        import("../lib/signs-cart"),
+        import("../lib/signs-payload"),
+      ]);
+
+    for (const designs of [
+      [{ ...defaultSignsDesign, productId: "yard-sign", quantity: 25, size: '18" x 24"' }],
+      [{ ...defaultSignsDesign, productId: "vinyl-banner", quantity: 2, size: "3' x 6'", bannerAddOns: ["polePockets"] }],
+    ]) {
+      const pricing = quoteSignsCart(designs as never);
+      const order = {
+        customer: { customerName: "T", email: "t@example.com" },
+        production: { needBy: "2026-10-14" },
+        ...buildSignsPayloadParts(designs as never, pricing, "signs"),
+      };
+      const plan = buildPrintavoQuotePlan({
+        quoteNumber: "GS-S", order, artworkAnalysis: null,
+      } as never) as never as { customerNote: string };
+
+      const truth = getSignsTotals({
+        total: pricing.total,
+        feeTotal: pricing.feeTotal,
+      });
+
+      assert.equal(
+        inclFromNote(plan.customerNote),
+        truth.estimatedTotal,
+        `fees $${pricing.feeTotal} of $${pricing.total} — the note is taxing a fee the invoice does not`
+      );
+    }
+  });
+
+  test("the field that never existed is not read again", async () => {
+    // pricing.signsFeeTotal is written by nothing. Reading it silently
+    // yields 0, which taxes every fee — the failure mode is a WRONG NUMBER,
+    // not an error, so only a test naming it keeps it gone.
+    const src = await import("node:fs/promises").then((fs) =>
+      fs.readFile(new URL("../lib/printavo.ts", import.meta.url), "utf8")
+    );
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, "");
+
+    assert.doesNotMatch(code, /pricing\.signsFeeTotal/);
+    assert.match(code, /signsFeeTotal\(lines\)/);
+  });
+});

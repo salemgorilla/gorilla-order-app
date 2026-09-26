@@ -160,6 +160,18 @@ computation and the table disagree, the table is stale and the run should say
 so loudly. A table of expected numbers nobody recomputes is the next thing to
 go quietly out of date.
 
+> **This section is guarded, but the scheduled task is not.**
+> `tests/health-check-handoff-current.test.ts` recomputes every anchor row,
+> every rate, every volume tier and every multiplier above from
+> `lib/pricing.ts` and fails if this file drifts — so a re-rate cannot land
+> without someone being told.
+>
+> **It cannot reach the scheduled health check**, which baked these same
+> figures into its own stored prompt. When that test fails it says so and
+> names the trigger. Refreshing the task is a human step, and until it
+> happens the next run will report *its own staleness* as a production
+> mismatch.
+
 **Include an order under $45 of goods every few runs.** The $45 order minimum
 is the largest single distortion on a small order, it is the figure the #186
 money story turns on, and the repo's own independent oracle

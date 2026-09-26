@@ -33,8 +33,11 @@ test("the money path is recognised, and ordinary files are not", () => {
   assert.equal(flowForPath("lib/signs-pricing-config.ts"), "signs");
   assert.equal(flowForPath("lib/apparel-cart-lines.ts"), "apparel");
 
+  // Genuinely off the money path. QuoteConfirmation.tsx used to be here and
+  // is not any more — it is the screen that states the figure to the
+  // customer, and it has shown the wrong one twice.
   assert.equal(flowForPath("lib/email.ts"), null);
-  assert.equal(flowForPath("features/QuoteConfirmation.tsx"), null);
+  assert.equal(flowForPath("components/Header.tsx"), null);
   assert.equal(flowForPath("README.md"), null);
 });
 
@@ -121,7 +124,92 @@ test("changed lines exclude diff headers and comments", () => {
   ]);
 });
 
-test("printavo.ts counts on billing lines and not on prose about prices", () => {
+test("REGRESSION: the two commits this script used to miss, on real history", () => {
+  /**
+   * Both found by an adversarial review, not by this file, and both are
+   * false NEGATIVES — the failure that matters. A billed-figure commit the
+   * script misses never reaches a row, and the table drifts exactly the way
+   * this script exists to stop.
+   *
+   *   #186  a keyword contentTest on lib/printavo.ts dropped it. Its whole
+   *         diff there is a classification bail — `includes("sticker")`,
+   *         `return false` — containing none of the keywords, and its own
+   *         header says it fixed "$99.00 priced, $84.00 invoiced".
+   *   #187  every rule was anchored ^lib/, and it touches
+   *         app/api/quote/route.ts and features/QuoteConfirmation.tsx.
+   *
+   * Driven off real `git show --name-only` output rather than a fixture:
+   * a fixture would have been written from the same misunderstanding that
+   * produced the bug.
+   */
+  const repoRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+    cwd: new URL("..", import.meta.url).pathname,
+    encoding: "utf8",
+  }).trim();
+
+  for (const [sha, why] of [
+    ["213922f", "#186 — billing moved by classification, not arithmetic"],
+    ["46ee6dd", "#187 — the money path outside lib/"],
+  ] as const) {
+    const subject = execFileSync("git", ["log", "--format=%s", "-1", sha], {
+      cwd: repoRoot,
+      encoding: "utf8",
+    }).trim();
+    const files = execFileSync("git", ["show", "--format=", "--name-only", sha], {
+      cwd: repoRoot,
+      encoding: "utf8",
+    })
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    assert.ok(files.length > 0, `${sha} listed no files — history not deep enough?`);
+    assert.ok(
+      classifyCommit({ sha, subject, date: "", files }) !== null,
+      `${sha} is not flagged as a billed-figure commit — ${why}`
+    );
+  }
+});
+
+test("the money path reaches outside lib/", () => {
+  // The whole of finding 4 in one assertion: an ^lib/-only rule set cannot
+  // see the route that assembles the priced order or the screen that states
+  // the figure to the customer.
+  for (const path of [
+    "app/api/quote/route.ts",
+    "app/api/discount-code/route.ts",
+    "app/api/payment-request/route.ts",
+    "features/QuoteConfirmation.tsx",
+    "features/QuoteReviewCard.tsx",
+    "lib/order-flow.ts",
+    "lib/rush.ts",
+    "lib/addons.ts",
+  ]) {
+    assert.ok(flowForPath(path) !== null, `${path} is not on the money path`);
+  }
+});
+
+test("no rule carries a contentTest any more", () => {
+  // The mechanism is kept for the record; using it again on a file whose
+  // billing changes can be classification-only reintroduces the #186 miss.
+  // If a future rule needs one, it needs a reason in writing first.
+  for (const rule of BILLED_FIGURE_RULES) {
+    assert.equal(
+      rule.contentTest,
+      undefined,
+      `${rule.test} sets a contentTest — see the field's note before adding one`
+    );
+  }
+});
+
+test("printavo.ts counts whatever changed in it", () => {
+  /**
+   * It used to count only when the changed lines matched a keyword list.
+   * That list dropped #186, whose whole diff there is a classification bail
+   * — see the REGRESSION test above. `lib/printavo.ts` is the line-item
+   * builder; a change to it warrants ten seconds of triage, and ten seconds
+   * beats a commit that silently short-bills a customer.
+   */
   const billing = classifyCommit(
     commit({
       files: ["lib/printavo.ts"],
@@ -130,16 +218,19 @@ test("printavo.ts counts on billing lines and not on prose about prices", () => 
   );
   assert.ok(billing, "a changed line-item price must count");
 
-  const prose = classifyCommit(
+  const classificationOnly = classifyCommit(
     commit({
       files: ["lib/printavo.ts"],
       diffs: {
         "lib/printavo.ts":
-          "+++ b/lib/printavo.ts\n+ * It cannot read an order, a customer, a price or a\n+  const query = HERO_QUERY;\n",
+          '+++ b/lib/printavo.ts\n+  if (str(product.type).toLowerCase().includes("sticker")) {\n+    return false;\n+  }\n',
       },
     })
   );
-  assert.equal(prose, null, "a comment mentioning price must not count");
+  assert.ok(
+    classificationOnly,
+    "#186's exact diff must count — no keyword in it, and it moved $15 a quote"
+  );
 });
 
 test("a missing or empty diff counts the file rather than clearing it", () => {
@@ -242,7 +333,7 @@ test("every rule's path pattern matches a file that exists today", () => {
   // The failure this repo has been bitten by: a scripted check whose pattern
   // matches nothing, passing quietly forever. A rule pointed at a file that
   // has been renamed is exactly that.
-  const tracked = execFileSync("git", ["ls-files", "lib"], {
+  const tracked = execFileSync("git", ["ls-files", "lib", "app", "features", "components"], {
     cwd: new URL("..", import.meta.url).pathname,
     encoding: "utf8",
   })

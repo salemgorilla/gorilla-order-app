@@ -27,6 +27,23 @@
  * someone ten seconds to dismiss; a commit that moves a number in a file
  * nobody thought to list is missed silently and costs the shop money. The
  * false positive is the cheap error, so the rules err toward it.
+ *
+ * THAT PRINCIPLE WAS WRITTEN HERE AND THEN BROKEN TWICE, both found by an
+ * adversarial review on 2026-09-25 rather than by this file:
+ *
+ *   - a keyword `contentTest` on `lib/printavo.ts` dropped #186, whose only
+ *     change there was a classification bail containing none of the words.
+ *     See the field's own note. Removed.
+ *
+ *   - every rule was anchored `^lib/`, so nothing outside it could ever be
+ *     flagged. #187 — "Show the figure that bills, and put a ceiling on the
+ *     public endpoints" — touches `app/api/quote/route.ts` and
+ *     `features/QuoteConfirmation.tsx` and matched nothing, so it is absent
+ *     from the report AND from the rows pasted into HANDOFF.md, which jump
+ *     #185 → #188 with no #186 and no #187 between them.
+ *
+ * When adding a rule, ask "could a change here alter what Printavo bills or
+ * what the customer is told they owe" — not "is this file under lib/".
  */
 
 /** The four buckets the Reconciled table's `Flow` column uses. */
@@ -47,14 +64,31 @@ type PathRule = {
   why: string;
   /**
    * For files that hold billing code AND a lot of other code. When set, the
-   * file only counts if the commit's CHANGED, NON-COMMENT lines in it match.
+   * file only counts if the commit's CHANGED, NON-COMMENT lines match.
    *
-   * Only `lib/printavo.ts` needs this, and it needs it badly: it is the
-   * Printavo client as well as the line-item builder, so path-matching alone
-   * put ten query-and-tagging commits into the report. A report that is
-   * mostly noise gets skimmed, and a skimmed report is the state this script
-   * exists to leave behind. Without a diff to test, the file counts — the
-   * caller not supplying one must not quietly clear a debt.
+   * NOTHING SETS THIS ANY MORE, and the field is kept only so the mechanism
+   * and its failure are on the record together.
+   *
+   * `lib/printavo.ts` had one — a keyword list of `lineItems|unitPrice|
+   * price|taxed|amount|total|discount|deposit|fee` — added to cut ten
+   * query-and-tagging commits out of the report. It worked, and it dropped
+   * #186: "Three flow classifiers, two of which agreed", whose entire diff
+   * in that file is
+   *
+   *   if (str(product.type).toLowerCase().includes("sticker")) {
+   *   return false;
+   *   }
+   *
+   * Not one keyword. That commit's own header says it fixed "$99.00 priced,
+   * $84.00 invoiced — the $15 setup silently gone… one sticker bills $0.84
+   * instead of $45.00". A billing change that moves money by CLASSIFICATION
+   * rather than by arithmetic is invisible to a keyword list, and
+   * lib/printavo.ts has produced that shape twice.
+   *
+   * The file's own rules say the false positive is the cheap error and the
+   * rules should err toward it. This field errs the other way, which is why
+   * it is now unused: ten seconds of triage against a commit that silently
+   * short-bills a customer is not a trade worth making.
    */
   contentTest?: RegExp;
 };
@@ -119,8 +153,32 @@ export const BILLED_FIGURE_RULES: readonly PathRule[] = [
   {
     test: /^lib\/printavo\.ts$/,
     flow: "all flows",
-    why: "writes the line items Printavo bills from — #153 changed billing here without changing a rate",
-    contentTest: /lineItems|unitPrice|price|taxed|amount|total|discount|deposit|fee/i,
+    why: "writes the line items Printavo bills from — #153 changed billing without changing a rate, #186 by classification alone",
+  },
+  {
+    test: /^lib\/order-flow\.ts$/,
+    flow: "all flows",
+    why: "decides which flow bills and which invoice rows exist — a change here moves money without touching a rate",
+  },
+  {
+    test: /^lib\/rush\.ts$/,
+    flow: "all flows",
+    why: "rushFee becomes a GORILLA-RUSH line item on the invoice",
+  },
+  {
+    test: /^lib\/addons\.ts$/,
+    flow: "all flows",
+    why: "add-on amounts become quote rows",
+  },
+  {
+    test: /^app\/api\/(quote|discount-code|payment-request)\/route\.ts$/,
+    flow: "all flows",
+    why: "assembles the priced order, validates the code, and raises the payment request",
+  },
+  {
+    test: /^features\/Quote(Confirmation|ReviewCard)\.tsx$/,
+    flow: "all flows",
+    why: "the two screens that state the figure to the customer — both have shown the wrong one",
   },
   // Generic catch-alls LAST, so a named file keeps its own flow.
   {

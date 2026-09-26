@@ -35,6 +35,7 @@ PRINTAVO_TOKEN set. It reads only. Never pay a test quote; void it after.
 | _(none yet)_ | | signs | #160 #161 | **owed** — computed. Dibond at $15/sqft and +$4/sqft on every rigid material. A rigid sign, not a banner: the banner rates did not move |
 | _(none yet)_ | | all flows | #159 #162 #163 #164 #181 #185 #188 #189 | **owed** — computed. The shared surfaces: discount codes, the add-on rows, the tax-inclusive note lines and the ceiling that now governs what the card is charged. #189 is the one to check first — it changes WHICH orders take a 50% deposit, so the order to place is one over $4,999.99 pre-tax |
 | _(none yet)_ | | all flows | #192 | **owed** — flagged by `npm run reconcile:debt`, not by memory. I argued in the PR that #192 moves no billed figure (no rate, no arithmetic, `lib/pricing.ts` and `tests/price-sheet.test.ts` byte-identical) and the script disagreed, because it touched `auto-bill.ts` and `sticker-repricing.ts`. The script wins: that judgement call is exactly what drifted this table thirty commits. Expected to be a no-op — **the check is that one ordinary sticker order and one ordinary banner still bill EXACTLY what they billed before** |
+| _(none yet)_ | | all flows | #186 #187 #196 | **owed** — rows the debt script SHOULD have produced and did not. #186 moved money by classification alone (its printavo.ts diff is `includes("sticker")` / `return false`, no keyword) and a `contentTest` dropped it; #187 touches `app/api/quote/route.ts` and `features/QuoteConfirmation.tsx`, and every rule was anchored `^lib/`. Both found by adversarial review, both now flagged, both still owed. #196 is the apparel auto-bill fix and the `chargeableTotal` consolidation that came out of the same review |
 
 **The three rows above were computed, not remembered** — 2026-09-25. The
 independent audit found this table's newest row covering #158 while `main`
@@ -133,10 +134,16 @@ the real payload through `buildPrintavoQuotePlan` and holds the two equal,
 so the code shown is provably the code billed. No change made; recorded
 here so the next audit does not re-raise it.
 
-**Still owed, and not closed by any of this:** the six `**owed**` rows in
-the Reconciled table above. Every item here is a test, a script or a doc.
-None of them is a real order checked against a real invoice, and AGENTS.md
-is unchanged about which one counts.
+**Still owed, and not closed by any of this:** the `**owed**` rows in the
+Reconciled table above. Every item here is a test, a script or a doc. None
+of them is a real order checked against a real invoice, and AGENTS.md is
+unchanged about which one counts.
+
+The count is deliberately not written here. It said "six" while the same
+PR's own script printed seven, because a number copied into prose stops
+tracking the thing it describes the moment anything changes — the same
+failure as the "Live right now" heading two sections down. Run
+`npm run reconcile:debt`; it prints the current count and the rows.
 
 ## How production is set up — facts that do not expire
 

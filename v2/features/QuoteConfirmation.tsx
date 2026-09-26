@@ -588,7 +588,10 @@ export default function QuoteConfirmationScreen({
               {isSignsSubmitted ? (
                 signsTotals !== null ? (
                   <>
-                    <p className="mt-2 text-head font-bold text-[var(--ink-black)]">
+                    <p
+                      data-money="order-total"
+                      className="mt-2 text-head font-bold text-[var(--ink-black)]"
+                    >
                       ${signsTotals.estimatedTotal.toFixed(2)}
                     </p>
                     {signsTotals.estimatedTax > 0 && (
@@ -678,7 +681,17 @@ export default function QuoteConfirmationScreen({
                       the moment a payable link is issued — so showing the
                       pre-tax total here meant they agreed to one number and
                       were billed another, which is the whole defect. */}
-                  <p className="mt-2 text-head font-bold text-[var(--ink-black)]">
+                  {/* data-money marks THE figure — the one the card is
+                      charged. A test that reads every dollar sign on this
+                      screen cannot tell the headline from the correction
+                      notice below it, and an adversarial review used exactly
+                      that: swapping the two left both numbers on the page and
+                      the whole suite green while the customer's stale figure
+                      sat in the headline. Read this node, not the page. */}
+                  <p
+                    data-money="order-total"
+                    className="mt-2 text-head font-bold text-[var(--ink-black)]"
+                  >
                     ${stickerTotals.estimatedTotal.toFixed(2)}
                   </p>
                   <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
@@ -706,8 +719,10 @@ export default function QuoteConfirmationScreen({
                     <p className="mt-3 border-t border-[var(--rule)] pt-3 text-fine font-medium leading-5 text-[var(--ink-black)]">
                       Our prices changed while you were building this quote,
                       so your total was recalculated — you were seeing $
-                      {quotedTotal.toFixed(2)}. This figure is what your
-                      invoice asks for.
+                      <span data-money="quoted-before">
+                        {quotedTotal.toFixed(2)}
+                      </span>
+                      . This figure is what your invoice asks for.
                     </p>
                   )}
                 </>

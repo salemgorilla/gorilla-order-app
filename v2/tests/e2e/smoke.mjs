@@ -30,7 +30,7 @@
 
 import { chromium } from "playwright";
 
-import { defaultSignsDesign } from "../../lib/signs";
+import { defaultSignsDesign, getSignProduct } from "../../lib/signs";
 import { quoteSignsCart } from "../../lib/signs-cart";
 import { isStickerOrder } from "../../lib/sticker-repricing";
 import { getSignsTotals } from "../../lib/tax";
@@ -152,20 +152,51 @@ const browser = await chromium.launch({
  * back as its FIRST garment carrying the COMBINED count.
  */
 function summaryLabels(reviewBlock) {
-  // Every line that is a LABEL rather than a value: short, wordy, no digits
-  // and no currency. Derived from the block rather than filtered against a
-  // list, so a flow whose rows are named differently is described honestly
-  // instead of reading as a block with rows missing.
-  return reviewBlock
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(
-      (line) =>
-        line.length > 0 &&
-        line.length <= 24 &&
-        /^[A-Za-z][A-Za-z ']*$/.test(line) &&
-        !/^(Not entered|Not uploaded|Single-sided|Double-sided)$/.test(line)
-    );
+  /**
+   * A LABEL IS A LINE WITH A VALUE UNDER IT. That is the structure of this
+   * block — `innerText` renders each spec row as the label on one line and
+   * its value on the next — and it is the only thing that actually
+   * distinguishes the two.
+   *
+   * The first version filtered on shape alone (short, letters and spaces),
+   * which admits values exactly as readily as labels: it returned
+   * "Vinyl Banner", "Basic Tee", "White", "Coroplast" and "REVIEW YOUR
+   * QUOTE" alongside the real labels, so the "stable snapshot of the
+   * block's structure" it claimed to be was a list of whatever happened to
+   * be wordy. A required-label check could in principle have been satisfied
+   * by a VALUE with the same text.
+   *
+   * Pairs are taken from the known label vocabulary, so a genuinely new row
+   * is reported as absent from the vocabulary rather than silently
+   * accepted — this list is meant to be edited when a row is added.
+   */
+  const VOCABULARY = new Set([
+    "Product",
+    "Garment",
+    "Color",
+    "Quantity",
+    "Size",
+    "Sizes",
+    "Material",
+    "Finishing",
+    "Sides",
+    "Print Locations",
+    "Ink Colors",
+    "Artwork",
+    "Invoice line",
+    "Estimated total",
+    "ESTIMATED EACH",
+    "Needed By",
+  ]);
+
+  const lines = reviewBlock.split("\n").map((line) => line.trim());
+
+  return lines.filter(
+    (line, index) =>
+      VOCABULARY.has(line) &&
+      index + 1 < lines.length &&
+      lines[index + 1].length > 0
+  );
 }
 
 /** Every dollar figure in the block, as numbers, in order. */
@@ -345,12 +376,61 @@ try {
     check("signs: review shows the yard sign product", review.includes("Yard Sign"));
     check("catalog: signs never fetch it", state.catalogRequests === 0);
 
-    const signShown = moneyIn(review);
+    /**
+     * THE SAME CHECK THE BANNER BRANCH GETS, because yard signs auto-bill
+     * too and the pre-tax/tax-inclusive confusion is not banner-specific.
+     *
+     * This branch previously asserted only `every(v => v > 0)` — satisfied
+     * by ANY positive dollar figure on the page, including the pre-tax one
+     * this file spends a paragraph explaining. An assertion that cannot
+     * distinguish the right answer from the defect is the sibling that did
+     * not get the fix, which is the pattern the whole suite is about.
+     *
+     * The spec is READ OFF THE CARD rather than assumed, so if the flow's
+     * defaults move, this fails loudly instead of silently pricing
+     * something the customer is not looking at.
+     */
+    const specOf = (label) => {
+      const match = review.match(new RegExp(`^${label}\\n(.+)$`, "m"));
+      return match ? match[1].trim() : null;
+    };
+    const signSize = specOf("Size");
+    const signMaterial = specOf("Material");
+
     check(
-      "signs: review shows a dollar total",
-      signShown.length > 0 && signShown.every((value) => value > 0),
-      `saw [${signShown.join(", ")}]`
+      "signs: the review states a size and a material to price from",
+      Boolean(signSize && signMaterial),
+      `size=${JSON.stringify(signSize)} material=${JSON.stringify(signMaterial)}`
     );
+
+    if (signSize && signMaterial) {
+      const signCart = quoteSignsCart([
+        {
+          ...defaultSignsDesign,
+          productId: "yard-sign",
+          size: signSize,
+          material: signMaterial,
+          finishing: getSignProduct("yard-sign").finishings?.[0] ?? "",
+        },
+      ]);
+      const signExpected = getSignsTotals({
+        total: Number(signCart.total),
+        feeTotal: Number(signCart.feeTotal),
+      }).estimatedTotal;
+      const signShown = moneyIn(review);
+
+      check(
+        "signs: review shows the TAX-INCLUSIVE total, from the same derivation",
+        signShown.includes(Number(signExpected.toFixed(2))),
+        `expected $${signExpected.toFixed(2)} for ${signSize} ${signMaterial}, saw [${signShown.join(", ")}]`
+      );
+      check(
+        "signs: the pre-tax figure is NOT on the review card",
+        !signShown.includes(Number(Number(signCart.total).toFixed(2))),
+        `pre-tax $${Number(signCart.total).toFixed(2)} is on screen`
+      );
+    }
+
     check(
       "signs: the review never calls the figure a price",
       !/\bPrice\b/.test(review),

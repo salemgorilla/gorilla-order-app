@@ -46,6 +46,33 @@ import { repriceSigns } from "../lib/signs-repricing";
  * Printavo reconciliation.
  */
 
+/**
+ * The money inside ONE marked node — `data-money="order-total"` is the
+ * headline, `data-money="quoted-before"` is the stale figure in the
+ * correction notice.
+ *
+ * WHY NOT A SET OVER THE WHOLE PAGE, WHICH IS WHAT THIS FILE SHIPPED:
+ * `moneyOn(html).includes(charged)` cannot tell the headline from the
+ * notice. An adversarial review swapped the two — stale figure as the
+ * headline, charged figure buried in "you were seeing $…" — and all 9 tests
+ * here plus all 2,467 in the suite stayed green, while the screen was
+ * showing the customer a number they are not being billed. That is the
+ * precise defect this file was written for.
+ *
+ * Deliberately a regex over the rendered HTML rather than a DOM parse: this
+ * suite has no jsdom, adding one to read one attribute is a dependency for
+ * a string search, and `renderToStaticMarkup` output is not user-authored.
+ */
+function moneyInNode(html: string, name: string): number | null {
+  const match = html.match(
+    new RegExp(`data-money="${name}"[^>]*>([\\s\\S]*?)</(?:p|span)>`)
+  );
+  if (!match) return null;
+
+  const money = match[1].replace(/<[^>]+>/g, "").match(/([\d,]+\.\d{2})/);
+  return money ? Number(money[1].replace(/,/g, "")) : null;
+}
+
 /** Every dollar figure on the rendered screen, in order, as numbers. */
 function moneyOn(html: string): number[] {
   const text = html.replace(/<[^>]+>/g, " ");
@@ -271,15 +298,20 @@ describe("the figure on the confirmation screen is the figure that bills", () =>
     test(row.name, () => {
       const { order, props } = row.build();
       const html = render(props);
-      const shown = moneyOn(html);
       const charged = chargeableTotal(order as never);
+      const headline = moneyInNode(html, "order-total");
 
       assert.ok(charged !== null, "chargeableTotal could not derive a figure");
-      assert.ok(shown.length > 0, "the screen printed no money at all");
       assert.ok(
-        shown.includes(Number(charged.toFixed(2))),
-        `screen printed [${shown.join(", ")}] and none of them is the charged ` +
-          `$${charged.toFixed(2)}`
+        headline !== null,
+        `no [data-money="order-total"] node on the screen — the hook the ` +
+          `headline assertion reads was renamed or dropped`
+      );
+      assert.strictEqual(
+        headline,
+        Number(charged.toFixed(2)),
+        `the HEADLINE says $${headline?.toFixed(2)} and the card is charged ` +
+          `$${charged.toFixed(2)} (every figure on screen: [${moneyOn(html).join(", ")}])`
       );
     });
   }
@@ -304,9 +336,27 @@ describe("the two inputs this screen has been given wrong", () => {
 
     const charged = chargeableTotal(server as never);
     assert.ok(charged !== null);
-    assert.ok(
-      moneyOn(html).includes(Number(charged.toFixed(2))),
-      "the screen is showing the tab's stale figure, not the server's"
+
+    const headline = moneyInNode(html, "order-total");
+    const before = moneyInNode(html, "quoted-before");
+
+    // BOTH figures are pinned to their own node, and to each other. Pinning
+    // only the headline would catch the swap that found this; pinning both
+    // fixes the MEANING of each, so neither can drift into the other's slot.
+    assert.strictEqual(
+      headline,
+      Number(charged.toFixed(2)),
+      "the headline is showing the tab's stale figure, not the server's"
+    );
+    assert.strictEqual(
+      before,
+      53.8,
+      "the correction notice is not quoting the figure the customer actually saw"
+    );
+    assert.notStrictEqual(
+      headline,
+      before,
+      "the fixture cannot prove anything — the stale and charged figures are equal"
     );
     assert.match(
       textOf(html),
@@ -348,8 +398,14 @@ describe("the two inputs this screen has been given wrong", () => {
       quoteConfirmation: { quoteNumber: "GS-20260925-FFFFF" } as never,
     });
 
+    const headline = moneyInNode(html, "order-total");
     const shown = moneyOn(html);
-    assert.ok(shown.includes(187.13), `expected $187.13 among [${shown.join(", ")}]`);
+
+    assert.strictEqual(
+      headline,
+      187.13,
+      `the signs headline says $${headline?.toFixed(2)} (all figures: [${shown.join(", ")}])`
+    );
     assert.ok(
       !shown.includes(177.0),
       "the pre-tax figure is on the screen — that is the original defect"

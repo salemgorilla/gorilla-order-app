@@ -2915,6 +2915,8 @@ export default function Home() {
         droppedArtwork,
         // Stickers only, and null whenever Printavo was unreachable.
         checkout: result.checkout ?? null,
+        // The server recognised this as a retry and created nothing.
+        duplicate: Boolean(result.duplicate),
         /**
          * Whether this joined an existing Printavo contact or made a new one.
          * The API has always returned it; nothing has ever shown it. Only the

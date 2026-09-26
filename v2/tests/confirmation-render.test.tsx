@@ -417,6 +417,56 @@ describe("the two inputs this screen has been given wrong", () => {
   });
 });
 
+describe("a retry is said out loud", () => {
+  test("the duplicate notice renders, and answers the actual worry", () => {
+    /**
+     * The server has recognised repeated submits since #199 and created
+     * nothing — but it said so only to itself. `duplicate: true` reached the
+     * response and no surface rendered it, so the customer saw an ordinary
+     * confirmation and had no way to know whether they now had one order or
+     * two. Somebody in that position presses submit a third time.
+     *
+     * What is asserted is the SUBSTANCE, not the wording: that the screen
+     * says nothing was duplicated AND that they have not been charged twice.
+     * The second half is the question they are actually asking.
+     */
+    const order = stickerOrder({ items: [{ size: '3"', quantity: 100 }] });
+    const { order: server, serverPricing } = asServerWould(order);
+
+    const html = render({
+      order: server as never,
+      quoteConfirmation: {
+        quoteNumber: "GS-20260926-341FZUU4",
+        serverPricing,
+        duplicate: true,
+      } as never,
+    });
+
+    const text = textOf(html);
+
+    assert.match(text, /already received/i, "the retry is not named on screen");
+    assert.match(text, /not been charged twice/i, "the money worry is unanswered");
+    assert.match(text, /GS-20260926-341FZUU4/, "the original quote number is missing");
+  });
+
+  test("an ordinary first submit says none of it", () => {
+    // The notice must not appear on every confirmation — a customer who
+    // submitted once being told they submitted twice is worse than silence.
+    const order = stickerOrder({ items: [{ size: '3"', quantity: 100 }] });
+    const { order: server, serverPricing } = asServerWould(order);
+
+    const html = render({
+      order: server as never,
+      quoteConfirmation: {
+        quoteNumber: "GS-20260926-FIRSTONE",
+        serverPricing,
+      } as never,
+    });
+
+    assert.doesNotMatch(textOf(html), /already received/i);
+  });
+});
+
 describe("apparel is never given a price on this screen", () => {
   test("the estimate is not called a price, and carries no payable figure", () => {
     // AGENTS.md: apparel is an ESTIMATE off a supplier catalogue that can be

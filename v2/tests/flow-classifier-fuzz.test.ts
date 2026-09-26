@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
 import { isSignsOrder } from "../lib/auto-bill";
+import { chargeableTotal, getStickerTotals } from "../lib/tax";
 import {
   classifyOrderFlow,
   isApparelProduct,
@@ -9,7 +10,6 @@ import {
   isStickerFlow,
   maySignsAutoBill,
   namesStickers,
-  type OrderFlow,
 } from "../lib/order-flow";
 import { buildPrintavoQuotePlan } from "../lib/printavo";
 import { isStickerOrder } from "../lib/sticker-repricing";
@@ -25,21 +25,59 @@ import { isStickerOrder } from "../lib/sticker-repricing";
  * and `supplier` are all caller-supplied, so the input space is "any text",
  * not "the eight strings we thought of".
  *
- * This enumerates ~3,000 products — every combination of a type string
- * built from the three dangerous substrings, four casings, three
- * punctuation styles, and each of the spec fields present or absent — and
- * asserts the INVARIANTS rather than the answers. An invariant survives a
- * rewrite; a table of expected outputs does not.
+ * This enumerates every combination of a type string built from the
+ * pipeline-naming substrings, four casings and six joiners, crossed with
+ * each of the spec fields present or absent — and asserts the INVARIANTS
+ * rather than the answers. An invariant survives a rewrite; a table of
+ * expected outputs does not. The exact count is printed in the suite name
+ * rather than written here, because a hand-typed count goes stale and this
+ * file already shipped two wrong ones ("~3,000" here, "1,700+" in the PR,
+ * against an actual 6,248).
  *
  * ── WHAT IT FOUND ─────────────────────────────────────────────────────────
- * Invariant 3. `{ type: "Vinyl Banners", signType: "Banner", garmentType:
- * "Tee" }` was SHAPED as apparel and still cleared the signs auto-bill gate,
- * so an apparel-shaped invoice acquired an automatic payment link — which
- * AGENTS.md forbids in as many words. The same defect as #186's sticker
- * bail, in the pair nobody had put side by side.
+ * Invariant 3, twice over, in the two halves of the same pair.
+ *
+ * FIRST: `{ type: "Vinyl Banners", signType: "Banner", garmentType: "Tee" }`
+ * was SHAPED as apparel and still cleared the SIGNS auto-bill gate, so an
+ * apparel-shaped invoice acquired an automatic payment link — which
+ * AGENTS.md forbids in as many words.
+ *
+ * SECOND, and only after "apparel" was added to the generator:
+ * `{ type: "Custom Sticker Apparel" }` did the same through the STICKER
+ * gate, which #192 left without the bail it gave signs. $99.00 charged
+ * against a chargeable $104.25, the $15 setup row and the 6.25% both
+ * missing from the invoice, and a prepress brief reading "100x Apparel /
+ * Color: TBD / S&S style: N/A". The first fix shipped as coverage for the
+ * second, which is the argument for sweeping over sampling stated twice in
+ * one file.
  */
 
-const SUBSTRINGS = ["sticker", "stickers", "signs", "sign", "banner", "banners"];
+/**
+ * THE GENERATOR IS THE TEST. Everything below asserts over whatever this
+ * produces, so a word missing here is an invariant that cannot fail.
+ *
+ * "apparel" was absent from this list while being one of the three
+ * pipelines, so it only ever appeared as a standalone base string and never
+ * combined. Invariant 3 ("nothing shaped as apparel may auto-bill") was
+ * therefore asserted over a space containing no apparel-and-sticker
+ * payloads at all — it read as coverage for a defect that was live:
+ * `{ type: "Custom Sticker Apparel" }` shaped as apparel, cleared the
+ * STICKER billing gate, and charged $99.00 against a chargeable $104.25
+ * with the $15 setup row and the 6.25% both gone from the invoice.
+ *
+ * Add a word here before adding an invariant about it.
+ */
+const SUBSTRINGS = [
+  "sticker",
+  "stickers",
+  "decal",
+  "signs",
+  "sign",
+  "banner",
+  "banners",
+  "apparel",
+  "shirt",
+];
 const CASINGS: Array<(s: string) => string> = [
   (s) => s,
   (s) => s.toUpperCase(),
@@ -50,7 +88,7 @@ const JOINERS = [" ", " & ", "-", " / ", ", ", ""];
 
 /** Type strings: each substring alone, and every ordered pair of them. */
 function typeStrings(): string[] {
-  const bases = new Set<string>(["", "Custom", "Poster", "Apparel", "T-Shirts"]);
+  const bases = new Set<string>(["", "Custom", "Poster", "Lead", "Hand Quote"]);
 
   for (const one of SUBSTRINGS) {
     bases.add(one);
@@ -202,19 +240,81 @@ describe(`the invariants, over ${PRODUCTS.length} generated products`, () => {
     );
   });
 
-  test("5. no order may auto-bill down two flows at once", () => {
+  test("5. a type naming BOTH stickers and signs never auto-bills", () => {
+    /**
+     * The clause `!typeText(product).includes("signs")` inside isStickerFlow
+     * had NO test. Deleting it left the whole suite green — including this
+     * sweep — while newly letting `{ type: "Sticker Signs" }` self-check-out,
+     * which is the expensive direction.
+     *
+     * The old invariant 5 ("no order auto-bills down two flows at once")
+     * could not catch it: maySignsAutoBill requires `signType` and
+     * isStickerFlow requires `!signType`, so the two are disjoint by
+     * construction and that assertion was unfalsifiable by any single-clause
+     * change. This pins the clause that exists.
+     *
+     * DELIBERATELY "signs" AND NOT "sign"/"banner", which is what the clause
+     * says. Writing the stricter rule instead made this fail on
+     * `{ type: "Sticker Sign" }` and `{ type: "Custom Sticker Banners" }` —
+     * and both of those are CONSISTENT: priced $99, invoiced $99, taxed on
+     * the sticker base, exactly like a plain sticker order. #186 settled the
+     * banners case on purpose. A test that fails on correct behaviour
+     * because the rule it asserts is tidier than the rule the code
+     * implements is a test that gets deleted, so this asserts the real one.
+     */
     forEveryProduct(
-      "both billing gates are open on one order",
-      (product) =>
-        !(maySignsAutoBill(orderFor(product)) && isStickerFlow(orderFor(product)))
+      "a sticker/signs type cleared a billing gate",
+      (product) => {
+        const text = String(product.type ?? "").toLowerCase();
+        const both = text.includes("sticker") && text.includes("signs");
+        if (!both) return true;
+        return !isStickerFlow(orderFor(product)) && !maySignsAutoBill(orderFor(product));
+      }
     );
   });
 
-  test("6. every order gets exactly one shape", () => {
-    const shapes: OrderFlow[] = ["apparel", "signs", "stickers"];
-    forEveryProduct("classifyOrderFlow returned something else", (product) =>
-      shapes.includes(classifyOrderFlow(orderFor(product)))
+  test("6. the charged figure is derived on the SAME flow the invoice uses", () => {
+    /**
+     * Replaces a tautology. The old invariant 6 asserted that
+     * classifyOrderFlow returns one of its own three literal return values,
+     * which `tsc` already guarantees and no mutation can break.
+     *
+     * This asserts something that WAS false: lib/tax.ts's chargeableTotal
+     * carried a sixth copy of the flow rules with its own precedence — signs
+     * tested before stickers, and no sticker bail — so a sticker-shaped
+     * order could be taxed as a sign. 94c between the number the ceiling
+     * gate reads and the number the card is charged.
+     */
+    const pricing = { stickerPrice: 84, setupPrice: 15, total: 99, lines: [] };
+
+    forEveryProduct(
+      "chargeableTotal disagrees with the flow the invoice is built on",
+      (product) => {
+        const order = { product, pricing };
+        const charged = chargeableTotal(order as never);
+        if (charged === null) return true; // "cannot derive" is a valid answer
+
+        const shape = classifyOrderFlow(order as never);
+        if (shape === "apparel") return charged === 99; // exempt, pre-tax
+        if (shape === "signs") return charged > 99; // taxed, fees out of base
+        // stickers: taxed on the sticker base, never the signs one
+        return (
+          Math.abs(charged - getStickerTotals({ stickerPrice: 84, setupPrice: 15, total: 99 }).estimatedTotal) < 0.005
+        );
+      }
     );
+  });
+
+  test("7. a payload with no product at all never auto-bills", () => {
+    // AGENTS.md names this as the way stickers silently stop checking out:
+    // buildQuotePayload must keep synthesising `product`, because without it
+    // isStickerOrder() returns false. The inverse matters more — a payload
+    // with no product must never be BILLED either, and the sweep could not
+    // see it because every generated order has one.
+    for (const order of [{}, { product: null }, { product: undefined }, { product: {} }]) {
+      assert.equal(isStickerFlow(order as never), false, JSON.stringify(order));
+      assert.equal(maySignsAutoBill(order as never), false, JSON.stringify(order));
+    }
   });
 });
 

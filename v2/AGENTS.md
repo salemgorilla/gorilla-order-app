@@ -11,6 +11,11 @@ The app is in `v2/`. The repo root holds a dead v1 static site — ignore it.
 3. `DESIGN-SYSTEM.md` — the Order Desk register. Read before touching any UI.
 4. `GAMEPLAN.md` — version history and longer-range context.
 
+And if you are RUNNING A TEST against production rather than changing code:
+`PRODUCTION-HEALTH-CHECK-HANDOFF.md` — what a run has to prove, what counts
+as evidence, and the one thing that will make a scheduled check pass while
+testing nothing. Read it before the first run, not after.
+
 ## The one that matters most
 
 **Stickers, signs and banners auto-bill with no human in the loop.** A

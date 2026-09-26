@@ -171,6 +171,44 @@ test("REGRESSION: the two commits this script used to miss, on real history", ()
   }
 });
 
+test("a row written by the health check cannot break the anchor", () => {
+  /**
+   * The scheduled production health check appends rows to this table and
+   * pushes to `main`. Two of the three shapes it might plausibly write used
+   * to be hazards:
+   *
+   *   - an `**owed**` row with no PR to cite — it reports on a DEPLOYMENT,
+   *     not a code change — turned CI red on the assertion above.
+   *   - a Printavo quote or invoice number in the COVERS column becomes the
+   *     anchor, finds no matching commit, and the script reports a shallow
+   *     clone. To anyone skimming, that reads as "no debt".
+   *
+   * The second is the dangerous one, and it is the same class as the bug
+   * this file already guards in the Result column — just arriving through a
+   * writer that did not exist when that guard was written.
+   */
+  const table = [
+    "## Reconciled",
+    "| Quote | Date | Flow | Covers | Result |",
+    "|---|---|---|---|---|",
+    "| _(none yet)_ | | stickers | #158 | **owed** \u2014 a real PR |",
+    "| GS-1 | 2026-09-26 | stickers | (scheduled health check) | \u2705 **matched** \u2014 Printavo #109432 |",
+    "| _(none yet)_ | | signs | #109432 | **owed** \u2014 an invoice number in the wrong column |",
+  ].join("\n");
+
+  assert.equal(
+    lastCoveredPr(table),
+    158,
+    "a Printavo number in the Covers column became the anchor"
+  );
+
+  const owed = parseOwedRows(table);
+  assert.equal(owed.length, 2, "the matched health-check row was counted as owed");
+  for (const row of owed) {
+    assert.ok(row.covers.length > 0, `${row.flow} says nothing about what it covers`);
+  }
+});
+
 test("the money path reaches outside lib/", () => {
   // The whole of finding 4 in one assertion: an ^lib/-only rule set cannot
   // see the route that assembles the priced order or the screen that states
@@ -312,12 +350,34 @@ test("owed rows are read from the Result column, matched rows are not", () => {
   ]);
 });
 
-test("the real HANDOFF.md still has owed rows, and they parse", () => {
+test("the real HANDOFF.md still has owed rows, and they say what they cover", () => {
+  /**
+   * An owed row must name what it covers. It does NOT have to name a PR.
+   *
+   * This asserted `/#\d+/` and would have turned CI red on `main` the first
+   * time the scheduled production health check appended a row — which it
+   * pushes directly. A run reports on a DEPLOYMENT, not a code change, so it
+   * legitimately has a quote number or "scheduled health check" in that
+   * column and no PR at all. Caught by simulating the row before the first
+   * run, not by the first run failing.
+   *
+   * The real requirement was always "an owed row is not blank" — a row that
+   * says nothing about what it covers cannot be acted on by anybody.
+   */
   const handoff = readFileSync(new URL("../HANDOFF.md", import.meta.url), "utf8");
   const owed = parseOwedRows(handoff);
+
   assert.ok(owed.length > 0, "the table claims nothing is owed — verify that is true");
   for (const row of owed) {
-    assert.match(row.covers, /#\d+/, `owed row for ${row.flow} names no PR`);
+    assert.notEqual(
+      row.covers,
+      "(unstated)",
+      `the owed row for ${row.flow} has an empty Covers column`
+    );
+    assert.ok(
+      row.covers.length > 0,
+      `the owed row for ${row.flow} says nothing about what it covers`
+    );
   }
 });
 

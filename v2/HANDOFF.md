@@ -70,6 +70,63 @@ to the cent. Nothing in #149 touched any of that. It did not prove the RATE
 — that is a business figure, and #149 changed it, so the row above it is
 owed and the merge rule points at the next sticker order.
 
+## One submit, one order — 2026-09-26
+
+`/api/quote` had no idempotency key. Its own rate-limiter comment said so:
+*"NOT an idempotency key. A retried submit still creates a second quote —
+that is a separate defect."* The quote number came from `Math.random()` on
+every request, so a retry became a second Printavo order and, for stickers,
+signs and banners, **a second live payable link** — two "ready to pay"
+emails for one job, both payable.
+
+Unlike every classification defect fixed on 25 Sep, this one needs no
+crafted payload. `isSubmitting` guards the button and does nothing for the
+case that matters: the request SUCCEEDS and the response is lost, so the
+customer sees a failure that was not one and presses submit again.
+
+**How it works.** The browser mints a key once per quote build
+(`lib/submission-key.ts`) and sends it with every attempt. The key DERIVES
+the quote number (`lib/idempotency.ts`), so a retry asks Printavo about the
+number the first attempt already created. Printavo is the store because it
+is the only one this app has that is shared across instances —
+`lib/rate-limit.ts` is in-process and says so, and a retry landing on a
+second serverless instance would find no key at all. No new infrastructure,
+no new Printavo field, and it reuses the one search proven against the live
+account (`orders(query:)`, confirmed by the nickname carrying the number).
+
+**Three decisions worth knowing before changing any of this:**
+
+- **It FAILS OPEN.** If Printavo cannot be asked, the order goes through and
+  logs `IDEMPOTENCY CHECK UNAVAILABLE`. Refusing would turn a Printavo blip
+  into "no orders can be placed"; the risk carried instead is a duplicate,
+  which is what every submit carried before. Same trade
+  `lib/artwork-upload.ts` makes, for the same reason.
+- **Eight characters, not five.** A random collision means two orders share
+  a label. A DERIVED collision means the second customer's submit finds the
+  first customer's order and is told "already received" — their order
+  silently never placed, which is worse than a duplicate. Eight is the top
+  of the range `lib/dropoff.ts` already validates, so nothing else had to
+  learn a new shape.
+- **A payload with no key still works.** An older tab, the kiosk before it
+  updates, a direct API caller — all get the random number and no dedupe,
+  exactly as today. A new guarantee must not become a new way to refuse an
+  order.
+
+**The window it does NOT close:** the date stamp is today, so the same key
+either side of midnight derives two numbers and a retry across that boundary
+still duplicates. Deliberate — the stamp is the order date and the shop
+reads it, and a retry twelve hours later is a different submission by any
+reasonable reading.
+
+**Not yet proven against a real Printavo.** The duplicate branch is covered
+against a stubbed one (`tests/idempotency-dedupe.test.ts` counts the GraphQL
+operations and asserts only the two lookups run), and the browser really
+does mint and send the key (asserted in the e2e against a real Chromium).
+What no test can show is that Printavo's search finds the order reliably
+within seconds of it being created — if its index lags, a fast double-click
+still duplicates. **The check: place one order, then resubmit the same tab,
+and confirm Printavo holds exactly one.**
+
 ## The independent audit, closed out — 2026-09-25
 
 Nine items behind `GORILLA-INDEPENDENT-AUDIT-2026-09-25.md`. Status, with

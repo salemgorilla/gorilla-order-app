@@ -37,7 +37,9 @@ import { describeKioskSource, readKioskSession } from "../../../lib/kiosk";
 import {
   createPrintavoQuote,
   createCheckout,
+  findExistingQuote,
 } from "../../../lib/printavo";
+import { quoteNumberFor } from "../../../lib/idempotency";
 
 /**
  * Quote submissions per caller per minute.
@@ -359,8 +361,86 @@ export async function POST(request: Request) {
       );
     }
 
-    const quoteNumber = generateQuoteNumber();
+    /**
+     * ONE SUBMIT, ONE ORDER.
+     *
+     * The quote number was `Math.random()` on every request, so a RETRIED
+     * submit became a second Printavo order — and for stickers, signs and
+     * banners, a second live payable link. The customer ends up holding two
+     * "ready to pay" emails for one job and can pay both. The button's
+     * isSubmitting flag does not cover the case that matters: the request
+     * SUCCEEDS and the response is lost, so the customer sees a failure that
+     * was not one and presses submit again. Hotel wifi is enough.
+     *
+     * The browser now mints a key once per quote build and sends it with
+     * every attempt, and that key DERIVES the quote number — so a retry asks
+     * Printavo about the number the first attempt already created. Printavo
+     * is the store because it is the only one this app has that is shared
+     * across instances: lib/rate-limit.ts is in-process and says so, and a
+     * retry landing on a second instance would find no key at all.
+     *
+     * A payload with no key still works and still gets a random number. An
+     * older tab, the kiosk before it updates, a direct API caller — all
+     * behave exactly as they do today. A new guarantee must not become a new
+     * way to refuse an order.
+     */
+    const { quoteNumber, deduplicable } = quoteNumberFor({
+      submissionKey: (order as Record<string, unknown>).submissionKey,
+      fallback: generateQuoteNumber,
+    });
     const receivedAt = new Date().toISOString();
+
+    if (deduplicable) {
+      const existing = await findExistingQuote(quoteNumber);
+
+      if (existing.searched && existing.found) {
+        /**
+         * Already here. Return it and touch nothing: no Printavo order, no
+         * payment request, no email. This is the whole point — every side
+         * effect in this route is below this line.
+         *
+         * `success: true` deliberately. From the customer's side the order
+         * WAS received; reporting a failure would invite a third attempt,
+         * which is the loop this exists to break.
+         */
+        console.warn(
+          `DUPLICATE SUBMIT ${quoteNumber} — returning the existing order, ` +
+            `nothing created.`
+        );
+
+        return NextResponse.json({
+          success: true,
+          duplicate: true,
+          message: "We already have this order — nothing was sent twice.",
+          quoteNumber,
+          receivedAt,
+          // The link the FIRST attempt raised, when Printavo would give it
+          // back. Null falls through to "check your email", which is where
+          // that attempt already sent it.
+          checkout: existing.publicUrl
+            ? { ready: true, payUrl: existing.publicUrl }
+            : null,
+        });
+      }
+
+      if (!existing.searched) {
+        /**
+         * FAIL OPEN, LOUDLY.
+         *
+         * Printavo could not be asked, so whether this is a duplicate is
+         * unknown. Refusing would turn a Printavo blip into "no orders can
+         * be placed", and this repo's rule is that a lost order is the worst
+         * outcome available — lib/artwork-upload.ts makes the same trade for
+         * the same reason. So the order goes through, and the risk it
+         * carries is a duplicate, which is what happened on every submit
+         * before today.
+         */
+        console.warn(
+          `IDEMPOTENCY CHECK UNAVAILABLE for ${quoteNumber} ` +
+            `(${existing.error || "unknown"}) — proceeding, may duplicate.`
+        );
+      }
+    }
 
     // Reprice stickers on the SERVER before anything bills for them.
     //

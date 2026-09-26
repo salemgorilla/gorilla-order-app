@@ -2332,6 +2332,105 @@ export type ReconcileQuoteResult = {
   raw?: unknown;
 };
 
+/**
+ * Has this quote number already been created in Printavo?
+ *
+ * The idempotency check. lib/idempotency.ts derives a STABLE quote number
+ * from the browser's submission key, so a retried submit asks about the
+ * number the first attempt already created — and Printavo, the system of
+ * record, is the shared store this app otherwise has nowhere to keep.
+ *
+ * ── THE RETURN SHAPE IS THE POINT ─────────────────────────────────────────
+ * `searched` is separate from `found` because the caller must be able to
+ * tell "Printavo says no such order" from "Printavo could not be asked".
+ * Collapsing them into one boolean would make a network blip look like a
+ * clean miss — and the caller's response to a miss is to CREATE AND BILL.
+ *
+ * ── PROVEN QUERY FIRST, UNPROVEN SECOND ───────────────────────────────────
+ * Step one is the `orders(query:)` search this repo has actually run against
+ * the live account, confirmed by the nickname carrying the GS- number, and
+ * its shape is not touched. `publicUrl` is asked for SEPARATELY, and is
+ * allowed to fail: a shape error there still leaves the answer that matters
+ * — this order exists, do not create another — in hand. Same structure and
+ * same reason as fetchQuoteForReconciliation below.
+ */
+export async function findExistingQuote(quoteNumber: string): Promise<{
+  /** False means Printavo could not be asked. The caller must fail OPEN. */
+  searched: boolean;
+  found: boolean;
+  id?: string;
+  visualId?: string;
+  /** The pay link, when the second request could get it. */
+  publicUrl?: string;
+  error?: string;
+}> {
+  const wanted = quoteNumber.trim().toUpperCase();
+
+  if (!isConfigured()) {
+    return { searched: false, found: false, error: "Printavo is not configured." };
+  }
+
+  if (!wanted) {
+    return { searched: false, found: false, error: "No quote number given." };
+  }
+
+  let match: AnyRecord | undefined;
+
+  try {
+    const search = await printavoRequest<{ orders: { nodes: AnyRecord[] } }>(
+      `query GorillaIdempotencySearch($q: String!, $first: Int!) {
+         orders(query: $q, first: $first) {
+           nodes {
+             ... on Quote    { id visualId nickname }
+             ... on Invoice  { id visualId nickname }
+           }
+         }
+       }`,
+      { q: wanted, first: ORDER_SEARCH_PAGE_SIZE }
+    );
+
+    // Printavo's search is fuzzy. Confirm the number really is in the
+    // nickname rather than trusting whatever it decided was close — the
+    // same guard lookupOrderStatus and the reconciler both apply, and here
+    // a false positive would REFUSE a customer's order.
+    match = (search.orders?.nodes || []).find((node) =>
+      nicknameMatchesQuoteNumber(str(node.nickname), wanted)
+    );
+  } catch (error) {
+    return {
+      searched: false,
+      found: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+
+  if (!match?.id) return { searched: true, found: false };
+
+  const result = {
+    searched: true,
+    found: true,
+    id: str(match.id),
+    visualId: str(match.visualId),
+  };
+
+  try {
+    const detail = await printavoRequest<{ quote?: AnyRecord }>(
+      `query GorillaIdempotencyPayLink($id: ID!) {
+         quote(id: $id) { id publicUrl }
+       }`,
+      { id: result.id }
+    );
+
+    const publicUrl = str(detail.quote?.publicUrl);
+    return publicUrl ? { ...result, publicUrl } : result;
+  } catch {
+    // The order exists; that is the answer the caller needs. Without the
+    // link the customer is told to check their email, which is where the
+    // first attempt already sent it.
+    return result;
+  }
+}
+
 export async function fetchQuoteForReconciliation(
   quoteNumber: string
 ): Promise<ReconcileQuoteResult> {

@@ -71,6 +71,85 @@ to the cent. Nothing in #149 touched any of that. It did not prove the RATE
 — that is a business figure, and #149 changed it, so the row above it is
 owed and the merge rule points at the next sticker order.
 
+## Session index — 2026-09-25 to 26, #190 through #203
+
+Fourteen merges in one session. Written down as an index because the
+substance lives in fourteen PR descriptions and nothing pointed at all of
+them at once, which is the same drift this session spent its time undoing.
+
+**Session:** `session_01UZqzEScWFbGsR7h1K2aYtD` ("Gorilla Labs beta"),
+tagged `gorilla-order-app` / `gorilla-labs` / `salemgorilla`.
+
+### Money defects found and fixed
+
+- **#196 — an apparel-shaped order could auto-bill as stickers.**
+  `{ type: "Custom Sticker Apparel" }` cleared the sticker gate while being
+  SHAPED as apparel: $99.00 charged against a chargeable $104.25, the $15
+  setup row and the 6.25% both absent from the invoice, and a prepress brief
+  reading "100x Apparel / Color: TBD". #192 had given the signs gate this
+  bail and not the sticker one. `/api/quote` is public and every field is
+  caller-supplied.
+- **#196 — a sixth flow classifier.** #192 claimed "one flow classifier";
+  `lib/tax.ts`'s `chargeableTotal` had its own, testing signs before
+  stickers with no sticker bail — 94c between the number the ceiling gate
+  reads and the number the card is charged.
+- **#192 — a signs order carrying a garment field could acquire a payment
+  link**, which AGENTS.md forbids outright. Found by the fuzz sweep.
+- **#192 — `lib/email.ts` never received #186's fix**, so a sticker-priced,
+  sticker-billed order was still described to the shop as a sign.
+- **#199 — `/api/quote` had no idempotency key.** A retried submit became a
+  second Printavo order and a second live payable link. Unlike the rest,
+  this needed no crafted payload: bad wifi was enough.
+
+### Tools that were lying, and now are not
+
+- **#190/#197 — `npm run reconcile:debt`.** Counts what the Reconciled table
+  owes instead of remembering it. Its own first version dropped #186 (a
+  keyword `contentTest` could not see a billing change made by
+  classification) and could not see #187 at all (every rule anchored
+  `^lib/`). Both fixed; the regression test drives real `git show` output.
+- **#193/#198 — assertions that could not fail.** The confirmation test
+  checked money by membership across the whole page, so swapping the
+  headline with the correction notice kept the suite green while the
+  customer read the wrong figure. Now anchored to `data-money` nodes.
+- **#196 — two fuzz invariants were vacuous**, one unfalsifiable by
+  construction and one a tautology `tsc` already enforced. The generator
+  also omitted "apparel", so the invariant about apparel was asserted over a
+  space containing no apparel payloads.
+- **#195 — this repo's verification skill went stale in a day**, claiming
+  `npm run lint` did not exist and shipping a test glob that silently
+  skipped `.test.tsx` files.
+
+### What an adversarial review changed
+
+A fresh reviewer that saw the output and not the reasoning found ten issues
+in work that had passed 2,467 tests, and was right about every one I
+checked. #196, #197 and #198 exist because of it. **The pattern is worth
+keeping: hand customer-facing claims to a reviewer that did not write
+them.**
+
+It also left a mutation in the working tree, which is why the rule now reads
+"confirm the revert" rather than "revert".
+
+### Standing arrangements set up
+
+- `PRODUCTION-HEALTH-CHECK-HANDOFF.md` — what a production test run owes,
+  self-contained, re-read by the health-check agent every run.
+- Trigger `trig_01CDHJYQF4Ypdoq7eXP6UQLA`, every 4 hours, plus AGENTS.md's
+  rule to fire it after every merge rather than waiting for the tick.
+
+### Still open at the end of the session
+
+- **Nine `**owed**` reconciliation rows.** Everything above is a test, a
+  script or a doc. None of it is a real order checked against a real
+  invoice.
+- **The artwork upload has never once completed in production.**
+- **`ADMIN_SECRET` is not in the repo's Actions secrets**, so the nightly
+  blob self-test cannot run.
+- **The independent oracle covers one term of four** — not the $45 order
+  minimum, multi-design setup, non-square sizes, shipping or discounts.
+- **Customer PII logging** at `app/api/quote/route.ts` is still Gabe's call.
+
 ## One submit, one order — 2026-09-26
 
 `/api/quote` had no idempotency key. Its own rate-limiter comment said so:

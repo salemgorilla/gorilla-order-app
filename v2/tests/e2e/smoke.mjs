@@ -33,6 +33,7 @@ import { chromium } from "playwright";
 import { defaultSignsDesign, getSignProduct } from "../../lib/signs";
 import { quoteSignsCart } from "../../lib/signs-cart";
 import { isStickerOrder } from "../../lib/sticker-repricing";
+import { isSubmissionKeyShape } from "../../lib/submission-key";
 import { getSignsTotals } from "../../lib/tax";
 
 const BASE = process.env.SMOKE_URL || "http://localhost:3100";
@@ -294,6 +295,17 @@ try {
       );
       check("stickers: a priced total rides the payload", Number(order.pricing?.total) > 0);
       check("stickers: a web order claims no kiosk", !order.kiosk);
+
+      /**
+       * ONE SUBMIT, ONE ORDER. The browser has to actually mint and send
+       * the key — the server-side dedupe is inert without it, and nothing
+       * in the unit suite can see whether the real page includes it.
+       */
+      check(
+        "stickers: the payload carries a submission key for dedupe",
+        isSubmissionKeyShape(order.submissionKey),
+        `submissionKey=${JSON.stringify(order.submissionKey)}`
+      );
       check(
         "stickers: the failed blob upload did not cost the order its file name",
         JSON.stringify(order).includes("smoke-art.png") ||

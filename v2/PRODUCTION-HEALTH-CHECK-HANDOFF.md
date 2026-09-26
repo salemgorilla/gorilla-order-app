@@ -160,6 +160,23 @@ computation and the table disagree, the table is stale and the run should say
 so loudly. A table of expected numbers nobody recomputes is the next thing to
 go quietly out of date.
 
+> ### Better than any of the above: run the numbers, do not read them
+>
+> ```bash
+> cd v2 && npm run audit:anchors          # human-readable
+> cd v2 && npm run audit:anchors -- --json # machine-readable
+> ```
+>
+> Prints every rate, tier, multiplier and anchor total **derived from
+> `lib/pricing.ts` and `lib/tax.ts`**, with no literals except the anchor
+> orders' specs — what to order, not what it costs. A run that executes this
+> instead of reading the table above is correct the moment a rate changes,
+> with nobody pinged and nothing refreshed.
+>
+> **If you are the scheduled health check, use this and delete the figures
+> from your own prompt.** That is the whole fix for the staleness problem
+> below.
+>
 > **This section is guarded, but the scheduled task is not.**
 > `tests/health-check-handoff-current.test.ts` recomputes every anchor row,
 > every rate, every volume tier and every multiplier above from

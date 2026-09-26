@@ -11,7 +11,8 @@
     "test:e2e": "tsx tests/e2e/smoke.mjs",
     "reconcile": "tsx scripts/reconcile.ts",
     "reconcile:debt": "tsx scripts/reconciliation-debt.ts",
-    "audit:oracle": "tsx verification/independent-oracle.ts"
+    "audit:oracle": "tsx verification/independent-oracle.ts",
+    "audit:anchors": "tsx scripts/health-check-anchors.ts"
   },
   "dependencies": {
     "@types/nodemailer": "^8.0.1",

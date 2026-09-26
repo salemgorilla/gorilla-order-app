@@ -297,6 +297,14 @@ export function classifyCommit(commit: CommitInput): BilledCommit | null {
  * the whole row would have put the anchor 100,000 PRs into the future and
  * reported a debt of zero, which is the one failure mode this must not have.
  */
+/**
+ * Above this, a `#NNN` in the Covers column is not a PR number.
+ *
+ * This repo is in the low hundreds. Printavo's quote and invoice numbers are
+ * five and six digits, which is what this exists to exclude.
+ */
+export const PLAUSIBLE_MAX_PR = 10_000;
+
 export function parseCoveredPrs(handoff: string): number[] {
   const lines = handoff.split("\n");
   const start = lines.findIndex((line) => /^##\s+Reconciled\b/.test(line));
@@ -315,7 +323,23 @@ export function parseCoveredPrs(handoff: string): number[] {
     if (!covers || /^-+$/.test(covers)) continue; // separator row
 
     for (const match of covers.matchAll(/#(\d+)/g)) {
-      found.add(Number(match[1]));
+      const value = Number(match[1]);
+
+      /**
+       * Ignore anything too large to be a PR in this repo.
+       *
+       * The Result column's invoice numbers are already excluded by reading
+       * only column 4 — but the scheduled health check writes rows too, and
+       * a Printavo quote or invoice number (`#109432`, `Request #10568`)
+       * landing in the COVERS column would become the anchor. The script
+       * would then find no commit for it and report a shallow clone, which
+       * reads as "no debt" to anyone skimming. That is the one wrong answer
+       * this file must never give, so an implausible number is dropped
+       * rather than trusted.
+       */
+      if (value > PLAUSIBLE_MAX_PR) continue;
+
+      found.add(value);
     }
   }
 

@@ -366,6 +366,35 @@ export default function QuoteConfirmationScreen({
             </div>
           )}
 
+          {/**
+            * SAID OUT LOUD, ONCE — this was a retry.
+            *
+            * The server recognises a repeated submit and creates nothing, but
+            * until this notice existed it said so only to itself: the customer
+            * saw an ordinary confirmation and had no way to know whether they
+            * now had one order or two. Somebody in that position presses
+            * submit a third time, or spends the afternoon assuming they have
+            * been charged twice.
+            *
+            * In ink rather than muted, because it answers a question the
+            * customer is actively worried about. Not an error panel — nothing
+            * went wrong, and the order is fine.
+            */}
+          {quoteConfirmation?.duplicate && (
+            <div className="mt-8 border-2 border-[var(--ink-black)] p-5">
+              <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-black)]">
+                Already received
+              </p>
+
+              <p className="mt-2 text-fine font-medium leading-5 text-[var(--ink-black)]">
+                You pressed submit more than once, so we checked — this is the
+                same order you already sent, not a new one. Nothing was
+                duplicated and you have not been charged twice. The quote
+                number below is the original.
+              </p>
+            </div>
+          )}
+
           <div className="mt-8 bg-[var(--shirt-blank)] p-6 text-center">
             <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
               Quote Number

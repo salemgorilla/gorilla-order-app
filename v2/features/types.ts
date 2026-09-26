@@ -30,6 +30,14 @@ export type QuoteConfirmation = {
   droppedArtwork?: { id: string; name: string; size: number }[];
   checkout?: StickerCheckout | null;
   /**
+   * This submit was a RETRY of one already received, so nothing was created
+   * a second time. Said on screen because the alternative is a customer
+   * pressing submit a third time, or quietly assuming they have been charged
+   * twice — and for signs and apparel this screen is the only channel they
+   * have. See lib/idempotency.ts.
+   */
+  duplicate?: boolean;
+  /**
    * What happened to the customer's Printavo record. Shown at the counter
    * only — see lib/customer-record.ts for why the website does not get it.
    */

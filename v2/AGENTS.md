@@ -16,6 +16,34 @@ And if you are RUNNING A TEST against production rather than changing code:
 as evidence, and the one thing that will make a scheduled check pass while
 testing nothing. Read it before the first run, not after.
 
+## After you merge to `main`, fire the production health check
+
+Gabe's standing instruction, 2026-09-26: **ask the health-check agent to test
+the app after shipping, every time — do not wait for the next scheduled tick.**
+
+    trigger ID: trig_01CDHJYQF4Ypdoq7eXP6UQLA
+    schedule:   every 4 hours (CRON_TZ-less `54 */4 * * *`), ACTIVE
+
+Fire it on demand with the `fire_trigger` tool from the Claude Code Remote
+connector, passing that ID. Pass run-specific context in the `text` argument
+— what changed, what is being exercised for the first time, and anything that
+would otherwise read as a false alarm. Two that have already mattered:
+
+- **A docs-only merge moves the deployed SHA without changing app code.**
+  Say so, or the run reports a mismatch between "latest commit" and "what I
+  tested" that is not a defect.
+- **`ADMIN_SECRET` may be unset**, so `/api/blob-selftest` returns 503. That
+  is a configuration gap, not a failure, and the run should say which.
+
+If you do not have that connector's scheduling tools, say so plainly and give
+Gabe the trigger ID rather than reporting the change as verified. CI green is
+not a production check — `.github/workflows/ci.yml` runs with no credentials
+at all, so it never touches Printavo, the blob store or a real invoice.
+
+`PRODUCTION-HEALTH-CHECK-HANDOFF.md` is what that agent reads, and it re-reads
+it every run — so a change to what a test owes goes in that file, not into the
+trigger's stored prompt.
+
 ## The one that matters most
 
 **Stickers, signs and banners auto-bill with no human in the loop.** A

@@ -41,7 +41,11 @@
  * change touching pricing ends with one real order checked against a real
  * invoice, to the cent.
  */
-import { getStickerPrice } from "../lib/pricing";
+import {
+  getStickerMaterialPrice,
+  getStickerPrice,
+  quoteStickerCart,
+} from "../lib/pricing";
 
 // ──────────────────────────────────────────────────────────────────────────
 // The rules, restated. Sources named so the next reader can check the claim
@@ -60,6 +64,13 @@ const PER_SQUARE_INCH = 0.04;
 /** $15 first design, $7.50 each after — Gabe, 2026-09-12. */
 const SETUP_FIRST = 15;
 const SETUP_ADDITIONAL = 7.5;
+
+/**
+ * No order bills under this, goods + setup. On the GOODS, before shipping:
+ * a $30 order picked up and the same order shipped both meet it, and the
+ * shipping goes on top.
+ */
+const ORDER_MINIMUM = 45;
 
 /**
  * Two curves, not one. The per-piece term and the per-area term discount
@@ -148,6 +159,23 @@ export type OracleOrder = {
 };
 
 /** What the rules say this order costs, before tax and shipping. */
+/** One design's line: the 4dp unit Printavo stores, times the quantity. */
+function lineFor(order: OracleOrder): number {
+  const qty = Math.max(1, Math.floor(order.quantity || 0));
+  const area = (order.widthInches || 0) * (order.heightInches || 0);
+
+  if (!(area > 0)) return 0;
+
+  const keep = keepAt(qty);
+  const unit = applyModifiers(
+    PER_PIECE * keep.piece + area * PER_SQUARE_INCH * keep.area,
+    order.material,
+    order.shape
+  );
+
+  return Math.round(Number(unit.toFixed(4)) * qty * 10_000) / 10_000;
+}
+
 export function oracleTotal(order: OracleOrder): number {
   const qty = Math.max(1, Math.floor(order.quantity || 0));
   const area = (order.widthInches || 0) * (order.heightInches || 0);
@@ -185,6 +213,90 @@ export function oracleTotal(order: OracleOrder): number {
   return Math.round((line + setup) * 100) / 100;
 }
 
+/**
+ * What the RULES say a whole cart costs, pre-tax.
+ *
+ * ── WHY THIS EXISTS ───────────────────────────────────────────────────────
+ * `oracleTotal` above audits `getStickerPrice`: one design's material plus a
+ * flat setup fee. That is one term of four, and an adversarial review on
+ * 2026-09-25 listed what the gap hid — every one of these was MISSED by the
+ * sweep as it stood:
+ *
+ *   - the $45 ORDER MINIMUM, the largest single distortion on a small order
+ *     and the figure #186's money story turns on
+ *   - the additional-design setup fee, since the sweep never set designCount
+ *   - non-square geometry, since SIZES was square-only
+ *
+ * The rules, from the documentation rather than the code:
+ *
+ *   goods   = sum of each design's line (4dp unit x quantity, per design)
+ *   setup   = $15 for the first design + $7.50 for each after
+ *   minimum = tops GOODS + SETUP up to $45, as its own line, and 0 above it
+ *   pre-tax = goods + setup + minimum
+ *
+ * Shipping sits on top of the minimum rather than inside it — a $30 order
+ * picked up and the same order shipped meet the same $45 — and is out of
+ * scope here along with discount codes.
+ */
+export function oracleCartTotal(designs: readonly OracleOrder[]): {
+  goods: number;
+  setup: number;
+  minimum: number;
+  preTax: number;
+} {
+  const goods =
+    Math.round(
+      designs.reduce((sum, design) => sum + lineFor(design), 0) * 100
+    ) / 100;
+
+  const setup =
+    Math.round((SETUP_FIRST + SETUP_ADDITIONAL * (designs.length - 1)) * 100) / 100;
+
+  // max(0, …): at or above the minimum this is nothing, and it must never
+  // become a DISCOUNT on a big order.
+  const minimum = Math.max(0, Math.round((ORDER_MINIMUM - goods - setup) * 100)) / 100;
+
+  return {
+    goods,
+    setup,
+    minimum,
+    preTax: Math.round((goods + setup + minimum) * 100) / 100,
+  };
+}
+
+/** What the app says about a whole cart. The figure Printavo bills from. */
+function appCartTotal(designs: readonly OracleOrder[]): {
+  goods: number;
+  setup: number;
+  minimum: number;
+  preTax: number;
+} {
+  const cart = quoteStickerCart({
+    materialPrices: designs.map((design) =>
+      getStickerMaterialPrice(
+        design.quantity,
+        design.material,
+        `${design.widthInches}"`,
+        { widthInches: design.widthInches, heightInches: design.heightInches },
+        design.shape
+      )
+    ),
+    deliveryMethod: "Pickup",
+  }) as unknown as {
+    stickerPrice: number;
+    setupPrice: number;
+    minimumPrice: number;
+    total: number;
+  };
+
+  return {
+    goods: cart.stickerPrice,
+    setup: cart.setupPrice,
+    minimum: cart.minimumPrice,
+    preTax: cart.total,
+  };
+}
+
 /** What the app says. One import, one call, no shared helpers. */
 function appTotal(order: OracleOrder): number {
   return getStickerPrice(
@@ -203,6 +315,66 @@ function appTotal(order: OracleOrder): number {
 
 const QUANTITIES = [25, 50, 100, 137, 250, 400, 500, 750, 1000, 1800, 2500, 5000, 10_000];
 const SIZES = [2, 3, 4, 5, 6];
+
+/**
+ * Non-square, deliberately. SIZES is square-only, so `getAreaSqIn`'s
+ * `width * height` was unaudited — a swap to `width * width` passed the
+ * whole sweep, and the builder offers independent W and H.
+ */
+const RECTANGLES: Array<[number, number]> = [
+  [2, 4],
+  [4, 2],
+  [3, 7],
+  [1.5, 5.5],
+  [6, 2.25],
+];
+
+/**
+ * Carts, including two that land UNDER the $45 minimum. The minimum is the
+ * largest single distortion on a small order and nothing audited it.
+ */
+const CARTS: Array<{ label: string; designs: OracleOrder[] }> = [
+  {
+    label: "one small design, under the minimum",
+    designs: [{ quantity: 10, widthInches: 2, heightInches: 2, material: "Gloss White Vinyl", shape: "Die Cut" }],
+  },
+  {
+    label: "one tiny design, far under the minimum",
+    designs: [{ quantity: 1, widthInches: 2, heightInches: 2, material: "Gloss White Vinyl", shape: "Square" }],
+  },
+  {
+    label: "two designs, under the minimum between them",
+    designs: [
+      { quantity: 5, widthInches: 2, heightInches: 2, material: "Gloss White Vinyl", shape: "Square" },
+      { quantity: 5, widthInches: 2, heightInches: 2, material: "Gloss White Vinyl", shape: "Square" },
+    ],
+  },
+  {
+    label: "two designs, just over the minimum",
+    designs: [
+      { quantity: 25, widthInches: 2, heightInches: 2, material: "Gloss White Vinyl", shape: "Die Cut" },
+      { quantity: 25, widthInches: 2, heightInches: 2, material: "Gloss White Vinyl", shape: "Die Cut" },
+    ],
+  },
+  {
+    label: "three designs, mixed sizes and materials",
+    designs: [
+      { quantity: 150, widthInches: 4, heightInches: 4, material: "Gloss White Vinyl", shape: "Die Cut" },
+      { quantity: 50, widthInches: 2, heightInches: 6, material: "Matte White Vinyl", shape: "Square" },
+      { quantity: 500, widthInches: 3, heightInches: 3, material: "Chrome", shape: "Circle" },
+    ],
+  },
+  {
+    label: "five designs, so the additional-setup term dominates",
+    designs: Array.from({ length: 5 }, (_, i) => ({
+      quantity: 25 + i * 25,
+      widthInches: 2 + i,
+      heightInches: 3,
+      material: "Gloss White Vinyl",
+      shape: "Die Cut" as const,
+    })),
+  },
+];
 const MATERIALS = ["Gloss White Vinyl", "Matte White Vinyl", "Chrome", "Holographic", "Clear Vinyl"];
 const SHAPES = ["Die Cut", "Circle", "Square", "Oval", "Rounded Corners"];
 
@@ -251,6 +423,52 @@ function main() {
             );
           }
         }
+      }
+    }
+  }
+
+  // ── Non-square geometry, against getStickerPrice ───────────────────────
+  for (const [width, height] of RECTANGLES) {
+    for (const quantity of [25, 100, 500, 2500]) {
+      for (const material of MATERIALS) {
+        const order: OracleOrder = {
+          quantity,
+          widthInches: width,
+          heightInches: height,
+          material,
+          shape: "Die Cut",
+        };
+
+        const mine = oracleTotal(order);
+        const theirs = appTotal(order);
+        compared += 1;
+
+        if (Math.abs(mine - theirs) > 0.01) {
+          failures.push(
+            `${quantity} x ${width}"x${height}" ${material}: ` +
+              `oracle $${mine.toFixed(2)} vs app $${theirs.toFixed(2)}`
+          );
+        }
+      }
+    }
+  }
+
+  // ── Whole carts, against quoteStickerCart — the figure that BILLS ──────
+  for (const cart of CARTS) {
+    const mine = oracleCartTotal(cart.designs);
+    const theirs = appCartTotal(cart.designs);
+    compared += 1;
+
+    for (const [field, a, b] of [
+      ["goods", mine.goods, theirs.goods],
+      ["setup", mine.setup, theirs.setup],
+      ["minimum", mine.minimum, theirs.minimum],
+      ["pre-tax", mine.preTax, theirs.preTax],
+    ] as const) {
+      if (Math.abs(a - b) > 0.01) {
+        failures.push(
+          `cart "${cart.label}" ${field}: oracle $${a.toFixed(2)} vs app $${b.toFixed(2)}`
+        );
       }
     }
   }

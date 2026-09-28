@@ -21,6 +21,12 @@ import {
 } from "./sku";
 import { STICKER_ORDER_MINIMUM } from "./pricing";
 import { isApparelProduct, isSignsProduct } from "./order-flow";
+import {
+  lineItemTitle,
+  signsFallbackTitle,
+  stickerFallbackTitle,
+  titleFromFileName,
+} from "./line-item-title";
 
 // Pushes each submitted quote into Printavo as a DRAFT/UNCONFIRMED quote.
 //
@@ -1759,7 +1765,17 @@ export function buildPrintavoQuotePlan(input: {
             const lineTotal = num(design.lineTotal);
 
             return {
-              description: `Design ${index + 1}\n${[
+              // The customer's file name where there is one, so the shop
+              // reads "storefront-banner-final" rather than "Design 2".
+              // The design number stays, after it: a signs itemNumber is the
+              // PRODUCT, so two banners in one cart share a number and this
+              // line is the only thing telling them apart.
+              description: `${lineItemTitle({
+                fileName: design.fileName,
+                fallback: signsFallbackTitle(design),
+                position: index + 1,
+                total: signsDesigns.length,
+              })}\n${[
                 str(design.signType, "Sign"),
                 str(design.size, "size not specified"),
                 str(design.material, "material not specified"),
@@ -1798,10 +1814,12 @@ export function buildPrintavoQuotePlan(input: {
             const unitPrice = num(item.lineUnitPrice, Number.NaN);
 
             return {
-              description: `Design ${index + 1}\n${describeStickerSpec(
-                item,
-                itemQuantity
-              )}`,
+              description: `${lineItemTitle({
+                fileName: item.artworkFileName,
+                fallback: stickerFallbackTitle(item),
+                position: index + 1,
+                total: stickerItems.length,
+              })}\n${describeStickerSpec(item, itemQuantity)}`,
               // Numbered, not the bare "GORILLA-DECAL" every row used to
               // carry: two identical designs produced byte-identical rows the
               // shop could not tell apart (CART-PLAN bug 3). The number is the
@@ -1817,7 +1835,40 @@ export function buildPrintavoQuotePlan(input: {
           })
         : [
             {
-              description,
+              /**
+               * ONE design, so the spec note IS the row — with the
+               * customer's file name on top of it.
+               *
+               * Prepended rather than substituted: the note below is what a
+               * printer works from, and no line of it is redundant. This
+               * only answers "which job is this" before they read it.
+               *
+               * Apparel is left alone. Its rows are named by the garment
+               * already ("24x Basic Tee"), the flow uploads no artwork at
+               * the point of quoting, and apparel does not auto-bill.
+               */
+              description: apparel
+                ? description
+                : (() => {
+                    /**
+                     * titleFromFileName, NOT lineItemTitle: this is the one
+                     * place that wants "the file name or nothing".
+                     * lineItemTitle is total by design — it falls back to
+                     * "Design 1" so a cart row is never nameless — and using
+                     * it here would stamp "Design 1" on top of every
+                     * single-design note that came in without a file, which
+                     * is the string this whole change exists to remove.
+                     */
+                    const title = titleFromFileName(
+                      (order.artwork as AnyRecord | undefined)?.fileName ??
+                        product.artworkFileName
+                    );
+
+                    // No file: the note already opens with "100x Custom
+                    // Stickers" / "1x Vinyl Banner", which IS a descriptor.
+                    // Nothing to improve on, so nothing is added.
+                    return title ? `${title}\n${description}` : description;
+                  })(),
               itemNumber: signs
                 ? signSku(str(product.signType, "NA"))
                 : apparel

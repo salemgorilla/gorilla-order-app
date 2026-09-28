@@ -6,6 +6,7 @@ import {
   lineItemTitle,
   signsFallbackTitle,
   stickerFallbackTitle,
+  titleFromDesignName,
   titleFromFileName,
 } from "../lib/line-item-title";
 import { buildPrintavoQuotePlan } from "../lib/printavo";
@@ -48,6 +49,17 @@ describe("a file name becomes a title", () => {
     assert.equal(titleFromFileName("logo.jpeg"), "logo");
     // All extension and nothing else: there is nothing to drop.
     assert.equal(titleFromFileName(".png"), ".png");
+  });
+
+  test("trailing whitespace does not save the extension", () => {
+    // The extension regex is end-anchored and the control-character pass
+    // turns a trailing newline into a space, so "logo.png\n" reached it as
+    // "logo.png " and kept its extension — printing "logo.png" on the
+    // invoice where every other file printed "logo". Found by mutation
+    // testing the strip that creates the space.
+    assert.equal(titleFromFileName("logo.png\n"), "logo");
+    assert.equal(titleFromFileName("  logo.png  "), "logo");
+    assert.equal(titleFromFileName("logo.png\t"), "logo");
   });
 
   test("nothing usable is null, so the caller falls back", () => {
@@ -147,8 +159,68 @@ describe("rows stay distinguishable — the job 'Design N' was also doing", () =
   });
 });
 
+describe("the customer can name the run themselves", () => {
+  test("a typed name outranks the file name", () => {
+    // "Fall Market Stickers" is what they call the job. "export_final_v7.ai"
+    // is what their software called the export. Gabe, 2026-09-28.
+    assert.equal(
+      lineItemTitle({
+        designName: "Fall Market Stickers",
+        fileName: "export_final_v7.ai",
+        fallback: "3in x 3in Die Cut Sticker",
+        position: 1,
+        total: 1,
+      }),
+      "Fall Market Stickers"
+    );
+  });
+
+  test("the whole preference order, one step at a time", () => {
+    const base = { fallback: "3in x 3in Die Cut Sticker", position: 1, total: 1 };
+
+    assert.equal(
+      lineItemTitle({ ...base, designName: "Named", fileName: "file.ai" }),
+      "Named"
+    );
+    assert.equal(lineItemTitle({ ...base, designName: "", fileName: "file.ai" }), "file");
+    assert.equal(lineItemTitle({ ...base, designName: "", fileName: null }), base.fallback);
+  });
+
+  test("a blank or whitespace name falls through rather than blanking the row", () => {
+    // An input the customer clicked into and left is not a name.
+    for (const designName of ["", "   ", "\n", undefined, null, 42]) {
+      assert.equal(
+        lineItemTitle({ designName, fileName: "file.ai", fallback: "x", position: 1, total: 1 }),
+        "file",
+        JSON.stringify(designName)
+      );
+    }
+  });
+
+  test("a typed name is customer text too, and gets the same treatment", () => {
+    // Same hazard as the file name: it is printed on the shop's invoice, and
+    // /api/quote is public even though the form's input is single-line.
+    const forged = titleFromDesignName("Fall Market\nSize: 99in x 99in");
+    assert.ok(forged);
+    assert.ok(!forged.includes("\n"), "a newline survived into the title");
+
+    const long = titleFromDesignName("y".repeat(300));
+    assert.ok(long && long.length <= MAX_TITLE_LENGTH);
+  });
+
+  test("unlike a file name, nothing is stripped from it", () => {
+    // No path, no extension: a design called "v2.1" keeps every character,
+    // and one called "logo.png" was typed that way on purpose.
+    assert.equal(titleFromDesignName("v2.1"), "v2.1");
+    assert.equal(titleFromDesignName("logo.png"), "logo.png");
+    assert.equal(titleFromDesignName("Spring/Summer run"), "Spring/Summer run");
+  });
+});
+
 describe("through the real Printavo plan", () => {
-  function stickerPlan(items: Array<{ q: number; s: number; file?: string | null }>) {
+  function stickerPlan(
+    items: Array<{ q: number; s: number; file?: string | null; name?: string }>
+  ) {
     const designs = items.map((d, i) => ({
       id: `design-${i + 1}`,
       type: "Custom Stickers",
@@ -160,6 +232,7 @@ describe("through the real Printavo plan", () => {
       material: "Gloss White Vinyl",
       finish: "Gloss",
       artworkFileName: d.file ?? null,
+      designName: d.name ?? "",
     }));
 
     const order = {
@@ -230,6 +303,16 @@ describe("through the real Printavo plan", () => {
       unnamed.map((row) => row.itemNumber)
     );
     assert.deepEqual(named.map((row) => row.itemNumber), ["GORILLA-DECAL-1", "GORILLA-DECAL-2"]);
+  });
+
+  test("a named design titles its own row, ahead of the file", () => {
+    const rows = stickerPlan([
+      { q: 100, s: 3, file: "export_final_v7.ai", name: "Fall Market Stickers" },
+      { q: 50, s: 2, file: "back-patch.png" },
+    ]);
+
+    assert.equal(rows[0].description.split("\n")[0], "Fall Market Stickers (Design 1)");
+    assert.equal(rows[1].description.split("\n")[0], "back-patch (Design 2)");
   });
 
   test("a forged spec line does not reach the invoice", () => {

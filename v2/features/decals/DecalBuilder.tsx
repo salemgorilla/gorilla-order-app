@@ -1,5 +1,7 @@
 "use client";
 
+import { useId } from "react";
+
 import { clampArtScaleToShape } from "../../components/preview/StickerShape";
 import OptionSelector from "../../components/OptionSelector";
 import NumberField from "../../components/ui/NumberField";
@@ -12,6 +14,7 @@ import { stickerCatalog } from "../../lib/catalog";
 import { SHIPPING_TIERS } from "../../lib/pricing";
 import type { FieldErrors } from "../../lib/validation";
 import type { DeliveryMethod, Product } from "../../types/order";
+import { MAX_TITLE_LENGTH } from "../../lib/line-item-title";
 
 type Props = {
   product: Product;
@@ -81,8 +84,55 @@ export default function DecalBuilder({
   shipZipError,
   onShipZipChange,
 }: Props) {
+  // useId, not the design's own id: `product` here is typed as Product,
+  // which has no id — that lives on StickerItem — and React guarantees this
+  // is unique per mounted card, which is what the label needs.
+  const designNameId = useId();
+  const designName = String(
+    (product as unknown as { designName?: unknown }).designName ?? ""
+  );
+
   return (
     <>
+      {/**
+        * NAME THE RUN. Gabe, 2026-09-28.
+        *
+        * Optional, and deliberately the first thing on the card: it is the
+        * one field that answers "which job is this" for everyone downstream.
+        * Whatever is typed here titles the Printavo line item ahead of the
+        * uploaded file name, so the shop reads "Fall Market Stickers" rather
+        * than "export_final_v7" or "Design 2".
+        *
+        * Never required and never blocking. An unnamed design falls through
+        * to the file name and then to a spec descriptor, both of which beat
+        * stopping somebody ordering because they did not feel like naming a
+        * sticker.
+        */}
+      <div className="border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
+        <label
+          htmlFor={designNameId}
+          className="block text-fine font-bold text-[var(--ink-black)]"
+        >
+          Name this design{" "}
+          <span className="font-normal text-[var(--ink-muted)]">(optional)</span>
+        </label>
+        <p className="mt-1 text-fine text-[var(--ink-muted)]">
+          What you call this job. It goes on your quote and invoice so the
+          shop can tell your designs apart.
+        </p>
+        <input
+          id={designNameId}
+          type="text"
+          maxLength={MAX_TITLE_LENGTH}
+          placeholder="Fall Market Stickers"
+          value={designName}
+          onChange={(event) =>
+            onUpdate({ designName: event.target.value } as unknown as Partial<Product>)
+          }
+          className="spec mt-3 min-h-[44px] w-full border border-[var(--rule)] bg-[var(--paper)] p-3 text-lede text-[var(--ink-black)] transition-colors duration-[120ms] ease-linear hover:border-[var(--ink-black)]"
+        />
+      </div>
+
             {/* No preset chips for size or quantity. The price is
           (width x height x $0.032) + ($25 / quantity), so every value is
           computed exactly — presets were only ever shortcuts, and they forced

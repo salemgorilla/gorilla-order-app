@@ -1815,6 +1815,7 @@ export function buildPrintavoQuotePlan(input: {
 
             return {
               description: `${lineItemTitle({
+                designName: item.designName,
                 fileName: item.artworkFileName,
                 fallback: stickerFallbackTitle(item),
                 position: index + 1,

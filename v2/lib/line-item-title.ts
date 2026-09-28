@@ -40,6 +40,44 @@
 export const MAX_TITLE_LENGTH = 60;
 
 /**
+ * Customer text reduced to one safe line, or null.
+ *
+ * Shared by the typed design name and the uploaded file name, because both
+ * are the same hazard: text a stranger supplies that gets printed on the
+ * shop's invoice. Strips every control character FIRST — a newline here
+ * would forge a spec line, a carriage return would hide the rest of the
+ * title — then collapses whitespace and caps the length.
+ */
+function cleanTitleText(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+
+  const cleaned = value
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!cleaned) return null;
+
+  return cleaned.length > MAX_TITLE_LENGTH
+    ? `${cleaned.slice(0, MAX_TITLE_LENGTH - 1).trimEnd()}\u2026`
+    : cleaned;
+}
+
+/**
+ * What the CUSTOMER called this design, when they typed something.
+ *
+ * Outranks the file name: "Fall Market Stickers" is what they know the run
+ * as, and a file called `export_final_v7.ai` is what their software called
+ * it. Gabe, 2026-09-28, asking for exactly this after the file-name change.
+ *
+ * Unlike a file name there is no path or extension to strip — a design named
+ * "v2.1" keeps every character of it.
+ */
+export function titleFromDesignName(value: unknown): string | null {
+  return cleanTitleText(value);
+}
+
+/**
  * A file name reduced to something worth printing, or null.
  *
  * Strips any directory part, drops the extension, turns separators into
@@ -60,18 +98,18 @@ export function titleFromFileName(value: unknown): string | null {
 
   // Drop the extension, but only a real-looking one: "v2.1 logo" must keep
   // its ".1", and a name that is ALL extension has nothing to drop.
-  const withoutExtension = base.replace(/\.[A-Za-z0-9]{1,5}$/, "");
+  //
+  // TRIMMED FIRST. The regex is end-anchored, and the control-character pass
+  // above turns a trailing newline into a SPACE — so "logo.png\n" arrived
+  // here as "logo.png " and kept its extension, printing "logo.png" on the
+  // invoice where every other file prints "logo".
+  const withoutExtension = base.trim().replace(/\.[A-Za-z0-9]{1,5}$/, "");
 
-  const cleaned = (withoutExtension || base)
-    .replace(/[_]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  if (!cleaned) return null;
-
-  return cleaned.length > MAX_TITLE_LENGTH
-    ? `${cleaned.slice(0, MAX_TITLE_LENGTH - 1).trimEnd()}…`
-    : cleaned;
+  // Through the SHARED cleaner, not a second copy of it. These two
+  // functions had duplicate sanitising for a few minutes and the duplicate
+  // is how "the sibling that did not get the fix" starts: harden one, and
+  // the other keeps printing whatever it was already printing.
+  return cleanTitleText((withoutExtension || base).replace(/[_]+/g, " "));
 }
 
 /**
@@ -80,6 +118,12 @@ export function titleFromFileName(value: unknown): string | null {
  * has more than one design.
  */
 export function lineItemTitle(input: {
+  /**
+   * What the customer typed for this design, if anything. Outranks the file
+   * name — it is what they call the job, not what their software called the
+   * export.
+   */
+  designName?: unknown;
   /** `artworkFileName` on a sticker item, `fileName` on a signs design. */
   fileName?: unknown;
   /** Short spec descriptor, used when no usable file name came through. */
@@ -89,7 +133,10 @@ export function lineItemTitle(input: {
   /** How many designs the order carries. */
   total: number;
 }): string {
-  const named = titleFromFileName(input.fileName);
+  // Order of preference: what they called it, what their file was called,
+  // then a descriptor of the thing itself.
+  const named =
+    titleFromDesignName(input.designName) || titleFromFileName(input.fileName);
   const fallback = String(input.fallback || "").trim();
   const base = named || fallback || `Design ${input.position}`;
 

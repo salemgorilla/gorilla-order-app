@@ -2278,6 +2278,9 @@ export default function Home() {
         artScale: item.artScale,
         artMargin: item.artMargin,
         magentaCutLine: item.magentaCutLine,
+        // What the customer called this design, when they did. Titles the
+        // Printavo line ahead of the file name — see lib/line-item-title.
+        designName: item.designName || "",
         artworkFileName: item.artwork.file?.name || null,
         // Prepress has to know before it opens anything: a die cut off a solid
         // background is a rectangle until someone knocks the background out.

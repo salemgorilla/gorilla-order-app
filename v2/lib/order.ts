@@ -43,6 +43,10 @@ export function createStickerItem(
     ...initialProduct,
     id: `design-${itemSequence}-${Math.random().toString(36).slice(2, 8)}`,
     artwork: { file: null },
+    // Blank, never a placeholder: an unnamed design falls through to the
+    // file name and then to a spec descriptor, all of which beat a default
+    // somebody forgot to change.
+    designName: "",
     ...overrides,
   };
 }

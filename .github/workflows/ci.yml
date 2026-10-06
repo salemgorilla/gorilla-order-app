@@ -57,6 +57,31 @@ jobs:
       - name: Tests
         run: npm test
 
+      - name: Tests, with the clock 400 days ahead
+        # The suite above proves the code. This proves the SUITE — that it
+        # is not quietly resting on a date that is about to pass.
+        #
+        # On 2 October 2026 a test pinned an order's needBy to the literal
+        # 2026-10-01. That date arrived, isOrderReady began returning false,
+        # and the suite went red for four days with nothing broken. The
+        # costly part was not the red: the green check already recorded on
+        # the open PR predated the expiry, so the one signal that would have
+        # caught a real regression had been spent on the calendar.
+        #
+        # A fixture like that fails on a Tuesday, to whoever is looking.
+        # Running the suite a second time with the clock pushed forward
+        # makes it fail in the pull request that introduces it instead —
+        # roughly thirteen months before it could turn anything red.
+        #
+        # Tests that pass an explicit `today` (tests/turnaround, tests/rush)
+        # are untouched by this and must stay that way: their literals are
+        # asserting that 2026-08-31 is a Monday, which is still true.
+        #
+        # A gate, not a warning. The shim verifies its own installation and
+        # exits non-zero if the clock did not move, so this step cannot pass
+        # vacuously. See v2/tests/helpers/future-clock.mjs.
+        run: npm run test:future
+
       - name: Types
         run: npx tsc --noEmit
 

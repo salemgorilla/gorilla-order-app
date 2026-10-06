@@ -260,6 +260,20 @@ try {
     await page.click("text=Custom Stickers");
     await page.click('button:has-text("02")');
     await page.locator("input[type=date]").first().fill(NEED_BY);
+    /**
+      * NAME THE RUN — the field only a browser can prove exists.
+      *
+      * It titles the Printavo line item ahead of the file name, so if it
+      * stops rendering or stops reaching the payload the shop silently goes
+      * back to reading "Design 1" and nothing in the unit suite notices.
+      */
+    await page.click('button:has-text("02")');
+    await page.waitForTimeout(400);
+    const nameField = page.locator('input[placeholder="Fall Market Stickers"]').first();
+    const hasNameField = await nameField.isVisible().catch(() => false);
+    check("stickers: the design-name field is on the builder", hasNameField);
+    if (hasNameField) await nameField.fill("Fall Market Stickers");
+
     await page.click('button:has-text("03")');
     await page.locator('input[type="file"]').first().setInputFiles({
       name: "smoke-art.png",
@@ -295,6 +309,12 @@ try {
       );
       check("stickers: a priced total rides the payload", Number(order.pricing?.total) > 0);
       check("stickers: a web order claims no kiosk", !order.kiosk);
+
+      check(
+        "stickers: the design name the customer typed rides the payload",
+        order.items?.[0]?.designName === "Fall Market Stickers",
+        `designName=${JSON.stringify(order.items?.[0]?.designName)}`
+      );
 
       /**
        * ONE SUBMIT, ONE ORDER. The browser has to actually mint and send

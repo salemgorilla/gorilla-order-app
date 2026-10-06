@@ -40,6 +40,8 @@ import {
   findExistingQuote,
 } from "../../../lib/printavo";
 import { quoteNumberFor } from "../../../lib/idempotency";
+import { printFileName } from "../../../lib/print-file-name";
+import { decalSku } from "../../../lib/sku";
 
 /**
  * Quote submissions per caller per minute.
@@ -620,14 +622,39 @@ export async function POST(request: Request) {
           : "Artwork";
 
       if (part.blob) {
-        // Straight to storage, so there is nothing to attach — the shop opens
-        // the link. The normal path once a blob store is connected, up to 100 MB.
+        /**
+         * Straight to storage, so there is nothing to attach — the shop
+         * opens the link. The normal path once a blob store is connected,
+         * up to 100 MB, and therefore the path a PRESS-READY file takes.
+         *
+         * Which means the rename below never touches the files that most
+         * need naming. The object keeps the customer's name because it was
+         * written before this route ever saw it, so the email says what to
+         * save it as instead — the same string the attachment path uses, so
+         * a downloaded file and an attached one end up called the same
+         * thing.
+         */
+        const blobSpec = orderedItems.find(
+          (item) => String(item.id) === String(part.id)
+        ) as Record<string, unknown> | undefined;
+
+        const saveAs = blobSpec
+          ? printFileName({
+              sku: decalSku(number - 1, orderedItems.length),
+              originalName: part.blob.name,
+              widthInches: blobSpec.widthInches,
+              heightInches: blobSpec.heightInches,
+              size: blobSpec.size,
+              quantity: blobSpec.quantity,
+            })
+          : null;
+
         artworkDelivery.push({
           designId: part.id,
           label,
           status: `uploaded — ${part.blob.name} (${mb(part.blob.size)} MB): ${
             part.blob.url
-          }`,
+          }${saveAs && saveAs !== part.blob.name ? ` — save as: ${saveAs}` : ""}`,
           // The same facts, structured, so Printavo can list the links under
           // an honest heading and a reorder can parse them. `number` comes
           // from the designNumber Map — the cart position, never this loop's
@@ -683,13 +710,42 @@ export async function POST(request: Request) {
       }
 
       if (attachment) {
-        // Prefixed so three files called "logo.png" arrive distinguishable,
-        // and numbered by cart position so the prefix agrees with the block
-        // the email files it under.
-        const filename =
-          partOrder.length > 1
-            ? `design-${number}-${attachment.filename}`
-            : attachment.filename;
+        /**
+         * NAME THE FILE THE SHOP PRINTS FROM. Gabe, 2026-09-28:
+         * `GORILLA-DECAL-1: 2.5"x2.5" - 100 pcs`.
+         *
+         * It used to arrive as `design-1-logo.png` — the cart position and
+         * whatever the customer's software called the export, which says
+         * nothing about what to cut. Now it carries the INVOICE SKU, the
+         * size and the count, so the file on the desktop and the line on
+         * the invoice are the same job:
+         *
+         *     GORILLA-DECAL-1 - 2.5in x 2.5in - 100 pcs.png
+         *
+         * The colon and inch marks Gabe wrote are substituted — both are
+         * illegal in Windows filenames and the quote also terminates the
+         * quoted value in the Content-Disposition header. See
+         * lib/print-file-name.ts.
+         *
+         * Falls back to the old design-N prefix if the item cannot be found,
+         * because a distinguishable file beats a pretty one.
+         */
+        const printSpec = orderedItems.find(
+          (item) => String(item.id) === String(part.id)
+        ) as Record<string, unknown> | undefined;
+
+        const filename = printSpec
+          ? printFileName({
+              sku: decalSku(number - 1, orderedItems.length),
+              originalName: attachment.filename,
+              widthInches: printSpec.widthInches,
+              heightInches: printSpec.heightInches,
+              size: printSpec.size,
+              quantity: printSpec.quantity,
+            })
+          : partOrder.length > 1
+          ? `design-${number}-${attachment.filename}`
+          : attachment.filename;
 
         attachments.push({ ...attachment, filename });
         emailBytesUsed += part.file?.size ?? 0;

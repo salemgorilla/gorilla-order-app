@@ -1,11 +1,14 @@
 # Handoff: running a production health check on the Gorilla Order App
 
-**Self-contained.** You do not need to read the repo to run a check — this
-file carries the invariants, the figures and the failure modes. If you are
-also changing code, read `AGENTS.md` and `HANDOFF.md` first; this file only
-covers *testing*.
+**Self-contained for the invariants and the failure modes.** The *figures*
+are not: run `npm run audit:anchors` in `v2/` and use what it prints, because
+it derives the rates, tiers, multipliers and reference totals from the code
+that actually bills. A pricing table copied into a document — including this
+one — is a number waiting to go stale. If you are also changing code, read
+`AGENTS.md` and `HANDOFF.md` first; this file only covers *testing*.
 
-Written 2026-09-26 against `main` @ `b0c8a26`.
+Written 2026-09-26 against `main` @ `b0c8a26`. Recording rules and §7's
+`LineItem` entry revised 2026-10-06.
 
 ---
 
@@ -303,15 +306,56 @@ something you could not observe. Skipped ≠ passed.
   saying nothing is owed — read both halves of that output.
 - **The $45 order minimum, multi-design setup, non-square sizes, shipping and
   discount codes** are not covered by the repo's independent oracle.
+- **`LineItem` has no `quantity`, and the read shape of `sizes` is still a
+  guess.** The 1 October run settled the first half: two read queries asked
+  Printavo for a field that does not exist, which is why the hero's press
+  line never showed a number and why `npm run reconcile`'s "Line items add
+  up" check could only ever answer `unknown`. Both now sum `sizes[].count`
+  instead. What is NOT settled is whether read-side `sizes` is a plain list
+  or a Relay connection — the live schema is unreachable from CI, so the code
+  tries both and remembers the winner. A run that sees a `PRESS ACTIVITY
+  unavailable` line should quote it verbatim: the error names the real fields
+  of whatever type `sizes` is, and that string ends the question.
 
 ---
 
-## 8. Where to record the result
+## 8. Recording the result — the first step, not the last
 
-- **Money verified against a real invoice** → add a row to `HANDOFF.md`'s
+Between 26 September and 5 October roughly five runs produced real findings
+and recorded **none** of them. Nothing reached `HANDOFF.md`, no PR was
+opened, and the Vercel logs holding the evidence expire after about a day.
+One of those runs found a genuine P1 that then sat undiscovered for a week
+because it existed only in a log line. One run took two days and never
+reached its own write-up step.
+
+So the write-up is not something a run finishes with. It is something a run
+*starts* with:
+
+1. **Before placing any order**, branch, append a dated stub entry to
+   `HANDOFF.md` saying a run has started and what it intends to test, commit,
+   push, and open a **draft** PR.
+2. **After each required check**, amend that entry and push. Do not batch the
+   writes to the end — the end is exactly where runs stop.
+3. **At the close**, mark the PR ready for review. Do not merge it, and do
+   not push to `main`.
+
+A run that places a clean order and reports a pass in chat with nothing
+pushed has **failed**, however green the order was. Running short on time or
+context is a reason to stop testing and finish writing, never the reverse: a
+partial record of three checks beats a perfect run nobody can read.
+
+What the entry must carry: the UTC date and the deployed commit SHA that was
+confirmed; the quote number(s) and flow(s); the three-way total comparison
+**as three figures, not a verdict**; the retry/dedupe result; the
+artwork-upload result; every log error string **verbatim**; whether the void
+was confirmed by re-reading the order.
+
+Two other things belong in the repo rather than in a reply:
+
+- **Money verified against a real invoice** → a row in `HANDOFF.md`'s
   `## Reconciled` table. This is the merge gate for pricing changes, and it
   is the single most valuable output a run can produce.
-- `npm run reconcile -- GS-XXXXXXXX-XXXXX` does the comparison **read-only**
+  `npm run reconcile -- GS-XXXXXXXX-XXXXX` does the comparison **read-only**
   (no quote, no payment request, nothing voided) and exits non-zero on drift.
   It needs `PRINTAVO_EMAIL` and `PRINTAVO_TOKEN`.
 - **Anything surprising about Printavo's behaviour** → a dated note in

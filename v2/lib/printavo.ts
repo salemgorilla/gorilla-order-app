@@ -2483,6 +2483,152 @@ export async function findExistingQuote(quoteNumber: string): Promise<{
   }
 }
 
+/**
+ * HOW MANY PIECES A LINE IS FOR — and why it is not `quantity`.
+ *
+ * ── WHAT THE 1 OCTOBER RUN SETTLED ────────────────────────────────────────
+ * The health check hit /api/press in production and explainPrintavoFieldError
+ * printed the answer it was built to print:
+ *
+ *   Field 'quantity' doesn't exist on type 'LineItem' — 'LineItem' has:
+ *   category, color, description, id, itemNumber, items, lineItemGroup,
+ *   markupPercentage, merch, mockups, personalizations, poLineItem,
+ *   position, price, priceReceipt, product, productStatus, sizes, taxed,
+ *   timestamps.
+ *
+ * There is no `quantity` on a read LineItem. The count lives in `sizes`,
+ * which is also what this app WRITES — every goods row it sends carries
+ * `sizes: [{ size, count }]`, so summing the counts gives back exactly the
+ * quantity it billed.
+ *
+ * TWO queries asked for the missing field, not one, and both failed quietly:
+ *   - the press query, which is why the hero line has never shown a number;
+ *   - fetchQuoteForReconciliation's detail query, which is why the
+ *     reconciler's "Line items add up" check has only ever said `unknown`.
+ * The second is the one that matters: it is the tool the Reconciled table
+ * is built from.
+ *
+ * ── WHY THE SHAPE IS TRIED RATHER THAN ASSUMED ────────────────────────────
+ * The error names the FIELD. It does not say whether `sizes` is a plain
+ * list or a Relay connection, and that is a second guess — the same kind of
+ * guess that cost this file the `sortOn` enum (see tests/press-sort). The
+ * live schema is unreachable from CI and the sandbox, so guessing here
+ * would buy another round of "one deploy per attempt", which is precisely
+ * what explainPrintavoFieldError exists to end.
+ *
+ * So both shapes are tried, in one call, most-likely first. The winner is
+ * remembered for the life of the instance, so the cost of being wrong is
+ * one extra request once rather than a week of a blank hero. If BOTH miss,
+ * the thrown error still goes through explainPrintavoFieldError and the log
+ * carries the real fields of whatever type `sizes` turns out to be.
+ */
+export const LINE_ITEM_SIZE_SHAPES = [
+  "sizes { size count }",
+  "sizes(first: 50) { nodes { size count } }",
+] as const;
+
+/**
+ * Only a complaint about SHAPE is worth another attempt. A 401, a rate
+ * limit or a dropped connection will fail the same way on the next shape,
+ * and retrying it doubles the load on Printavo to learn nothing.
+ */
+const SHAPE_COMPLAINT =
+  /doesn't exist on type|doesn't accept argument|is not defined by|selection of subfields|has no subfields|must not have a selection/i;
+
+export function isShapeComplaint(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return SHAPE_COMPLAINT.test(message);
+}
+
+/**
+ * The pieces on one line, from either shape of `sizes`.
+ *
+ * Floors at zero per entry rather than trusting a negative: a credit note
+ * must not quietly subtract from what the shop printed, and the same rule
+ * already governs lib/press-activity. A line with no readable sizes is 0,
+ * which both callers treat as "nothing to count" rather than an error.
+ */
+export function lineItemPieces(row: unknown): number {
+  const sizes = (row as AnyRecord)?.sizes;
+  const entries: unknown[] = Array.isArray(sizes)
+    ? sizes
+    : Array.isArray((sizes as AnyRecord)?.nodes)
+    ? ((sizes as AnyRecord).nodes as unknown[])
+    : [];
+
+  let total = 0;
+
+  for (const entry of entries) {
+    const count = Number((entry as AnyRecord)?.count);
+    if (!Number.isFinite(count) || count <= 0) continue;
+    total += Math.floor(count);
+  }
+
+  return total;
+}
+
+/** The sizes entries on one line, from either shape, normalised. */
+export function lineItemSizes(
+  row: unknown
+): Array<{ size: string; count: number }> | undefined {
+  const sizes = (row as AnyRecord)?.sizes;
+  const entries = Array.isArray(sizes)
+    ? sizes
+    : Array.isArray((sizes as AnyRecord)?.nodes)
+    ? ((sizes as AnyRecord).nodes as unknown[])
+    : null;
+
+  if (!entries) return undefined;
+
+  return entries.map((entry) => ({
+    size: str((entry as AnyRecord)?.size),
+    count: num((entry as AnyRecord)?.count),
+  }));
+}
+
+/**
+ * The shape the live account answered to, once one has. Module scope, so it
+ * is per serverless instance rather than global — imprecise and completely
+ * sufficient, the same bargain the press cache makes.
+ */
+let provenSizeShape: string | null = null;
+
+/** Test seam: forget what was learned, so a case starts from cold. */
+export function resetProvenSizeShape(): void {
+  provenSizeShape = null;
+}
+
+/**
+ * Exported for tests: the `request` seam is how the retry ladder is driven
+ * without a network, the same way explainPrintavoFieldError takes `describe`.
+ */
+export async function requestTryingSizeShapes<T>(
+  build: (sizesSelection: string) => string,
+  variables?: AnyRecord,
+  request: <R>(query: string, variables?: AnyRecord) => Promise<R> = printavoRequest
+): Promise<T> {
+  const ordered = provenSizeShape
+    ? [provenSizeShape, ...LINE_ITEM_SIZE_SHAPES.filter((s) => s !== provenSizeShape)]
+    : [...LINE_ITEM_SIZE_SHAPES];
+
+  let lastError: unknown = new Error("Printavo: no size shape was tried.");
+
+  for (const shape of ordered) {
+    try {
+      const data = await request<T>(build(shape), variables);
+      provenSizeShape = shape;
+      return data;
+    } catch (error) {
+      lastError = error;
+      if (!isShapeComplaint(error)) break;
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(String(lastError ?? "Printavo: unknown error."));
+}
+
 export async function fetchQuoteForReconciliation(
   quoteNumber: string
 ): Promise<ReconcileQuoteResult> {
@@ -2540,8 +2686,9 @@ export async function fetchQuoteForReconciliation(
     let detailError: string | undefined;
 
     try {
-      const data = await printavoRequest<{ quote?: AnyRecord }>(
-        `query GorillaReconcileDetail($id: ID!) {
+      const data = await requestTryingSizeShapes<{ quote?: AnyRecord }>(
+        (sizes) =>
+          `query GorillaReconcileDetail($id: ID!) {
            quote(id: $id) {
              id
              visualId
@@ -2555,8 +2702,7 @@ export async function fetchQuoteForReconciliation(
                      description
                      itemNumber
                      price
-                     quantity
-                     sizes { size count }
+                     ${sizes}
                    }
                  }
                }
@@ -2585,13 +2731,11 @@ export async function fetchQuoteForReconciliation(
             description: str(row.description),
             itemNumber: str(row.itemNumber),
             price: num(row.price),
-            quantity: num(row.quantity),
-            sizes: Array.isArray(row.sizes)
-              ? (row.sizes as AnyRecord[]).map((size) => ({
-                  size: str(size.size),
-                  count: num(size.count),
-                }))
-              : undefined,
+            // Summed from sizes, because a read LineItem has no `quantity`.
+            // This is the figure "Line items add up" multiplies by price, so
+            // it is the whole reason that check could never run.
+            quantity: lineItemPieces(row),
+            sizes: lineItemSizes(row),
           }));
         })
       : undefined;
@@ -2828,8 +2972,9 @@ export async function fetchRecentInvoicesForPress(input: { first?: number } = {}
   }
 
   try {
-    const data = await printavoRequest<{ invoices?: { nodes?: AnyRecord[] } }>(
-      `query GorillaPressActivity($first: Int!) {
+    const data = await requestTryingSizeShapes<{ invoices?: { nodes?: AnyRecord[] } }>(
+      (sizes) =>
+        `query GorillaPressActivity($first: Int!) {
          invoices(first: $first) {
            nodes {
              id
@@ -2837,7 +2982,7 @@ export async function fetchRecentInvoicesForPress(input: { first?: number } = {}
              lineItemGroups(first: 10) {
                nodes {
                  lineItems(first: 25) {
-                   nodes { itemNumber quantity }
+                   nodes { itemNumber ${sizes} }
                  }
                }
              }
@@ -2859,13 +3004,23 @@ export async function fetchRecentInvoicesForPress(input: { first?: number } = {}
 
     // Flatten the two connections into the shape press-activity expects. A
     // node missing either connection contributes nothing rather than throwing.
+    //
+    // `quantity` is SYNTHESISED here, from the sizes the shop itself wrote,
+    // because a read LineItem has no such field. Doing it at this seam keeps
+    // lib/press-activity — which is where the honesty rules live and where
+    // they are tested — reading exactly the field it always has.
     const orders = nodes.map((node) => ({
       createdAt: node.createdAt,
       lineItems: (
         ((node.lineItemGroups as AnyRecord)?.nodes as AnyRecord[]) || []
-      ).flatMap(
-        (group) => ((group?.lineItems as AnyRecord)?.nodes as AnyRecord[]) || []
-      ),
+      )
+        .flatMap(
+          (group) => ((group?.lineItems as AnyRecord)?.nodes as AnyRecord[]) || []
+        )
+        .map((row) => ({
+          itemNumber: row?.itemNumber,
+          quantity: lineItemPieces(row),
+        })),
     }));
 
     return { orders, raw: data };

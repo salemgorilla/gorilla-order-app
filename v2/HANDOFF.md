@@ -71,6 +71,63 @@ to the cent. Nothing in #149 touched any of that. It did not prove the RATE
 — that is a business figure, and #149 changed it, so the row above it is
 owed and the merge rule points at the next sticker order.
 
+## Health-check run, 2026-10-13 ~21:05 UTC — recorded from the logs, because the run did not
+
+**Written 2026-10-13 by the interactive session, not by the run.** The run
+(fired 20:54 UTC, trigger `trig_01CDHJYQF4Ypdoq7eXP6UQLA`) stopped in
+`REQUIRES_ACTION` at 21:07, after placing both orders and before voiding
+them. Everything below came out of Vercel's runtime logs inside their
+one-hour retention window, on `dpl_2YBJ28P65YNNTFYDGCMqBZJ7af6D` = `4a7c6e9`
+(#205) — **not** the #206 branch, which is still unmerged.
+
+| Quote | Flow | What was ordered | App total (pre-tax) |
+|---|---|---|---|
+| `GS-20261013-3OUQES6F` | stickers | 30 × 1.5" circle, gloss white, `FAMFRE`, pickup | **$27.00** |
+| `GS-20261013-KC4PRNVN` | banners | 1 × 48"×24" 18 oz, no hem, wind slits, pickup | **$91.00** |
+
+**Proved, from the logs:**
+
+- **Banners auto-bill end to end** — `SIGNS CHECKOUT READY` with a live
+  Printavo invoice. The first banner order any run has left evidence of.
+- **The under-minimum path with a percent code** — the one path nothing
+  else automated covers. List $12.90 + setup $15.00 + minimum $17.10 =
+  $45.00; FAMFRE 40% → **$27.00**, exactly as logged. A discounted minimum
+  is deliberate (Gabe, 2026-09-15: a code is "off the order", and the floor
+  is part of the order) — see the comment in `quoteStickerCart`.
+- **Idempotency** — `DUPLICATE SUBMIT GS-20261013-3OUQES6F — returning the
+  existing order, nothing created.` Fresh 8-character derived numbers on
+  both orders.
+- **Blob artwork, twice more** — `artwork=blob delivered=true` on both
+  (9.3 MB file on the banner).
+- Banner arithmetic: 8 sqft × $12.50 = $100, no-hem credit 12 lin ft ×
+  $2.50 = −$30, wind slits +$6, setup +$15 → $91.00. ✓
+
+**NOT proved:** the Printavo side. Nobody read either invoice back, so the
+three-way comparison has one leg. No `## Reconciled` row is written for
+this run on purpose.
+
+**Found:**
+
+1. **Every newsletter opt-in in production was being dropped.** Both orders
+   logged `NEWSLETTER NOT SENT … No subscriber store configured.` in the
+   same request that uploaded artwork to that same store.
+   `isSubscriberStoreConfigured` checked `BLOB_READ_WRITE_TOKEN` only;
+   production authenticates by OIDC. Unsubscribe and the subscriber export
+   were dark for the same reason. **Fixed on this branch** by asking
+   `readBlobCredential()`. Consent was recorded on every affected order, so
+   the list can be backfilled from the shop emails marked "Opted in — NOT
+   added to any list".
+2. **`PRESS ACTIVITY unavailable: … Field 'quantity' doesn't exist on type
+   'LineItem'`** — unchanged, because the fix is in #206 and #206 is not
+   deployed.
+3. **The run stalled after ordering and before voiding.** Two live payable
+   invoices are sitting under the test identity until someone voids them by
+   hand. It is the second run in a week to stop that way.
+
+**Gabe to void by hand:** `GS-20261013-3OUQES6F`, `GS-20261013-KC4PRNVN`,
+and `GS-20261006-1U4T5MZ2` from the week before, which was still reading as
+"Quote" on 7 October.
+
 ## Session index — 2026-09-25 to 26, #190 through #203
 
 Fourteen merges in one session. Written down as an index because the

@@ -316,39 +316,93 @@ something you could not observe. Skipped ≠ passed.
   tries both and remembers the winner. A run that sees a `PRESS ACTIVITY
   unavailable` line should quote it verbatim: the error names the real fields
   of whatever type `sizes` is, and that string ends the question.
+- **The newsletter was dark on a store that was working.** Until the fix
+  that followed the 13 October run, every order logged `NEWSLETTER NOT SENT
+  … No subscriber store configured.` while the same request uploaded its
+  artwork to that same blob store. The subscriber check looked only for
+  `BLOB_READ_WRITE_TOKEN`; production authenticates by OIDC. Once that fix
+  is deployed (confirm the SHA), the test identity's ticked box should
+  produce **no** `NEWSLETTER NOT SENT` line. If the old reason comes back,
+  that is a regression. If a *different* reason appears, quote it verbatim:
+  the subscriber store writes `access: "private"`, which had never once run
+  in production, and the error would be the first evidence of whether this
+  store accepts it.
 
 ---
 
 ## 8. Recording the result — the first step, not the last
 
-Between 26 September and 5 October roughly five runs produced real findings
-and recorded **none** of them. Nothing reached `HANDOFF.md`, no PR was
-opened, and the Vercel logs holding the evidence expire after about a day.
-One of those runs found a genuine P1 that then sat undiscovered for a week
-because it existed only in a log line. One run took two days and never
-reached its own write-up step.
+Between 26 September and 13 October, every run that placed an order recorded
+**nothing** in this repository: no branch, no PR, no `HANDOFF.md` entry. One
+found a genuine P1 that then sat undiscovered for a week because it existed
+only in a log line.
 
-So the write-up is not something a run finishes with. It is something a run
-*starts* with:
+**Vercel keeps runtime logs for ONE HOUR on this plan** — not a day, which is
+what this file said until 13 October. The API states it outright: *"Hobby
+retains 1 hour."* A run that reads the logs and does not write them down has
+about sixty minutes before the evidence is gone for good. Quote error strings
+verbatim, as you read them.
 
-1. **Before placing any order**, branch, append a dated stub entry to
-   `HANDOFF.md` saying a run has started and what it intends to test, commit,
-   push, and open a **draft** PR.
-2. **After each required check**, amend that entry and push. Do not batch the
-   writes to the end — the end is exactly where runs stop.
-3. **At the close**, mark the PR ready for review. Do not merge it, and do
-   not push to `main`.
+### What the 13 October run taught about WHERE to write
 
-A run that places a clean order and reports a pass in chat with nothing
-pushed has **failed**, however green the order was. Running short on time or
-context is a reason to stop testing and finish writing, never the reverse: a
-partial record of three checks beats a perfect run nobody can read.
+Runs fire into a generic cloud environment, not this repo's. Its tool list
+has **no GitHub tools** — no `create_pull_request` — and the session is
+tagged `auto-create-pr:off`. So "open a draft PR" asked for something the run
+had no tool for, and putting it first put the blocker first.
+
+Write in this order, cheapest and most certain first:
+
+1. **`/mnt/user-data/outputs/health-check-<UTC date>.md`** — the run's own
+   outputs mount. It needs no approval and no credentials, and it survives
+   the session. Create it **before placing any order** with a stub saying
+   what you intend to test.
+2. **Immediately after each order is placed, append its quote number and its
+   Printavo invoice URL** (the `PRINTAVO QUOTE CREATED` line carries it).
+   Do this BEFORE anything that might need approval — see §8a.
+3. **After each required check**, append the result. Do not batch.
+4. **At the close**, if you can push (attach the repo with `add_repo`,
+   `access: "push"`), push the same text as a dated entry in `HANDOFF.md` on
+   a branch named `health-check/<UTC date>-<short id>`. Do not try to open a
+   PR — there is no tool for it; a pushed branch is enough. Never push to
+   `main`, never merge.
+5. **Your final message repeats the record in full.** It reaches Gabe as a
+   push notification, which is the one channel every run so far has
+   reliably reached.
+
+A run that places a clean order and reports a pass with nothing written
+anywhere has **failed**, however green the order was. Running short on time
+or context is a reason to stop testing and finish writing, never the
+reverse.
+
+### 8a. A run that stalls must stall loudly
+
+Two of the three runs inspected between 7 and 13 October stopped in
+`REQUIRES_ACTION` — waiting for an approval nobody was there to give —
+**after placing orders and before voiding them**. The 13 October run placed a
+sticker order and a banner order, both with live payment links, then
+stopped. A quote from 6 October was still reading as `"Quote"` in Printavo
+the next day.
+
+What it was waiting for is not visible from outside the session. But the
+consequence is the same whatever it was: live payable invoices under the
+shop's account, and no record of which ones.
+
+So:
+
+- The quote numbers and invoice URLs are written down (step 2 above) before
+  any step that could need approval, so a stall still leaves the list.
+- **If you cannot void without an approval you cannot get, say so in the
+  FIRST line of your final message**, with every invoice URL, so Gabe can
+  void them by hand in a minute. A run that waits silently is the failure
+  this section exists for.
+- If you notice which action is asking for approval, name it in the record.
+  That is the one fact nobody outside the session has yet.
 
 What the entry must carry: the UTC date and the deployed commit SHA that was
-confirmed; the quote number(s) and flow(s); the three-way total comparison
-**as three figures, not a verdict**; the retry/dedupe result; the
-artwork-upload result; every log error string **verbatim**; whether the void
-was confirmed by re-reading the order.
+confirmed; the quote number(s), flow(s) and invoice URL(s); the three-way
+total comparison **as three figures, not a verdict**; the retry/dedupe
+result; the artwork-upload result; every log error string **verbatim**;
+whether the void was confirmed by re-reading the order.
 
 Two other things belong in the repo rather than in a reply:
 

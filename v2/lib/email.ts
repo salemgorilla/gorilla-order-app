@@ -623,8 +623,8 @@ export function buildQuoteEmail(input: {
        * The Printavo customer note has carried the setup figure all along, so
        * the two records disagreed on completeness.
        *
-       * Always shown, never hidden when zero: setup is $25 for the first
-       * design and $12.50 for each one after, so $0.00 here is not a tidy
+       * Always shown, never hidden when zero: setup is STICKER_SETUP_FEE for
+       * the first design and STICKER_SETUP_FEE_ADDITIONAL for each after, so $0.00 here is not a tidy
        * blank to suppress, it is a bug worth seeing.
        */
       line("Setup", money(pricing.setupListPrice ?? pricing.setupPrice)),

@@ -11,7 +11,7 @@ const initialProduct = {
   quantity: 100,
   size: '3"',
   // Real dimensions now that the size presets are gone. Must be non-zero:
-  // area drives the price, so 0 x 0 would quote the $25 setup and nothing else.
+  // area drives the price, so 0 x 0 would quote the setup fee and nothing else.
   widthInches: 3,
   heightInches: 3,
   shape: "Die Cut",

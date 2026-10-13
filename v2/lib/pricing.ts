@@ -83,8 +83,8 @@
 // the price of 25 — went in the same day, once Gabe had said a second time
 // that the old discounts had to stay active. See STICKER_VOLUME_TIERS.
 //
-// Setup is per DESIGN, not per order — $25 for the first, $12.50 for each
-// after (getCartSetupFee). It reads as "once per order" only because an order
+// Setup is per DESIGN, not per order — STICKER_SETUP_FEE for the first,
+// STICKER_SETUP_FEE_ADDITIONAL for each after (getCartSetupFee). It reads as "once per order" only because an order
 // could hold a single design; three designs meant three submissions and three
 // full fees.
 //
@@ -632,9 +632,11 @@ export function quoteStickerCart(input: {
     Math.round(input.materialPrices.reduce((sum, price) => sum + price, 0) * 100) /
     100;
 
-  // $25 for the first design, $12.50 for each after. One design returns
-  // exactly $25, so a single-design order prices identically to before the
-  // cart existed.
+  // STICKER_SETUP_FEE for the first design, STICKER_SETUP_FEE_ADDITIONAL for
+  // each after. One design returns exactly STICKER_SETUP_FEE, so a
+  // single-design order prices identically to before the cart existed.
+  // (Named, not quoted: this comment said "$25 / $12.50" for weeks after the
+  // fee became $15 / $7.50, in the function that bills it.)
   const setupListPrice = getCartSetupFee(input.materialPrices.length);
 
   /**

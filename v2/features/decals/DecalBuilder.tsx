@@ -190,9 +190,10 @@ export default function DecalBuilder({
 
         <p className="mt-3 text-fine leading-5 text-[var(--ink-muted)]">
           {/* Setup is per DESIGN, and a cart has more than one. Saying "the
-              $25 setup is split across the order" on every card was wrong in
-              both halves once a second design existed: the order's setup is
-              $37.50, and $25 is only the first design's share. */}
+              setup is split across the order" on every card was wrong in
+              both halves once a second design existed: a two-design order
+              pays the first design's fee plus a smaller one for the second
+              (getCartSetupFee), so no single figure is "the" setup. */}
           {product.widthInches > 0 && product.heightInches > 0 ? (
             <>
               {(product.widthInches * product.heightInches).toFixed(2)} sq in

@@ -2961,6 +2961,74 @@ export async function explainPrintavoFieldError(
   }
 }
 
+/**
+ * WHAT THE PRESS QUERY IS ALLOWED TO COST.
+ *
+ * ── THE SECOND ERROR, AND WHAT IT SETTLED ─────────────────────────────────
+ * Once #206 replaced the missing `LineItem.quantity`, the first production
+ * call answered with a different error:
+ *
+ *   Printavo: Query has complexity of 40962, which exceeds max complexity of 25000
+ *
+ * Two things follow. The field problem is FIXED, and so is the open question
+ * about `sizes`: Printavo checks a query's shape before its cost, and
+ * requestTryingSizeShapes only moves past the first shape on a shape
+ * complaint — so this error came from `sizes { size count }`, which therefore
+ * passed validation. Read-side `sizes` is a plain list.
+ *
+ * And the query was simply too big. Printavo charges each connection's
+ * children once per item it might return, so the cost multiplies down the
+ * tree. Fitted exactly to the 40962 Printavo reported:
+ *
+ *   lineItem       = itemNumber 1 + sizes (1 + size 1 + count 1) = 4
+ *   lineItems(L)   = L x 4 + 2
+ *   groups(G)      = G x lineItems + 2
+ *   invoice        = id 1 + createdAt 1 + groups
+ *   total(N)       = N x invoice + 2
+ *
+ *   40 invoices x 10 groups x 25 lines = 40 x 1024 + 2 = 40962   (Printavo: 40962)
+ *
+ * ── WHY GROUPS CAME DOWN, NOT INVOICES ────────────────────────────────────
+ * The hero counts a WEEK of work, so the number of invoices is what decides
+ * whether the figure is complete. Ten line-item groups per invoice was
+ * generous; five still covers every order this app writes (one group per
+ * order) with room for the shop's own. An invoice with more is undercounted,
+ * which is the safe direction — lib/press-activity already prefers a smaller
+ * true number to a larger doubtful one.
+ *
+ * The cost is COMPUTED from the page sizes rather than asserted beside them,
+ * and the invoice page is clamped to what fits, so raising any of these
+ * numbers cannot quietly reproduce the error above.
+ */
+export const PRINTAVO_MAX_COMPLEXITY = 25000;
+
+export const PRESS_PAGE = {
+  invoices: 40,
+  lineItemGroups: 5,
+  lineItems: 25,
+} as const;
+
+/** Printavo's complexity for the press query at these page sizes (plain-list `sizes`). */
+export function pressQueryComplexity(page: {
+  invoices: number;
+  lineItemGroups: number;
+  lineItems: number;
+}): number {
+  const lineItem = 1 + (1 + 1 + 1);
+  const lineItems = page.lineItems * lineItem + 2;
+  const groups = page.lineItemGroups * lineItems + 2;
+  const invoice = 1 + 1 + groups;
+  return page.invoices * invoice + 2;
+}
+
+/** The most invoices one press query can ask for and stay under the cap. */
+export function maxPressInvoices(
+  page: { lineItemGroups: number; lineItems: number } = PRESS_PAGE
+): number {
+  const perInvoice = pressQueryComplexity({ ...page, invoices: 1 }) - 2;
+  return Math.max(1, Math.floor((PRINTAVO_MAX_COMPLEXITY - 2) / perInvoice));
+}
+
 export async function fetchRecentInvoicesForPress(input: { first?: number } = {}): Promise<{
   orders: AnyRecord[];
   error?: string;
@@ -2979,9 +3047,9 @@ export async function fetchRecentInvoicesForPress(input: { first?: number } = {}
            nodes {
              id
              createdAt
-             lineItemGroups(first: 10) {
+             lineItemGroups(first: ${PRESS_PAGE.lineItemGroups}) {
                nodes {
-                 lineItems(first: 25) {
+                 lineItems(first: ${PRESS_PAGE.lineItems}) {
                    nodes { itemNumber ${sizes} }
                  }
                }
@@ -2989,7 +3057,7 @@ export async function fetchRecentInvoicesForPress(input: { first?: number } = {}
            }
          }
        }`,
-      { first: Math.min(50, Math.max(1, input.first ?? 40)) }
+      { first: Math.min(maxPressInvoices(), Math.max(1, input.first ?? PRESS_PAGE.invoices)) }
     );
 
     const nodes = sortNewestFirst(data.invoices?.nodes);

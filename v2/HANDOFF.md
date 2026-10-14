@@ -71,6 +71,35 @@ to the cent. Nothing in #149 touched any of that. It did not prove the RATE
 — that is a business figure, and #149 changed it, so the row above it is
 owed and the merge rule points at the next sticker order.
 
+## Health-check run, 2026-10-14 01:02 UTC — first run on the #206 build; placed no orders
+
+**Written 2026-10-14 by the interactive session, from the logs.** Fired by
+hand after #206 merged (`b4c0846`, `dpl_FgyCT2X2UD74pCQVSWMvpGg7hRtj`),
+session `cse_01Wdvqv2fs3rbN9jneqpKeGw`. It entered `REQUIRES_ACTION` at
+01:04:51 — **two and a half minutes in, before placing any order.** No
+`QUOTE_SUBMITTED` line exists for the window, so there is nothing new to void,
+and none of #206's order-path fixes (newsletter, tracking, line names, print
+file names) has been exercised in production yet.
+
+**What it changes about the stall.** The 13 October run stalled AFTER
+ordering, which read like a void problem. This one stalled before doing
+anything that touches Printavo, so whatever needs approval comes early — and
+a run on 8 October completed cleanly in 7½ minutes, so it is not every run.
+What it is waiting for is visible only inside the session.
+
+**The press line's second error — found by a real visitor, not the run:**
+
+    01:31:23Z GET /api/press  PRESS ACTIVITY unavailable:
+    Printavo: Query has complexity of 40962, which exceeds max complexity of 25000
+
+That settles two things. The `quantity` fix works: Printavo now validates the
+query and objects only to its cost. And read-side `sizes` is a plain list:
+validation runs before cost analysis, and the shape ladder only moves on a
+shape complaint, so `sizes { size count }` passed. The query asked for 40
+invoices × 10 groups × 25 lines; a cost model fitted exactly to 40962 now sets
+the page sizes (groups 10 → 5, cost 20,562) and clamps the invoice page to
+what fits. See `PRESS_PAGE` in `lib/printavo.ts`.
+
 ## Health-check run, 2026-10-13 ~21:05 UTC — recorded from the logs, because the run did not
 
 **Written 2026-10-13 by the interactive session, not by the run.** The run

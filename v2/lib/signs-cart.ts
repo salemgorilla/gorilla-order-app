@@ -25,8 +25,9 @@ import {
  * cart-level arithmetic to get wrong, and no second copy of the pricing rules
  * living here.
  *
- * That is the opposite of the sticker cart, where setup TAPERS ($25 for the
- * first design, $12.50 for each after) and therefore cannot be computed one
+ * That is the opposite of the sticker cart, where setup TAPERS
+ * (STICKER_SETUP_FEE for the first design, STICKER_SETUP_FEE_ADDITIONAL for
+ * each after) and therefore cannot be computed one
  * design at a time. Worth knowing before anyone "makes the two consistent":
  * they are different on purpose, because the shop prices them differently.
  *

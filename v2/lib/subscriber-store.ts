@@ -10,11 +10,41 @@
 
 import { get, list, put } from "@vercel/blob";
 
+import { readBlobCredential } from "./blob-health";
 import type { SubscriberStore } from "./subscribers";
 
-/** Whether there is anywhere to keep a list at all. */
+/**
+ * Whether there is anywhere to keep a list at all.
+ *
+ * ── IT ASKED THE WRONG QUESTION, AND THE LIST WAS SILENTLY EMPTY ─────────
+ * This checked `BLOB_READ_WRITE_TOKEN` and nothing else. Production does not
+ * authenticate that way: the store was moved to OIDC (VERCEL_OIDC_TOKEN +
+ * BLOB_STORE_ID), which the SDK prefers and which every OTHER blob call in
+ * the app already rides — artwork uploads included, which is why those work.
+ *
+ * So the SDK could write to the store perfectly well, and this function said
+ * there was no store. The health check's 13 October run caught it, on two
+ * orders a few minutes apart, both with `artwork=blob delivered=true` and
+ * both with:
+ *
+ *   NEWSLETTER NOT SENT for GS-20261013-3OUQES6F: No subscriber store configured.
+ *
+ * The same blob store, working and "not configured" in one request.
+ *
+ * Three things hung off this one boolean and all three were dark: every
+ * newsletter opt-in (the box was ticked, consent was recorded, nobody was
+ * added), /api/unsubscribe, and the subscriber export. The shop email said
+ * so honestly on every order — "Opted in — NOT added to any list" — which is
+ * also what makes the gap recoverable: consent was recorded on each of those
+ * orders, so the list can be backfilled from them.
+ *
+ * readBlobCredential is the one place that already knows how the SDK will
+ * authenticate, including the case where the OIDC token arrives per request
+ * and the env var is empty. Asking it, rather than keeping a second opinion
+ * here, is the whole fix.
+ */
 export function isSubscriberStoreConfigured(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim());
+  return readBlobCredential() !== "none";
 }
 
 export function vercelSubscriberStore(): SubscriberStore {

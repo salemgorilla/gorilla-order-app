@@ -58,6 +58,30 @@ describe("the eight agreed statuses", () => {
   });
 });
 
+describe("Printavo's own first status", () => {
+  test('"Quote" — where every app order starts — reads as received, not in progress', () => {
+    // Found by the health check on 7 October: the first state any order is
+    // in fell through to the unrecognised path and told the customer it was
+    // "moving through the shop" before anyone had touched it.
+    const status = toCustomerStatus("Quote");
+
+    assert.equal(status.label, "Order received");
+    assert.equal(status.step, 1);
+    assert.equal(status.stage, "received");
+    assert.equal(status.unrecognised, false, "the route logs ORDER STATUS UNRECOGNISED for every lookup otherwise");
+    assert.doesNotMatch(status.detail, /moving through the shop/);
+    assert.match(status.detail, /hasn't gone into production/);
+  });
+
+  test("it is not dressed up as further along than the board's first step", () => {
+    const quote = toCustomerStatus("Quote");
+    const placed = toCustomerStatus("Lab Order Placed");
+
+    assert.ok((quote.step ?? 0) <= (placed.step ?? 0));
+    assert.equal(quote.complete, false);
+  });
+});
+
 describe("matching survives the Printavo UI", () => {
   for (const variant of [
     "lab order printing",

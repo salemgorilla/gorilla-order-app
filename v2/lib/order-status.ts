@@ -77,6 +77,34 @@ type Entry = {
  * unrecognised path.
  */
 const CUSTOMER_FACING: Record<string, Entry> = {
+  /**
+   * PRINTAVO'S OWN FIRST STATUS — and the one nobody mapped.
+   *
+   * The map was built from the eight statuses on the shop's production
+   * board. But every app order is CREATED in Printavo's built-in "Quote"
+   * status and only reaches the board when the shop moves it there — so the
+   * very first thing a customer could look up fell through to the
+   * unrecognised path and read:
+   *
+   *   Quote — "Your order is moving through the shop."
+   *
+   * Untrue (nothing has moved), with the bare internal word as the headline
+   * and no progress step. The health check found it on 7 October, tracking
+   * its own test order:
+   *
+   *   ORDER STATUS UNRECOGNISED for GS-20261006-1U4T5MZ2: Printavo said "Quote".
+   *
+   * Step 1 like "Order received" on the board, but the detail says only what
+   * is certainly true in this status: we have it, and production has not
+   * started. It promises no next step, because what happens next differs by
+   * flow and is the shop's to say.
+   */
+  Quote: {
+    label: "Order received",
+    detail: "We have your order. It hasn't gone into production yet.",
+    stage: "received",
+    step: 1,
+  },
   "Order on Hold (Issue)": {
     label: "On hold — we need to check something with you",
     // Names who moves next. "On hold" without that leaves the customer

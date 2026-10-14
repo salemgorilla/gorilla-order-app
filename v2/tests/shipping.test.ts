@@ -189,6 +189,22 @@ describe("with tables supplied, it rates by zone and weight", () => {
   });
 });
 
+/**
+ * A date far enough out that no lane refuses it, TODAY — never a literal.
+ *
+ * This file carried a hardcoded `needBy` of 2026-10-01 in three places. On
+ * 2 October those orders stopped being valid, `isOrderReady` started
+ * returning false, and the suite went red on the calendar rather than on a
+ * defect — and stayed red. A hardcoded future date is a future failure
+ * with a fuse on it. The rule under test here is about the ZIP; the date
+ * only has to stay out of its way.
+ */
+function needByWellAhead(): string {
+  const at = new Date();
+  at.setUTCDate(at.getUTCDate() + 60);
+  return at.toISOString().slice(0, 10);
+}
+
 describe("the ZIP field", () => {
   test("five digits, ZIP+4 accepted, everything else refused", () => {
     assert.equal(isUsZip("01970"), true);
@@ -204,7 +220,7 @@ describe("the ZIP field", () => {
     const order = (production: Record<string, string>) =>
       ({
         items: [{ id: "a", widthInches: 3, heightInches: 3, quantity: 100, artwork: { file: { name: "a.png" } } }],
-        production: { needBy: "2026-10-01", ...production },
+        production: { needBy: needByWellAhead(), ...production },
         customer: { customerName: "Dana", email: "dana@example.com" },
       }) as unknown as Parameters<typeof getOrderFieldErrors>[0];
 
@@ -219,7 +235,7 @@ describe("the ZIP field", () => {
     const order = (production: Record<string, string>) =>
       ({
         items: [{ id: "a", widthInches: 3, heightInches: 3, quantity: 100, artwork: { file: { name: "a.png" } } }],
-        production: { needBy: "2026-10-01", ...production },
+        production: { needBy: needByWellAhead(), ...production },
         customer: { customerName: "Dana", email: "dana@example.com" },
       }) as unknown as Parameters<typeof getOrderFieldErrors>[0];
 
@@ -252,7 +268,7 @@ describe("the ZIP field", () => {
 describe("the ZIP and the basis reach the shop, and the server bills what the browser showed", () => {
   const shipped = {
     customer: { customerName: "Dana", email: "dana@example.com" },
-    production: { deliveryMethod: "Ship", shipZip: "02116", needBy: "2026-10-01" },
+    production: { deliveryMethod: "Ship", shipZip: "02116", needBy: needByWellAhead() },
     product: { type: "Custom Stickers", quantity: 100 },
     items: [
       { id: "d1", quantity: 100, widthInches: 3, heightInches: 3, material: "Gloss White Vinyl", shape: "Circle", artwork: { file: { name: "a.png" } } },

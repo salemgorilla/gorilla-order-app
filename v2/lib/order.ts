@@ -11,7 +11,7 @@ const initialProduct = {
   quantity: 100,
   size: '3"',
   // Real dimensions now that the size presets are gone. Must be non-zero:
-  // area drives the price, so 0 x 0 would quote the $25 setup and nothing else.
+  // area drives the price, so 0 x 0 would quote the setup fee and nothing else.
   widthInches: 3,
   heightInches: 3,
   shape: "Die Cut",
@@ -43,6 +43,10 @@ export function createStickerItem(
     ...initialProduct,
     id: `design-${itemSequence}-${Math.random().toString(36).slice(2, 8)}`,
     artwork: { file: null },
+    // Blank, never a placeholder: an unnamed design falls through to the
+    // file name and then to a spec descriptor, all of which beat a default
+    // somebody forgot to change.
+    designName: "",
     ...overrides,
   };
 }

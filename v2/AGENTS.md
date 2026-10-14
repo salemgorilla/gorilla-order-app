@@ -180,6 +180,17 @@ printing it anywhere.
   substitute for the Printavo reconciliation above.
 - `npm run build` fails in restricted sandboxes on the Google Fonts fetch —
   that's egress, not your code. Say which you actually ran.
+- **Never pin a test fixture to a literal date that has to still be in the
+  future.** A date rule is tested by passing an explicit `today` — as
+  `tests/turnaround.test.ts` and `tests/rush.test.ts` do with
+  `const MONDAY = "2026-08-31"` — so the assertion means the same thing
+  forever. A fixture that instead lets `today` default to the real clock
+  expires: one pinned to `2026-10-01` turned the suite red on 2 October and
+  kept it red for four days with nothing broken, and the green check already
+  recorded on the open PR predated the expiry, so the signal that would have
+  caught a real regression had been spent on the calendar. `npm run
+  test:future` re-runs the suite with the clock 400 days ahead and CI gates
+  on it, so a new one fails in your PR rather than on some later Tuesday.
 - Don't leave finished work sitting on a branch. Merging is part of the task.
 - Validation rules belong in `lib/validation.ts`, not in a closure inside
   `app/page.tsx`. All three flows once kept their rules in the component, and

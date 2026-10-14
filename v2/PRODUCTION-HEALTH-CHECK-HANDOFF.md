@@ -1,11 +1,14 @@
 # Handoff: running a production health check on the Gorilla Order App
 
-**Self-contained.** You do not need to read the repo to run a check — this
-file carries the invariants, the figures and the failure modes. If you are
-also changing code, read `AGENTS.md` and `HANDOFF.md` first; this file only
-covers *testing*.
+**Self-contained for the invariants and the failure modes.** The *figures*
+are not: run `npm run audit:anchors` in `v2/` and use what it prints, because
+it derives the rates, tiers, multipliers and reference totals from the code
+that actually bills. A pricing table copied into a document — including this
+one — is a number waiting to go stale. If you are also changing code, read
+`AGENTS.md` and `HANDOFF.md` first; this file only covers *testing*.
 
-Written 2026-09-26 against `main` @ `b0c8a26`.
+Written 2026-09-26 against `main` @ `b0c8a26`. Recording rules and §7's
+`LineItem` entry revised 2026-10-06.
 
 ---
 
@@ -303,15 +306,110 @@ something you could not observe. Skipped ≠ passed.
   saying nothing is owed — read both halves of that output.
 - **The $45 order minimum, multi-design setup, non-square sizes, shipping and
   discount codes** are not covered by the repo's independent oracle.
+- **`LineItem` has no `quantity`, and the read shape of `sizes` is still a
+  guess.** The 1 October run settled the first half: two read queries asked
+  Printavo for a field that does not exist, which is why the hero's press
+  line never showed a number and why `npm run reconcile`'s "Line items add
+  up" check could only ever answer `unknown`. Both now sum `sizes[].count`
+  instead. What is NOT settled is whether read-side `sizes` is a plain list
+  or a Relay connection — the live schema is unreachable from CI, so the code
+  tries both and remembers the winner. A run that sees a `PRESS ACTIVITY
+  unavailable` line should quote it verbatim: the error names the real fields
+  of whatever type `sizes` is, and that string ends the question.
+- **The newsletter was dark on a store that was working.** Until the fix
+  that followed the 13 October run, every order logged `NEWSLETTER NOT SENT
+  … No subscriber store configured.` while the same request uploaded its
+  artwork to that same blob store. The subscriber check looked only for
+  `BLOB_READ_WRITE_TOKEN`; production authenticates by OIDC. Once that fix
+  is deployed (confirm the SHA), the test identity's ticked box should
+  produce **no** `NEWSLETTER NOT SENT` line. If the old reason comes back,
+  that is a regression. If a *different* reason appears, quote it verbatim:
+  the subscriber store writes `access: "private"`, which had never once run
+  in production, and the error would be the first evidence of whether this
+  store accepts it.
 
 ---
 
-## 8. Where to record the result
+## 8. Recording the result — the first step, not the last
 
-- **Money verified against a real invoice** → add a row to `HANDOFF.md`'s
+Between 26 September and 13 October, every run that placed an order recorded
+**nothing** in this repository: no branch, no PR, no `HANDOFF.md` entry. One
+found a genuine P1 that then sat undiscovered for a week because it existed
+only in a log line.
+
+**Vercel keeps runtime logs for ONE HOUR on this plan** — not a day, which is
+what this file said until 13 October. The API states it outright: *"Hobby
+retains 1 hour."* A run that reads the logs and does not write them down has
+about sixty minutes before the evidence is gone for good. Quote error strings
+verbatim, as you read them.
+
+### What the 13 October run taught about WHERE to write
+
+Runs fire into a generic cloud environment, not this repo's. Its tool list
+has **no GitHub tools** — no `create_pull_request` — and the session is
+tagged `auto-create-pr:off`. So "open a draft PR" asked for something the run
+had no tool for, and putting it first put the blocker first.
+
+Write in this order, cheapest and most certain first:
+
+1. **`/mnt/user-data/outputs/health-check-<UTC date>.md`** — the run's own
+   outputs mount. It needs no approval and no credentials, and it survives
+   the session. Create it **before placing any order** with a stub saying
+   what you intend to test.
+2. **Immediately after each order is placed, append its quote number and its
+   Printavo invoice URL** (the `PRINTAVO QUOTE CREATED` line carries it).
+   Do this BEFORE anything that might need approval — see §8a.
+3. **After each required check**, append the result. Do not batch.
+4. **At the close**, if you can push (attach the repo with `add_repo`,
+   `access: "push"`), push the same text as a dated entry in `HANDOFF.md` on
+   a branch named `health-check/<UTC date>-<short id>`. Do not try to open a
+   PR — there is no tool for it; a pushed branch is enough. Never push to
+   `main`, never merge.
+5. **Your final message repeats the record in full.** It reaches Gabe as a
+   push notification, which is the one channel every run so far has
+   reliably reached.
+
+A run that places a clean order and reports a pass with nothing written
+anywhere has **failed**, however green the order was. Running short on time
+or context is a reason to stop testing and finish writing, never the
+reverse.
+
+### 8a. A run that stalls must stall loudly
+
+Two of the three runs inspected between 7 and 13 October stopped in
+`REQUIRES_ACTION` — waiting for an approval nobody was there to give —
+**after placing orders and before voiding them**. The 13 October run placed a
+sticker order and a banner order, both with live payment links, then
+stopped. A quote from 6 October was still reading as `"Quote"` in Printavo
+the next day.
+
+What it was waiting for is not visible from outside the session. But the
+consequence is the same whatever it was: live payable invoices under the
+shop's account, and no record of which ones.
+
+So:
+
+- The quote numbers and invoice URLs are written down (step 2 above) before
+  any step that could need approval, so a stall still leaves the list.
+- **If you cannot void without an approval you cannot get, say so in the
+  FIRST line of your final message**, with every invoice URL, so Gabe can
+  void them by hand in a minute. A run that waits silently is the failure
+  this section exists for.
+- If you notice which action is asking for approval, name it in the record.
+  That is the one fact nobody outside the session has yet.
+
+What the entry must carry: the UTC date and the deployed commit SHA that was
+confirmed; the quote number(s), flow(s) and invoice URL(s); the three-way
+total comparison **as three figures, not a verdict**; the retry/dedupe
+result; the artwork-upload result; every log error string **verbatim**;
+whether the void was confirmed by re-reading the order.
+
+Two other things belong in the repo rather than in a reply:
+
+- **Money verified against a real invoice** → a row in `HANDOFF.md`'s
   `## Reconciled` table. This is the merge gate for pricing changes, and it
   is the single most valuable output a run can produce.
-- `npm run reconcile -- GS-XXXXXXXX-XXXXX` does the comparison **read-only**
+  `npm run reconcile -- GS-XXXXXXXX-XXXXX` does the comparison **read-only**
   (no quote, no payment request, nothing voided) and exits non-zero on drift.
   It needs `PRINTAVO_EMAIL` and `PRINTAVO_TOKEN`.
 - **Anything surprising about Printavo's behaviour** → a dated note in

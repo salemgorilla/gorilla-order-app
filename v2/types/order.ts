@@ -108,6 +108,18 @@ export type StickerItem = Product & {
    */
   id: string;
   artwork: Artwork;
+  /**
+   * What the CUSTOMER calls this design. Optional, and blank by default.
+   *
+   * Gabe, 2026-09-28. It becomes the Printavo line item's title, ahead of
+   * the uploaded file name — "Fall Market Stickers" is what the shop and the
+   * customer both know the run as, where `export_final_v7.ai` is only what
+   * their software called the export.
+   *
+   * Never required and never validated beyond sanitising: a customer who
+   * does not want to name their design must not be stopped from ordering.
+   */
+  designName?: string;
 };
 
 export type Production = {

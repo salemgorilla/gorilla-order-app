@@ -37,8 +37,16 @@ apparel order, that is a P0 — stop and report it.**
 Money rules that apply everywhere:
 - **MA sales tax 6.25%**, charged on **goods only**. Setup fees, rush fees
   and add-ons are **not taxed**.
-- **Orders over $4,999.99 pre-tax take a 50% deposit** rather than full
-  payment. Under that, full payment.
+- **Orders whose CHARGED total — tax included — exceeds $4,999.99 take a
+  50% deposit** rather than full payment (Gabe, 2026-09-25: the ceiling
+  governs "the amount charged (incl. tax)"). This file said *pre-tax* until
+  19 October, which was wrong, and it made a correct result look like a
+  defect: a signs order of $4,865.00 pre-tax is $5,165.00 charged
+  (4,800 of signs × 6.25% = 300 tax; setup and add-ons untaxed), so it
+  correctly logs `deposit=true`, and the deposit is 50% of Printavo's own
+  `amountOutstanding` — $2,582.50. A run that aims just under the ceiling
+  pre-tax and just over it with tax is testing exactly the right boundary.
+  Under the ceiling, full payment.
 - Discount codes exist and are re-validated server-side on submit:
   `FAMFRE` 40%, `DOUBLEDIME` 20%, `DIME` 10%, `SOCIALPATH` 5%, `FIPPY` free
   shipping. Stickers only.
@@ -316,17 +324,29 @@ something you could not observe. Skipped ≠ passed.
   tries both and remembers the winner. A run that sees a `PRESS ACTIVITY
   unavailable` line should quote it verbatim: the error names the real fields
   of whatever type `sizes` is, and that string ends the question.
-- **The newsletter was dark on a store that was working.** Until the fix
-  that followed the 13 October run, every order logged `NEWSLETTER NOT SENT
-  … No subscriber store configured.` while the same request uploaded its
-  artwork to that same blob store. The subscriber check looked only for
-  `BLOB_READ_WRITE_TOKEN`; production authenticates by OIDC. Once that fix
-  is deployed (confirm the SHA), the test identity's ticked box should
-  produce **no** `NEWSLETTER NOT SENT` line. If the old reason comes back,
-  that is a regression. If a *different* reason appears, quote it verbatim:
-  the subscriber store writes `access: "private"`, which had never once run
-  in production, and the error would be the first evidence of whether this
-  store accepts it.
+- **The newsletter: fixed to the point of a new, real error.** Until 14
+  October every order logged `NEWSLETTER NOT SENT … No subscriber store
+  configured.` while the same request uploaded artwork to that same store;
+  the check looked only for `BLOB_READ_WRITE_TOKEN` and production
+  authenticates by OIDC. That is fixed (#206), and the first orders on that
+  build, 19 October, logged the *different* reason this section predicted:
+
+      NEWSLETTER NOT SENT for GS-20261019-UN6FXF5F: Vercel Blob: Failed to fetch blob: 400 Bad Request
+
+  The subscriber list is written as `access: "private"`. The SDK reads it
+  from a `<store>.private.blob.vercel-storage.com` host, and every other blob
+  write that works in production is `access: "public"` — so the store is
+  very probably a PUBLIC store, which cannot serve private reads. That is
+  inference, not proof, and it is Gabe's decision, not a code change: the
+  list is customers' email addresses, and switching it to public blobs is
+  the exact thing `lib/subscriber-store.ts` was written not to do.
+
+  What a run should expect now: the old "No subscriber store configured"
+  reason is a regression; the `400 Bad Request` reason is the known state
+  until a private store exists. And the **shop email now carries the real
+  outcome** — `Opted in … — NOT added to any list: <reason>` — so a
+  failed sign-up is visible in the inbox, not only in a log that expires in
+  an hour. Check that row on the order's shop email if you can read it.
 
 ---
 

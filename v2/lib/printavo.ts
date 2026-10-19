@@ -2524,7 +2524,7 @@ export async function findExistingQuote(quoteNumber: string): Promise<{
  */
 export const LINE_ITEM_SIZE_SHAPES = [
   "sizes { size count }",
-  "sizes(first: 50) { nodes { size count } }",
+  "sizes(first: 25) { nodes { size count } }",
 ] as const;
 
 /**
@@ -2697,7 +2697,7 @@ export async function fetchQuoteForReconciliation(
              customerNote
              lineItemGroups(first: 10) {
                nodes {
-                 lineItems(first: 50) {
+                 lineItems(first: 25) {
                    nodes {
                      description
                      itemNumber
@@ -3002,8 +3002,30 @@ export async function explainPrintavoFieldError(
  */
 export const PRINTAVO_MAX_COMPLEXITY = 25000;
 
+/**
+ * THE LARGEST `first:` PRINTAVO WILL ACCEPT ON ANY CONNECTION — AND THE
+ * ERROR THE COMPLEXITY FIX WAS HIDING.
+ *
+ * With the complexity fixed (#207), the first production call answered with
+ * the next thing in line:
+ *
+ *   Printavo: 'first' must not be greater than 25
+ *
+ * The press query asked for 40 invoices. The complexity cap and the page cap
+ * are two different limits, and the first only showed itself because the
+ * second was never reached. The number was in the repo the whole time:
+ * the morning-brief routine's own prompt says "Max page size is 25
+ * (`first: 25`)". Nobody had put the two together, and a cost model fitted to
+ * a complexity figure said nothing about it — it happily priced 40 invoices.
+ *
+ * One constant now, and a test over the whole file that fails on any
+ * `first:` above it, because this is the third place it was wrong (the
+ * press invoices, the reconciler's line items, and the `sizes` fallback).
+ */
+export const PRINTAVO_MAX_PAGE = 25;
+
 export const PRESS_PAGE = {
-  invoices: 40,
+  invoices: PRINTAVO_MAX_PAGE,
   lineItemGroups: 5,
   lineItems: 25,
 } as const;
@@ -3026,7 +3048,9 @@ export function maxPressInvoices(
   page: { lineItemGroups: number; lineItems: number } = PRESS_PAGE
 ): number {
   const perInvoice = pressQueryComplexity({ ...page, invoices: 1 }) - 2;
-  return Math.max(1, Math.floor((PRINTAVO_MAX_COMPLEXITY - 2) / perInvoice));
+  const byComplexity = Math.max(1, Math.floor((PRINTAVO_MAX_COMPLEXITY - 2) / perInvoice));
+  // Two independent limits; the smaller one is the ceiling.
+  return Math.min(PRINTAVO_MAX_PAGE, byComplexity);
 }
 
 export async function fetchRecentInvoicesForPress(input: { first?: number } = {}): Promise<{

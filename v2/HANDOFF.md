@@ -37,6 +37,13 @@ PRINTAVO_TOKEN set. It reads only. Never pay a test quote; void it after.
 | _(none yet)_ | | all flows | #192 | **owed** — flagged by `npm run reconcile:debt`, not by memory. I argued in the PR that #192 moves no billed figure (no rate, no arithmetic, `lib/pricing.ts` and `tests/price-sheet.test.ts` byte-identical) and the script disagreed, because it touched `auto-bill.ts` and `sticker-repricing.ts`. The script wins: that judgement call is exactly what drifted this table thirty commits. Expected to be a no-op — **the check is that one ordinary sticker order and one ordinary banner still bill EXACTLY what they billed before** |
 | _(none yet)_ | | all flows | #186 #187 #196 | **owed** — rows the debt script SHOULD have produced and did not. #186 moved money by classification alone (its printavo.ts diff is `includes("sticker")` / `return false`, no keyword) and a `contentTest` dropped it; #187 touches `app/api/quote/route.ts` and `features/QuoteConfirmation.tsx`, and every rule was anchored `^lib/`. Both found by adversarial review, both now flagged, both still owed. #196 is the apparel auto-bill fix and the `chargeableTotal` consolidation that came out of the same review |
 | _(none yet)_ | | all flows | #198 #199 #200 | **owed** — flagged by `npm run reconcile:debt`. #199 put an idempotency key on `/api/quote`: the quote number is now DERIVED from the browser's key, and a retry returns the existing order instead of creating one. No rate moved and no arithmetic changed — what changed is whether a second order exists at all. **The check is a retry, not a price**: submit once, submit again from the same tab, confirm Printavo holds exactly ONE order and its total still matches the screen to the cent |
+| GS-20261001-2P825K0A | 2026-10-01 | stickers | #153–#158 (one design) | ✅ **matched** — 100 × 3" die-cut gloss, pickup. Site $104.25 = $84.00 + $15.00 setup + $5.25 tax. Printavo #102594: $0.84 × 100, setup untaxed, Total Due **$104.25**. Read off the Printavo quote page by an interactive session (not `npm run reconcile`). Declined. |
+| GS-20261006-1U4T5MZ2 | 2026-10-06 | stickers | **#153–#158 multi-design cart · #159 #162 #163 #184 (code + shipping) · #198 #199 #200 (retry)** | ✅ **matched** — D1 300 × 4"×2.5" holographic rounded ($0.6665 × 300 = $199.95, volume curve at 300), D2 75 × 2"×2" matte die-cut ($0.567 × 75 = $42.53), DIME 10%, shipped to 94103 ($18.00, untaxed, undiscounted). Hand-computed from lib/ before submitting: $295.89. Printavo #102597: $199.95 + $42.53 + $20.25 setup + $18.00 shipping, tax $15.16 on $242.48 = **$295.89**. Double-click plus two resends → exactly ONE Printavo order. Declined 6 Oct; since deleted from Printavo (404 on 19 Oct). **But see defect 1 below.** |
+| GS-20261006-1JU3DQB3 | 2026-10-06 | apparel | #98 #132 #134 (one garment — a cart is still owed) | ✅ **matched, no payment link** — 24 Premium Soft Tee, Athletic Heather, 1 colour front (+ auto underbase). Site $482.00; Printavo #102598 $272.40 + $159.60 + $50.00 = **$482.00**, untaxed. Declined. |
+| GS-20261013-3OUQES6F | 2026-10-13 | stickers | $45 minimum + percent code | ✅ **matched** — Printavo #102604: $0.258 × 30 = $7.74 + setup $9.00 + minimum $10.26 = $27.00, tax $0.48 on $7.74 only = **$27.48**. Declined 13 Oct. |
+| GS-20261013-KC4PRNVN | 2026-10-13 | banners | #192 (ordinary banner) | ✅ **matched** — Printavo #102605: $70.00 (8 sqft × $12.50 − $30 no-hem) + wind slits $6.00 + setup $15.00, tax $4.38 on $70.00 = **$95.38**. Double-click → one order. Declined 13 Oct. |
+| GS-20261019-1GWQ0QVL | 2026-10-19 | signs | **#160 #161 (rigid) · #189 (deposit)** | ✅ **matched** — 10 × 48"×96" Dibond 1/8", rounded corners, pickup. Printavo #102608: $480.00 × 10 = $4,800.00 + rounded corners $50.00 + setup $15.00, tax $300.00 = **$5,165.00**. Deposit link **$2,582.50** (50% of $5,165.00). Pre-tax was $4,865 — UNDER $4,999.99 — so the ceiling is read tax-inclusive; see the question for Gabe below. Declined. |
+| GS-20261019-UN6FXF5F | 2026-10-19 | stickers | FIPPY · #206 line names | ✅ **matched** — Printavo #102609: $0.70 × 100 + $0.60 × 50 + $22.50 setup, tax $6.25 = **$128.75**, shipping $0 (FIPPY). Lines titled "Canal St Test Run (Design 1)" (typed name) and "test-d2-matte (Design 2)" (file name). Declined. |
 
 **The three rows above were computed, not remembered** — 2026-09-25. The
 independent audit found this table's newest row covering #158 while `main`
@@ -70,6 +77,86 @@ the payload, the per-line `taxed` flags and Printavo's arithmetic all agree,
 to the cent. Nothing in #149 touched any of that. It did not prove the RATE
 — that is a business figure, and #149 changed it, so the row above it is
 owed and the merge rule points at the next sticker order.
+
+## Interactive test orders, 1–19 October — results the scheduled runs never recorded
+
+**Written 2026-10-19 by an interactive Claude session** (claude.ai, driving the
+real order form in Chrome for Gabe). Every order was placed through
+labs.gorillasalem.com under `SCHEDULED TEST — DO NOT FULFILL` /
+`scheduled-test@gorillasalem.com`, its total hand-computed from `lib/` BEFORE
+submitting, read back line by line from the Printavo quote page, then set to
+QUOTE DECLINED. The rows are in the Reconciled table above. The comparison was
+made by reading Printavo's UI, not with `npm run reconcile` — that session has
+no Printavo credentials.
+
+**Correction to the 13 October entry below.** `GS-20261013-3OUQES6F` and
+`GS-20261013-KC4PRNVN` were placed by this interactive session (~21:05 UTC),
+not by the scheduled run. Both were read back from Printavo — they match to
+the cent — and declined the same evening. `GS-20261006-1U4T5MZ2` was declined
+on 6 Oct and has since been deleted from Printavo. Nothing from these sessions
+is left payable. No other `SCHEDULED TEST` quote appears in Printavo between
+#102598 and #102608, so the 20:54 scheduled run does not seem to have placed
+anything itself.
+
+### Defects, most serious first (deployed `b4c0846` = #206)
+
+1. **P1 — an EDITED resend is silently dropped, and the customer is told it is
+   the same order.** Reproduced 6, 13 and 19 Oct. Submit; Back to Builder;
+   change a quantity (50 → 60); submit again. The confirmation shows the NEW
+   figures (160 stickers, $135.13) under "ALREADY RECEIVED … this is the same
+   order you already sent". Printavo holds the ORIGINAL (150, $128.75) and Pay
+   now bills that. The submission key only resets in `startNewQuote()`
+   (`app/page.tsx`), so any change after Back to Builder derives the same quote
+   number and is treated as a retry. Fix direction: re-key when the payload
+   changes, or have the server refuse to call it a duplicate when the
+   resubmitted total differs from the stored one.
+2. **NEW in #206 — sign artwork is told to save as a DECAL.** Rigid sign
+   `GS-20261019-1GWQ0QVL`, shop note: `save as: GORILLA-DECAL - 48in x 96in -
+   10 pcs.png`. Its invoice line is `GORILLA-SIGN-RIGID-SIGN`. The print-file
+   name is built with `decalSku` for signs too.
+3. **Pole pockets are free under Finishing and $15 as an add-on.** Banner
+   details: Finishing → "Pole Pockets" adds $0; ticking the "Pole Pockets"
+   add-on adds $15. Same thing, two prices, on a flow that auto-bills.
+4. **The newsletter box is ticked by default.** On every order 1–19 Oct the
+   checkbox was already checked. Since #206 made the store actually save,
+   every customer who does not untick it is now added to the list. Gabe's call
+   whether that is intended. (The test orders unticked it.)
+5. **Cut border / margin reach the shop as the raw slider value.** The
+   customer sees 0.21" / 0.07" / 0.05"; the Printavo note and shop email say
+   "40% margin" / "40% cut border" (`lib/printavo.ts:840`, `lib/email.ts:489`).
+6. **The first interaction after a page load is ignored.** Every week: on a
+   fresh load the first click on a product card or "Continue to details" does
+   nothing, and `/track` wipes its own form on the first submit even after
+   waiting 4–5 s (the second submit works). Looks like slow hydration racing a
+   native form submit. Real customers will hit it.
+7. **The deposit is not disclosed before submitting.** The $5,165 rigid order
+   showed only "Estimated Total $5165.00" on Review; "Pay 50% deposit" first
+   appears after the order is placed.
+8. Smaller: "$X each" on the confirmation ignores the minimum and other
+   designs ($0.56 each on a $27.48 order of 30); the apparel note says
+   "Each: $11.35" (garment only) and "Ink: 1 color" while billing an underbase
+   screen; signs money prints `$4800.00` with no thousands separator; banner
+   add-ons (wind slits) are missing from the customer confirmation's details;
+   the test customer's Printavo billing still carries an old phone
+   (800-555-5785) that no order sent.
+
+### A question for Gabe, not a defect
+
+The deposit ceiling compares the TAX-INCLUSIVE total (`chargeableTotal`) with
+$4,999.99. A $4,865 pre-tax order ($5,165 with tax) took a 50% deposit. The
+`#189` row above says "over $4,999.99 pre-tax". One of the two is wrong, and
+which one is Gabe's rule to state.
+
+### Confirmed working
+
+- #206's tracker fix: a brand-new order reads "Order received — It hasn't gone
+  into production yet."
+- #206's design names on invoice lines; blob artwork including a 9.3 MB file.
+- Codes DIME / FAMFRE / FIPPY; a bogus code is rejected; "di me" (lower case,
+  space) is accepted.
+- Minimum untaxed for stickers and taxed for signs, as configured; setup,
+  shipping and add-ons untaxed on every flow.
+- Double-clicks and plain resends create exactly one order every time.
 
 ## Health-check run, 2026-10-13 ~21:05 UTC — recorded from the logs, because the run did not
 

@@ -75,9 +75,14 @@ owed and the merge rule points at the next sticker order.
 
 **Written 2026-10-19 by the interactive session, from the logs.** Build
 `dpl_FgyCT2X2UD74pCQVSWMvpGg7hRtj` = `b4c0846` (#206); #207 (press
-complexity) was still unmerged. The scheduled session fired 12:55 UTC sits in
-`REQUIRES_ACTION` since 13:11, so it is **not** the one that placed these —
-I could not tell which run did. Nobody read the Printavo invoices back, so
+complexity) was still unmerged. I could not tell which run placed them. The
+scheduled session fired 12:55 UTC reads `REQUIRES_ACTION` since 13:11, but
+**these session records cannot be used to say who placed an order or whether
+a run is really stuck**: they report 0 tokens used on sessions that plainly
+did work, and the 16:55 session read `REQUIRES_ACTION` at 17:01:45 while an
+order arrived at 17:02:30. (The 13 October run did the same: blocked at
+21:07:46, banner order at 21:08:31.) The app's own logs are the only
+reliable witness. Nobody read the Printavo invoices back, so
 every comparison below has two legs, not three, and no `## Reconciled` row
 is written.
 
@@ -124,8 +129,31 @@ is written.
 **Not exercised:** order tracking, the Printavo line titles, the print file
 name, the reconciler. None of them is visible in a runtime log.
 
+**Apparel, 17:02 UTC — `GS-20261019-2S8YACT9`, the P0 check: PASSED on the logs.**
+
+    QUOTE_SUBMITTED … flow=apparel qty=48 total=1341.20 … billed=false deposit=false
+    PRINTAVO QUOTE CREATED … /invoice/8bd7c631f328be735f61494e4dac6627
+    CUSTOMER CONFIRMATION SENT for GS-20261019-2S8YACT9
+
+An apparel order must never get a payment link. `billed=false`, and neither
+`CHECKOUT READY` nor `CHECKOUT UNAVAILABLE` appears (the route logs those
+only for the billed flows), so no link was raised. The customer got the
+ordinary confirmation, which is expected: there is no Printavo payment email
+carrying the number. **This is the log side only** — the definitive check is
+the invoice in Printavo, which nobody has opened.
+
+The cart was 30 × Basic Tee / White + 18 × Classic Hoodie / Black, Front 2
+colours + Back 1, pickup. **Partly verified:** the tee line is 30 × $7.25 =
+$217.50, which matches `garmentTotal`; the hoodie line and the $1,341.20 total
+were cut off by the log's truncation, so they are not independently checked.
+Apparel is an estimate and is never called a price. Same newsletter `400` as
+above — and because this ran on the #206 build, its shop email will say a
+plain "Opted in" over the failed add, which is the exact regression #207
+fixes (inferred from the code; nobody has read that email).
+
 **Gabe to void by hand:** `GS-20261019-1GWQ0QVL` (**a live $2,582.50 deposit
-link — list this one first**), `GS-20261019-UN6FXF5F`, and the older
+link — list this one first**), `GS-20261019-UN6FXF5F`, `GS-20261019-2S8YACT9`
+(an apparel quote — no payment link, but still a test to decline), and the older
 `GS-20261013-3OUQES6F`, `GS-20261013-KC4PRNVN`, `GS-20261006-1U4T5MZ2`.
 
 ## Health-check run, 2026-10-14 01:02 UTC — first run on the #206 build; placed no orders

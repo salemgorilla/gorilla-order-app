@@ -30,7 +30,8 @@ import { describeSubmission } from "../../../lib/submission-log";
 import { earliestNeedBy, turnaroundLaneFor } from "../../../lib/turnaround";
 import {
   isNewsletterConfigured,
-  subscribeToNewsletter,
+  newsletterGap,
+  subscribeWithin,
 } from "../../../lib/newsletter";
 import { unsubscribeUrl } from "../../../lib/unsubscribe-token";
 import { describeKioskSource, readKioskSession } from "../../../lib/kiosk";
@@ -912,6 +913,61 @@ export async function POST(request: Request) {
       printavoCreated: true,
     });
 
+    // Newsletter sign-up, if they left the box ticked.
+    //
+    // Fired here rather than from the browser so a customer closing the tab
+    // cannot lose it.
+    //
+    // IT RUNS BEFORE THE SHOP EMAIL, AND THAT IS NEW. It used to run after,
+    // and so the email could only be built from "is a store configured?" —
+    // which on 19 October was yes, while every sign-up failed with "Failed to
+    // fetch blob: 400 Bad Request". The email said a plain "Opted in" over a
+    // sign-up that had already been dropped, and the one trace was a log
+    // line that Vercel deletes within the hour. The email is the record the
+    // shop keeps, so it has to be built from what actually happened.
+    //
+    // The cost of moving it is that it now sits on the path that gets an
+    // order to the shop, so it is bounded: subscribeWithin never rejects and
+    // never outlasts NEWSLETTER_DEADLINE_MS. A marketing list must not be
+    // able to stop a paid order arriving, or affect what the customer is
+    // told about it.
+    const customerRecord = (order.customer || {}) as Record<string, unknown>;
+    const optedIn = customerRecord.newsletterOptIn === true;
+
+    const newsletter = optedIn
+      ? await subscribeWithin({
+          email: String(customerRecord.email || ""),
+          name: String(customerRecord.customerName || ""),
+          company: String(customerRecord.company || ""),
+          phone: String(customerRecord.phone || ""),
+          heardAbout: Array.isArray(customerRecord.heardAbout)
+            ? (customerRecord.heardAbout as string[])
+            : [],
+          quoteNumber,
+          // Stamped server-side at submit. A timestamp the browser supplied
+          // would be worth nothing as a consent record.
+          consent: {
+            optedIn: true,
+            at: receivedAt,
+            source:
+              describeKioskSource(kioskSession) ??
+              "labs.gorillasalem.com quote builder",
+            // The box arrives ticked, so every record has to say so. This is
+            // the field that answers "did they choose this, or did we?" —
+            // which is the first question an ESP asks about a flagged list.
+            preChecked: true,
+          },
+        })
+      : { sent: false as const, skipped: true as const, reason: "Not opted in." };
+
+    if (!newsletter.sent) {
+      console.log(
+        `NEWSLETTER NOT SENT for ${quoteNumber}: ${
+          "reason" in newsletter ? newsletter.reason : newsletter.error
+        }`
+      );
+    }
+
     // Email the quote to the shop (best-effort — never blocks the customer).
     const notification = await sendQuoteEmail({
       quoteNumber,
@@ -935,6 +991,9 @@ export async function POST(request: Request) {
        * hook set is being told something untrue.
        */
       newsletterConfigured: isNewsletterConfigured(),
+      // Only meaningful for someone who ticked the box; for everyone else the
+      // row reads Declined / Not opted in and this is never rendered.
+      newsletterNote: optedIn ? newsletterGap(newsletter) : null,
       // "Charged automatically", or why not and what to do about it.
       paymentNote: shopPaymentNote({
         order: pricedOrder,
@@ -1118,50 +1177,6 @@ export async function POST(request: Request) {
         checkout.ready
           ? `${label} CHECKOUT READY for ${quoteNumber}: ${checkout.payUrl}`
           : `${label} CHECKOUT UNAVAILABLE for ${quoteNumber}: ${checkout.error}`
-      );
-    }
-
-    // Newsletter sign-up, if they left the box ticked.
-    //
-    // Fired here rather than from the browser so a customer closing the tab
-    // cannot lose it, and deliberately NOT awaited into anything that decides
-    // the response. subscribeToNewsletter never throws; the worst case is one
-    // lost subscriber and a line in the log. A marketing list must not be able
-    // to affect what someone is told about an order they just paid for.
-    const customerRecord = (order.customer || {}) as Record<string, unknown>;
-    const optedIn = customerRecord.newsletterOptIn === true;
-
-    const newsletter = optedIn
-      ? await subscribeToNewsletter({
-          email: String(customerRecord.email || ""),
-          name: String(customerRecord.customerName || ""),
-          company: String(customerRecord.company || ""),
-          phone: String(customerRecord.phone || ""),
-          heardAbout: Array.isArray(customerRecord.heardAbout)
-            ? (customerRecord.heardAbout as string[])
-            : [],
-          quoteNumber,
-          // Stamped server-side at submit. A timestamp the browser supplied
-          // would be worth nothing as a consent record.
-          consent: {
-            optedIn: true,
-            at: receivedAt,
-            source:
-              describeKioskSource(kioskSession) ??
-              "labs.gorillasalem.com quote builder",
-            // The box arrives ticked, so every record has to say so. This is
-            // the field that answers "did they choose this, or did we?" —
-            // which is the first question an ESP asks about a flagged list.
-            preChecked: true,
-          },
-        })
-      : { sent: false as const, skipped: true as const, reason: "Not opted in." };
-
-    if (!newsletter.sent) {
-      console.log(
-        `NEWSLETTER NOT SENT for ${quoteNumber}: ${
-          "reason" in newsletter ? newsletter.reason : newsletter.error
-        }`
       );
     }
 

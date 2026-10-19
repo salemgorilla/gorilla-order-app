@@ -71,6 +71,120 @@ to the cent. Nothing in #149 touched any of that. It did not prove the RATE
 — that is a business figure, and #149 changed it, so the row above it is
 owed and the merge rule points at the next sticker order.
 
+## Health-check run, 2026-10-19 ~16:45 UTC — two orders on the #206 build
+
+**Written 2026-10-19 by the interactive session, from the logs.** Build
+`dpl_FgyCT2X2UD74pCQVSWMvpGg7hRtj` = `b4c0846` (#206); #207 (press
+complexity) was still unmerged. I could not tell which run placed them. The
+scheduled session fired 12:55 UTC reads `REQUIRES_ACTION` since 13:11, but
+**these session records cannot be used to say who placed an order or whether
+a run is really stuck**: they report 0 tokens used on sessions that plainly
+did work, and the 16:55 session read `REQUIRES_ACTION` at 17:01:45 while an
+order arrived at 17:02:30. (The 13 October run did the same: blocked at
+21:07:46, banner order at 21:08:31.) The app's own logs are the only
+reliable witness. Nobody read the Printavo invoices back, so
+every comparison below has two legs, not three, and no `## Reconciled` row
+is written.
+
+| Quote | Flow | Ordered | App total (pre-tax) | Independent check |
+|---|---|---|---|---|
+| `GS-20261019-1GWQ0QVL` | signs | 10 × 48"×96" rigid, Dibond 1/8", rounded corners, pickup | **$4,865.00** | 10×32 sqft×$15 = 4,800 + 10×$5 = 50 + setup 15 = **4,865** ✓ |
+| `GS-20261019-UN6FXF5F` | stickers | 100 × 3" circle (named "Canal St Test Run") + 50 × 2" die cut, `FIPPY`, pickup | **$122.50** | 100×$0.70 = 70 + 50×($0.50×1.2) = 30 + setup 15 + 7.50 = **122.50** ✓ |
+
+**Proved:**
+
+- **The deposit path, in production, for the first time.** The signs order is
+  $4,865.00 pre-tax but **$5,165.00 charged** (4,800 × 6.25% = 300 tax), over
+  the $4,999.99 ceiling, so `deposit=true` — **correct**, and the deposit is
+  50% of Printavo's `amountOutstanding`, **$2,582.50**. Confirmed by running
+  `chargeableTotal`. The health-check docs said the ceiling was *pre-tax*;
+  that was wrong and is corrected.
+- **A two-design cart**: tapered setup ($15 + $7.50) and a per-design
+  `designName` both reached the payload.
+- **Idempotency**: `DUPLICATE SUBMIT GS-20261019-UN6FXF5F — returning the
+  existing order, nothing created.`
+- **Blob artwork** on both (`artwork=blob delivered=true`), including a
+  12.2 KB file, so the path is not size-dependent.
+
+**Found:**
+
+1. **Every newsletter sign-up still fails — with a different reason now.**
+   `NEWSLETTER NOT SENT … Vercel Blob: Failed to fetch blob: 400 Bad Request`
+   on both orders. #206 made the store look configured, and the *write* then
+   failed. The list is written as `access: "private"`; every blob write that
+   works here is `access: "public"`, so the store is very probably public.
+   **Gabe's call** — the list is customers' email addresses. Options: a
+   second, private blob store for subscribers (needs its own token); or
+   accept that sign-ups live only in the shop emails and backfill later.
+   Public blobs for email addresses is the one option this repo was written
+   to refuse.
+2. **#206 made the shop email less honest, and that is fixed on this branch.**
+   The email is built before the sign-up is attempted, so once the store
+   looked configured it dropped its "NOT added to any list" warning while the
+   add failed underneath. The sign-up now runs first, bounded to 4 s, and
+   the email row carries the store's own error.
+3. **`/api/press` still fails** — `complexity of 40962 … exceeds max
+   complexity of 25000` — because #207 is not merged. Expected.
+
+**Not exercised:** order tracking, the Printavo line titles, the print file
+name, the reconciler. None of them is visible in a runtime log.
+
+**Apparel, 17:02 UTC — `GS-20261019-2S8YACT9`, the P0 check: PASSED on the logs.**
+
+    QUOTE_SUBMITTED … flow=apparel qty=48 total=1341.20 … billed=false deposit=false
+    PRINTAVO QUOTE CREATED … /invoice/8bd7c631f328be735f61494e4dac6627
+    CUSTOMER CONFIRMATION SENT for GS-20261019-2S8YACT9
+
+An apparel order must never get a payment link. `billed=false`, and neither
+`CHECKOUT READY` nor `CHECKOUT UNAVAILABLE` appears (the route logs those
+only for the billed flows), so no link was raised. The customer got the
+ordinary confirmation, which is expected: there is no Printavo payment email
+carrying the number. **This is the log side only** — the definitive check is
+the invoice in Printavo, which nobody has opened.
+
+The cart was 30 × Basic Tee / White + 18 × Classic Hoodie / Black, Front 2
+colours + Back 1, pickup. **Partly verified:** the tee line is 30 × $7.25 =
+$217.50, which matches `garmentTotal`; the hoodie line and the $1,341.20 total
+were cut off by the log's truncation, so they are not independently checked.
+Apparel is an estimate and is never called a price. Same newsletter `400` as
+above — and because this ran on the #206 build, its shop email will say a
+plain "Opted in" over the failed add, which is the exact regression #207
+fixes (inferred from the code; nobody has read that email).
+
+**Gabe to void by hand:** `GS-20261019-1GWQ0QVL` (**a live $2,582.50 deposit
+link — list this one first**), `GS-20261019-UN6FXF5F`, `GS-20261019-2S8YACT9`
+(an apparel quote — no payment link, but still a test to decline), and the older
+`GS-20261013-3OUQES6F`, `GS-20261013-KC4PRNVN`, `GS-20261006-1U4T5MZ2`.
+
+## Health-check run, 2026-10-14 01:02 UTC — first run on the #206 build; placed no orders
+
+**Written 2026-10-14 by the interactive session, from the logs.** Fired by
+hand after #206 merged (`b4c0846`, `dpl_FgyCT2X2UD74pCQVSWMvpGg7hRtj`),
+session `cse_01Wdvqv2fs3rbN9jneqpKeGw`. It entered `REQUIRES_ACTION` at
+01:04:51 — **two and a half minutes in, before placing any order.** No
+`QUOTE_SUBMITTED` line exists for the window, so there is nothing new to void,
+and none of #206's order-path fixes (newsletter, tracking, line names, print
+file names) has been exercised in production yet.
+
+**What it changes about the stall.** The 13 October run stalled AFTER
+ordering, which read like a void problem. This one stalled before doing
+anything that touches Printavo, so whatever needs approval comes early — and
+a run on 8 October completed cleanly in 7½ minutes, so it is not every run.
+What it is waiting for is visible only inside the session.
+
+**The press line's second error — found by a real visitor, not the run:**
+
+    01:31:23Z GET /api/press  PRESS ACTIVITY unavailable:
+    Printavo: Query has complexity of 40962, which exceeds max complexity of 25000
+
+That settles two things. The `quantity` fix works: Printavo now validates the
+query and objects only to its cost. And read-side `sizes` is a plain list:
+validation runs before cost analysis, and the shape ladder only moves on a
+shape complaint, so `sizes { size count }` passed. The query asked for 40
+invoices × 10 groups × 25 lines; a cost model fitted exactly to 40962 now sets
+the page sizes (groups 10 → 5, cost 20,562) and clamps the invoice page to
+what fits. See `PRESS_PAGE` in `lib/printavo.ts`.
+
 ## Health-check run, 2026-10-13 ~21:05 UTC — recorded from the logs, because the run did not
 
 **Written 2026-10-13 by the interactive session, not by the run.** The run

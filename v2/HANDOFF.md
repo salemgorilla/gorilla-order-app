@@ -71,6 +71,55 @@ to the cent. Nothing in #149 touched any of that. It did not prove the RATE
 — that is a business figure, and #149 changed it, so the row above it is
 owed and the merge rule points at the next sticker order.
 
+## First look at production on #207, 2026-10-19 18:29 UTC — one error fixed, the one behind it found
+
+**Written 2026-10-19 by the interactive session, from the logs.** Production
+= `dpl_5AYrcBdC8WZvnxR6ZU5GNhJFtDVc` = `main` @ `72cb354` (#207). The scheduled
+health check was fired by hand at 17:52 UTC.
+
+**No order was placed on this build in the 36 minutes after that.** All
+production traffic in the hour was two `GET /api/press` calls, both at
+17:52:08 and both to the *deployment URL*, not `labs.gorillasalem.com` (so
+probably a deploy-time check, not a person). Nothing reached `/api/quote`. So
+the shop-email newsletter row and the sign-up-before-email ordering — the
+other half of #207 — are **still unobserved in production.**
+
+It is also worth saying what this adds up to. In this thread orders have
+appeared only when Gabe asked his own agent to place them; the 16:43 and
+16:46 orders on 19 October **precede** the 16:55 scheduled fire, so a
+scheduled run did not place those. Every scheduled session inspected has
+reported `REQUIRES_ACTION` within minutes (and those records are unreliable
+— see the entry below), and none has produced a log line or a repo record
+that can be tied to it. Treat "the scheduled health check places orders" as
+**unproven**, not as the working assumption.
+
+**The press line, fifth error in a row:**
+
+    PRESS ACTIVITY unavailable: Printavo: 'first' must not be greater than 25
+
+The complexity error is gone — #207 worked. It had been hiding this one:
+the query asked for 40 invoices and Printavo allows 25 on any connection.
+That figure was in the repo the whole time (the morning-brief routine's own
+prompt says "Max page size is 25"), and a cost model fitted to a complexity
+number said nothing about it — it priced 40 invoices without complaint. The
+clamp I wrote read only the complexity limit; it would have allowed 48.
+
+The same mistake was already in two queries that had never run, so had never
+failed: the reconciler's `lineItems(first: 50)` — **one more reason the
+reconciler's "Line items add up" check has never worked** — and the `sizes`
+fallback shape. All three are now ≤ 25, behind one constant, with a test
+over the whole file.
+
+**One new thing to read in the logs.** With only 25 invoices allowed and the
+API's default ordering unknown, "no line on the hero" is ambiguous: a quiet
+week and a page of old invoices look identical. Each uncached fetch now logs
+
+    PRESS ACTIVITY page: 25 invoices, newest 2026-10-19, oldest 2026-10-12, 14 inside the 7-day window
+
+(dates and counts only). If "newest" is last year, the page is wrong and the
+fix is the sort argument — whose enum is still unconfirmed; if it is
+yesterday, the week really is quiet.
+
 ## Health-check run, 2026-10-19 ~16:45 UTC — two orders on the #206 build
 
 **Written 2026-10-19 by the interactive session, from the logs.** Build
@@ -468,6 +517,7 @@ been replaced by where to ask for it.
 |---|---|
 | Which commit is production serving? | `/api/printavo-test` or `/api/artwork-upload` — both report it, derived from Vercel's env. Never a typed-in string; see the 08-23 entry on the build stamp for what that cost. |
 | How many tests pass? | `cd v2 && npm test`. CI runs it on every PR. |
+| What will Printavo's API refuse? | **Two independent limits, both learned in production, each hidden behind the other.** (1) A connection's `first:` may not exceed **25** — `'first' must not be greater than 25`. (2) A whole query may not exceed a complexity of **25,000**, and the cost multiplies down nested connections (`lib/printavo.ts` → `pressQueryComplexity`, fitted to a real 40,962). Fixing the second only revealed the first. `PRINTAVO_MAX_PAGE` / `PRINTAVO_MAX_COMPLEXITY` hold the numbers; `tests/press-complexity` fails on any literal `first:` over 25. The list-size limit was written in the morning-brief routine's prompt the whole time. |
 | Lint, types, build? | `.github/workflows/ci.yml` runs all three on every PR and push to `main`. |
 | Which billed figures are unreconciled? | `npm run reconcile:debt`, and the `## Reconciled` table above. |
 | Is production healthy right now? | `/api/health?secret=`, and the daily canary in `.github/workflows/canary.yml`. |

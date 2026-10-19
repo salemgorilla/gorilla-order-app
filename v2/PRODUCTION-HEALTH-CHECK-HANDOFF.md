@@ -314,16 +314,29 @@ something you could not observe. Skipped ≠ passed.
   saying nothing is owed — read both halves of that output.
 - **The $45 order minimum, multi-design setup, non-square sizes, shipping and
   discount codes** are not covered by the repo's independent oracle.
-- **`LineItem` has no `quantity`, and the read shape of `sizes` is still a
-  guess.** The 1 October run settled the first half: two read queries asked
-  Printavo for a field that does not exist, which is why the hero's press
-  line never showed a number and why `npm run reconcile`'s "Line items add
-  up" check could only ever answer `unknown`. Both now sum `sizes[].count`
-  instead. What is NOT settled is whether read-side `sizes` is a plain list
-  or a Relay connection — the live schema is unreachable from CI, so the code
-  tries both and remembers the winner. A run that sees a `PRESS ACTIVITY
-  unavailable` line should quote it verbatim: the error names the real fields
-  of whatever type `sizes` is, and that string ends the question.
+- **The press line has failed five different ways, each hiding the next.**
+  In order: `sortOn` was an invalid enum; `LineItem` has no `quantity`
+  (fixed in #206 by summing `sizes[].count`); then `Query has complexity of
+  40962, which exceeds max complexity of 25000` (fixed in #207); then, once
+  that was gone, `'first' must not be greater than 25`. **Printavo has two
+  independent limits** — no connection may ask for more than 25 items, and a
+  whole query may not exceed a complexity of 25,000 — and passing one only
+  shows you the other. The same page-size mistake was also in the
+  reconciler's line-item query (`first: 50`), which is one more reason its
+  "Line items add up" check has never returned a verdict. All are now ≤ 25.
+  Settled along the way: read-side `sizes` is a **plain list**, because
+  Printavo validates shape before cost and the plain-list query got past it.
+
+  What to read now: a successful fetch logs one line,
+
+      PRESS ACTIVITY page: 25 invoices, newest 2026-10-19, oldest 2026-10-12, 14 inside the 7-day window
+
+  Quote it verbatim. It is what tells a quiet week from the wrong page — the
+  query gets 25 invoices but cannot choose WHICH 25 (the ordering enum is
+  unconfirmed), so a hero with no line is ambiguous without it. If `newest`
+  is months old, the page is wrong; if `newest` is recent and the window
+  count is low, the week really is quiet. Any `PRESS ACTIVITY unavailable`
+  line: quote it verbatim, numbers included.
 - **The newsletter: fixed to the point of a new, real error.** Until 14
   October every order logged `NEWSLETTER NOT SENT … No subscriber store
   configured.` while the same request uploaded artwork to that same store;

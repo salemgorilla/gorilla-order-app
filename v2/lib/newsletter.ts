@@ -1,6 +1,6 @@
 import {
   isSubscriberStoreConfigured,
-  vercelSubscriberStore,
+  subscriberStore,
 } from "./subscriber-store";
 import { recordSubscription, type SubscriberStore } from "./subscribers";
 import type { NewsletterConsent } from "../types/order";
@@ -15,11 +15,12 @@ import type { NewsletterConsent } from "../types/order";
  * nothing of its own, so a customer could tick the box, the shop email could
  * say "Opted in", and the record existed nowhere either party controlled.
  *
- * The list now lives in the shop's own blob store (lib/subscribers.ts). No
- * third party holds it, which is what makes the line the confirmation email
- * has carried since 9 Sep — "we will not sell your information" — true by
- * construction rather than by policy. There is no longer a mechanism in this
- * app that hands a subscriber to anyone.
+ * The list now lives in the shop's own storage (lib/subscribers.ts): a Google
+ * Doc in the shop's own Google account when one is configured, a private blob
+ * store otherwise. No mailing service holds it, which is what keeps the line
+ * the confirmation email has carried since 9 Sep — "we will not sell your
+ * information" — true by construction rather than by policy. There is no
+ * mechanism in this app that hands a subscriber to anyone else.
  *
  * ── THE RULE THIS FILE EXISTS TO HOLD ─────────────────────────────────────
  * A newsletter sign-up must NEVER affect the quote. It is a marketing nicety
@@ -74,7 +75,7 @@ export async function subscribeToNewsletter(
   const store: SubscriberStore | null = injectedStore
     ? injectedStore
     : isSubscriberStoreConfigured()
-    ? vercelSubscriberStore()
+    ? subscriberStore()
     : null;
 
   if (!store) {

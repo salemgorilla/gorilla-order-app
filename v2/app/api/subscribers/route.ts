@@ -1,5 +1,5 @@
 import { importList, readList } from "../../../lib/subscriber-admin";
-import { vercelSubscriberStore } from "../../../lib/subscriber-store";
+import { subscriberStore } from "../../../lib/subscriber-store";
 
 /**
  * The route is two lines on purpose.
@@ -13,9 +13,9 @@ import { vercelSubscriberStore } from "../../../lib/subscriber-store";
  */
 
 export async function GET(request: Request) {
-  return readList(request, vercelSubscriberStore());
+  return readList(request, subscriberStore());
 }
 
 export async function POST(request: Request) {
-  return importList(request, vercelSubscriberStore());
+  return importList(request, subscriberStore());
 }

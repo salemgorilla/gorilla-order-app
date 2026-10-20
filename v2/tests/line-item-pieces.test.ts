@@ -165,7 +165,9 @@ describe("the ladder settles the shape in one call, not one deploy", () => {
 
     assert.deepEqual(data, { ok: true });
     assert.equal(asked.length, 2);
-    assert.match(asked[1], /sizes\(first: 50\) \{ nodes \{ size count \} \}/);
+    // Read from the constant, not copied: this test pinned `first: 50` and
+    // failed the moment that was corrected to Printavo's limit of 25.
+    assert.ok(asked[1].includes(LINE_ITEM_SIZE_SHAPES[1]), `second attempt asked: ${asked[1]}`);
   });
 
   test("the winning shape is remembered, so the cost of being wrong is paid once", async () => {

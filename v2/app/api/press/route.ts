@@ -6,6 +6,7 @@ import { fetchRecentInvoicesForPress,
 } from "../../../lib/printavo";
 import {
   describePressActivity,
+  describePressPage,
   summarisePressActivity,
 } from "../../../lib/press-activity";
 
@@ -89,6 +90,13 @@ export async function GET(request: Request) {
     // a serverless function that returns first may never run it. See
     // explainPrintavoFieldError: read-only, best effort, never throws.
     console.warn(`PRESS ACTIVITY unavailable: ${await explainPrintavoFieldError(error)}`);
+  }
+
+  // One line per uncached fetch (the cache is 15 minutes), so at most four an
+  // hour. It is what tells a quiet week from a page of old invoices — see
+  // describePressPage. Skipped on error: the warning above already says why.
+  if (!error) {
+    console.log(`PRESS ACTIVITY page: ${describePressPage(orders)}`);
   }
 
   const activity = summarisePressActivity(orders);

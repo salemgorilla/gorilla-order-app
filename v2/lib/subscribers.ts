@@ -11,11 +11,15 @@
  * ticked a box, the shop email said "Opted in", and the record of that
  * consent existed nowhere either party controlled.
  *
- * So the list lives in the shop's own blob store now. No third party holds
- * it, which makes the promise the confirmation email started making on
- * 9 Sep — "we will not sell your information" — true by construction rather
- * than by policy: there is no mechanism in this app that hands a subscriber
- * to anyone.
+ * So the list lives in the shop's own storage now: a Google Doc in the
+ * shop's own Google account (lib/subscriber-ledger.ts), or a private blob
+ * store. No mailing service holds it, and nothing in this app hands a
+ * subscriber to one, which keeps the promise the confirmation email started
+ * making on 9 Sep — "we will not sell your information" — true by
+ * construction rather than by policy. (An earlier version of this comment
+ * said "no third party holds it". Google hosts a Doc the way it already hosts
+ * the shop's Gmail, where every opt-in is also recorded in the shop email; the
+ * accurate claim is that the list sits in an account the shop owns.)
  *
  * ── ONE BLOB PER SUBSCRIBER, NOT ONE LIST FILE ───────────────────────────
  * A single subscribers.json would need read-modify-write on every sign-up,

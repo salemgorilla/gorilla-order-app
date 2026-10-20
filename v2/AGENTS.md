@@ -157,8 +157,10 @@ running it would have caught that.
 Variables bake in at **build time** and are scoped per environment. Setting one
 without redeploying changes nothing — this has cost several sessions.
 Credentials come in pairs (`PRINTAVO_EMAIL`/`PRINTAVO_TOKEN`,
-`SS_ACCOUNT_NUMBER`/`SS_API_KEY`, `GMAIL_USER`/`GMAIL_APP_PASSWORD`); scoping
-half a pair fails confusingly.
+`SS_ACCOUNT_NUMBER`/`SS_API_KEY`, `GMAIL_USER`/`GMAIL_APP_PASSWORD`,
+`GOOGLE_SERVICE_ACCOUNT_JSON`/`SUBSCRIBER_DOC_ID`); scoping half a pair fails
+confusingly. (The last pair is the newsletter list's Google Doc; half of it is
+reported as itself in the shop email rather than treated as off.)
 
 Read secrets with `.trim()`. A trailing newline on a pasted value is invisible
 in the Vercel UI and invisible in the error it causes — it can lock the shop out

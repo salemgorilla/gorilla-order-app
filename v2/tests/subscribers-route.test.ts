@@ -114,7 +114,10 @@ describe("with the right secret but no store", () => {
     const body = await response.json();
 
     assert.equal(response.status, 503);
-    assert.match(body.error, /Connect one in Vercel > Storage/);
+    // Names BOTH ways to keep a list now. It used to name only the blob store,
+    // which was found to be public and unable to hold one privately.
+    assert.match(body.error, /GOOGLE_SERVICE_ACCOUNT_JSON and SUBSCRIBER_DOC_ID/);
+    assert.match(body.error, /private blob store in Vercel > Storage/);
   });
 
   it("the secret may travel in a header instead of the URL", async () => {

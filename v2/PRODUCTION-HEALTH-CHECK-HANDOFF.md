@@ -361,6 +361,17 @@ something you could not observe. Skipped ≠ passed.
   failed sign-up is visible in the inbox, not only in a log that expires in
   an hour. Check that row on the order's shop email if you can read it.
 
+  **Update, 2026-10-20: the decision was a Google Doc**, built and waiting to
+  be connected (`NEWSLETTER-GOOGLE-DOC-SETUP.md`). Until the two variables are
+  set the 400 above is still the expected state. Once they are, the
+  expected state is: no `NEWSLETTER NOT SENT` line, a plain "Opted in" in the
+  shop email, and a new `SUBSCRIBED | ...` line at the bottom of the Doc
+  within seconds. A reason from Google — `403 ... does not have permission`,
+  `404 ... not found`, `invalid_grant` — is not a regression; it is the setup
+  telling you which step is missing, so quote it verbatim. The old
+  `No subscriber store configured` and the blob `400` both mean the Doc is
+  not connected on that deployment.
+
 ---
 
 ## 8. Recording the result — the first step, not the last

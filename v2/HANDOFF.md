@@ -71,6 +71,56 @@ to the cent. Nothing in #149 touched any of that. It did not prove the RATE
 — that is a business figure, and #149 changed it, so the row above it is
 owed and the merge rule points at the next sticker order.
 
+## Newsletter sign-ups go in a Google Doc, 2026-10-20 — built, NOT yet connected or proven
+
+**Gabe's decision**, answering the open question about where the list should
+live: "Store sign ups in a Google doc." (The blob store was found to be public;
+the list is written private; every sign-up failed. See the 2026-10-19 entry.)
+
+**Built on the #209 branch, dormant until configured.** With neither variable
+set, behaviour is exactly what it was.
+
+- The Doc exists and is private to gorillaprinting@gmail.com (checked with the
+  Drive connector: one permission, owner): *Gorilla Salem newsletter sign-ups*,
+  id `1aQ74nssk3lhIs3JR-L4kclvjjuAnpMrdBCPYsZXXPTc`.
+- `lib/subscriber-ledger.ts`: the list as readable lines, one per change, last
+  line wins, behind the same three-method `SubscriberStore` interface — so the
+  consent rules in `lib/subscribers.ts` are untouched and are what the tests
+  drive. `lib/google-docs-transport.ts`: a service-account sign-in and the two
+  Docs calls. `lib/subscriber-store.ts`: `subscriberStore()` picks the Doc when
+  configured, else the blob store; every caller now asks it.
+- Set `GOOGLE_SERVICE_ACCOUNT_JSON` + `SUBSCRIBER_DOC_ID` to turn it on. Steps,
+  and the error each mistake produces, are in `NEWSLETTER-GOOGLE-DOC-SETUP.md`.
+- A half-set pair is its own state and fails loudly with the reason, rather than
+  falling back to a store known not to work.
+
+**What is proven:** the line format round-trips; the sticky unsubscribe holds
+through the real consent functions against a Doc-shaped store (each step a
+separate store, as in production); a repeat order adds no line; the whole list
+is read once however long it is; the sign-in signature verifies against the
+matching public key; the write is the exact `batchUpdate` request Google
+documents; every refusal carries Google's explanation. 34 + 24 + 12 = 70 new tests (2607 to 2677).
+
+**What is NOT proven, and cannot be from here:** that Google accepts any of it.
+There is no Google credential in this environment. Two assumptions are
+unchecked against the live API: that text inserted with `endOfSegmentLocation`
+as `"\n" + line` lands as a new paragraph (the parser tolerates a line glued to
+the heading in case it does not), and that `documents.get` returns the body in
+the shape `textOfDocument` reads. **The first real sign-up is the test.** Its
+failure reason will be in the shop email's Newsletter row.
+
+**A mutation found a real gap.** Swapping the two status words in the line
+parser changed nothing, which showed the leading `SUBSCRIBED`/`UNSUBSCRIBED`
+word was a decorative label: editing it by hand would have been ignored, and
+the person kept on the list. It is now honoured (`MARKED_BY_HAND`), because
+for a consent record the safe direction is to obey.
+
+**Privacy claims corrected.** Two comments said "no third party holds it".
+Google hosts a Doc as it already hosts the shop's Gmail, where every opt-in is
+also recorded; the accurate claim is that the list sits in an account the shop
+owns and nothing sends it to a mailing service. The customer-facing promise
+("we will not sell your information") is unchanged and still true.
+
 ## First look at production on #207, 2026-10-19 18:29 UTC — one error fixed, the one behind it found
 
 **Written 2026-10-19 by the interactive session, from the logs.** Production

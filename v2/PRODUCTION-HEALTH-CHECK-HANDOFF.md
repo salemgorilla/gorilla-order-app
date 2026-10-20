@@ -331,11 +331,13 @@ something you could not observe. Skipped ≠ passed.
 
       PRESS ACTIVITY page: 25 invoices, newest 2026-10-19, oldest 2026-10-12, 14 inside the 7-day window
 
-  Quote it verbatim. It is what tells a quiet week from the wrong page — the
-  query gets 25 invoices but cannot choose WHICH 25 (the ordering enum is
-  unconfirmed), so a hero with no line is ambiguous without it. If `newest`
-  is months old, the page is wrong; if `newest` is recent and the window
-  count is low, the week really is quiet. Any `PRESS ACTIVITY unavailable`
+  Quote it verbatim. It is what tells a quiet week from the wrong page.
+  Printavo's invoices come back OLDEST-first, so on 20 October the query got
+  the 2021 invoices ("newest 2021-08-23, 0 inside the 7-day window"); it now
+  reads from the end with `last:`/`before:` and ends the line with the pages
+  read (and "stopped early: …" if it did). That fix is unverified against the
+  live account. If `newest` is months old, the page is still wrong; if
+  `newest` is recent and the window count is low, the week really is quiet. Any `PRESS ACTIVITY unavailable`
   line: quote it verbatim, numbers included.
 - **The newsletter: fixed to the point of a new, real error.** Until 14
   October every order logged `NEWSLETTER NOT SENT … No subscriber store

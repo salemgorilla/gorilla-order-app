@@ -224,7 +224,7 @@ export function describePressActivity(activity: PressActivity): string {
  */
 export function describePressPage(
   orders: PressOrder[],
-  options: { now?: Date; windowDays?: number } = {}
+  options: { now?: Date; windowDays?: number; pages?: number; stoppedEarly?: string } = {}
 ): string {
   const now = options.now ?? new Date();
   const windowDays = options.windowDays ?? WINDOW_DAYS;
@@ -256,6 +256,8 @@ export function describePressPage(
 
   parts.push(`${inWindow} inside the ${windowDays}-day window`);
   if (undated) parts.push(`${undated} undated`);
+  if (options.pages) parts.push(`${options.pages} page${options.pages === 1 ? "" : "s"} read`);
+  if (options.stoppedEarly) parts.push(`stopped early: ${options.stoppedEarly}`);
 
   return parts.join(", ");
 }

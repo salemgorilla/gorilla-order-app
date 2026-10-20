@@ -21,6 +21,7 @@ import {
 } from "./sku";
 import { STICKER_ORDER_MINIMUM } from "./pricing";
 import { isApparelProduct, isSignsProduct } from "./order-flow";
+import { WINDOW_DAYS } from "./press-activity";
 import {
   lineItemTitle,
   signsFallbackTitle,
@@ -3053,21 +3054,85 @@ export function maxPressInvoices(
   return Math.min(PRINTAVO_MAX_PAGE, byComplexity);
 }
 
-export async function fetchRecentInvoicesForPress(input: { first?: number } = {}): Promise<{
+/**
+ * The most pages the press line will walk back through.
+ *
+ * Four pages of 25 is 100 invoices, which is weeks of this shop's volume, and
+ * each page is a Printavo call against a limit of 10 per 5 seconds. The walk
+ * stops sooner than this whenever a page reaches past the 7-day window.
+ */
+export const PRESS_MAX_PAGES = 4;
+
+/**
+ * THE NEWEST INVOICES, WALKED BACKWARDS FROM THE END.
+ *
+ * ── WHY `last:` AND NOT `first:` ──────────────────────────────────────────
+ * Printavo's `invoices` connection defaults to OLDEST-FIRST, and the argument
+ * that would reverse it (`sortOn`) takes an enum whose members nobody here
+ * knows. Confirmed in production on 2026-10-20: `invoices(first: 25)` returned
+ * invoices from July and August 2021, none inside the window, so the hero
+ * correctly said nothing — and would have said nothing forever. Sorting a page
+ * in code cannot make it the right page.
+ *
+ * `last: N` is standard Relay and needs no enum: the final N of an
+ * oldest-first list are the newest N, and `before: <startCursor>` steps back
+ * from there. UNVERIFIED against the live account at the time of writing. If
+ * Printavo rejects it the error names the argument, and the `PRESS ACTIVITY
+ * page:` log line says whether the page is now recent.
+ *
+ * Each page is requested with the same 25-item cap as every other connection
+ * (see PRINTAVO_MAX_PAGE); there is no way to ask for more by paging.
+ */
+export async function fetchRecentInvoicesForPress(
+  input: { pageSize?: number; maxPages?: number } = {},
+  deps: { request?: typeof printavoRequest; now?: Date } = {}
+): Promise<{
   orders: AnyRecord[];
   error?: string;
-  /** The raw response, for the admin probe only. Never served publicly. */
+  /** Why the walk ended before covering the window, when it did. */
+  stoppedEarly?: string;
+  /** How many pages were fetched. */
+  pages: number;
+  /** The raw first response, for the admin probe only. Never served publicly. */
   raw?: unknown;
 }> {
   if (!isConfigured()) {
-    return { orders: [], error: "Printavo is not configured." };
+    return { orders: [], error: "Printavo is not configured.", pages: 0 };
   }
 
-  try {
-    const data = await requestTryingSizeShapes<{ invoices?: { nodes?: AnyRecord[] } }>(
-      (sizes) =>
-        `query GorillaPressActivity($first: Int!) {
-         invoices(first: $first) {
+  const request = (deps.request ?? printavoRequest) as <R>(
+    query: string,
+    variables?: AnyRecord
+  ) => Promise<R>;
+  const pageSize = Math.min(
+    maxPressInvoices(),
+    Math.max(1, input.pageSize ?? PRESS_PAGE.invoices)
+  );
+  const maxPages = Math.max(1, input.maxPages ?? PRESS_MAX_PAGES);
+  const windowStart = (deps.now ?? new Date()).getTime() - WINDOW_DAYS * 24 * 60 * 60 * 1000;
+
+  type Page = {
+    invoices?: {
+      pageInfo?: { hasPreviousPage?: boolean; startCursor?: string | null };
+      nodes?: AnyRecord[];
+    };
+  };
+
+  const collected: AnyRecord[] = [];
+  let before: string | null = null;
+  let pages = 0;
+  let raw: unknown;
+  let stoppedEarly: string | undefined;
+
+  while (pages < maxPages) {
+    let data: Page;
+
+    try {
+      data = await requestTryingSizeShapes<Page>(
+        (sizes) =>
+          `query GorillaPressActivity($last: Int!, $before: String) {
+         invoices(last: $last, before: $before) {
+           pageInfo { hasPreviousPage startCursor }
            nodes {
              id
              createdAt
@@ -3081,45 +3146,79 @@ export async function fetchRecentInvoicesForPress(input: { first?: number } = {}
            }
          }
        }`,
-      { first: Math.min(maxPressInvoices(), Math.max(1, input.first ?? PRESS_PAGE.invoices)) }
-    );
+        { last: pageSize, before },
+        request
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown Printavo error.";
 
-    const nodes = sortNewestFirst(data.invoices?.nodes);
+      // The first page failing is a failure. A later page failing is not: the
+      // pages already read are still the newest invoices, and discarding them
+      // would turn a rate-limit on page three into a missing hero line.
+      if (pages === 0) return { orders: [], error: message, pages };
 
-    if (!Array.isArray(nodes)) {
-      return {
-        orders: [],
-        error: "Printavo answered without an invoices.nodes list.",
-        raw: data,
-      };
+      stoppedEarly = `page ${pages + 1} failed: ${message}`;
+      break;
     }
 
-    // Flatten the two connections into the shape press-activity expects. A
-    // node missing either connection contributes nothing rather than throwing.
-    //
-    // `quantity` is SYNTHESISED here, from the sizes the shop itself wrote,
-    // because a read LineItem has no such field. Doing it at this seam keeps
-    // lib/press-activity — which is where the honesty rules live and where
-    // they are tested — reading exactly the field it always has.
-    const orders = nodes.map((node) => ({
-      createdAt: node.createdAt,
-      lineItems: (
-        ((node.lineItemGroups as AnyRecord)?.nodes as AnyRecord[]) || []
-      )
-        .flatMap(
-          (group) => ((group?.lineItems as AnyRecord)?.nodes as AnyRecord[]) || []
-        )
-        .map((row) => ({
-          itemNumber: row?.itemNumber,
-          quantity: lineItemPieces(row),
-        })),
-    }));
+    const nodes = data.invoices?.nodes;
 
-    return { orders, raw: data };
-  } catch (error) {
-    return {
-      orders: [],
-      error: error instanceof Error ? error.message : "Unknown Printavo error.",
-    };
+    if (!Array.isArray(nodes)) {
+      if (pages === 0) {
+        return {
+          orders: [],
+          error: "Printavo answered without an invoices.nodes list.",
+          pages,
+          raw: data,
+        };
+      }
+
+      stoppedEarly = `page ${pages + 1} had no invoices.nodes list`;
+      break;
+    }
+
+    pages += 1;
+    if (pages === 1) raw = data;
+    collected.push(...nodes);
+
+    const oldest = nodes.reduce((least, node) => {
+      const at = typeof node?.createdAt === "string" ? Date.parse(node.createdAt) : NaN;
+      return Number.isNaN(at) ? least : Math.min(least, at);
+    }, Number.POSITIVE_INFINITY);
+
+    // Reached back past the window: everything older is irrelevant.
+    if (oldest < windowStart) break;
+
+    const info = data.invoices?.pageInfo;
+    const cursor = info?.startCursor;
+
+    // Nothing earlier to read.
+    if (!info?.hasPreviousPage || !cursor) break;
+
+    if (pages >= maxPages) {
+      stoppedEarly = `read ${maxPages} page${maxPages === 1 ? "" : "s"} and the ${WINDOW_DAYS}-day window may reach further back`;
+      break;
+    }
+
+    before = cursor;
   }
+
+  // Flatten the two connections into the shape press-activity expects. A
+  // node missing either connection contributes nothing rather than throwing.
+  //
+  // `quantity` is SYNTHESISED here, from the sizes the shop itself wrote,
+  // because a read LineItem has no such field. Doing it at this seam keeps
+  // lib/press-activity — which is where the honesty rules live and where
+  // they are tested — reading exactly the field it always has.
+  const orders = (sortNewestFirst(collected) ?? []).map((node) => ({
+    createdAt: node.createdAt,
+    lineItems: (((node.lineItemGroups as AnyRecord)?.nodes as AnyRecord[]) || [])
+      .flatMap((group) => ((group?.lineItems as AnyRecord)?.nodes as AnyRecord[]) || [])
+      .map((row) => ({
+        itemNumber: row?.itemNumber,
+        quantity: lineItemPieces(row),
+      })),
+  }));
+
+  return { orders, pages, ...(stoppedEarly ? { stoppedEarly } : {}), raw };
 }

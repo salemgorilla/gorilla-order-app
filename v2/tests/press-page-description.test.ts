@@ -62,4 +62,17 @@ describe("the page description", () => {
     assert.doesNotMatch(line, /GORILLA|500|@/);
     assert.match(line, /^[\d\sa-z,\-]+$/i);
   });
+
+  test("says how many pages were read, and why a walk stopped early", () => {
+    const line = describePressPage([{ createdAt: "2026-10-19T00:00:00Z" }], {
+      now: NOW,
+      pages: 3,
+      stoppedEarly: "page 4 failed: Printavo: HTTP 429 after 3 retries.",
+    });
+
+    assert.match(line, /3 pages read/);
+    assert.match(line, /stopped early: page 4 failed/);
+    assert.match(describePressPage([], { now: NOW, pages: 1 }), /1 page read/);
+    assert.doesNotMatch(describePressPage([], { now: NOW }), /read|stopped/);
+  });
 });

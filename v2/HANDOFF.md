@@ -170,6 +170,34 @@ week and a page of old invoices look identical. Each uncached fetch now logs
 fix is the sort argument — whose enum is still unconfirmed; if it is
 yesterday, the week really is quiet.
 
+## Press line, seventh finding, 2026-10-21 14:21 UTC: `last:` needs a cursor
+
+**Written 2026-10-21 from the production logs of `dpl_CjYyVuN8d4Bu3xzSAD8a5Kt8w4Uv`
+(#210, `4f0c03e`).** The `last:`/`before:` fix below was the first thing
+tried and Printavo rejected it, on both `/api/press` calls at 14:21:45Z:
+
+    PRESS ACTIVITY unavailable: Printavo: 'last' is only supported when used with the 'before' parameter
+
+`last` cannot start at the end of the list: it needs a `before` cursor, and
+there is no way to get a cursor that points at the end. So the answer has to
+be a sort. The members of `OrderSortField` are still unknown from this side
+(`CREATED_AT_DESC` was rejected in September), so the fix **reads them from
+the live schema**: `discoverInvoiceOrdering` asks `__schema` for the
+`invoices` field's arguments and `__type` for the `sortOn` enum's members
+(names only), picks the creation-date member (a combined `..._DESC` member,
+or a plain one plus `sortDescending: true`), and builds the clause from that.
+The query then pages FORWARD from the newest (`first`/`after`) and stops when
+a page reaches past the 7-day window.
+
+If nothing usable is found it does NOT fall back to the default order (that
+is the 2021 page, which looks like a quiet week); it returns an error that
+names the real arguments and enum members, so the next round starts from
+facts:
+
+    PRESS ACTIVITY unavailable: Printavo: cannot order invoices newest-first - no creation-date sort that runs newest-first was found. invoices arguments: ...; OrderSortField members: ...
+
+Unverified against the live account until that log line is read.
+
 ## Press line, sixth finding, 2026-10-20 09:31 UTC: right query, wrong 25
 
 **Written 2026-10-20 from the production logs of `dpl_4PksS6sU8uR29CHYCezrtQWPhnF1`
@@ -185,7 +213,7 @@ the 25 OLDEST invoices (July-August 2021). Sorting a page in code cannot make
 it the right page, and the argument that would reverse the order (`sortOn`)
 takes an enum nobody has confirmed.
 
-**Fix (unverified against the live account):** `fetchRecentInvoicesForPress`
+**First fix (REJECTED 2026-10-21, see above):** `fetchRecentInvoicesForPress`
 now reads from the END with `invoices(last: $last, before: $before)` and
 `pageInfo { hasPreviousPage startCursor }`, stepping back one page at a time
 (`PRESS_MAX_PAGES` = 4 at most) and stopping as soon as a page reaches past

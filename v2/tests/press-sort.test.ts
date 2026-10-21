@@ -49,23 +49,25 @@ describe("the query no longer sends an argument the API rejects", () => {
     assert.doesNotMatch(
       body,
       /sortOn/,
-      "sortOn is back — the live API rejects every value this code has tried"
+      "a literal sortOn is back — it must come from the discovered clause"
     );
-    // Printavo's default order is OLDEST-first (confirmed 2026-10-20: first 25
-    // were July-August 2021), so the newest are read from the END.
-    assert.match(body, /invoices\(last: \$last, before: \$before\)/);
-    assert.doesNotMatch(body, /invoices\(first:/, "first: reads the oldest page, which is the 2021 bug");
+    // Printavo's default order is OLDEST-first (confirmed 2026-10-20), and
+    // `last:` was rejected without a `before` cursor (2026-10-21). So the sort
+    // is requested through a clause discovered from the live schema.
+    assert.match(body, /invoices\(first: \$first, after: \$after\$\{ordering\.clause\}\)/);
+    assert.doesNotMatch(body, /\blast:|\bbefore:/, "last/before is rejected by Printavo");
   });
 
   test("no guessed enum was substituted for it", async () => {
-    // A replacement value would be a guess at OrderSortField's members,
-    // which is the mistake this is recovering from. Ordering is done in
-    // sortNewestFirst, where it is testable.
+    // A hardcoded value would be a guess at OrderSortField's members, which
+    // is the mistake this recovered from. The member comes from
+    // discoverInvoiceOrdering, which reads it off the live schema.
     const code = await printavoCode();
 
     assert.doesNotMatch(code, /CREATED_AT_DESC/);
-    assert.doesNotMatch(code, /sortOn/, "no sort argument in any query");
+    assert.doesNotMatch(code, /sortOn:\s*[A-Z_]{4,}\b/, "a literal sortOn value is a guess");
     assert.match(code, /function sortNewestFirst/);
+    assert.match(code, /function discoverInvoiceOrdering|async function discoverInvoiceOrdering/);
   });
 });
 

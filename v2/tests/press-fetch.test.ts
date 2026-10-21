@@ -3,18 +3,21 @@
  *
  * Printavo's `invoices` connection is oldest-first. `invoices(first: 25)`
  * therefore returned July-August 2021 on 2026-10-20 (logged as "25 invoices,
- * newest 2021-08-23, 0 inside the 7-day window"), and the hero stayed empty
- * while every earlier error had already been fixed. fetchRecentInvoicesForPress
- * now reads from the end with `last:` / `before:` and stops once a page reaches
- * past the window. These tests drive it through the `request` seam, no network.
+ * newest 2021-08-23, 0 inside the 7-day window"). The first fix, `last:`,
+ * was rejected on 2026-10-21: "'last' is only supported when used with the
+ * 'before' parameter". So the sort is now DISCOVERED from the live schema
+ * (discoverInvoiceOrdering) and the walk pages forward from the newest. These
+ * tests drive it through the `request` seam, no network.
  */
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, test } from "node:test";
 
 import {
   fetchRecentInvoicesForPress,
+  discoverInvoiceOrdering,
   PRESS_MAX_PAGES,
   PRINTAVO_MAX_PAGE,
+  resetProvenInvoiceOrdering,
   resetProvenSizeShape,
 } from "../lib/printavo";
 
@@ -36,13 +39,52 @@ function node(createdAt: string, count = 10) {
   };
 }
 
-type PageSpec = { nodes: unknown[]; hasPreviousPage: boolean; startCursor: string | null };
+type PageSpec = { nodes: unknown[]; hasNextPage: boolean; endCursor: string | null };
 
-function scripted(pages: Array<PageSpec | Error>) {
+type Schema = { args: string[]; members: string[] };
+
+/** The live schema as the sort needs it; override per test. */
+const SCHEMA_DESC_FLAG: Schema = {
+  args: ["first", "after", "sortOn", "sortDescending"],
+  members: ["CREATED_AT", "NICKNAME", "ORDER_NUMBER"],
+};
+
+function scripted(pages: Array<PageSpec | Error>, schema: Schema | Error = SCHEMA_DESC_FLAG) {
   const calls: Call[] = [];
+  const introspection: string[] = [];
   let i = 0;
 
   const request = (async (query: string, variables: Record<string, unknown> = {}) => {
+    if (query.includes("GorillaInvoiceArgs")) {
+      introspection.push("args");
+      if (schema instanceof Error) throw schema;
+      return {
+        __schema: {
+          queryType: {
+            fields: [
+              { name: "orders", args: [] },
+              {
+                name: "invoices",
+                args: schema.args.map((name) => ({
+                  name,
+                  type:
+                    name === "sortOn"
+                      ? { name: null, kind: "NON_NULL", ofType: { name: "OrderSortField", kind: "ENUM" } }
+                      : { name: "String", kind: "SCALAR" },
+                })),
+              },
+            ],
+          },
+        },
+      };
+    }
+
+    if (query.includes("GorillaSortEnum")) {
+      introspection.push("enum");
+      assert.equal(variables.name, "OrderSortField");
+      return { __type: { enumValues: (schema as Schema).members.map((name) => ({ name })) } };
+    }
+
     calls.push({ query, variables });
     const next = pages[i++];
     if (!next) throw new Error("test ran out of pages");
@@ -50,13 +92,13 @@ function scripted(pages: Array<PageSpec | Error>) {
 
     return {
       invoices: {
-        pageInfo: { hasPreviousPage: next.hasPreviousPage, startCursor: next.startCursor },
+        pageInfo: { hasNextPage: next.hasNextPage, endCursor: next.endCursor },
         nodes: next.nodes,
       },
     };
   }) as never;
 
-  return { request, calls };
+  return { request, calls, introspection };
 }
 
 const saved = { email: process.env.PRINTAVO_EMAIL, token: process.env.PRINTAVO_TOKEN };
@@ -65,6 +107,7 @@ beforeEach(() => {
   process.env.PRINTAVO_EMAIL = "shop@example.com";
   process.env.PRINTAVO_TOKEN = "token";
   resetProvenSizeShape();
+  resetProvenInvoiceOrdering();
 });
 
 afterEach(() => {
@@ -78,27 +121,30 @@ afterEach(() => {
 });
 
 describe("reads the newest invoices, not the oldest", () => {
-  test("asks for the END of the list with last:, never first:", async () => {
+  test("asks for a descending creation sort, never the default order", async () => {
     const { request, calls } = scripted([
-      { nodes: [node(ago(3)), node(ago(1))], hasPreviousPage: true, startCursor: "c1" },
+      { nodes: [node(ago(3)), node(ago(1))], hasNextPage: true, endCursor: "c1" },
       // second page reaches past the window, so the walk ends there
-      { nodes: [node(ago(20))], hasPreviousPage: true, startCursor: "c0" },
+      { nodes: [node(ago(20))], hasNextPage: true, endCursor: "c0" },
     ]);
 
     await fetchRecentInvoicesForPress({}, { request, now: NOW });
 
-    assert.match(calls[0].query, /invoices\(last: \$last, before: \$before\)/);
-    assert.doesNotMatch(calls[0].query, /invoices\(first:/);
-    assert.equal(calls[0].variables.last, PRINTAVO_MAX_PAGE);
-    assert.equal(calls[0].variables.before, null);
+    assert.match(
+      calls[0].query,
+      /invoices\(first: \$first, after: \$after, sortOn: CREATED_AT, sortDescending: true\)/
+    );
+    assert.doesNotMatch(calls[0].query, /\blast:|\bbefore:/, "last/before was rejected by Printavo on 2026-10-21");
+    assert.equal(calls[0].variables.first, PRINTAVO_MAX_PAGE);
+    assert.equal(calls[0].variables.after, null);
   });
 
   test("a single recent page is enough when it already reaches past the window", async () => {
     const { request, calls } = scripted([
       {
         nodes: [node(ago(30)), node(ago(2)), node(ago(1))],
-        hasPreviousPage: true,
-        startCursor: "c1",
+        hasNextPage: true,
+        endCursor: "c1",
       },
     ]);
 
@@ -117,18 +163,18 @@ describe("reads the newest invoices, not the oldest", () => {
 });
 
 describe("walks backwards until the window is covered", () => {
-  test("pages with before = the previous startCursor and merges them", async () => {
+  test("pages with after = the previous endCursor and merges them", async () => {
     const { request, calls } = scripted([
-      { nodes: [node(ago(1)), node(ago(2))], hasPreviousPage: true, startCursor: "c1" },
-      { nodes: [node(ago(4)), node(ago(5))], hasPreviousPage: true, startCursor: "c2" },
-      { nodes: [node(ago(9)), node(ago(6))], hasPreviousPage: true, startCursor: "c3" },
+      { nodes: [node(ago(1)), node(ago(2))], hasNextPage: true, endCursor: "c1" },
+      { nodes: [node(ago(4)), node(ago(5))], hasNextPage: true, endCursor: "c2" },
+      { nodes: [node(ago(9)), node(ago(6))], hasNextPage: true, endCursor: "c3" },
     ]);
 
     const result = await fetchRecentInvoicesForPress({}, { request, now: NOW });
 
     assert.equal(calls.length, 3);
-    assert.equal(calls[1].variables.before, "c1");
-    assert.equal(calls[2].variables.before, "c2");
+    assert.equal(calls[1].variables.after, "c1");
+    assert.equal(calls[2].variables.after, "c2");
     assert.equal(result.orders.length, 6);
     assert.equal(result.orders[0].createdAt, ago(1));
     assert.equal(result.pages, 3);
@@ -137,7 +183,7 @@ describe("walks backwards until the window is covered", () => {
 
   test("stops when there is nothing earlier, whatever the dates", async () => {
     const { request, calls } = scripted([
-      { nodes: [node(ago(1))], hasPreviousPage: false, startCursor: "c1" },
+      { nodes: [node(ago(1))], hasNextPage: false, endCursor: "c1" },
     ]);
 
     const result = await fetchRecentInvoicesForPress({}, { request, now: NOW });
@@ -148,7 +194,7 @@ describe("walks backwards until the window is covered", () => {
 
   test("stops when there is no cursor to step back from", async () => {
     const { request, calls } = scripted([
-      { nodes: [node(ago(1))], hasPreviousPage: true, startCursor: null },
+      { nodes: [node(ago(1))], hasNextPage: true, endCursor: null },
     ]);
 
     await fetchRecentInvoicesForPress({}, { request, now: NOW });
@@ -159,8 +205,8 @@ describe("walks backwards until the window is covered", () => {
   test("never reads more than maxPages, and says the window may reach further", async () => {
     const pages: PageSpec[] = Array.from({ length: 10 }, (_, n) => ({
       nodes: [node(ago(n))],
-      hasPreviousPage: true,
-      startCursor: `c${n}`,
+      hasNextPage: true,
+      endCursor: `c${n}`,
     }));
     const { request, calls } = scripted(pages);
 
@@ -174,8 +220,8 @@ describe("walks backwards until the window is covered", () => {
   test("the default walk is bounded by PRESS_MAX_PAGES", async () => {
     const pages: PageSpec[] = Array.from({ length: 20 }, (_, n) => ({
       nodes: [node(ago(n * 0.1))],
-      hasPreviousPage: true,
-      startCursor: `c${n}`,
+      hasNextPage: true,
+      endCursor: `c${n}`,
     }));
     const { request, calls } = scripted(pages);
 
@@ -187,17 +233,17 @@ describe("walks backwards until the window is covered", () => {
 
 describe("failures", () => {
   test("page one failing is an error", async () => {
-    const { request } = scripted([new Error("Printavo: Argument 'last' is not valid")]);
+    const { request } = scripted([new Error("Printavo: Argument 'after' is not valid")]);
 
     const result = await fetchRecentInvoicesForPress({}, { request, now: NOW });
 
-    assert.match(result.error ?? "", /'last'/);
+    assert.match(result.error ?? "", /'after'/);
     assert.deepEqual(result.orders, []);
   });
 
   test("a later page failing keeps the pages already read", async () => {
     const { request } = scripted([
-      { nodes: [node(ago(1)), node(ago(2))], hasPreviousPage: true, startCursor: "c1" },
+      { nodes: [node(ago(1)), node(ago(2))], hasNextPage: true, endCursor: "c1" },
       new Error("Printavo: HTTP 429 after 3 retries."),
     ]);
 
@@ -219,7 +265,7 @@ describe("failures", () => {
   });
 
   test("an answer with no nodes list is reported, with the raw response", async () => {
-    const request = (async () => ({ invoices: {} })) as never;
+    const { request } = scripted([{ nodes: undefined as never, hasNextPage: false, endCursor: null }]);
 
     const result = await fetchRecentInvoicesForPress({}, { request, now: NOW });
 
@@ -231,22 +277,22 @@ describe("failures", () => {
 describe("page size", () => {
   test("never asks for more than Printavo allows, however it is called", async () => {
     const { request, calls } = scripted([
-      { nodes: [node(ago(30))], hasPreviousPage: false, startCursor: null },
+      { nodes: [node(ago(30))], hasNextPage: false, endCursor: null },
     ]);
 
     await fetchRecentInvoicesForPress({ pageSize: 500 }, { request, now: NOW });
 
-    assert.ok(Number(calls[0].variables.last) <= PRINTAVO_MAX_PAGE);
+    assert.ok(Number(calls[0].variables.first) <= PRINTAVO_MAX_PAGE);
   });
 
   test("the admin probe size is honoured", async () => {
     const { request, calls } = scripted([
-      { nodes: [node(ago(1))], hasPreviousPage: true, startCursor: "c1" },
+      { nodes: [node(ago(1))], hasNextPage: true, endCursor: "c1" },
     ]);
 
     const result = await fetchRecentInvoicesForPress({ pageSize: 5, maxPages: 1 }, { request, now: NOW });
 
-    assert.equal(calls[0].variables.last, 5);
+    assert.equal(calls[0].variables.first, 5);
     assert.equal(calls.length, 1);
     assert.ok(result.raw);
   });
@@ -255,7 +301,7 @@ describe("page size", () => {
 describe("what it hands to press-activity", () => {
   test("flattens lines and synthesises quantity from sizes", async () => {
     const { request } = scripted([
-      { nodes: [node(ago(1), 40), node(ago(30), 5)], hasPreviousPage: false, startCursor: "c1" },
+      { nodes: [node(ago(1), 40), node(ago(30), 5)], hasNextPage: false, endCursor: "c1" },
     ]);
 
     const result = await fetchRecentInvoicesForPress({}, { request, now: NOW });
@@ -264,5 +310,98 @@ describe("what it hands to press-activity", () => {
       createdAt: ago(1),
       lineItems: [{ itemNumber: "GS-STK", quantity: 40 }],
     });
+  });
+});
+
+describe("the ordering is read from the live schema, not written down", () => {
+  const one: PageSpec = { nodes: [node(ago(1))], hasNextPage: false, endCursor: null };
+
+  test("a combined newest-first member is used on its own", async () => {
+    const { request, calls } = scripted([one], {
+      args: ["first", "sortOn"],
+      members: ["CREATED_AT_ASC", "CREATED_AT_DESC", "NICKNAME"],
+    });
+
+    await fetchRecentInvoicesForPress({}, { request, now: NOW });
+
+    assert.match(calls[0].query, /sortOn: CREATED_AT_DESC\)/);
+    assert.doesNotMatch(calls[0].query, /sortDescending/);
+  });
+
+  test("an ascending-only member is not mistaken for newest-first", async () => {
+    const { request, calls } = scripted([one], {
+      args: ["first", "sortOn"],
+      members: ["CREATED_AT_ASC", "NICKNAME"],
+    });
+
+    const result = await fetchRecentInvoicesForPress({}, { request, now: NOW });
+
+    assert.equal(calls.length, 0, "must not fall back to the default (oldest-first) page");
+    assert.match(result.error ?? "", /cannot order invoices newest-first/);
+  });
+
+  test("with no sortDescending argument a plain member cannot be reversed", async () => {
+    const { request, calls } = scripted([one], {
+      args: ["first", "sortOn"],
+      members: ["CREATED_AT"],
+    });
+
+    const result = await fetchRecentInvoicesForPress({}, { request, now: NOW });
+
+    assert.equal(calls.length, 0);
+    assert.match(result.error ?? "", /cannot order/);
+  });
+
+  test("a failure puts the real argument names and members in the error", async () => {
+    const { request } = scripted([one], {
+      args: ["first", "after", "sortOn", "foo"],
+      members: ["NICKNAME", "ORDER_NUMBER"],
+    });
+
+    const result = await fetchRecentInvoicesForPress({}, { request, now: NOW });
+
+    assert.match(result.error ?? "", /invoices arguments: first, after, sortOn, foo/);
+    assert.match(result.error ?? "", /OrderSortField members: NICKNAME, ORDER_NUMBER/);
+  });
+
+  test("a schema that cannot be read is an error, not a silent default", async () => {
+    const { request, calls } = scripted([one], new Error("Printavo: HTTP 500"));
+
+    const result = await fetchRecentInvoicesForPress({}, { request, now: NOW });
+
+    assert.equal(calls.length, 0);
+    assert.match(result.error ?? "", /could not read the schema.*500/);
+  });
+
+  test("a hostile enum member name is never inlined into the query", async () => {
+    const { request, calls } = scripted([one], {
+      args: ["first", "sortOn", "sortDescending"],
+      members: ["CREATED_AT) { id } evil: invoices(first: 1"],
+    });
+
+    const result = await fetchRecentInvoicesForPress({}, { request, now: NOW });
+
+    assert.equal(calls.length, 0);
+    assert.match(result.error ?? "", /cannot order/);
+  });
+
+  test("what was learned is remembered, so the schema is read once", async () => {
+    const first = scripted([one]);
+    await fetchRecentInvoicesForPress({}, { request: first.request, now: NOW });
+    const second = scripted([one]);
+    await fetchRecentInvoicesForPress({}, { request: second.request, now: NOW });
+
+    assert.deepEqual(first.introspection, ["args", "enum"]);
+    assert.deepEqual(second.introspection, []);
+  });
+
+  test("a failed discovery is not cached", async () => {
+    const bad = scripted([one], new Error("Printavo: HTTP 500"));
+    await discoverInvoiceOrdering(bad.request);
+    const good = scripted([one]);
+
+    const ordering = await discoverInvoiceOrdering(good.request);
+
+    assert.equal(ordering.ok, true);
   });
 });

@@ -170,6 +170,32 @@ week and a page of old invoices look identical. Each uncached fetch now logs
 fix is the sort argument — whose enum is still unconfirmed; if it is
 yesterday, the week really is quiet.
 
+## Press line, eighth finding, 2026-10-21 15:06 UTC: Printavo has no creation-date sort
+
+**Written 2026-10-21 from the production logs of `dpl_6yGC8isr5A77JpVwUVrxCu9tgJWx`
+(#211, `3434f85`).** (Vercel created that deployment about 13 minutes after the
+merge; nothing was wrong, it was only late.) Schema discovery worked and
+returned the facts both earlier rounds were missing:
+
+    PRESS ACTIVITY unavailable: Printavo: cannot order invoices newest-first - no creation-date sort that runs newest-first was found. invoices arguments: excludeStatusIds, inProductionAfter, inProductionBefore, paymentStatus, query, sortDescending, sortOn, statusIds, tags, after, before, first, last; OrderSortField members: CUSTOMER_DUE_AT, CUSTOMER_NAME, STATUS, OWNER, TOTAL, VISUAL_ID
+
+So: **no creation-date member exists** (`CREATED_AT_DESC` was never going to
+work), `sortDescending` does, and there is no created-at filter. The nearest
+thing to creation order is `VISUAL_ID`, the order number, which Printavo hands
+out in creation order. `discoverInvoiceOrdering` now falls back to
+`VISUAL_ID` (or `ORDER_NUMBER`) with `sortDescending: true`, flagged as a
+PROXY; and because it is a proxy the fetch checks the first page really is
+newest-first (first row not older than the last) and returns an error naming
+what it saw instead of serving a wrong page. Still unverified until the
+`PRESS ACTIVITY page:` line is read.
+
+**Also on that build:** a health-check order placed at 15:05:22Z,
+`GS-20261021-14R05UXE` (stickers, 100 x 3in circle, pickup, $85.00 pre-tax,
+`billed=true deposit=false artwork=blob delivered=true`, live payment link
+`https://gorilla-printing-768b75.printavo.com/invoice/ba3043e6380ab307437014ae0161a1d5`).
+`NEWSLETTER NOT SENT … Vercel Blob: Failed to fetch blob: 400 Bad Request`
+again, as expected until the Google Doc is set up. **Void it.**
+
 ## Press line, seventh finding, 2026-10-21 14:21 UTC: `last:` needs a cursor
 
 **Written 2026-10-21 from the production logs of `dpl_CjYyVuN8d4Bu3xzSAD8a5Kt8w4Uv`

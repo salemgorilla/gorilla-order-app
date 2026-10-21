@@ -21,6 +21,7 @@ import {
 } from "./sku";
 import { STICKER_ORDER_MINIMUM } from "./pricing";
 import { isApparelProduct, isSignsProduct } from "./order-flow";
+import { WINDOW_DAYS } from "./press-activity";
 import {
   lineItemTitle,
   signsFallbackTitle,
@@ -2524,7 +2525,7 @@ export async function findExistingQuote(quoteNumber: string): Promise<{
  */
 export const LINE_ITEM_SIZE_SHAPES = [
   "sizes { size count }",
-  "sizes(first: 50) { nodes { size count } }",
+  "sizes(first: 25) { nodes { size count } }",
 ] as const;
 
 /**
@@ -2697,7 +2698,7 @@ export async function fetchQuoteForReconciliation(
              customerNote
              lineItemGroups(first: 10) {
                nodes {
-                 lineItems(first: 50) {
+                 lineItems(first: 25) {
                    nodes {
                      description
                      itemNumber
@@ -2961,27 +2962,311 @@ export async function explainPrintavoFieldError(
   }
 }
 
-export async function fetchRecentInvoicesForPress(input: { first?: number } = {}): Promise<{
+/**
+ * WHAT THE PRESS QUERY IS ALLOWED TO COST.
+ *
+ * ── THE SECOND ERROR, AND WHAT IT SETTLED ─────────────────────────────────
+ * Once #206 replaced the missing `LineItem.quantity`, the first production
+ * call answered with a different error:
+ *
+ *   Printavo: Query has complexity of 40962, which exceeds max complexity of 25000
+ *
+ * Two things follow. The field problem is FIXED, and so is the open question
+ * about `sizes`: Printavo checks a query's shape before its cost, and
+ * requestTryingSizeShapes only moves past the first shape on a shape
+ * complaint — so this error came from `sizes { size count }`, which therefore
+ * passed validation. Read-side `sizes` is a plain list.
+ *
+ * And the query was simply too big. Printavo charges each connection's
+ * children once per item it might return, so the cost multiplies down the
+ * tree. Fitted exactly to the 40962 Printavo reported:
+ *
+ *   lineItem       = itemNumber 1 + sizes (1 + size 1 + count 1) = 4
+ *   lineItems(L)   = L x 4 + 2
+ *   groups(G)      = G x lineItems + 2
+ *   invoice        = id 1 + createdAt 1 + groups
+ *   total(N)       = N x invoice + 2
+ *
+ *   40 invoices x 10 groups x 25 lines = 40 x 1024 + 2 = 40962   (Printavo: 40962)
+ *
+ * ── WHY GROUPS CAME DOWN, NOT INVOICES ────────────────────────────────────
+ * The hero counts a WEEK of work, so the number of invoices is what decides
+ * whether the figure is complete. Ten line-item groups per invoice was
+ * generous; five still covers every order this app writes (one group per
+ * order) with room for the shop's own. An invoice with more is undercounted,
+ * which is the safe direction — lib/press-activity already prefers a smaller
+ * true number to a larger doubtful one.
+ *
+ * The cost is COMPUTED from the page sizes rather than asserted beside them,
+ * and the invoice page is clamped to what fits, so raising any of these
+ * numbers cannot quietly reproduce the error above.
+ */
+export const PRINTAVO_MAX_COMPLEXITY = 25000;
+
+/**
+ * THE LARGEST `first:` PRINTAVO WILL ACCEPT ON ANY CONNECTION — AND THE
+ * ERROR THE COMPLEXITY FIX WAS HIDING.
+ *
+ * With the complexity fixed (#207), the first production call answered with
+ * the next thing in line:
+ *
+ *   Printavo: 'first' must not be greater than 25
+ *
+ * The press query asked for 40 invoices. The complexity cap and the page cap
+ * are two different limits, and the first only showed itself because the
+ * second was never reached. The number was in the repo the whole time:
+ * the morning-brief routine's own prompt says "Max page size is 25
+ * (`first: 25`)". Nobody had put the two together, and a cost model fitted to
+ * a complexity figure said nothing about it — it happily priced 40 invoices.
+ *
+ * One constant now, and a test over the whole file that fails on any
+ * `first:` above it, because this is the third place it was wrong (the
+ * press invoices, the reconciler's line items, and the `sizes` fallback).
+ */
+export const PRINTAVO_MAX_PAGE = 25;
+
+export const PRESS_PAGE = {
+  invoices: PRINTAVO_MAX_PAGE,
+  lineItemGroups: 5,
+  lineItems: 25,
+} as const;
+
+/** Printavo's complexity for the press query at these page sizes (plain-list `sizes`). */
+export function pressQueryComplexity(page: {
+  invoices: number;
+  lineItemGroups: number;
+  lineItems: number;
+}): number {
+  const lineItem = 1 + (1 + 1 + 1);
+  const lineItems = page.lineItems * lineItem + 2;
+  const groups = page.lineItemGroups * lineItems + 2;
+  const invoice = 1 + 1 + groups;
+  return page.invoices * invoice + 2;
+}
+
+/** The most invoices one press query can ask for and stay under the cap. */
+export function maxPressInvoices(
+  page: { lineItemGroups: number; lineItems: number } = PRESS_PAGE
+): number {
+  const perInvoice = pressQueryComplexity({ ...page, invoices: 1 }) - 2;
+  const byComplexity = Math.max(1, Math.floor((PRINTAVO_MAX_COMPLEXITY - 2) / perInvoice));
+  // Two independent limits; the smaller one is the ceiling.
+  return Math.min(PRINTAVO_MAX_PAGE, byComplexity);
+}
+
+/**
+ * The most pages the press line will walk through.
+ *
+ * Four pages of 25 is 100 invoices, which is weeks of this shop's volume, and
+ * each page is a Printavo call against a limit of 10 per 5 seconds. The walk
+ * stops sooner than this whenever a page reaches past the 7-day window.
+ */
+export const PRESS_MAX_PAGES = 4;
+
+export type InvoiceOrdering =
+  | { ok: true; clause: string; label: string }
+  | { ok: false; reason: string };
+
+let provenOrdering: InvoiceOrdering | null = null;
+
+/** Test seam: forget what was learned, so a case starts from cold. */
+export function resetProvenInvoiceOrdering(): void {
+  provenOrdering = null;
+}
+
+/** Enum member names are inlined into a query, so only identifiers pass. */
+const ENUM_MEMBER = /^[A-Za-z_][A-Za-z0-9_]{0,60}$/;
+
+/**
+ * HOW TO ASK FOR THE NEWEST INVOICES FIRST — read from the live schema.
+ *
+ * ── WHY THIS IS DISCOVERED AND NOT WRITTEN DOWN ───────────────────────────
+ * Printavo's `invoices` connection is oldest-first by default (confirmed
+ * 2026-10-20: the first 25 were July-August 2021). Two attempts to get the
+ * other end failed in production:
+ *
+ *   sortOn: CREATED_AT_DESC  ->  "invalid value (CREATED_AT_DESC). Expected type 'OrderSortField'."
+ *   invoices(last: 25)       ->  "'last' is only supported when used with the 'before' parameter"
+ *
+ * The second one cannot work without a cursor to start from, and there is no
+ * way to get one that points at the end. So the answer has to be a sort, and
+ * the members of that enum are not known from this side. This asks the live
+ * schema for them (names only, the same introspection /api/printavo-schema
+ * serves), picks the creation-date member, and builds the ordering clause
+ * from what it found. If nothing usable is there, the REASON carries the
+ * real argument names and enum members into the log, so the next round
+ * starts from facts instead of a guess.
+ *
+ * Cached per serverless instance only on success; a failure is retried on
+ * the next uncached fetch (at most four an hour).
+ */
+export async function discoverInvoiceOrdering(
+  request: <R>(query: string, variables?: AnyRecord) => Promise<R> = printavoRequest
+): Promise<InvoiceOrdering> {
+  if (provenOrdering) return provenOrdering;
+
+  try {
+    const schema = await request<AnyRecord>(
+      `query GorillaInvoiceArgs {
+         __schema {
+           queryType {
+             fields { name args { name type { name kind ofType { name kind ofType { name kind } } } } }
+           }
+         }
+       }`
+    );
+
+    const fields = ((schema.__schema as AnyRecord)?.queryType as AnyRecord)?.fields;
+    const invoices = (Array.isArray(fields) ? (fields as AnyRecord[]) : []).find(
+      (field) => field?.name === "invoices"
+    );
+
+    if (!invoices) return { ok: false, reason: "the schema has no top-level 'invoices' field" };
+
+    const args = Array.isArray(invoices.args) ? (invoices.args as AnyRecord[]) : [];
+    const argNames = args.map((arg) => str(arg.name)).filter(Boolean);
+    const sortArg = args.find((arg) => arg.name === "sortOn");
+    const hasDescending = argNames.includes("sortDescending");
+
+    if (!sortArg) {
+      return { ok: false, reason: `invoices has no sortOn argument; its arguments are: ${argNames.join(", ")}` };
+    }
+
+    // Unwrap NON_NULL / LIST wrappers to the named enum type.
+    let named = sortArg.type as AnyRecord | undefined;
+    while (named && !named.name && named.ofType) named = named.ofType as AnyRecord;
+    const enumName = str(named?.name);
+
+    if (!/^[A-Za-z_][A-Za-z0-9_]{0,80}$/.test(enumName)) {
+      return { ok: false, reason: `invoices.sortOn has no readable type; arguments: ${argNames.join(", ")}` };
+    }
+
+    const typeData = await request<AnyRecord>(
+      `query GorillaSortEnum($name: String!) { __type(name: $name) { enumValues { name } } }`,
+      { name: enumName }
+    );
+
+    const members = (
+      ((typeData.__type as AnyRecord)?.enumValues as AnyRecord[] | undefined) || []
+    )
+      .map((value) => str(value?.name))
+      .filter((name) => ENUM_MEMBER.test(name));
+
+    const summary = `invoices arguments: ${argNames.join(", ")}; ${enumName} members: ${members.join(", ") || "(none)"}`;
+
+    const created = members.filter((name) => /CREATED|CREATE_DATE|DATE_CREATED/i.test(name));
+    const combined = created.find((name) => /DESC/i.test(name));
+
+    if (combined) {
+      return (provenOrdering = {
+        ok: true,
+        clause: `, sortOn: ${combined}`,
+        label: combined,
+      });
+    }
+
+    const plain = created
+      .filter((name) => !/ASC/i.test(name))
+      .sort((a, b) => a.length - b.length)[0];
+
+    if (plain && hasDescending) {
+      return (provenOrdering = {
+        ok: true,
+        clause: `, sortOn: ${plain}, sortDescending: true`,
+        label: `${plain} descending`,
+      });
+    }
+
+    return {
+      ok: false,
+      reason: `no creation-date sort that runs newest-first was found. ${summary}`,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: `could not read the schema: ${error instanceof Error ? error.message : "unknown error"}`,
+    };
+  }
+}
+
+/**
+ * THE NEWEST INVOICES, NEWEST FIRST, PAGED FORWARD UNTIL THE WINDOW IS COVERED.
+ *
+ * Printavo returns invoices oldest-first unless told otherwise (see
+ * discoverInvoiceOrdering for the two ways of telling it that failed). With
+ * a descending sort the newest 25 are page one and `after: endCursor` steps
+ * toward older ones, so the walk stops as soon as a page reaches past the
+ * 7-day window. UNVERIFIED against the live account at the time of writing:
+ * the `PRESS ACTIVITY page:` log line says whether the page is now recent.
+ */
+export async function fetchRecentInvoicesForPress(
+  input: { pageSize?: number; maxPages?: number } = {},
+  deps: { request?: typeof printavoRequest; now?: Date } = {}
+): Promise<{
   orders: AnyRecord[];
   error?: string;
-  /** The raw response, for the admin probe only. Never served publicly. */
+  /** Why the walk ended before covering the window, when it did. */
+  stoppedEarly?: string;
+  /** How many pages were fetched. */
+  pages: number;
+  /** The raw first response, for the admin probe only. Never served publicly. */
   raw?: unknown;
 }> {
   if (!isConfigured()) {
-    return { orders: [], error: "Printavo is not configured." };
+    return { orders: [], error: "Printavo is not configured.", pages: 0 };
   }
 
-  try {
-    const data = await requestTryingSizeShapes<{ invoices?: { nodes?: AnyRecord[] } }>(
-      (sizes) =>
-        `query GorillaPressActivity($first: Int!) {
-         invoices(first: $first) {
+  const request = (deps.request ?? printavoRequest) as <R>(
+    query: string,
+    variables?: AnyRecord
+  ) => Promise<R>;
+  const pageSize = Math.min(
+    maxPressInvoices(),
+    Math.max(1, input.pageSize ?? PRESS_PAGE.invoices)
+  );
+  const maxPages = Math.max(1, input.maxPages ?? PRESS_MAX_PAGES);
+  const windowStart = (deps.now ?? new Date()).getTime() - WINDOW_DAYS * 24 * 60 * 60 * 1000;
+
+  const ordering = await discoverInvoiceOrdering(request);
+
+  if (!ordering.ok) {
+    // Not queried with the default order: that is the page of 2021 invoices,
+    // which reads as a quiet week and is worse than saying nothing.
+    return {
+      orders: [],
+      error: `Printavo: cannot order invoices newest-first - ${ordering.reason}`,
+      pages: 0,
+    };
+  }
+
+  type Page = {
+    invoices?: {
+      pageInfo?: { hasNextPage?: boolean; endCursor?: string | null };
+      nodes?: AnyRecord[];
+    };
+  };
+
+  const collected: AnyRecord[] = [];
+  let after: string | null = null;
+  let pages = 0;
+  let raw: unknown;
+  let stoppedEarly: string | undefined;
+
+  while (pages < maxPages) {
+    let data: Page;
+
+    try {
+      data = await requestTryingSizeShapes<Page>(
+        (sizes) =>
+          `query GorillaPressActivity($first: Int!, $after: String) {
+         invoices(first: $first, after: $after${ordering.clause}) {
+           pageInfo { hasNextPage endCursor }
            nodes {
              id
              createdAt
-             lineItemGroups(first: 10) {
+             lineItemGroups(first: ${PRESS_PAGE.lineItemGroups}) {
                nodes {
-                 lineItems(first: 25) {
+                 lineItems(first: ${PRESS_PAGE.lineItems}) {
                    nodes { itemNumber ${sizes} }
                  }
                }
@@ -2989,45 +3274,79 @@ export async function fetchRecentInvoicesForPress(input: { first?: number } = {}
            }
          }
        }`,
-      { first: Math.min(50, Math.max(1, input.first ?? 40)) }
-    );
+        { first: pageSize, after },
+        request
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown Printavo error.";
 
-    const nodes = sortNewestFirst(data.invoices?.nodes);
+      // The first page failing is a failure. A later page failing is not: the
+      // pages already read are still the newest invoices, and discarding them
+      // would turn a rate-limit on page three into a missing hero line.
+      if (pages === 0) return { orders: [], error: message, pages };
 
-    if (!Array.isArray(nodes)) {
-      return {
-        orders: [],
-        error: "Printavo answered without an invoices.nodes list.",
-        raw: data,
-      };
+      stoppedEarly = `page ${pages + 1} failed: ${message}`;
+      break;
     }
 
-    // Flatten the two connections into the shape press-activity expects. A
-    // node missing either connection contributes nothing rather than throwing.
-    //
-    // `quantity` is SYNTHESISED here, from the sizes the shop itself wrote,
-    // because a read LineItem has no such field. Doing it at this seam keeps
-    // lib/press-activity — which is where the honesty rules live and where
-    // they are tested — reading exactly the field it always has.
-    const orders = nodes.map((node) => ({
-      createdAt: node.createdAt,
-      lineItems: (
-        ((node.lineItemGroups as AnyRecord)?.nodes as AnyRecord[]) || []
-      )
-        .flatMap(
-          (group) => ((group?.lineItems as AnyRecord)?.nodes as AnyRecord[]) || []
-        )
-        .map((row) => ({
-          itemNumber: row?.itemNumber,
-          quantity: lineItemPieces(row),
-        })),
-    }));
+    const nodes = data.invoices?.nodes;
 
-    return { orders, raw: data };
-  } catch (error) {
-    return {
-      orders: [],
-      error: error instanceof Error ? error.message : "Unknown Printavo error.",
-    };
+    if (!Array.isArray(nodes)) {
+      if (pages === 0) {
+        return {
+          orders: [],
+          error: "Printavo answered without an invoices.nodes list.",
+          pages,
+          raw: data,
+        };
+      }
+
+      stoppedEarly = `page ${pages + 1} had no invoices.nodes list`;
+      break;
+    }
+
+    pages += 1;
+    if (pages === 1) raw = data;
+    collected.push(...nodes);
+
+    const oldest = nodes.reduce((least, node) => {
+      const at = typeof node?.createdAt === "string" ? Date.parse(node.createdAt) : NaN;
+      return Number.isNaN(at) ? least : Math.min(least, at);
+    }, Number.POSITIVE_INFINITY);
+
+    // Reached back past the window: everything older is irrelevant.
+    if (oldest < windowStart) break;
+
+    const info = data.invoices?.pageInfo;
+    const cursor = info?.endCursor;
+
+    // Nothing older to read.
+    if (!info?.hasNextPage || !cursor) break;
+
+    if (pages >= maxPages) {
+      stoppedEarly = `read ${maxPages} page${maxPages === 1 ? "" : "s"} and the ${WINDOW_DAYS}-day window may reach further back`;
+      break;
+    }
+
+    after = cursor;
   }
+
+  // Flatten the two connections into the shape press-activity expects. A
+  // node missing either connection contributes nothing rather than throwing.
+  //
+  // `quantity` is SYNTHESISED here, from the sizes the shop itself wrote,
+  // because a read LineItem has no such field. Doing it at this seam keeps
+  // lib/press-activity — which is where the honesty rules live and where
+  // they are tested — reading exactly the field it always has.
+  const orders = (sortNewestFirst(collected) ?? []).map((node) => ({
+    createdAt: node.createdAt,
+    lineItems: (((node.lineItemGroups as AnyRecord)?.nodes as AnyRecord[]) || [])
+      .flatMap((group) => ((group?.lineItems as AnyRecord)?.nodes as AnyRecord[]) || [])
+      .map((row) => ({
+        itemNumber: row?.itemNumber,
+        quantity: lineItemPieces(row),
+      })),
+  }));
+
+  return { orders, pages, ...(stoppedEarly ? { stoppedEarly } : {}), raw };
 }

@@ -37,8 +37,16 @@ apparel order, that is a P0 — stop and report it.**
 Money rules that apply everywhere:
 - **MA sales tax 6.25%**, charged on **goods only**. Setup fees, rush fees
   and add-ons are **not taxed**.
-- **Orders over $4,999.99 pre-tax take a 50% deposit** rather than full
-  payment. Under that, full payment.
+- **Orders whose CHARGED total — tax included — exceeds $4,999.99 take a
+  50% deposit** rather than full payment (Gabe, 2026-09-25: the ceiling
+  governs "the amount charged (incl. tax)"). This file said *pre-tax* until
+  19 October, which was wrong, and it made a correct result look like a
+  defect: a signs order of $4,865.00 pre-tax is $5,165.00 charged
+  (4,800 of signs × 6.25% = 300 tax; setup and add-ons untaxed), so it
+  correctly logs `deposit=true`, and the deposit is 50% of Printavo's own
+  `amountOutstanding` — $2,582.50. A run that aims just under the ceiling
+  pre-tax and just over it with tax is testing exactly the right boundary.
+  Under the ceiling, full payment.
 - Discount codes exist and are re-validated server-side on submit:
   `FAMFRE` 40%, `DOUBLEDIME` 20%, `DIME` 10%, `SOCIALPATH` 5%, `FIPPY` free
   shipping. Stickers only.
@@ -306,27 +314,69 @@ something you could not observe. Skipped ≠ passed.
   saying nothing is owed — read both halves of that output.
 - **The $45 order minimum, multi-design setup, non-square sizes, shipping and
   discount codes** are not covered by the repo's independent oracle.
-- **`LineItem` has no `quantity`, and the read shape of `sizes` is still a
-  guess.** The 1 October run settled the first half: two read queries asked
-  Printavo for a field that does not exist, which is why the hero's press
-  line never showed a number and why `npm run reconcile`'s "Line items add
-  up" check could only ever answer `unknown`. Both now sum `sizes[].count`
-  instead. What is NOT settled is whether read-side `sizes` is a plain list
-  or a Relay connection — the live schema is unreachable from CI, so the code
-  tries both and remembers the winner. A run that sees a `PRESS ACTIVITY
-  unavailable` line should quote it verbatim: the error names the real fields
-  of whatever type `sizes` is, and that string ends the question.
-- **The newsletter was dark on a store that was working.** Until the fix
-  that followed the 13 October run, every order logged `NEWSLETTER NOT SENT
-  … No subscriber store configured.` while the same request uploaded its
-  artwork to that same blob store. The subscriber check looked only for
-  `BLOB_READ_WRITE_TOKEN`; production authenticates by OIDC. Once that fix
-  is deployed (confirm the SHA), the test identity's ticked box should
-  produce **no** `NEWSLETTER NOT SENT` line. If the old reason comes back,
-  that is a regression. If a *different* reason appears, quote it verbatim:
-  the subscriber store writes `access: "private"`, which had never once run
-  in production, and the error would be the first evidence of whether this
-  store accepts it.
+- **The press line has failed five different ways, each hiding the next.**
+  In order: `sortOn` was an invalid enum; `LineItem` has no `quantity`
+  (fixed in #206 by summing `sizes[].count`); then `Query has complexity of
+  40962, which exceeds max complexity of 25000` (fixed in #207); then, once
+  that was gone, `'first' must not be greater than 25`. **Printavo has two
+  independent limits** — no connection may ask for more than 25 items, and a
+  whole query may not exceed a complexity of 25,000 — and passing one only
+  shows you the other. The same page-size mistake was also in the
+  reconciler's line-item query (`first: 50`), which is one more reason its
+  "Line items add up" check has never returned a verdict. All are now ≤ 25.
+  Settled along the way: read-side `sizes` is a **plain list**, because
+  Printavo validates shape before cost and the plain-list query got past it.
+
+  What to read now: a successful fetch logs one line,
+
+      PRESS ACTIVITY page: 25 invoices, newest 2026-10-19, oldest 2026-10-12, 14 inside the 7-day window
+
+  Quote it verbatim. It is what tells a quiet week from the wrong page.
+  Printavo's invoices come back OLDEST-first, so on 20 October the query got
+  the 2021 invoices ("newest 2021-08-23, 0 inside the 7-day window"); `last:`
+  was tried and rejected on 21 October ("'last' is only supported when used
+  with the 'before' parameter"). It now reads the sort members from the live
+  schema, pages forward newest-first, and ends the line with the pages read
+  (and "stopped early: …" if it did). If no creation-date sort exists, the
+  `PRESS ACTIVITY unavailable:` line lists the real argument names and enum
+  members: quote it verbatim. All of that is unverified against the live
+  account. If `newest` is months old, the page is still wrong; if
+  `newest` is recent and the window count is low, the week really is quiet. Any `PRESS ACTIVITY unavailable`
+  line: quote it verbatim, numbers included.
+- **The newsletter: fixed to the point of a new, real error.** Until 14
+  October every order logged `NEWSLETTER NOT SENT … No subscriber store
+  configured.` while the same request uploaded artwork to that same store;
+  the check looked only for `BLOB_READ_WRITE_TOKEN` and production
+  authenticates by OIDC. That is fixed (#206), and the first orders on that
+  build, 19 October, logged the *different* reason this section predicted:
+
+      NEWSLETTER NOT SENT for GS-20261019-UN6FXF5F: Vercel Blob: Failed to fetch blob: 400 Bad Request
+
+  The subscriber list is written as `access: "private"`. The SDK reads it
+  from a `<store>.private.blob.vercel-storage.com` host, and every other blob
+  write that works in production is `access: "public"` — so the store is
+  very probably a PUBLIC store, which cannot serve private reads. That is
+  inference, not proof, and it is Gabe's decision, not a code change: the
+  list is customers' email addresses, and switching it to public blobs is
+  the exact thing `lib/subscriber-store.ts` was written not to do.
+
+  What a run should expect now: the old "No subscriber store configured"
+  reason is a regression; the `400 Bad Request` reason is the known state
+  until a private store exists. And the **shop email now carries the real
+  outcome** — `Opted in … — NOT added to any list: <reason>` — so a
+  failed sign-up is visible in the inbox, not only in a log that expires in
+  an hour. Check that row on the order's shop email if you can read it.
+
+  **Update, 2026-10-20: the decision was a Google Doc**, built and waiting to
+  be connected (`NEWSLETTER-GOOGLE-DOC-SETUP.md`). Until the two variables are
+  set the 400 above is still the expected state. Once they are, the
+  expected state is: no `NEWSLETTER NOT SENT` line, a plain "Opted in" in the
+  shop email, and a new `SUBSCRIBED | ...` line at the bottom of the Doc
+  within seconds. A reason from Google — `403 ... does not have permission`,
+  `404 ... not found`, `invalid_grant` — is not a regression; it is the setup
+  telling you which step is missing, so quote it verbatim. The old
+  `No subscriber store configured` and the blob `400` both mean the Doc is
+  not connected on that deployment.
 
 ---
 

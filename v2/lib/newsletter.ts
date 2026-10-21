@@ -1,6 +1,6 @@
 import {
   isSubscriberStoreConfigured,
-  vercelSubscriberStore,
+  subscriberStore,
 } from "./subscriber-store";
 import { recordSubscription, type SubscriberStore } from "./subscribers";
 import type { NewsletterConsent } from "../types/order";
@@ -15,11 +15,12 @@ import type { NewsletterConsent } from "../types/order";
  * nothing of its own, so a customer could tick the box, the shop email could
  * say "Opted in", and the record existed nowhere either party controlled.
  *
- * The list now lives in the shop's own blob store (lib/subscribers.ts). No
- * third party holds it, which is what makes the line the confirmation email
- * has carried since 9 Sep — "we will not sell your information" — true by
- * construction rather than by policy. There is no longer a mechanism in this
- * app that hands a subscriber to anyone.
+ * The list now lives in the shop's own storage (lib/subscribers.ts): a Google
+ * Doc in the shop's own Google account when one is configured, a private blob
+ * store otherwise. No mailing service holds it, which is what keeps the line
+ * the confirmation email has carried since 9 Sep — "we will not sell your
+ * information" — true by construction rather than by policy. There is no
+ * mechanism in this app that hands a subscriber to anyone else.
  *
  * ── THE RULE THIS FILE EXISTS TO HOLD ─────────────────────────────────────
  * A newsletter sign-up must NEVER affect the quote. It is a marketing nicety
@@ -74,7 +75,7 @@ export async function subscribeToNewsletter(
   const store: SubscriberStore | null = injectedStore
     ? injectedStore
     : isSubscriberStoreConfigured()
-    ? vercelSubscriberStore()
+    ? subscriberStore()
     : null;
 
   if (!store) {
@@ -135,4 +136,86 @@ export async function subscribeToNewsletter(
   }
 
   return { sent: true };
+}
+
+/**
+ * HOW LONG A SIGN-UP MAY HOLD THE SHOP'S EMAIL.
+ *
+ * subscribeToNewsletter used to run AFTER the shop email and the Printavo
+ * quote, so a slow blob store could only ever delay the response. It now
+ * runs BEFORE the email, so that the email can say what happened — and that
+ * moves it onto the path that gets an order to the shop.
+ *
+ * Which makes a deadline mandatory, not tidy. lib/blob-health.ts measured
+ * this SDK against a black-holed network: `list` with AbortSignal.timeout(3000)
+ * had not returned 45 seconds later, because it retries a network error ten
+ * times. A marketing list must not be able to stop a paid order reaching the
+ * shop, so the race is enforced here, in code this file controls.
+ *
+ * Four seconds: far longer than a healthy read and write of one small
+ * record, short enough that a dead store costs the shop's email a moment
+ * rather than the order.
+ */
+export const NEWSLETTER_DEADLINE_MS = 4_000;
+
+export const NEWSLETTER_TIMEOUT_MESSAGE =
+  "The newsletter store did not answer in time.";
+
+/**
+ * subscribeToNewsletter, bounded. Never rejects, never outlasts `ms`.
+ *
+ * The losing promise is left to settle by itself: there is nothing to clean
+ * up, and letting it reject unhandled would take the process down, so
+ * `.catch(() => {})` is the whole cleanup.
+ */
+export async function subscribeWithin(
+  payload: NewsletterPayload,
+  ms: number = NEWSLETTER_DEADLINE_MS,
+  injectedStore?: SubscriberStore
+): Promise<NewsletterSubscribeResult> {
+  const work = subscribeToNewsletter(payload, injectedStore);
+  work.catch(() => {});
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const deadline = new Promise<NewsletterSubscribeResult>((resolve) => {
+    timer = setTimeout(
+      () =>
+        resolve({ sent: false, skipped: false, error: NEWSLETTER_TIMEOUT_MESSAGE }),
+      ms
+    );
+    // Deliberately NOT unref'd. The deadline is the thing that guarantees
+    // progress, so it must be able to fire; and it cannot hold anything open
+    // past its use, because the `finally` below clears it the moment the race
+    // settles. (An unref'd timer is also invisible to the event loop, which
+    // is how the first version of this stalled its own test.)
+  });
+
+  try {
+    return await Promise.race([work, deadline]);
+  } catch (error) {
+    // subscribeToNewsletter is written never to throw. If it ever does, the
+    // rule at the top of this file still holds: it must not reach the quote.
+    return {
+      sent: false,
+      skipped: false,
+      error: error instanceof Error ? error.message : "Unknown newsletter error.",
+    };
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/**
+ * The sentence for the shop email when a sign-up did not land, or null when
+ * it did. One place so the log line and the email row can never disagree
+ * about why.
+ */
+export function newsletterGap(result: NewsletterSubscribeResult): string | null {
+  if (result.sent) return null;
+
+  const why = "reason" in result ? result.reason : result.error;
+
+  // Trailing punctuation off: the row appends its own full stop.
+  return String(why || "no reason given").replace(/[.\s]+$/, "");
 }

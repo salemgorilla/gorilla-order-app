@@ -44,6 +44,8 @@ PRINTAVO_TOKEN set. It reads only. Never pay a test quote; void it after.
 | GS-20261013-KC4PRNVN | 2026-10-13 | banners | #192 (ordinary banner) | ✅ **matched** — Printavo #102605: $70.00 (8 sqft × $12.50 − $30 no-hem) + wind slits $6.00 + setup $15.00, tax $4.38 on $70.00 = **$95.38**. Double-click → one order. Declined 13 Oct. |
 | GS-20261019-1GWQ0QVL | 2026-10-19 | signs | **#160 #161 (rigid) · #189 (deposit)** | ✅ **matched** — 10 × 48"×96" Dibond 1/8", rounded corners, pickup. Printavo #102608: $480.00 × 10 = $4,800.00 + rounded corners $50.00 + setup $15.00, tax $300.00 = **$5,165.00**. Deposit link **$2,582.50** (50% of $5,165.00). Pre-tax was $4,865 — UNDER $4,999.99 — so the ceiling is read tax-inclusive; see the question for Gabe below. Declined. |
 | GS-20261019-UN6FXF5F | 2026-10-19 | stickers | FIPPY · #206 line names | ✅ **matched** — Printavo #102609: $0.70 × 100 + $0.60 × 50 + $22.50 setup, tax $6.25 = **$128.75**, shipping $0 (FIPPY). Lines titled "Canal St Test Run (Design 1)" (typed name) and "test-d2-matte (Design 2)" (file name). Declined. |
+| GS-20261019-2S8YACT9 | 2026-10-19 | apparel | **#98 #132 #134 — a CART** | ✅ **matched, no payment link** — 30 Basic Tee / White (S4 M8 L8 XL6 2XL2 3XL2) + 18 Classic Hoodie / Black (S2 M6 L6 XL2 2XL2), front 2c + back 1c, pickup. Printavo #102610: tee 30 × $7.25 = $217.50 (raw $217.24, per-unit ceil), hoodie 18 × $26.15 = $470.70 (16 × $24.50 + 2 × $39.33 = $470.66, ceil), print 48 × $11.00 = $528.00, screens $125.00, untaxed = **$1,341.20**. Sizes landed in Printavo's size columns. Declined 21 Oct. **See apparel defects A1–A4 below.** |
+| GS-20261021-14R05UXE | 2026-10-21 | stickers | build 4f0c03e — shop email timing | ✅ **matched** — 100 × 3" gloss circle, pickup. Printavo #102613: $0.70 × 100 + $15.00 setup, tax $4.38 = **$89.38**. Shop email arrived the same second as the submit. Declined. |
 
 **The three rows above were computed, not remembered** — 2026-09-25. The
 independent audit found this table's newest row covering #158 while `main`
@@ -77,6 +79,76 @@ the payload, the per-line `taxed` flags and Printavo's arithmetic all agree,
 to the cent. Nothing in #149 touched any of that. It did not prove the RATE
 — that is a business figure, and #149 changed it, so the row above it is
 owed and the merge rule points at the next sticker order.
+
+## Interactive tests 19–21 October — the apparel cart, and the shop email Code asked for
+
+**Written 2026-10-21 by the interactive Claude session.** Both orders are in
+the Reconciled table above, read back from Printavo and declined.
+
+### The shop email and its timing (asked for by Code after the deploy)
+
+`GS-20261021-14R05UXE`, build `4f0c03e` (#209/#210), submitted **15:05:22 UTC**.
+The shop email ("New Quote GS-20261021-14R05UXE — 100 Custom Stickers", to
+gorillaprinting@gmail.com) has Gmail `internalDate` **15:05:22 UTC — the same
+second**. No delay. The newsletter box was deliberately LEFT TICKED for this one.
+What the email says, and what is wrong with it:
+
+- `Newsletter: Opted in (box shipped pre-ticked) — NOT added to any list:
+  Vercel Blob: Failed to fetch blob: 400 Bad Request.` **Production is still
+  writing to the blob store, not the #209 Google Doc** — the two environment
+  variables are presumably not set (or not redeployed). The #207 honesty fix
+  works: the failure is reported, not hidden.
+- `Submitted: 10/21/2026, 3:05:22 PM` is **UTC printed with no zone** — the
+  customer's confirmation said 11:05:22 AM. The shop reads it as 3 PM local.
+- `Estimated Total: $85.00` is pre-tax and nothing says a payment link went
+  out or that the customer will be charged **$89.38**. The shop cannot tell
+  from its own email what the card will be asked for.
+
+**Also found in Printavo:** `#102612 / GS-20261021-3N4WPIU0` — 25 stickers,
+$45.94, under the test identity, still **QUOTE (payable)**. Not placed by this
+session. If it is the scheduled run's, it is the first order that run has
+demonstrably placed — and it was not voided.
+
+### Apparel defects (the flow that needs the most work)
+
+- **A1 — Underbase is priced across the WHOLE cart.** One white tee line + one
+  black hoodie line: uploading 2-colour art added an underbase to both
+  locations on all 48 pieces (front 2→3, back 1→2: 5 screens, $11.00/pc). The
+  30 white tees pay $2.00/pc for an underbase only the black hoodies need
+  (~$60 here; scales with the run). `hasUnderbase` is one flag on
+  `ApparelCartPrintSpec`; it needs to be per line.
+- **A2 — The underbase is invisible.** The cart jumped $1,213.20 → $1,341.20 on
+  upload with no explanation; the summary, the confirmation and the Printavo
+  print line all still say "Front 2 colors · Back 1 color", while the line
+  bills `48 x $11.00` (the 3c + 2c rate). The single-garment flow at least
+  printed "Auto Count 1 + underbase"; the cart shows "Auto Count 2".
+- **A3 — A mixed cart is filed as the first garment.** Printavo title
+  "WEB QUOTE … - 48 Basic Tee", note "48x Basic Tee / Color: White / S&S style:
+  39" — 18 of the 48 are black hoodies. "Each: $14.34" in the note is
+  garments only (real figure $27.94).
+- **A4 — One artwork upload for front AND back.** No way to send different
+  back art.
+- **A5 (Gabe's call, from the matrix) — 360 costs more than 359.** Classic
+  Hoodie / Black, front 1c: 359 = **$9,897.50 ($27.57 ea)**, 360 =
+  **$10,213.00 ($28.37 ea)**. The blank markup steps 130% (288–359) → 140%
+  (360+); `priceApparelRun` only looks at HIGHER tiers, so nothing caps it.
+  The 2,496 row (130%) has the same shape against the 840 row (140%).
+- Smaller: only three garments are offered (Premium Soft Tee, Classic Hoodie,
+  Basic Tee); the style cards say "Preview shown in Antique Cherry Red" after
+  White is chosen; the live preview shows only the first garment of a cart.
+
+### Other
+
+- **Resolved — the deposit question in the 1–19 Oct section.** Code confirmed
+  in #207 that the ceiling is tax-inclusive by Gabe's rule of 2026-09-25, so
+  the $4,865 / $5,165 deposit was correct.
+- **Lead for "first click ignored":** every page load requests
+  `/02b57dde6d61509c/script.js`, which returns **503** — Vercel Web Analytics
+  is wired in but not enabled ("Be sure to enable Web Analytics for your
+  project"). Not proven to be the cause (the test browser also runs a Tag
+  Assistant extension), but it is a 503 on every load.
+- `4f0c03e` was live at 15:00 UTC; #211 merged at 14:51 UTC and was not yet
+  the deployed build when this order was placed.
 
 ## Interactive test orders, 1–19 October — results the scheduled runs never recorded
 
@@ -140,7 +212,7 @@ anything itself.
    the test customer's Printavo billing still carries an old phone
    (800-555-5785) that no order sent.
 
-### A question for Gabe, not a defect
+### A question for Gabe — RESOLVED (Code, #207: tax-inclusive is the rule)
 
 The deposit ceiling compares the TAX-INCLUSIVE total (`chargeableTotal`) with
 $4,999.99. A $4,865 pre-tax order ($5,165 with tax) took a 50% deposit. The
@@ -157,6 +229,278 @@ which one is Gabe's rule to state.
 - Minimum untaxed for stickers and taxed for signs, as configured; setup,
   shipping and add-ons untaxed on every flow.
 - Double-clicks and plain resends create exactly one order every time.
+## Newsletter sign-ups go in a Google Doc, 2026-10-20 — built, NOT yet connected or proven
+
+**Gabe's decision**, answering the open question about where the list should
+live: "Store sign ups in a Google doc." (The blob store was found to be public;
+the list is written private; every sign-up failed. See the 2026-10-19 entry.)
+
+**Built on the #209 branch, dormant until configured.** With neither variable
+set, behaviour is exactly what it was.
+
+- The Doc exists and is private to gorillaprinting@gmail.com (checked with the
+  Drive connector: one permission, owner): *Gorilla Salem newsletter sign-ups*,
+  id `1aQ74nssk3lhIs3JR-L4kclvjjuAnpMrdBCPYsZXXPTc`.
+- `lib/subscriber-ledger.ts`: the list as readable lines, one per change, last
+  line wins, behind the same three-method `SubscriberStore` interface — so the
+  consent rules in `lib/subscribers.ts` are untouched and are what the tests
+  drive. `lib/google-docs-transport.ts`: a service-account sign-in and the two
+  Docs calls. `lib/subscriber-store.ts`: `subscriberStore()` picks the Doc when
+  configured, else the blob store; every caller now asks it.
+- Set `GOOGLE_SERVICE_ACCOUNT_JSON` + `SUBSCRIBER_DOC_ID` to turn it on. Steps,
+  and the error each mistake produces, are in `NEWSLETTER-GOOGLE-DOC-SETUP.md`.
+- A half-set pair is its own state and fails loudly with the reason, rather than
+  falling back to a store known not to work.
+
+**What is proven:** the line format round-trips; the sticky unsubscribe holds
+through the real consent functions against a Doc-shaped store (each step a
+separate store, as in production); a repeat order adds no line; the whole list
+is read once however long it is; the sign-in signature verifies against the
+matching public key; the write is the exact `batchUpdate` request Google
+documents; every refusal carries Google's explanation. 34 + 24 + 12 = 70 new tests (2607 to 2677).
+
+**What is NOT proven, and cannot be from here:** that Google accepts any of it.
+There is no Google credential in this environment. Two assumptions are
+unchecked against the live API: that text inserted with `endOfSegmentLocation`
+as `"\n" + line` lands as a new paragraph (the parser tolerates a line glued to
+the heading in case it does not), and that `documents.get` returns the body in
+the shape `textOfDocument` reads. **The first real sign-up is the test.** Its
+failure reason will be in the shop email's Newsletter row.
+
+**A mutation found a real gap.** Swapping the two status words in the line
+parser changed nothing, which showed the leading `SUBSCRIBED`/`UNSUBSCRIBED`
+word was a decorative label: editing it by hand would have been ignored, and
+the person kept on the list. It is now honoured (`MARKED_BY_HAND`), because
+for a consent record the safe direction is to obey.
+
+**Privacy claims corrected.** Two comments said "no third party holds it".
+Google hosts a Doc as it already hosts the shop's Gmail, where every opt-in is
+also recorded; the accurate claim is that the list sits in an account the shop
+owns and nothing sends it to a mailing service. The customer-facing promise
+("we will not sell your information") is unchanged and still true.
+
+## First look at production on #207, 2026-10-19 18:29 UTC — one error fixed, the one behind it found
+
+**Written 2026-10-19 by the interactive session, from the logs.** Production
+= `dpl_5AYrcBdC8WZvnxR6ZU5GNhJFtDVc` = `main` @ `72cb354` (#207). The scheduled
+health check was fired by hand at 17:52 UTC.
+
+**No order was placed on this build in the 36 minutes after that.** All
+production traffic in the hour was two `GET /api/press` calls, both at
+17:52:08 and both to the *deployment URL*, not `labs.gorillasalem.com` (so
+probably a deploy-time check, not a person). Nothing reached `/api/quote`. So
+the shop-email newsletter row and the sign-up-before-email ordering — the
+other half of #207 — are **still unobserved in production.**
+
+It is also worth saying what this adds up to. In this thread orders have
+appeared only when Gabe asked his own agent to place them; the 16:43 and
+16:46 orders on 19 October **precede** the 16:55 scheduled fire, so a
+scheduled run did not place those. Every scheduled session inspected has
+reported `REQUIRES_ACTION` within minutes (and those records are unreliable
+— see the entry below), and none has produced a log line or a repo record
+that can be tied to it. Treat "the scheduled health check places orders" as
+**unproven**, not as the working assumption.
+
+**The press line, fifth error in a row:**
+
+    PRESS ACTIVITY unavailable: Printavo: 'first' must not be greater than 25
+
+The complexity error is gone — #207 worked. It had been hiding this one:
+the query asked for 40 invoices and Printavo allows 25 on any connection.
+That figure was in the repo the whole time (the morning-brief routine's own
+prompt says "Max page size is 25"), and a cost model fitted to a complexity
+number said nothing about it — it priced 40 invoices without complaint. The
+clamp I wrote read only the complexity limit; it would have allowed 48.
+
+The same mistake was already in two queries that had never run, so had never
+failed: the reconciler's `lineItems(first: 50)` — **one more reason the
+reconciler's "Line items add up" check has never worked** — and the `sizes`
+fallback shape. All three are now ≤ 25, behind one constant, with a test
+over the whole file.
+
+**One new thing to read in the logs.** With only 25 invoices allowed and the
+API's default ordering unknown, "no line on the hero" is ambiguous: a quiet
+week and a page of old invoices look identical. Each uncached fetch now logs
+
+    PRESS ACTIVITY page: 25 invoices, newest 2026-10-19, oldest 2026-10-12, 14 inside the 7-day window
+
+(dates and counts only). If "newest" is last year, the page is wrong and the
+fix is the sort argument — whose enum is still unconfirmed; if it is
+yesterday, the week really is quiet.
+
+## Press line, seventh finding, 2026-10-21 14:21 UTC: `last:` needs a cursor
+
+**Written 2026-10-21 from the production logs of `dpl_CjYyVuN8d4Bu3xzSAD8a5Kt8w4Uv`
+(#210, `4f0c03e`).** The `last:`/`before:` fix below was the first thing
+tried and Printavo rejected it, on both `/api/press` calls at 14:21:45Z:
+
+    PRESS ACTIVITY unavailable: Printavo: 'last' is only supported when used with the 'before' parameter
+
+`last` cannot start at the end of the list: it needs a `before` cursor, and
+there is no way to get a cursor that points at the end. So the answer has to
+be a sort. The members of `OrderSortField` are still unknown from this side
+(`CREATED_AT_DESC` was rejected in September), so the fix **reads them from
+the live schema**: `discoverInvoiceOrdering` asks `__schema` for the
+`invoices` field's arguments and `__type` for the `sortOn` enum's members
+(names only), picks the creation-date member (a combined `..._DESC` member,
+or a plain one plus `sortDescending: true`), and builds the clause from that.
+The query then pages FORWARD from the newest (`first`/`after`) and stops when
+a page reaches past the 7-day window.
+
+If nothing usable is found it does NOT fall back to the default order (that
+is the 2021 page, which looks like a quiet week); it returns an error that
+names the real arguments and enum members, so the next round starts from
+facts:
+
+    PRESS ACTIVITY unavailable: Printavo: cannot order invoices newest-first - no creation-date sort that runs newest-first was found. invoices arguments: ...; OrderSortField members: ...
+
+Unverified against the live account until that log line is read.
+
+## Press line, sixth finding, 2026-10-20 09:31 UTC: right query, wrong 25
+
+**Written 2026-10-20 from the production logs of `dpl_4PksS6sU8uR29CHYCezrtQWPhnF1`
+(#209, `f1b62c4`).** The `'first' must not be greater than 25` error is GONE
+and the query succeeds. The only `/api/press` calls in the hour (09:08:52 and
+09:08:53Z, deployment URL) logged:
+
+    PRESS ACTIVITY page: 25 invoices, newest 2021-08-23, oldest 2021-07-29, 0 inside the 7-day window
+
+So the hero still cannot show a line, and for a new reason: Printavo's
+`invoices` connection is **oldest-first by default**, and `first: 25` returns
+the 25 OLDEST invoices (July-August 2021). Sorting a page in code cannot make
+it the right page, and the argument that would reverse the order (`sortOn`)
+takes an enum nobody has confirmed.
+
+**First fix (REJECTED 2026-10-21, see above):** `fetchRecentInvoicesForPress`
+now reads from the END with `invoices(last: $last, before: $before)` and
+`pageInfo { hasPreviousPage startCursor }`, stepping back one page at a time
+(`PRESS_MAX_PAGES` = 4 at most) and stopping as soon as a page reaches past
+the 7-day window. `last` is standard Relay and needs no enum. A first-page
+failure is an error; a later-page failure keeps what was read and says so.
+
+**What to read after the next deploy:** the log line now also says how many
+pages were read and why a walk stopped early, e.g.
+
+    PRESS ACTIVITY page: 25 invoices, newest 2026-10-20, oldest 2026-10-13, 14 inside the 7-day window, 1 page read
+
+If Printavo rejects `last` or `before`, the error names the argument in a
+`PRESS ACTIVITY unavailable:` line. If `newest` is still years old, the
+ordering assumption is wrong. Add a row to "facts that do not expire" once
+this has been seen working.
+
+## Health-check run, 2026-10-19 ~16:45 UTC — two orders on the #206 build
+
+**Written 2026-10-19 by the interactive session, from the logs.** Build
+`dpl_FgyCT2X2UD74pCQVSWMvpGg7hRtj` = `b4c0846` (#206); #207 (press
+complexity) was still unmerged. I could not tell which run placed them. The
+scheduled session fired 12:55 UTC reads `REQUIRES_ACTION` since 13:11, but
+**these session records cannot be used to say who placed an order or whether
+a run is really stuck**: they report 0 tokens used on sessions that plainly
+did work, and the 16:55 session read `REQUIRES_ACTION` at 17:01:45 while an
+order arrived at 17:02:30. (The 13 October run did the same: blocked at
+21:07:46, banner order at 21:08:31.) The app's own logs are the only
+reliable witness. Nobody read the Printavo invoices back, so
+every comparison below has two legs, not three, and no `## Reconciled` row
+is written.
+
+| Quote | Flow | Ordered | App total (pre-tax) | Independent check |
+|---|---|---|---|---|
+| `GS-20261019-1GWQ0QVL` | signs | 10 × 48"×96" rigid, Dibond 1/8", rounded corners, pickup | **$4,865.00** | 10×32 sqft×$15 = 4,800 + 10×$5 = 50 + setup 15 = **4,865** ✓ |
+| `GS-20261019-UN6FXF5F` | stickers | 100 × 3" circle (named "Canal St Test Run") + 50 × 2" die cut, `FIPPY`, pickup | **$122.50** | 100×$0.70 = 70 + 50×($0.50×1.2) = 30 + setup 15 + 7.50 = **122.50** ✓ |
+
+**Proved:**
+
+- **The deposit path, in production, for the first time.** The signs order is
+  $4,865.00 pre-tax but **$5,165.00 charged** (4,800 × 6.25% = 300 tax), over
+  the $4,999.99 ceiling, so `deposit=true` — **correct**, and the deposit is
+  50% of Printavo's `amountOutstanding`, **$2,582.50**. Confirmed by running
+  `chargeableTotal`. The health-check docs said the ceiling was *pre-tax*;
+  that was wrong and is corrected.
+- **A two-design cart**: tapered setup ($15 + $7.50) and a per-design
+  `designName` both reached the payload.
+- **Idempotency**: `DUPLICATE SUBMIT GS-20261019-UN6FXF5F — returning the
+  existing order, nothing created.`
+- **Blob artwork** on both (`artwork=blob delivered=true`), including a
+  12.2 KB file, so the path is not size-dependent.
+
+**Found:**
+
+1. **Every newsletter sign-up still fails — with a different reason now.**
+   `NEWSLETTER NOT SENT … Vercel Blob: Failed to fetch blob: 400 Bad Request`
+   on both orders. #206 made the store look configured, and the *write* then
+   failed. The list is written as `access: "private"`; every blob write that
+   works here is `access: "public"`, so the store is very probably public.
+   **Gabe's call** — the list is customers' email addresses. Options: a
+   second, private blob store for subscribers (needs its own token); or
+   accept that sign-ups live only in the shop emails and backfill later.
+   Public blobs for email addresses is the one option this repo was written
+   to refuse.
+2. **#206 made the shop email less honest, and that is fixed on this branch.**
+   The email is built before the sign-up is attempted, so once the store
+   looked configured it dropped its "NOT added to any list" warning while the
+   add failed underneath. The sign-up now runs first, bounded to 4 s, and
+   the email row carries the store's own error.
+3. **`/api/press` still fails** — `complexity of 40962 … exceeds max
+   complexity of 25000` — because #207 is not merged. Expected.
+
+**Not exercised:** order tracking, the Printavo line titles, the print file
+name, the reconciler. None of them is visible in a runtime log.
+
+**Apparel, 17:02 UTC — `GS-20261019-2S8YACT9`, the P0 check: PASSED on the logs.**
+
+    QUOTE_SUBMITTED … flow=apparel qty=48 total=1341.20 … billed=false deposit=false
+    PRINTAVO QUOTE CREATED … /invoice/8bd7c631f328be735f61494e4dac6627
+    CUSTOMER CONFIRMATION SENT for GS-20261019-2S8YACT9
+
+An apparel order must never get a payment link. `billed=false`, and neither
+`CHECKOUT READY` nor `CHECKOUT UNAVAILABLE` appears (the route logs those
+only for the billed flows), so no link was raised. The customer got the
+ordinary confirmation, which is expected: there is no Printavo payment email
+carrying the number. **This is the log side only** — the definitive check is
+the invoice in Printavo, which nobody has opened.
+
+The cart was 30 × Basic Tee / White + 18 × Classic Hoodie / Black, Front 2
+colours + Back 1, pickup. **Partly verified:** the tee line is 30 × $7.25 =
+$217.50, which matches `garmentTotal`; the hoodie line and the $1,341.20 total
+were cut off by the log's truncation, so they are not independently checked.
+Apparel is an estimate and is never called a price. Same newsletter `400` as
+above — and because this ran on the #206 build, its shop email will say a
+plain "Opted in" over the failed add, which is the exact regression #207
+fixes (inferred from the code; nobody has read that email).
+
+**Gabe to void by hand:** `GS-20261019-1GWQ0QVL` (**a live $2,582.50 deposit
+link — list this one first**), `GS-20261019-UN6FXF5F`, `GS-20261019-2S8YACT9`
+(an apparel quote — no payment link, but still a test to decline), and the older
+`GS-20261013-3OUQES6F`, `GS-20261013-KC4PRNVN`, `GS-20261006-1U4T5MZ2`.
+
+## Health-check run, 2026-10-14 01:02 UTC — first run on the #206 build; placed no orders
+
+**Written 2026-10-14 by the interactive session, from the logs.** Fired by
+hand after #206 merged (`b4c0846`, `dpl_FgyCT2X2UD74pCQVSWMvpGg7hRtj`),
+session `cse_01Wdvqv2fs3rbN9jneqpKeGw`. It entered `REQUIRES_ACTION` at
+01:04:51 — **two and a half minutes in, before placing any order.** No
+`QUOTE_SUBMITTED` line exists for the window, so there is nothing new to void,
+and none of #206's order-path fixes (newsletter, tracking, line names, print
+file names) has been exercised in production yet.
+
+**What it changes about the stall.** The 13 October run stalled AFTER
+ordering, which read like a void problem. This one stalled before doing
+anything that touches Printavo, so whatever needs approval comes early — and
+a run on 8 October completed cleanly in 7½ minutes, so it is not every run.
+What it is waiting for is visible only inside the session.
+
+**The press line's second error — found by a real visitor, not the run:**
+
+    01:31:23Z GET /api/press  PRESS ACTIVITY unavailable:
+    Printavo: Query has complexity of 40962, which exceeds max complexity of 25000
+
+That settles two things. The `quantity` fix works: Printavo now validates the
+query and objects only to its cost. And read-side `sizes` is a plain list:
+validation runs before cost analysis, and the shape ladder only moves on a
+shape complaint, so `sizes { size count }` passed. The query asked for 40
+invoices × 10 groups × 25 lines; a cost model fitted exactly to 40962 now sets
+the page sizes (groups 10 → 5, cost 20,562) and clamps the invoice page to
+what fits. See `PRESS_PAGE` in `lib/printavo.ts`.
 
 ## Health-check run, 2026-10-13 ~21:05 UTC — recorded from the logs, because the run did not
 
@@ -441,6 +785,7 @@ been replaced by where to ask for it.
 |---|---|
 | Which commit is production serving? | `/api/printavo-test` or `/api/artwork-upload` — both report it, derived from Vercel's env. Never a typed-in string; see the 08-23 entry on the build stamp for what that cost. |
 | How many tests pass? | `cd v2 && npm test`. CI runs it on every PR. |
+| What will Printavo's API refuse? | **Two independent limits, both learned in production, each hidden behind the other.** (1) A connection's `first:` may not exceed **25** — `'first' must not be greater than 25`. (2) A whole query may not exceed a complexity of **25,000**, and the cost multiplies down nested connections (`lib/printavo.ts` → `pressQueryComplexity`, fitted to a real 40,962). Fixing the second only revealed the first. `PRINTAVO_MAX_PAGE` / `PRINTAVO_MAX_COMPLEXITY` hold the numbers; `tests/press-complexity` fails on any literal `first:` over 25. The list-size limit was written in the morning-brief routine's prompt the whole time. |
 | Lint, types, build? | `.github/workflows/ci.yml` runs all three on every PR and push to `main`. |
 | Which billed figures are unreconciled? | `npm run reconcile:debt`, and the `## Reconciled` table above. |
 | Is production healthy right now? | `/api/health?secret=`, and the daily canary in `.github/workflows/canary.yml`. |

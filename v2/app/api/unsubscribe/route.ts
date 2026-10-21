@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { vercelSubscriberStore, isSubscriberStoreConfigured } from "../../../lib/subscriber-store";
+import { subscriberStore, isSubscriberStoreConfigured } from "../../../lib/subscriber-store";
 import { unsubscribeEmail } from "../../../lib/subscribers";
 import { verifyUnsubscribeToken } from "../../../lib/unsubscribe-token";
 
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
   const result = await unsubscribeEmail(
     email,
     new Date().toISOString(),
-    vercelSubscriberStore()
+    subscriberStore()
   );
 
   if (!result.ok) {

@@ -19,10 +19,8 @@
  */
 
 import { looksLikeEmailAddress } from "./email";
-import {
-  readBlobCredential,
-  readClientUploadsReady,
-} from "./blob-health";
+import { readClientUploadsReady } from "./blob-health";
+import { subscriberStoreKind } from "./subscriber-store";
 
 export type CapabilityState = "live" | "degraded" | "off";
 
@@ -160,7 +158,8 @@ export function getConfigHealth(): {
   // now and issues no static token, so a token check reports a perfectly
   // working store as missing — which is exactly the wrong turn that cost
   // three days on the artwork path. Server-side put/list resolve OIDC first.
-  const listStore = readBlobCredential() !== "none";
+  const listKind = subscriberStoreKind();
+  const listStore = listKind !== "none";
   const unsubscribe = has("NEWSLETTER_SECRET");
 
   capabilities.push({
@@ -172,7 +171,9 @@ export function getConfigHealth(): {
         // angle except the list itself.
         "Customers can tick the box and the shop email says 'Opted in', but NOBODY is being added to any list — there is nowhere to keep one. The shop email says so on every order, and the consent is in those emails, so the list can be backfilled."
       : unsubscribe
-      ? "Sign-ups are kept in the shop's own blob store. Unsubscribe links work. Nothing is shared with any third party."
+      ? listKind === "google-doc"
+        ? "Sign-ups are kept in a Google Doc in the shop's own Google account. Unsubscribe links work. Nothing is sent to a mailing service."
+        : "Sign-ups are kept in the shop's own blob store. Unsubscribe links work. Nothing is shared with any third party."
       : // Keeping a list is fine. Mailing it without a working opt-out is
         // not: CAN-SPAM requires one, and Gmail and Yahoo require the
         // one-click header from bulk senders. Every link would 404.
@@ -181,7 +182,7 @@ export function getConfigHealth(): {
       ? unsubscribe
         ? []
         : ["NEWSLETTER_SECRET"]
-      : ["BLOB_READ_WRITE_TOKEN", "NEWSLETTER_SECRET"],
+      : ["GOOGLE_SERVICE_ACCOUNT_JSON + SUBSCRIBER_DOC_ID (a Google Doc), or a connected private blob store", "NEWSLETTER_SECRET"],
   });
 
   // ---- kiosk ---------------------------------------------------------------

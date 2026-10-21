@@ -217,10 +217,12 @@ describe("the newsletter list, which fails in two separate ways", () => {
 
     assert.equal(capability?.state, "off");
     assert.match(capability?.summary ?? "", /NOBODY is being added/);
-    assert.deepEqual(capability?.fix, [
-      "BLOB_READ_WRITE_TOKEN",
-      "NEWSLETTER_SECRET",
-    ]);
+    // The first fix used to be "BLOB_READ_WRITE_TOKEN". It now names the two
+    // ways to keep a list - a Google Doc, or a private blob store - because
+    // the blob store was found to be public and unable to hold one.
+    assert.equal(capability?.fix.length, 2);
+    assert.match(capability?.fix[0] ?? "", /GOOGLE_SERVICE_ACCOUNT_JSON \+ SUBSCRIBER_DOC_ID/);
+    assert.equal(capability?.fix[1], "NEWSLETTER_SECRET");
   });
 
   test("a list with no working unsubscribe is DEGRADED, not live", () => {

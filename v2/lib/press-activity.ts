@@ -203,3 +203,61 @@ export function describePressActivity(activity: PressActivity): string {
     .map((entry) => `${entry.quantity.toLocaleString()} ${entry.noun}`)
     .join(" · ");
 }
+
+/**
+ * WHAT PAGE OF INVOICES DID WE ACTUALLY GET — in one line, with no customer in it.
+ *
+ * ── WHY THIS EXISTS ───────────────────────────────────────────────────────
+ * Printavo allows 25 items per page, and this query cannot choose WHICH 25:
+ * the ordering argument's enum is unconfirmed (see tests/press-sort), so the
+ * rows come back in whatever order the API defaults to and are sorted in
+ * code afterwards. Sorting a page cannot make it the right page.
+ *
+ * Which makes "no line on the hero" ambiguous in exactly the way this
+ * endpoint has been ambiguous three times running: a quiet week and a page
+ * of old invoices both produce nothing, and both look fine. This line is the
+ * difference. If "newest" is last year, the page is wrong; if it is
+ * yesterday and few are inside the window, the week really is quiet.
+ *
+ * Dates only, never a name, number or amount — this is logged on every
+ * uncached fetch and the log is not a safe place for customers.
+ */
+export function describePressPage(
+  orders: PressOrder[],
+  options: { now?: Date; windowDays?: number; pages?: number; stoppedEarly?: string } = {}
+): string {
+  const now = options.now ?? new Date();
+  const windowDays = options.windowDays ?? WINDOW_DAYS;
+
+  const stamps: number[] = [];
+  let undated = 0;
+  let inWindow = 0;
+
+  for (const order of orders) {
+    const at =
+      typeof order?.createdAt === "string" ? Date.parse(order.createdAt) : NaN;
+
+    if (Number.isNaN(at)) {
+      undated += 1;
+      continue;
+    }
+
+    stamps.push(at);
+    if (isWithinWindow(order.createdAt, now, windowDays)) inWindow += 1;
+  }
+
+  const day = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+  const parts = [`${orders.length} invoice${orders.length === 1 ? "" : "s"}`];
+
+  if (stamps.length) {
+    parts.push(`newest ${day(Math.max(...stamps))}`);
+    parts.push(`oldest ${day(Math.min(...stamps))}`);
+  }
+
+  parts.push(`${inWindow} inside the ${windowDays}-day window`);
+  if (undated) parts.push(`${undated} undated`);
+  if (options.pages) parts.push(`${options.pages} page${options.pages === 1 ? "" : "s"} read`);
+  if (options.stoppedEarly) parts.push(`stopped early: ${options.stoppedEarly}`);
+
+  return parts.join(", ");
+}

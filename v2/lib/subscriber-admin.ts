@@ -80,7 +80,7 @@ function guard(request: Request): NextResponse | null {
       {
         ok: false,
         error:
-          "No blob store on this deployment, so there is no list yet. Connect one in Vercel > Storage and redeploy.",
+          "Nowhere to keep a list on this deployment. Set GOOGLE_SERVICE_ACCOUNT_JSON and SUBSCRIBER_DOC_ID (a Google Doc), or connect a private blob store in Vercel > Storage, then redeploy.",
       },
       { status: 503 }
     );

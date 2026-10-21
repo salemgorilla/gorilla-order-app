@@ -11,6 +11,8 @@
 import { get, list, put } from "@vercel/blob";
 
 import { readBlobCredential } from "./blob-health";
+import { googleDocTransport, readGoogleDocConfig } from "./google-docs-transport";
+import { ledgerSubscriberStore } from "./subscriber-ledger";
 import type { SubscriberStore } from "./subscribers";
 
 /**
@@ -44,7 +46,54 @@ import type { SubscriberStore } from "./subscribers";
  * here, is the whole fix.
  */
 export function isSubscriberStoreConfigured(): boolean {
+  // A Google Doc that is set up WRONG still counts as configured: the attempt
+  // must be made so the reason lands in the shop email. Reporting it as "not
+  // configured" would hide a mistyped variable behind a generic message.
+  if (readGoogleDocConfig().state !== "off") return true;
+
   return readBlobCredential() !== "none";
+}
+
+/**
+ * Where the list is actually kept, for the places that say so out loud.
+ *
+ * "google-doc" wins whenever it is configured at all, and nothing is written
+ * to both. Two stores would mean two answers to "is this person on the
+ * list", which is the question this whole module exists to answer once.
+ */
+export function subscriberStoreKind(): "google-doc" | "blob" | "none" {
+  if (readGoogleDocConfig().state !== "off") return "google-doc";
+
+  return readBlobCredential() !== "none" ? "blob" : "none";
+}
+
+/**
+ * THE store: the Google Doc when it is set up, the blob store otherwise.
+ *
+ * Every caller asks here rather than choosing. The Doc exists because the
+ * blob store could not hold the list privately (it is a public store, and the
+ * list is written as private blobs); until it is configured, behaviour is
+ * exactly what it was.
+ *
+ * A half-configured Doc returns a store whose every call throws the reason.
+ * That is deliberate: it is caught where all storage errors are caught, and
+ * the reason reaches the shop email instead of a quiet fallback to a store
+ * known not to work.
+ */
+export function subscriberStore(): SubscriberStore {
+  const config = readGoogleDocConfig();
+
+  if (config.state === "off") return vercelSubscriberStore();
+
+  if (config.state === "broken") {
+    const fail = async (): Promise<never> => {
+      throw new Error(config.reason);
+    };
+
+    return { put: fail, read: fail, list: fail };
+  }
+
+  return ledgerSubscriberStore(googleDocTransport(config));
 }
 
 export function vercelSubscriberStore(): SubscriberStore {

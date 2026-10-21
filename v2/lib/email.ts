@@ -122,6 +122,22 @@ export function buildCustomerLines(input: {
    * the shop something untrue.
    */
   newsletterConfigured?: boolean;
+  /**
+   * Why a sign-up that WAS attempted did not land, or null/undefined if it
+   * did (or was never attempted).
+   *
+   * `newsletterConfigured` answers "is there anywhere to put it?" and that
+   * is all it can answer. On 19 October production had a store, said so,
+   * and still dropped every sign-up with "Failed to fetch blob: 400 Bad
+   * Request" — because a credential existing is not the same as the store
+   * accepting the write. The email was built before the attempt, so it said
+   * a plain "Opted in" over a sign-up that had already failed, and the only
+   * trace was a log line that Vercel deletes within the hour.
+   *
+   * This carries the actual outcome to the one surface the shop reads. The
+   * reason is quoted as the store gave it: it is the diagnosis.
+   */
+  newsletterNote?: string | null;
 }) {
   const customer = input.customer;
 
@@ -165,6 +181,8 @@ export function buildCustomerLines(input: {
           }${
             input.newsletterConfigured === false
               ? " — NOT added to any list: no newsletter hook is configured on this deployment. The consent is recorded, so the list can be backfilled."
+              : input.newsletterNote
+              ? ` — NOT added to any list: ${input.newsletterNote}. The consent is recorded, so the list can be backfilled.`
               : ""
           }`
         : input.kiosk
@@ -264,6 +282,8 @@ export function buildQuoteEmail(input: {
    * only value that changes anything.
    */
   newsletterConfigured?: boolean;
+  /** Forwarded to buildCustomerLines — see its note. */
+  newsletterNote?: string | null;
 }) {
   const { quoteNumber, receivedAt, order, artworkAnalysis, attachmentInfo } =
     input;
@@ -921,6 +941,7 @@ export function buildQuoteEmail(input: {
       kiosk: input.kiosk,
       paymentNote: input.paymentNote,
       newsletterConfigured: input.newsletterConfigured,
+      newsletterNote: input.newsletterNote,
     }),
     ``,
     apparel ? `APPAREL DETAILS` : signs ? `SIGNS DETAILS` : `STICKER DETAILS`,
@@ -973,6 +994,7 @@ export function buildQuoteEmail(input: {
     // Both renderings, or the consent record the shop reads and the one an
     // archive keeps would describe the same customer differently.
     newsletterConfigured: input.newsletterConfigured,
+    newsletterNote: input.newsletterNote,
   });
 
   return { subject, text, html, replyTo: customerEmail || undefined };
@@ -1086,6 +1108,7 @@ function buildHtml(input: {
   kiosk?: { mode: "self" | "staff"; staffName: string } | null;
   /** Passed straight through to buildCustomerLines — see its note. */
   newsletterConfigured?: boolean;
+  newsletterNote?: string | null;
 }) {
   // Shared with the plain-text rendering, so the consent record the shop reads
   // and the one an archive keeps can never describe the same customer
@@ -1154,6 +1177,7 @@ export async function sendQuoteEmail(input: {
   paymentNote?: string | null;
   /** Forwarded to buildQuoteEmail — see buildCustomerLines. */
   newsletterConfigured?: boolean;
+  newsletterNote?: string | null;
 }): Promise<QuoteEmailResult> {
   const provider = getEmailProvider();
 

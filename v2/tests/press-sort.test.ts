@@ -51,7 +51,10 @@ describe("the query no longer sends an argument the API rejects", () => {
       /sortOn/,
       "sortOn is back — the live API rejects every value this code has tried"
     );
-    assert.match(body, /invoices\(first: \$first\)/);
+    // Printavo's default order is OLDEST-first (confirmed 2026-10-20: first 25
+    // were July-August 2021), so the newest are read from the END.
+    assert.match(body, /invoices\(last: \$last, before: \$before\)/);
+    assert.doesNotMatch(body, /invoices\(first:/, "first: reads the oldest page, which is the 2021 bug");
   });
 
   test("no guessed enum was substituted for it", async () => {

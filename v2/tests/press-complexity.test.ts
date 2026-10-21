@@ -118,7 +118,7 @@ describe("no connection in this file asks for more than Printavo allows", () => 
   test("every literal `first:` is within the cap", async () => {
     const src = await readFile(new URL("../lib/printavo.ts", import.meta.url), "utf8");
     const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-    const found = [...code.matchAll(/\bfirst:\s*(\d+)/g)].map((m) => Number(m[1]));
+    const found = [...code.matchAll(/\b(?:first|last):\s*(\d+)/g)].map((m) => Number(m[1]));
 
     // Four are written as literals (contacts, sizes fallback, reconciler groups
     // and lines); the others read a named value, which the next test covers.

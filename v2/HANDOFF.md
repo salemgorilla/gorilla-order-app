@@ -170,6 +170,38 @@ week and a page of old invoices look identical. Each uncached fetch now logs
 fix is the sort argument — whose enum is still unconfirmed; if it is
 yesterday, the week really is quiet.
 
+## Press line, sixth finding, 2026-10-20 09:31 UTC: right query, wrong 25
+
+**Written 2026-10-20 from the production logs of `dpl_4PksS6sU8uR29CHYCezrtQWPhnF1`
+(#209, `f1b62c4`).** The `'first' must not be greater than 25` error is GONE
+and the query succeeds. The only `/api/press` calls in the hour (09:08:52 and
+09:08:53Z, deployment URL) logged:
+
+    PRESS ACTIVITY page: 25 invoices, newest 2021-08-23, oldest 2021-07-29, 0 inside the 7-day window
+
+So the hero still cannot show a line, and for a new reason: Printavo's
+`invoices` connection is **oldest-first by default**, and `first: 25` returns
+the 25 OLDEST invoices (July-August 2021). Sorting a page in code cannot make
+it the right page, and the argument that would reverse the order (`sortOn`)
+takes an enum nobody has confirmed.
+
+**Fix (unverified against the live account):** `fetchRecentInvoicesForPress`
+now reads from the END with `invoices(last: $last, before: $before)` and
+`pageInfo { hasPreviousPage startCursor }`, stepping back one page at a time
+(`PRESS_MAX_PAGES` = 4 at most) and stopping as soon as a page reaches past
+the 7-day window. `last` is standard Relay and needs no enum. A first-page
+failure is an error; a later-page failure keeps what was read and says so.
+
+**What to read after the next deploy:** the log line now also says how many
+pages were read and why a walk stopped early, e.g.
+
+    PRESS ACTIVITY page: 25 invoices, newest 2026-10-20, oldest 2026-10-13, 14 inside the 7-day window, 1 page read
+
+If Printavo rejects `last` or `before`, the error names the argument in a
+`PRESS ACTIVITY unavailable:` line. If `newest` is still years old, the
+ordering assumption is wrong. Add a row to "facts that do not expire" once
+this has been seen working.
+
 ## Health-check run, 2026-10-19 ~16:45 UTC — two orders on the #206 build
 
 **Written 2026-10-19 by the interactive session, from the logs.** Build

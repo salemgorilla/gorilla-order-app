@@ -56,7 +56,7 @@ export async function GET(request: Request) {
    * Admin-only and never cached: it carries raw order data.
    */
   if (secret && adminSecretMatches(secret)) {
-    const probe = await fetchRecentInvoicesForPress({ first: 5 });
+    const probe = await fetchRecentInvoicesForPress({ pageSize: 5, maxPages: 1 });
     const activity = summarisePressActivity(probe.orders);
 
     return NextResponse.json(
@@ -78,7 +78,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ line: cached.line });
   }
 
-  const { orders, error } = await fetchRecentInvoicesForPress();
+  const { orders, error, pages, stoppedEarly } = await fetchRecentInvoicesForPress();
 
   if (error) {
     // Logged, not served. The shop finds out from the log; the visitor sees
@@ -96,7 +96,7 @@ export async function GET(request: Request) {
   // hour. It is what tells a quiet week from a page of old invoices — see
   // describePressPage. Skipped on error: the warning above already says why.
   if (!error) {
-    console.log(`PRESS ACTIVITY page: ${describePressPage(orders)}`);
+    console.log(`PRESS ACTIVITY page: ${describePressPage(orders, { pages, stoppedEarly })}`);
   }
 
   const activity = summarisePressActivity(orders);

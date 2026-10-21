@@ -333,10 +333,14 @@ something you could not observe. Skipped ≠ passed.
 
   Quote it verbatim. It is what tells a quiet week from the wrong page.
   Printavo's invoices come back OLDEST-first, so on 20 October the query got
-  the 2021 invoices ("newest 2021-08-23, 0 inside the 7-day window"); it now
-  reads from the end with `last:`/`before:` and ends the line with the pages
-  read (and "stopped early: …" if it did). That fix is unverified against the
-  live account. If `newest` is months old, the page is still wrong; if
+  the 2021 invoices ("newest 2021-08-23, 0 inside the 7-day window"); `last:`
+  was tried and rejected on 21 October ("'last' is only supported when used
+  with the 'before' parameter"). It now reads the sort members from the live
+  schema, pages forward newest-first, and ends the line with the pages read
+  (and "stopped early: …" if it did). If no creation-date sort exists, the
+  `PRESS ACTIVITY unavailable:` line lists the real argument names and enum
+  members: quote it verbatim. All of that is unverified against the live
+  account. If `newest` is months old, the page is still wrong; if
   `newest` is recent and the window count is low, the week really is quiet. Any `PRESS ACTIVITY unavailable`
   line: quote it verbatim, numbers included.
 - **The newsletter: fixed to the point of a new, real error.** Until 14

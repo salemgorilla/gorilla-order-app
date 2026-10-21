@@ -3055,7 +3055,7 @@ export function maxPressInvoices(
 }
 
 /**
- * The most pages the press line will walk back through.
+ * The most pages the press line will walk through.
  *
  * Four pages of 25 is 100 invoices, which is weeks of this shop's volume, and
  * each page is a Printavo call against a limit of 10 per 5 seconds. The walk
@@ -3063,25 +3063,141 @@ export function maxPressInvoices(
  */
 export const PRESS_MAX_PAGES = 4;
 
+export type InvoiceOrdering =
+  | { ok: true; clause: string; label: string }
+  | { ok: false; reason: string };
+
+let provenOrdering: InvoiceOrdering | null = null;
+
+/** Test seam: forget what was learned, so a case starts from cold. */
+export function resetProvenInvoiceOrdering(): void {
+  provenOrdering = null;
+}
+
+/** Enum member names are inlined into a query, so only identifiers pass. */
+const ENUM_MEMBER = /^[A-Za-z_][A-Za-z0-9_]{0,60}$/;
+
 /**
- * THE NEWEST INVOICES, WALKED BACKWARDS FROM THE END.
+ * HOW TO ASK FOR THE NEWEST INVOICES FIRST — read from the live schema.
  *
- * ── WHY `last:` AND NOT `first:` ──────────────────────────────────────────
- * Printavo's `invoices` connection defaults to OLDEST-FIRST, and the argument
- * that would reverse it (`sortOn`) takes an enum whose members nobody here
- * knows. Confirmed in production on 2026-10-20: `invoices(first: 25)` returned
- * invoices from July and August 2021, none inside the window, so the hero
- * correctly said nothing — and would have said nothing forever. Sorting a page
- * in code cannot make it the right page.
+ * ── WHY THIS IS DISCOVERED AND NOT WRITTEN DOWN ───────────────────────────
+ * Printavo's `invoices` connection is oldest-first by default (confirmed
+ * 2026-10-20: the first 25 were July-August 2021). Two attempts to get the
+ * other end failed in production:
  *
- * `last: N` is standard Relay and needs no enum: the final N of an
- * oldest-first list are the newest N, and `before: <startCursor>` steps back
- * from there. UNVERIFIED against the live account at the time of writing. If
- * Printavo rejects it the error names the argument, and the `PRESS ACTIVITY
- * page:` log line says whether the page is now recent.
+ *   sortOn: CREATED_AT_DESC  ->  "invalid value (CREATED_AT_DESC). Expected type 'OrderSortField'."
+ *   invoices(last: 25)       ->  "'last' is only supported when used with the 'before' parameter"
  *
- * Each page is requested with the same 25-item cap as every other connection
- * (see PRINTAVO_MAX_PAGE); there is no way to ask for more by paging.
+ * The second one cannot work without a cursor to start from, and there is no
+ * way to get one that points at the end. So the answer has to be a sort, and
+ * the members of that enum are not known from this side. This asks the live
+ * schema for them (names only, the same introspection /api/printavo-schema
+ * serves), picks the creation-date member, and builds the ordering clause
+ * from what it found. If nothing usable is there, the REASON carries the
+ * real argument names and enum members into the log, so the next round
+ * starts from facts instead of a guess.
+ *
+ * Cached per serverless instance only on success; a failure is retried on
+ * the next uncached fetch (at most four an hour).
+ */
+export async function discoverInvoiceOrdering(
+  request: <R>(query: string, variables?: AnyRecord) => Promise<R> = printavoRequest
+): Promise<InvoiceOrdering> {
+  if (provenOrdering) return provenOrdering;
+
+  try {
+    const schema = await request<AnyRecord>(
+      `query GorillaInvoiceArgs {
+         __schema {
+           queryType {
+             fields { name args { name type { name kind ofType { name kind ofType { name kind } } } } }
+           }
+         }
+       }`
+    );
+
+    const fields = ((schema.__schema as AnyRecord)?.queryType as AnyRecord)?.fields;
+    const invoices = (Array.isArray(fields) ? (fields as AnyRecord[]) : []).find(
+      (field) => field?.name === "invoices"
+    );
+
+    if (!invoices) return { ok: false, reason: "the schema has no top-level 'invoices' field" };
+
+    const args = Array.isArray(invoices.args) ? (invoices.args as AnyRecord[]) : [];
+    const argNames = args.map((arg) => str(arg.name)).filter(Boolean);
+    const sortArg = args.find((arg) => arg.name === "sortOn");
+    const hasDescending = argNames.includes("sortDescending");
+
+    if (!sortArg) {
+      return { ok: false, reason: `invoices has no sortOn argument; its arguments are: ${argNames.join(", ")}` };
+    }
+
+    // Unwrap NON_NULL / LIST wrappers to the named enum type.
+    let named = sortArg.type as AnyRecord | undefined;
+    while (named && !named.name && named.ofType) named = named.ofType as AnyRecord;
+    const enumName = str(named?.name);
+
+    if (!/^[A-Za-z_][A-Za-z0-9_]{0,80}$/.test(enumName)) {
+      return { ok: false, reason: `invoices.sortOn has no readable type; arguments: ${argNames.join(", ")}` };
+    }
+
+    const typeData = await request<AnyRecord>(
+      `query GorillaSortEnum($name: String!) { __type(name: $name) { enumValues { name } } }`,
+      { name: enumName }
+    );
+
+    const members = (
+      ((typeData.__type as AnyRecord)?.enumValues as AnyRecord[] | undefined) || []
+    )
+      .map((value) => str(value?.name))
+      .filter((name) => ENUM_MEMBER.test(name));
+
+    const summary = `invoices arguments: ${argNames.join(", ")}; ${enumName} members: ${members.join(", ") || "(none)"}`;
+
+    const created = members.filter((name) => /CREATED|CREATE_DATE|DATE_CREATED/i.test(name));
+    const combined = created.find((name) => /DESC/i.test(name));
+
+    if (combined) {
+      return (provenOrdering = {
+        ok: true,
+        clause: `, sortOn: ${combined}`,
+        label: combined,
+      });
+    }
+
+    const plain = created
+      .filter((name) => !/ASC/i.test(name))
+      .sort((a, b) => a.length - b.length)[0];
+
+    if (plain && hasDescending) {
+      return (provenOrdering = {
+        ok: true,
+        clause: `, sortOn: ${plain}, sortDescending: true`,
+        label: `${plain} descending`,
+      });
+    }
+
+    return {
+      ok: false,
+      reason: `no creation-date sort that runs newest-first was found. ${summary}`,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: `could not read the schema: ${error instanceof Error ? error.message : "unknown error"}`,
+    };
+  }
+}
+
+/**
+ * THE NEWEST INVOICES, NEWEST FIRST, PAGED FORWARD UNTIL THE WINDOW IS COVERED.
+ *
+ * Printavo returns invoices oldest-first unless told otherwise (see
+ * discoverInvoiceOrdering for the two ways of telling it that failed). With
+ * a descending sort the newest 25 are page one and `after: endCursor` steps
+ * toward older ones, so the walk stops as soon as a page reaches past the
+ * 7-day window. UNVERIFIED against the live account at the time of writing:
+ * the `PRESS ACTIVITY page:` log line says whether the page is now recent.
  */
 export async function fetchRecentInvoicesForPress(
   input: { pageSize?: number; maxPages?: number } = {},
@@ -3111,15 +3227,27 @@ export async function fetchRecentInvoicesForPress(
   const maxPages = Math.max(1, input.maxPages ?? PRESS_MAX_PAGES);
   const windowStart = (deps.now ?? new Date()).getTime() - WINDOW_DAYS * 24 * 60 * 60 * 1000;
 
+  const ordering = await discoverInvoiceOrdering(request);
+
+  if (!ordering.ok) {
+    // Not queried with the default order: that is the page of 2021 invoices,
+    // which reads as a quiet week and is worse than saying nothing.
+    return {
+      orders: [],
+      error: `Printavo: cannot order invoices newest-first - ${ordering.reason}`,
+      pages: 0,
+    };
+  }
+
   type Page = {
     invoices?: {
-      pageInfo?: { hasPreviousPage?: boolean; startCursor?: string | null };
+      pageInfo?: { hasNextPage?: boolean; endCursor?: string | null };
       nodes?: AnyRecord[];
     };
   };
 
   const collected: AnyRecord[] = [];
-  let before: string | null = null;
+  let after: string | null = null;
   let pages = 0;
   let raw: unknown;
   let stoppedEarly: string | undefined;
@@ -3130,9 +3258,9 @@ export async function fetchRecentInvoicesForPress(
     try {
       data = await requestTryingSizeShapes<Page>(
         (sizes) =>
-          `query GorillaPressActivity($last: Int!, $before: String) {
-         invoices(last: $last, before: $before) {
-           pageInfo { hasPreviousPage startCursor }
+          `query GorillaPressActivity($first: Int!, $after: String) {
+         invoices(first: $first, after: $after${ordering.clause}) {
+           pageInfo { hasNextPage endCursor }
            nodes {
              id
              createdAt
@@ -3146,7 +3274,7 @@ export async function fetchRecentInvoicesForPress(
            }
          }
        }`,
-        { last: pageSize, before },
+        { first: pageSize, after },
         request
       );
     } catch (error) {
@@ -3190,17 +3318,17 @@ export async function fetchRecentInvoicesForPress(
     if (oldest < windowStart) break;
 
     const info = data.invoices?.pageInfo;
-    const cursor = info?.startCursor;
+    const cursor = info?.endCursor;
 
-    // Nothing earlier to read.
-    if (!info?.hasPreviousPage || !cursor) break;
+    // Nothing older to read.
+    if (!info?.hasNextPage || !cursor) break;
 
     if (pages >= maxPages) {
       stoppedEarly = `read ${maxPages} page${maxPages === 1 ? "" : "s"} and the ${WINDOW_DAYS}-day window may reach further back`;
       break;
     }
 
-    before = cursor;
+    after = cursor;
   }
 
   // Flatten the two connections into the shape press-activity expects. A

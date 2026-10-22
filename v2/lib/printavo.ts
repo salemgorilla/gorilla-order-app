@@ -3064,7 +3064,12 @@ export function maxPressInvoices(
 export const PRESS_MAX_PAGES = 4;
 
 export type InvoiceOrdering =
-  | { ok: true; clause: string; label: string }
+  /**
+   * `proxy` is true when the sort is not by creation date but by something
+   * that grows with it (the order's visual ID). The caller then checks the
+   * page really is newest-first before trusting it.
+   */
+  | { ok: true; clause: string; label: string; proxy: boolean }
   | { ok: false; reason: string };
 
 let provenOrdering: InvoiceOrdering | null = null;
@@ -3162,6 +3167,7 @@ export async function discoverInvoiceOrdering(
         ok: true,
         clause: `, sortOn: ${combined}`,
         label: combined,
+        proxy: false,
       });
     }
 
@@ -3174,6 +3180,23 @@ export async function discoverInvoiceOrdering(
         ok: true,
         clause: `, sortOn: ${plain}, sortDescending: true`,
         label: `${plain} descending`,
+        proxy: false,
+      });
+    }
+
+    // 2026-10-21: the live OrderSortField has NO creation-date member
+    // (CUSTOMER_DUE_AT, CUSTOMER_NAME, STATUS, OWNER, TOTAL, VISUAL_ID). The
+    // visual ID is the order number, which is handed out in creation order, so
+    // sorting it descending is the nearest thing to newest-first. It is a
+    // PROXY, so the fetch verifies the page's dates before trusting it.
+    const visual = members.find((name) => /^(VISUAL_ID|ORDER_NUMBER)$/.test(name));
+
+    if (visual && hasDescending) {
+      return (provenOrdering = {
+        ok: true,
+        clause: `, sortOn: ${visual}, sortDescending: true`,
+        label: `${visual} descending (proxy for creation order)`,
+        proxy: true,
       });
     }
 
@@ -3303,6 +3326,24 @@ export async function fetchRecentInvoicesForPress(
 
       stoppedEarly = `page ${pages + 1} had no invoices.nodes list`;
       break;
+    }
+
+    // A proxy sort is only worth anything if it really put the newest first.
+    // Checked on the first page: the first row must not be older than the last.
+    if (pages === 0 && ordering.proxy && nodes.length > 1) {
+      const stamp = (node: AnyRecord | undefined) =>
+        typeof node?.createdAt === "string" ? Date.parse(node.createdAt) : NaN;
+      const head = stamp(nodes[0]);
+      const tail = stamp(nodes[nodes.length - 1]);
+
+      if (!Number.isNaN(head) && !Number.isNaN(tail) && head < tail) {
+        return {
+          orders: [],
+          error: `Printavo: sorting invoices by ${ordering.label} did not return newest-first (first row ${new Date(head).toISOString().slice(0, 10)}, last row ${new Date(tail).toISOString().slice(0, 10)})`,
+          pages,
+          raw: data,
+        };
+      }
     }
 
     pages += 1;

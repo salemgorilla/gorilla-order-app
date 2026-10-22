@@ -335,8 +335,10 @@ something you could not observe. Skipped ≠ passed.
   Printavo's invoices come back OLDEST-first, so on 20 October the query got
   the 2021 invoices ("newest 2021-08-23, 0 inside the 7-day window"); `last:`
   was tried and rejected on 21 October ("'last' is only supported when used
-  with the 'before' parameter"). It now reads the sort members from the live
-  schema, pages forward newest-first, and ends the line with the pages read
+  with the 'before' parameter"). Printavo has no creation-date sort at all (its `OrderSortField` is
+  CUSTOMER_DUE_AT, CUSTOMER_NAME, STATUS, OWNER, TOTAL, VISUAL_ID), so it now
+  reads the members from the live schema and sorts by the order number
+  descending as a proxy, verifying the page is newest-first, pages forward, and ends the line with the pages read
   (and "stopped early: …" if it did). If no creation-date sort exists, the
   `PRESS ACTIVITY unavailable:` line lists the real argument names and enum
   members: quote it verbatim. All of that is unverified against the live

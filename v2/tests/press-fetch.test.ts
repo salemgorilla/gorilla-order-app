@@ -405,3 +405,62 @@ describe("the ordering is read from the live schema, not written down", () => {
     assert.equal(ordering.ok, true);
   });
 });
+
+describe("when the live schema has no creation-date sort (21 October 2026)", () => {
+  // The real answer from production: invoices arguments and OrderSortField members.
+  const LIVE: Schema = {
+    args: [
+      "excludeStatusIds", "inProductionAfter", "inProductionBefore", "paymentStatus", "query",
+      "sortDescending", "sortOn", "statusIds", "tags", "after", "before", "first", "last",
+    ],
+    members: ["CUSTOMER_DUE_AT", "CUSTOMER_NAME", "STATUS", "OWNER", "TOTAL", "VISUAL_ID"],
+  };
+
+  test("sorts by VISUAL_ID descending, the order number, which grows with creation", async () => {
+    const { request, calls } = scripted(
+      [{ nodes: [node(ago(1)), node(ago(30))], hasNextPage: false, endCursor: null }],
+      LIVE
+    );
+
+    const result = await fetchRecentInvoicesForPress({}, { request, now: NOW });
+
+    assert.match(calls[0].query, /sortOn: VISUAL_ID, sortDescending: true\)/);
+    assert.equal(result.error, undefined);
+    assert.equal(result.orders.length, 2);
+  });
+
+  test("a proxy sort that came back oldest-first is refused, not served", async () => {
+    const { request } = scripted(
+      [{ nodes: [node(ago(400)), node(ago(2))], hasNextPage: false, endCursor: null }],
+      LIVE
+    );
+
+    const result = await fetchRecentInvoicesForPress({}, { request, now: NOW });
+
+    assert.match(result.error ?? "", /did not return newest-first/);
+    assert.deepEqual(result.orders, []);
+  });
+
+  test("the proxy needs sortDescending to be reversible", async () => {
+    const { request, calls } = scripted([], {
+      args: LIVE.args.filter((name) => name !== "sortDescending"),
+      members: LIVE.members,
+    });
+
+    const result = await fetchRecentInvoicesForPress({}, { request, now: NOW });
+
+    assert.equal(calls.length, 0);
+    assert.match(result.error ?? "", /cannot order/);
+  });
+
+  test("a real creation-date member still wins over the proxy", async () => {
+    const { request, calls } = scripted(
+      [{ nodes: [node(ago(1))], hasNextPage: false, endCursor: null }],
+      { args: LIVE.args, members: [...LIVE.members, "CREATED_AT"] }
+    );
+
+    await fetchRecentInvoicesForPress({}, { request, now: NOW });
+
+    assert.match(calls[0].query, /sortOn: CREATED_AT, sortDescending: true\)/);
+  });
+});

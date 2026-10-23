@@ -170,6 +170,31 @@ week and a page of old invoices look identical. Each uncached fetch now logs
 fix is the sort argument — whose enum is still unconfirmed; if it is
 yesterday, the week really is quiet.
 
+## Press line, ninth finding, 2026-10-22 17:04 UTC: the order number is not creation order
+
+**Written 2026-10-22 from the production logs of `dpl_94QVGq29t953sxVvzhKPrd3iDdMX`
+(#212, `0bd6774`).** Printavo accepted `sortOn: VISUAL_ID, sortDescending: true`
+(no schema error), and the newest-first check added for exactly this case
+refused the page rather than serving it:
+
+    PRESS ACTIVITY unavailable: Printavo: sorting invoices by VISUAL_ID descending (proxy for creation order) did not return newest-first (first row 2025-07-21, last row 2026-09-15)
+
+So sorting by order number does NOT give newest-first here: the first row is
+older than the last, and neither is recent (the newest row is 2026-09-15; the
+shop's test orders of 19-21 October are quotes, which this `invoices`
+connection may not include at all). Possible causes, not yet told apart: the
+sort is textual rather than numeric, visual IDs were not issued in creation
+order, or `sortDescending` is applied differently than assumed. **The guard
+worked; the proxy did not.** Nothing wrong was served.
+
+Rather than a fourth blind guess, the refusal now carries the evidence in the
+log line itself: every row's date in the order returned, the fields an
+`Invoice` really has, and the types of the `inProduction*` / `paymentStatus` /
+`query` filters. A window on PRODUCTION (`inProductionAfter`) is arguably a
+better definition of "on the press this week" than creation date, and needs
+no sort, but its meaning and date format are unconfirmed and it would change
+what the hero counts, so it is a decision for after this round's evidence.
+
 ## Press line, eighth finding, 2026-10-21 15:06 UTC: Printavo has no creation-date sort
 
 **Written 2026-10-21 from the production logs of `dpl_6yGC8isr5A77JpVwUVrxCu9tgJWx`

@@ -3213,6 +3213,67 @@ export async function discoverInvoiceOrdering(
 }
 
 /**
+ * WHAT THE NEXT ROUND NEEDS WHEN THE ORDER NUMBER IS NOT CREATION ORDER.
+ *
+ * 2026-10-22: invoices sorted by VISUAL_ID descending came back with the first
+ * row dated 2025-07-21 and the last 2026-09-15, so the order number is not a
+ * proxy for creation date here (or the sort is not numeric). Rather than
+ * guess again, the error carries the evidence: every row's date in the order
+ * Printavo returned them, the fields an Invoice really has, and the types of
+ * the `inProduction*` filters (a window on production is arguably the better
+ * definition of "on the press this week" anyway). Names, dates and type names
+ * only; best effort, and a failure here never hides the original error.
+ */
+export async function describeOrderingFailure(
+  nodes: AnyRecord[],
+  request: <R>(query: string, variables?: AnyRecord) => Promise<R> = printavoRequest
+): Promise<string> {
+  const days = nodes.map((node) => {
+    const at = typeof node?.createdAt === "string" ? Date.parse(node.createdAt) : NaN;
+    return Number.isNaN(at) ? "?" : new Date(at).toISOString().slice(0, 10);
+  });
+
+  const parts = [`Row dates in the order returned: ${days.join(" ")}.`];
+
+  try {
+    const typeData = await request<AnyRecord>(
+      `query GorillaInvoiceFields($name: String!) { __type(name: $name) { fields { name } } }`,
+      { name: "Invoice" }
+    );
+    const fields = (((typeData.__type as AnyRecord)?.fields as AnyRecord[]) || [])
+      .map((field) => str(field?.name))
+      .filter((name) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(name));
+
+    if (fields.length) parts.push(`Invoice fields: ${fields.join(", ")}.`);
+  } catch {
+    parts.push("Invoice fields could not be read.");
+  }
+
+  try {
+    const schema = await request<AnyRecord>(
+      `query GorillaInvoiceFilterTypes {
+         __schema { queryType { fields { name args { name type { name kind ofType { name kind } } } } } }
+       }`
+    );
+    const fields = (((schema.__schema as AnyRecord)?.queryType as AnyRecord)?.fields as AnyRecord[]) || [];
+    const invoices = fields.find((field) => field?.name === "invoices");
+    const filters = ((invoices?.args as AnyRecord[]) || [])
+      .filter((arg) => /^(inProduction|paymentStatus|query)/.test(str(arg?.name)))
+      .map((arg) => {
+        const type = (arg.type as AnyRecord) || {};
+        const inner = (type.ofType as AnyRecord) || {};
+        return `${str(arg.name)}: ${str(type.name) || str(inner.name) || str(type.kind)}`;
+      });
+
+    if (filters.length) parts.push(`Filter argument types: ${filters.join(", ")}.`);
+  } catch {
+    parts.push("Filter argument types could not be read.");
+  }
+
+  return parts.join(" ");
+}
+
+/**
  * THE NEWEST INVOICES, NEWEST FIRST, PAGED FORWARD UNTIL THE WINDOW IS COVERED.
  *
  * Printavo returns invoices oldest-first unless told otherwise (see
@@ -3339,7 +3400,7 @@ export async function fetchRecentInvoicesForPress(
       if (!Number.isNaN(head) && !Number.isNaN(tail) && head < tail) {
         return {
           orders: [],
-          error: `Printavo: sorting invoices by ${ordering.label} did not return newest-first (first row ${new Date(head).toISOString().slice(0, 10)}, last row ${new Date(tail).toISOString().slice(0, 10)})`,
+          error: `Printavo: sorting invoices by ${ordering.label} did not return newest-first (first row ${new Date(head).toISOString().slice(0, 10)}, last row ${new Date(tail).toISOString().slice(0, 10)}). ${await describeOrderingFailure(nodes, request)}`,
           pages,
           raw: data,
         };

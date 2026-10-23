@@ -79,6 +79,30 @@ function scripted(pages: Array<PageSpec | Error>, schema: Schema | Error = SCHEM
       };
     }
 
+    if (query.includes("GorillaInvoiceFields")) {
+      introspection.push("fields");
+      return { __type: { fields: [{ name: "id" }, { name: "createdAt" }, { name: "productionNote" }] } };
+    }
+
+    if (query.includes("GorillaInvoiceFilterTypes")) {
+      introspection.push("filters");
+      return {
+        __schema: {
+          queryType: {
+            fields: [
+              {
+                name: "invoices",
+                args: [
+                  { name: "inProductionAfter", type: { name: "ISO8601DateTime", kind: "SCALAR" } },
+                  { name: "first", type: { name: "Int", kind: "SCALAR" } },
+                ],
+              },
+            ],
+          },
+        },
+      };
+    }
+
     if (query.includes("GorillaSortEnum")) {
       introspection.push("enum");
       assert.equal(variables.name, "OrderSortField");
@@ -439,6 +463,49 @@ describe("when the live schema has no creation-date sort (21 October 2026)", () 
 
     assert.match(result.error ?? "", /did not return newest-first/);
     assert.deepEqual(result.orders, []);
+  });
+
+  test("the refusal carries the evidence the next round needs", async () => {
+    const { request } = scripted(
+      [{ nodes: [node(ago(400)), node("not a date"), node(ago(2))], hasNextPage: false, endCursor: null }],
+      LIVE
+    );
+
+    const result = await fetchRecentInvoicesForPress({}, { request, now: NOW });
+
+    assert.match(result.error ?? "", /Row dates in the order returned: 2025-09-15 \? 2026-10-18\./);
+    assert.match(result.error ?? "", /Invoice fields: id, createdAt, productionNote\./);
+    assert.match(result.error ?? "", /Filter argument types: inProductionAfter: ISO8601DateTime\./);
+  });
+
+  test("the evidence is only dates and names, never a customer", async () => {
+    const rows = [node(ago(400)), node(ago(2))].map((row) => ({
+      ...row,
+      customer: { fullName: "Jane Q. Customer", email: "jane@example.com" },
+    }));
+    const { request } = scripted([{ nodes: rows, hasNextPage: false, endCursor: null }], LIVE);
+
+    const result = await fetchRecentInvoicesForPress({}, { request, now: NOW });
+
+    assert.doesNotMatch(result.error ?? "", /Jane|jane@|Customer/);
+  });
+
+  test("a failing diagnostic never hides the refusal itself", async () => {
+    const base = scripted(
+      [{ nodes: [node(ago(400)), node(ago(2))], hasNextPage: false, endCursor: null }],
+      LIVE
+    );
+    const request = (async (query: string, variables?: Record<string, unknown>) => {
+      if (query.includes("GorillaInvoiceFields") || query.includes("GorillaInvoiceFilterTypes")) {
+        throw new Error("Printavo: HTTP 500");
+      }
+      return (base.request as never as (q: string, v?: unknown) => Promise<unknown>)(query, variables);
+    }) as never;
+
+    const result = await fetchRecentInvoicesForPress({}, { request, now: NOW });
+
+    assert.match(result.error ?? "", /did not return newest-first/);
+    assert.match(result.error ?? "", /Invoice fields could not be read/);
   });
 
   test("the proxy needs sortDescending to be reversible", async () => {

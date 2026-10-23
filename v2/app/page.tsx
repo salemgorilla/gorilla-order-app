@@ -123,6 +123,8 @@ import {
   getSignsDesignFieldErrors,
   getSignsValidationSummary,
   getApparelValidationSummary,
+  getPaperFieldErrors as getPaperFieldErrorsFor,
+  getPaperValidationSummary,
   getOrderValidationErrors,
   type FieldErrors,
   type ItemFieldErrors,
@@ -174,6 +176,16 @@ import DecalPreviewCard from "../features/decals/DecalPreviewCard";
 import ApparelBuilder from "../features/apparel/ApparelBuilder";
 import ApparelCartLines from "../features/apparel/ApparelCartLines";
 import ApparelRequestBuilder from "../features/apparel/ApparelRequestBuilder";
+import PaperRequestBuilder from "../features/paper/PaperRequestBuilder";
+import {
+  PAPER_PRODUCT_TYPE,
+  defaultPaperSpec,
+  describePaperSpec,
+  paperProductById,
+  paperSpecForProduct,
+  type PaperProductId,
+  type PaperSpec,
+} from "../lib/paper";
 import ApparelSummaryCard from "../features/apparel/ApparelSummaryCard";
 import SignsBuilder from "../features/signs/SignsBuilder";
 import SpecialOrderEscape from "../components/SpecialOrderEscape";
@@ -241,6 +253,8 @@ export default function Home() {
   const [stepScrollToken, setStepScrollToken] = useState(0);
   const [selectedProductId, setSelectedProductId] = useState("stickers");
   const [submittedProductId, setSubmittedProductId] = useState("stickers");
+  // Paper printing: a quote request with its own spec (lib/paper.ts).
+  const [paperSpec, setPaperSpec] = useState<PaperSpec>(() => defaultPaperSpec());
   /**
    * The newsletter box ships pre-ticked on the website — defensible when the
    * person ticking it owns the address. On a kiosk it is not: in staff mode
@@ -427,6 +441,10 @@ export default function Home() {
    * what tells them apart.
    */
   const isSignsSelected = selectedProductId === "signs" || isBannersSelected;
+  // Paper printing (4over). Neither apparel nor signs, and NOT stickers: every
+  // place below that falls through to the sticker branch has to name it.
+  const isPaperSelected = selectedProductId === "paper";
+  const isPaperSubmitted = submittedProductId === "paper";
 
   /**
    * The four product ids, narrowed for lib/analytics.ts.
@@ -443,6 +461,8 @@ export default function Home() {
       ? "banners"
       : selectedProductId === "signs"
       ? "signs"
+      : selectedProductId === "paper"
+      ? "paper"
       : "stickers";
   const signsFamily: SignFamily = isBannersSelected ? "banners" : "signs";
 
@@ -452,6 +472,7 @@ export default function Home() {
   const turnaroundLane = turnaroundLaneFor({
     isApparel: isApparelSelected,
     isSigns: isSignsSelected,
+    isPaper: isPaperSelected,
     signsFamily,
     // The shop's own terminal may promise today on fast-lane work: staff is
     // standing there to agree to it. Apparel and the signs pipeline keep
@@ -471,7 +492,7 @@ export default function Home() {
   const rushOfferNote = rushOffer(turnaroundLane, undefined, {
     // The apparel request flow prices nothing on screen, so its offer must
     // not promise an estimate that updates — see lib/rush.ts.
-    priced: !isApparelRequest,
+    priced: !isApparelRequest && !isPaperSelected,
   });
 
   const signsQuote = largeFormatQuotes[signsFamily];
@@ -864,6 +885,17 @@ export default function Home() {
       };
     }
 
+    if (isPaperSelected) {
+      const product = paperProductById(paperSpec.productId);
+
+      return {
+        label: `${paperSpec.quantity.toLocaleString()} × ${product?.label ?? "Paper"}`,
+        total: 0,
+        priceable: false,
+        detail: "Send it over and we'll price it",
+      };
+    }
+
     if (isApparelSelected) {
       /**
        * THE RUN, not the first garment.
@@ -936,6 +968,8 @@ export default function Home() {
   }, [
     isSignsSelected,
     isApparelSelected,
+    isPaperSelected,
+    paperSpec,
     // The noun in the cart label ("2 designs · 11 banners") reads this.
     signsFamily,
     signsQuote,
@@ -1630,7 +1664,7 @@ export default function Home() {
   }, []);
 
   async function handleArtworkUpload(file: File, itemId?: string) {
-    const isStickers = !isSignsSelected && !isApparelSelected;
+    const isStickers = !isSignsSelected && !isApparelSelected && !isPaperSelected;
     /** Which design this file belongs to. Signs are a cart too now. */
     const targetId =
       itemId ??
@@ -2061,7 +2095,15 @@ export default function Home() {
     );
   }
 
+  function getPaperFieldErrors(): FieldErrors {
+    return getPaperFieldErrorsFor(paperSpec, order);
+  }
+
   function getCurrentFieldErrors(): FieldErrors {
+    if (isPaperSelected) {
+      return getPaperFieldErrors();
+    }
+
     if (isApparelSelected) {
       return getApparelFieldErrors();
     }
@@ -2074,6 +2116,10 @@ export default function Home() {
   }
 
   function getCurrentValidationErrors() {
+    if (isPaperSelected) {
+      return getPaperValidationSummary(paperSpec, order);
+    }
+
     if (isApparelSelected) {
       return getApparelValidationErrors();
     }
@@ -2109,7 +2155,10 @@ export default function Home() {
       addOns: order.addOns,
       addOnsNote: order.addOnsNote,
       // Stickers only — the other flows carry null. Re-validated on submit.
-      discount: isSignsSelected || isApparelSelected ? null : order.discount ?? null,
+      discount:
+        isSignsSelected || isApparelSelected || isPaperSelected
+          ? null
+          : order.discount ?? null,
       /**
        * Present only on the shop's own terminal. The SERVER reads this to
        * decide that no payment link is generated — see app/api/quote/route.ts.
@@ -2134,6 +2183,37 @@ export default function Home() {
           specialOrder: signsQuote.specialOrder,
           specialOrderNotes: signsQuote.specialOrderNotes,
         }),
+      };
+    }
+
+    if (isPaperSelected) {
+      /**
+       * A QUOTE REQUEST, and nothing in it is a price.
+       *
+       * `product.type` is PAPER_PRODUCT_TYPE and carries no field the sticker,
+       * signs or apparel classifiers key on (lib/order-flow.ts), so this can
+       * never be repriced or billed as one of them. The `pricing` stub is what
+       * produces "NEEDS A HAND QUOTE" in the shop email and #NeedsPricing in
+       * Printavo; the server replaces it regardless (paperQuoteOrder).
+       */
+      return {
+        ...orderEnvelope,
+        product: {
+          type: PAPER_PRODUCT_TYPE,
+          paperProductId: paperSpec.productId,
+          size: paperSpec.size,
+          stock: paperSpec.stock,
+          quantity: paperSpec.quantity,
+          sides: paperSpec.sides,
+          finishing: paperSpec.finishing,
+          paperNotes: paperSpec.notes,
+        },
+        artwork: { fileName: order.artwork.file?.name ?? "" },
+        pricing: {
+          total: 0,
+          quoteRequired: true,
+          note: "Paper printing is priced by hand.",
+        },
       };
     }
 
@@ -2635,7 +2715,7 @@ export default function Home() {
       // in a moment" — advice that could never work, because the same file
       // failed identically every time. The quote goes through without the
       // attachment and the shop asks for the file directly.
-      const isStickerFlow = !isSignsSelected && !isApparelSelected;
+      const isStickerFlow = !isSignsSelected && !isApparelSelected && !isPaperSelected;
 
       /**
        * Every design that has a file, in cart order.
@@ -2799,7 +2879,7 @@ export default function Home() {
        * Rendered from the design's own preview, so each proof shows that
        * design's art at that design's size, shape and border.
        */
-      const isStickers = !isSignsSelected && !isApparelSelected;
+      const isStickers = !isSignsSelected && !isApparelSelected && !isPaperSelected;
       let proofsAttached = 0;
       let proofBytesUsed = 0;
       // Proofs take what artwork left behind. Going over the body limit does
@@ -3194,6 +3274,29 @@ ${notesSection}
 This is a quote request. Gorilla Salem will confirm pricing, timeline, and artwork readiness before production starts.`;
     }
 
+    if (isPaperSubmitted) {
+      return `GORILLA SALEM PAPER PRINTING QUOTE REQUEST
+
+Quote Number: ${quoteNumber}
+Submitted: ${submittedAt}
+
+${customerSection}
+
+PAPER DETAILS
+${describePaperSpec(paperSpec).join("\n")}
+
+${timelineSection}
+
+ESTIMATE
+Priced by hand. Gorilla Salem will reply with the price.${addOnsSection}${artworkGapSection}
+
+${artworkSection}
+
+${notesSection}
+
+This is a quote request, not an invoice. Gorilla Salem will confirm pricing, timeline, and artwork readiness before production starts.`;
+    }
+
     if (isApparelSubmitted) {
       return `GORILLA SALEM APPAREL QUOTE REQUEST
 
@@ -3401,6 +3504,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
     setOrder({ ...defaultOrder, items: [createStickerItem()] });
     setApparelQuoteState(defaultApparelQuote);
+    setPaperSpec(defaultPaperSpec());
     // A fresh design, for the same reason as the sticker item above: reusing
     // the one baked in at import time hands every reset quote the same design
     // id, and the preview map is keyed on it. That is how a new customer ends
@@ -3484,7 +3588,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     : {};
 
   const step = getStep(currentStepId);
-  const flowLabel = isApparelRequest
+  const flowLabel = isPaperSelected || isApparelRequest
     ? "Quoted by hand"
     : isApparelSelected
     ? "Manual quote"
@@ -3497,6 +3601,8 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       <QuoteConfirmationScreen
         quoteConfirmation={quoteConfirmation}
         order={order}
+        isPaperSubmitted={isPaperSubmitted}
+        paperSpec={paperSpec}
         isApparelSubmitted={isApparelSubmitted}
         isApparelRequest={apparelIsRequestFlow}
         apparelEstimateBasis={apparelEstimateBasis}
@@ -3529,7 +3635,34 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
   // than inline, because the review step needs the same two cards in a
   // different column and duplicating the three-way flow ternary is how the
   // two copies drift apart.
-  const previewCard = isSignsSelected ? (
+  const previewCard = isPaperSelected ? (
+    // No proof frame exists for paper: the print file is checked by hand. Show
+    // what was chosen and the file they sent, nothing drawn on their behalf.
+    <div className="border border-[var(--rule)] bg-[var(--paper)] p-6">
+      <p className="eyebrow">Your request</p>
+
+      <h3 className="mt-2 text-head font-bold tracking-display">
+        {paperSpec.quantity.toLocaleString()} ×{" "}
+        {paperProductById(paperSpec.productId)?.label ?? "Paper"}
+      </h3>
+
+      {artworkPreview ? (
+        // A blob: URL from the customer's own file, which next/image cannot
+        // optimise; the same reason the apparel request preview is a plain img.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={artworkPreview}
+          alt="Your uploaded artwork"
+          className="mt-5 max-h-64 w-full border border-[var(--rule)] bg-[var(--shirt-blank)] object-contain p-4"
+        />
+      ) : (
+        <p className="mt-5 border border-[var(--rule)] border-l-4 border-l-[var(--rule)] bg-[var(--shirt-blank)] p-4 text-fine font-medium text-[var(--ink-muted)]">
+          No artwork yet — that is fine. Send the request and we will sort the
+          file out together.
+        </p>
+      )}
+    </div>
+  ) : isSignsSelected ? (
     // One proof per design. Showing a single frame for a three-design quote
     // would be showing one of them and implying it was all of them.
     <div className="space-y-6">
@@ -3611,7 +3744,36 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     </div>
   );
 
-  const summaryCard = isSignsSelected ? (
+  const summaryCard = isPaperSelected ? (
+    <div className="border border-[var(--rule)] bg-[var(--paper)] p-6">
+      <p className="eyebrow">What we&rsquo;ll quote</p>
+
+      <dl className="mt-4 space-y-3 text-fine">
+        {describePaperSpec({ ...paperSpec, notes: "" }).map((entry) => {
+          const at = entry.indexOf(": ");
+
+          return (
+            <div
+              key={entry}
+              className="flex justify-between gap-4 border-b border-[var(--rule)] pb-3"
+            >
+              <dt className="font-medium text-[var(--ink-muted)]">
+                {entry.slice(0, at)}
+              </dt>
+              <dd className="text-right font-bold text-[var(--ink-black)]">
+                {entry.slice(at + 2)}
+              </dd>
+            </div>
+          );
+        })}
+
+        <div className="flex justify-between gap-4">
+          <dt className="font-medium text-[var(--ink-muted)]">Price</dt>
+          <dd className="font-bold text-[var(--ink-black)]">Quoted by hand</dd>
+        </div>
+      </dl>
+    </div>
+  ) : isSignsSelected ? (
     <SignsSummaryCard
       signsQuote={signsQuote}
       production={order.production}
@@ -3699,6 +3861,8 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
           ? "banners"
           : product.id === "signs"
           ? "signs"
+          : product.id === "paper"
+          ? "paper"
           : "stickers",
     });
 
@@ -3707,7 +3871,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     // "priced by hand": no online estimate, quoteRequired on the payload,
     // and — because that payload carries garmentType and supplier — never
     // classified as a sticker order, which is the only flow that self-bills.
-    if (product.status === "request") {
+    if (product.status === "request" && product.id === "apparel") {
       setApparelQuoteState((current) => ({ ...current, specialOrder: true }));
     }
 
@@ -3733,7 +3897,9 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
           className="mt-2 text-head font-bold tracking-display text-[var(--ink-black)]"
         >
           {currentStepId === "details"
-            ? isApparelRequest
+            ? isPaperSelected
+              ? "Choose your paper options"
+              : isApparelRequest
               ? "What do you need printed?"
               : isApparelSelected
               ? "Build your apparel quote"
@@ -3756,6 +3922,8 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               screen is how a form starts feeling broken. */}
           {currentStepId === "details" && isApparelRequest
             ? "Enough for us to price it by hand, and when you need it."
+            : currentStepId === "details" && isPaperSelected
+            ? "Product, stock and quantity, and when you need it. We price it by hand."
             : step.blurb}
         </p>
       </div>
@@ -3996,6 +4164,32 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   />
                 ))}
             </div>
+
+            {/* Paper printing: a third department (business cards, postcards,
+                menus — made through the shop's trade partner), so it gets its
+                own rule-label and its own grid like the segment above. */}
+            <div className="mt-8 flex items-center gap-4">
+              <p className="spec text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
+                Paper printing
+              </p>
+              <span
+                aria-hidden="true"
+                className="h-px flex-1 bg-[var(--rule)]"
+              />
+            </div>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              {productCategories
+                .filter((product) => product.segment === "paper")
+                .map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    isSelected={selectedProductId === product.id}
+                    onSelect={selectProduct}
+                  />
+                ))}
+            </div>
           </div>
 
           {/* The "not sure what to choose" reassurance also sits beside the
@@ -4130,6 +4324,17 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     }
                   />
                 </>
+              ) : isPaperSelected ? (
+                <PaperRequestBuilder
+                  spec={paperSpec}
+                  fieldErrors={fieldErrors}
+                  onSelectProduct={(productId: PaperProductId) =>
+                    setPaperSpec((current) => paperSpecForProduct(current, productId))
+                  }
+                  onUpdate={(updates) =>
+                    setPaperSpec((current) => ({ ...current, ...updates }))
+                  }
+                />
               ) : isApparelRequest ? (
                 // The full ApparelBuilder is deliberately not rendered. See
                 // ApparelRequestBuilder — its pricing is not signed off, and
@@ -4444,6 +4649,18 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     <ArtworkHandoff onFileReceived={handleArtworkUpload} />
                   )}
                 </>
+              ) : isPaperSelected ? (
+                // Paper is single-file, like apparel: the order-level slot.
+                // Artwork is OPTIONAL on a quote request (see
+                // getPaperFieldErrors), so there is no error prop and the
+                // kiosk phone hand-off is not offered here.
+                <UploadBox
+                  onFileSelected={handleArtworkUpload}
+                  fileName={order.artwork.file?.name || null}
+                  fileSizeBytes={order.artwork.file?.size ?? null}
+                  directUploadEnabled={directUploadEnabled}
+                  previewUrl={artworkPreview}
+                />
               ) : (
                 // One box per design, and the file is bound to its design by
                 // closure. Deliberately NOT one multi-file input: `multiple`
@@ -4597,7 +4814,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             {/* Stickers only: the one flow with a price the code can come
                 off. Signs and apparel are quoted by hand, and a code the
                 shop applies by hand needs no box. */}
-            {!isApparelSelected && !isSignsSelected && (
+            {!isApparelSelected && !isSignsSelected && !isPaperSelected && (
               <DiscountCodeCard
                 applied={order.discount ?? null}
                 saving={order.pricing.discountPrice ?? 0}
@@ -4607,6 +4824,9 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             )}
 
             <QuoteReviewCard
+              isPaperSelected={isPaperSelected}
+              paperSpec={paperSpec}
+              paperArtworkName={order.artwork.file?.name ?? null}
               isApparelSelected={isApparelSelected}
               isApparelRequest={isApparelRequest}
               isSignsSelected={isSignsSelected}
@@ -4625,7 +4845,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
             />
 
 
-            {isApparelSelected || isSignsSelected ? (
+            {isApparelSelected || isSignsSelected || isPaperSelected ? (
               <div className=" border border-[var(--rule)] bg-white p-6">
                 <p className="eyebrow">
                   Required Info
@@ -4635,6 +4855,8 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   <p className="mt-4 bg-[var(--surface-ok)] p-4 text-fine font-bold text-[var(--gorilla-green)]">
                     {isSignsSelected
                       ? "Signs quote is ready to submit."
+                      : isPaperSelected
+                      ? "Paper quote is ready to submit."
                       : "Apparel quote is ready to submit."}
                   </p>
                 ) : (

@@ -47,7 +47,7 @@
 
 import { track } from "@vercel/analytics";
 
-export type AnalyticsFlow = "stickers" | "signs" | "banners" | "apparel";
+export type AnalyticsFlow = "stickers" | "signs" | "banners" | "apparel" | "paper";
 
 /** Coarse enough to be safe, fine enough to be worth counting. */
 export type EstimateBand =

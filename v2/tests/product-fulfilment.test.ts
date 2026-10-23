@@ -91,6 +91,23 @@ function orderFor(id: string) {
   if (id === "signs") return signsPayload("yard-sign");
   if (id === "banners") return signsPayload("vinyl-banner");
 
+  if (id === "paper") {
+    return {
+      customer,
+      production,
+      product: {
+        type: "Paper Printing",
+        paperProductId: "business-cards",
+        size: '3.5" x 2"',
+        stock: "14pt Matte",
+        quantity: 500,
+        sides: "Double-sided",
+        finishing: [],
+      },
+      pricing: { total: 0, quoteRequired: true },
+    };
+  }
+
   return {
     customer,
     production,
@@ -152,7 +169,10 @@ describe("every card says what happens after submit", () => {
     // fulfilment string, or the auto-bill ceiling set to 0), and a model with
     // no name is one nobody remembers to check.
     assert.equal(payOnline.length, 3);
-    assert.equal(handQuote.length, 0);
+    // Paper printing (2026-10-23): the hand-quote model has a card again. It
+    // is a quote request until 4over costs and a markup exist.
+    assert.equal(handQuote.length, 1);
+    assert.deepEqual(handQuote.map((p) => p.id), ["paper"]);
     assert.equal(estimated.length, 1);
     assert.equal(invoiced.length, 0);
     assert.equal(

@@ -37,6 +37,9 @@ PRINTAVO_TOKEN set. It reads only. Never pay a test quote; void it after.
 | _(none yet)_ | | all flows | #192 | **owed** — flagged by `npm run reconcile:debt`, not by memory. I argued in the PR that #192 moves no billed figure (no rate, no arithmetic, `lib/pricing.ts` and `tests/price-sheet.test.ts` byte-identical) and the script disagreed, because it touched `auto-bill.ts` and `sticker-repricing.ts`. The script wins: that judgement call is exactly what drifted this table thirty commits. Expected to be a no-op — **the check is that one ordinary sticker order and one ordinary banner still bill EXACTLY what they billed before** |
 | _(none yet)_ | | all flows | #186 #187 #196 | **owed** — rows the debt script SHOULD have produced and did not. #186 moved money by classification alone (its printavo.ts diff is `includes("sticker")` / `return false`, no keyword) and a `contentTest` dropped it; #187 touches `app/api/quote/route.ts` and `features/QuoteConfirmation.tsx`, and every rule was anchored `^lib/`. Both found by adversarial review, both now flagged, both still owed. #196 is the apparel auto-bill fix and the `chargeableTotal` consolidation that came out of the same review |
 | _(none yet)_ | | all flows | #198 #199 #200 | **owed** — flagged by `npm run reconcile:debt`. #199 put an idempotency key on `/api/quote`: the quote number is now DERIVED from the browser's key, and a retry returns the existing order instead of creating one. No rate moved and no arithmetic changed — what changed is whether a second order exists at all. **The check is a retry, not a price**: submit once, submit again from the same tab, confirm Printavo holds exactly ONE order and its total still matches the screen to the cent |
+| _(none yet)_ | | stickers | #206 | **owed** — flagged by `npm run reconcile:debt` (2026-10-23). #206 touched `lib/pricing.ts` and `app/api/quote/route.ts`; the line-item naming it added changes what the Printavo invoice rows are CALLED, not what they cost. **The check is one ordinary sticker order: invoice lines named after the artwork, total unchanged to the cent** |
+| _(none yet)_ | | signs | #206 | **owed** — flagged by `npm run reconcile:debt` (2026-10-23). #206 touched `lib/signs-cart.ts`. One ordinary banner or yard sign, total unchanged to the cent |
+| _(none yet)_ | | all flows | #206 #207 #209 #210 #212 #213 | **owed** — flagged by `npm run reconcile:debt` (2026-10-23). These touched `lib/printavo.ts` and `app/api/quote/route.ts` for the press line, the newsletter store and the shop email, not for any rate. **Expected to be a no-op: one ordinary sticker order must still bill EXACTLY what it billed before** |
 
 **The three rows above were computed, not remembered** — 2026-09-25. The
 independent audit found this table's newest row covering #158 while `main`
@@ -70,6 +73,52 @@ the payload, the per-line `taxed` flags and Printavo's arithmetic all agree,
 to the cent. Nothing in #149 touched any of that. It did not prove the RATE
 — that is a business figure, and #149 changed it, so the row above it is
 owed and the merge rule points at the next sticker order.
+
+## Paper printing, 2026-10-23: a quote-request flow, switched off for prices
+
+**Gabe, 2026-10-23: "Can we add paper printing options to the app?"** Then,
+when asked: paper is printed through his **4over** trade-partner account
+(business cards, rack cards, postcards, "etc."); the customer flow should be
+**instant price, pay online**; prices **4over cost + his markup**; products
+business cards, rack cards, postcards, trifold brochures, letterhead, menus.
+
+**What shipped (a quote request, deliberately):** the full flow (card, builder,
+review, confirmation, shop email, Printavo quote) with NO price and NO payment
+link. It was built that way because the instant-price half cannot be built
+honestly yet: this repo has no 4over credentials and has never seen a 4over
+price, and a guessed cost on a flow that bills with nobody looking is exactly
+what AGENTS.md exists to prevent. The shop email says `NEED TO QUOTE`; Printavo
+gets `#Paper` + `#NeedsPricing` and one $0 line under `GORILLA-PAPER-<PRODUCT>`.
+
+**Where things are:** `lib/paper.ts` (the catalogue: products, sizes, stocks,
+quantity breaks, NO prices), `lib/paper-pricing-config.ts` (4over cost table,
+markup, `pricesConfirmed = false`, all empty), `lib/paper-pricing.ts`
+(cost + markup engine; every missing number is a refusal, never a $0 or a sale
+at cost), `features/paper/PaperRequestBuilder.tsx`. `lib/order-flow.ts` gained
+`isPaperProduct` (shape only, loses every tie to stickers/apparel/signs) and
+deliberately NO authority predicate. The route replaces a paper order's
+`pricing` wholesale (`paperQuoteOrder`) and refuses a payment link for paper
+(`!isPaper`), so a tampered `pricing.total` cannot reach an invoice line.
+
+**What turns instant pricing on (not done, needs Gabe):**
+1. 4over trade costs per product/size/stock/sides/quantity: an export, or API
+   credentials plus their docs (a public + private key pair issued by 4over's
+   API department; never in chat, Vercel env vars only). Enter them in
+   `paperCostTable`, keyed by `paperCostKey()`.
+2. His markup (one number, or per product) in `paperMarkup`.
+3. A paper auto-bill decision, modelled on `decideSignsAutoBill`, a server
+   reprice for paper, and the ceiling/deposit rules. Shipping from 4over to
+   the shop or the customer needs a decision too.
+4. A real test order **reconciled to the cent** against the Printavo invoice,
+   recorded in `## Reconciled`. Then `pricesConfirmed = true` and the card's
+   fulfilment line becomes "Instant price · pay online" in the same change.
+
+**Guesses worth Gabe's correction:** the stock/size/quantity menu in
+`lib/paper.ts` is the customer-facing catalogue as I understood it, NOT mapped
+to 4over product codes. Paper rides the **slow turnaround lane** (14 business
+days) until Gabe gives a real number. The paid-in-full → "Lab Order Placed"
+Printavo automation is "all but apparel", so once paper bills it WOULD sweep
+paid paper orders into the lab workflow; revisit then.
 
 ## Newsletter sign-ups go in a Google Doc, 2026-10-20 — built, NOT yet connected or proven
 

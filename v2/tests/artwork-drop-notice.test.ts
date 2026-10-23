@@ -180,6 +180,7 @@ describe("the silence is wired shut end to end", () => {
   test("the customer's own copied record carries the gap, in every flow", () => {
     assert.match(page, /STILL NEEDED — YOUR ARTWORK/);
     const uses = page.match(/\$\{artworkGapSection\}/g) ?? [];
-    assert.equal(uses.length, 3, "a flow's copy text dropped the artwork gap");
+    // Four since paper printing (2026-10-23): stickers, signs, apparel, paper.
+    assert.equal(uses.length, 4, "a flow's copy text dropped the artwork gap");
   });
 });

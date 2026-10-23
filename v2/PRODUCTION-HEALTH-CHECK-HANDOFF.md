@@ -15,7 +15,7 @@ Written 2026-09-26 against `main` @ `b0c8a26`. Recording rules and §7's
 ## 1. What this app is, in one paragraph
 
 A customer-facing quote builder at **https://labs.gorillasalem.com** (Vercel,
-production branch `main`, root directory `v2`). It has four flows:
+production branch `main`, root directory `v2`). It has five flows:
 
 | Flow | Priced online? | Bills automatically? |
 |---|---|---|
@@ -23,8 +23,9 @@ production branch `main`, root directory `v2`). It has four flows:
 | **Signs** (yard, rigid, poster, window) | yes | **YES** |
 | **Banners** (vinyl) | yes | **YES** |
 | **Apparel** (garments) | estimate only | **NO — must never get a payment link** |
+| **Paper printing** (business cards, rack cards, postcards, brochures, letterhead, menus; made through the shop's 4over account) | **no — hand quote** | **NO — must never get a payment link** |
 
-**Three of the four flows take money with nobody in the loop.** A submitted
+**Three of the five flows take money with nobody in the loop.** A submitted
 sticker/signs/banner quote emails the shop and creates a Printavo payment
 request the customer can pay immediately. Nothing between the browser and
 someone's card is reviewed by a person. That is why a health check exists and
@@ -33,6 +34,17 @@ why its bar is "to the cent", not "looks about right".
 Apparel is an estimate priced off a supplier catalogue that can go stale, so
 the shop confirms it by hand. **If a run ever sees a payment link on an
 apparel order, that is a P0 — stop and report it.**
+
+Paper printing (added 2026-10-23) is the same: a quote request with NO price
+and NO payment link. Gabe chose "instant price, pay online" for it, built from
+4over cost plus his markup, but no 4over cost has ever been entered
+(`lib/paper-pricing-config.ts` is empty and `pricesConfirmed` is false), so
+until that changes **a payment link on a paper order is a P0 too**. What a run
+should see: shop email subject `NEED TO QUOTE`, a `PAPER DETAILS` section,
+`Estimated Total: NEEDS A HAND QUOTE`, Printavo tags `#Paper` and
+`#NeedsPricing`, one line at $0 under `GORILLA-PAPER-<PRODUCT>`, and
+`flow=paper` on the `QUOTE_SUBMITTED` line. Place a paper order only if a run
+has time left over, and void it like any other test quote.
 
 Money rules that apply everywhere:
 - **MA sales tax 6.25%**, charged on **goods only**. Setup fees, rush fees

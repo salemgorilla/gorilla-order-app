@@ -60,8 +60,8 @@ function typeText(product: AnyRecord): string {
   return str(product.type).toLowerCase();
 }
 
-/** The four shapes an order can be presented as. */
-export type OrderFlow = "apparel" | "signs" | "stickers";
+/** The shapes an order can be presented as. */
+export type OrderFlow = "apparel" | "signs" | "paper" | "stickers";
 
 /**
  * Does the type string claim stickers?
@@ -102,9 +102,32 @@ export function isSignsProduct(product: AnyRecord): boolean {
 }
 
 /**
+ * SHAPE. Paper printing (business cards, postcards, menus...), printed
+ * through the shop's 4over account.
+ *
+ * Positive on the type string and nothing else, and it LOSES to every other
+ * shape on purpose: a payload that also names stickers, apparel or signs is
+ * presented as that, exactly as the sticker gate would treat it. A paper order
+ * can never be the one these predicates disagree about, which is the #186
+ * defect (shaped as one flow, billed as another).
+ *
+ * There is NO authority predicate for paper. A paper order raises no payment
+ * link: it is a quote request until a paper auto-bill decision exists, and
+ * that needs a real 4over cost table and a reconciled test order. See
+ * lib/paper-pricing.ts.
+ */
+export function isPaperProduct(product: AnyRecord): boolean {
+  if (namesStickers(product)) return false;
+  if (isApparelProduct(product)) return false;
+  if (isSignsProduct(product)) return false;
+
+  return typeText(product).includes("paper printing");
+}
+
+/**
  * SHAPE. The single answer — which pipeline this order is presented as.
  *
- * Total: every order gets one of the three, and stickers are the
+ * Total: every order gets one of the four, and stickers are the
  * fallthrough exactly as the invoice and email builders have always treated
  * them. Being the fallthrough is safe HERE and would not be safe for
  * billing, which is what isStickerFlow below exists to keep separate.
@@ -114,6 +137,7 @@ export function classifyOrderFlow(order: AnyRecord): OrderFlow {
 
   if (isApparelProduct(product)) return "apparel";
   if (isSignsProduct(product)) return "signs";
+  if (isPaperProduct(product)) return "paper";
   return "stickers";
 }
 

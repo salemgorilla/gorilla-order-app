@@ -3425,7 +3425,7 @@ ESTIMATE
 Stickers: $${order.pricing.stickerPrice.toFixed(2)}
 Setup: $${order.pricing.setupPrice.toFixed(2)}${
       order.items.length > 1
-        ? ` ($25 first design + $12.50 x ${order.items.length - 1})`
+        ? ` ($${STICKER_SETUP_FEE} first design + $${STICKER_SETUP_FEE_ADDITIONAL.toFixed(2)} x ${order.items.length - 1})`
         : ""
     }
 Shipping: ${

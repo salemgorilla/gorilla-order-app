@@ -73,7 +73,8 @@ describe("the add-ons the customer ticked reach their own record", () => {
 
   test("every flow's branch includes it", () => {
     const uses = summary.match(/\$\{addOnsSection\}/g) ?? [];
-    assert.equal(uses.length, 3, "a flow's copy text dropped its add-ons");
+    // Four since paper printing (2026-10-23): stickers, signs, apparel, paper.
+    assert.equal(uses.length, 4, "a flow's copy text dropped its add-ons");
   });
 });
 

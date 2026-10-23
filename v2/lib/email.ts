@@ -28,7 +28,8 @@ import type { RepricingNote } from "./repricing-note";
 // lives alone so the form can use it without importing this file.
 export { looksLikeEmailAddress } from "./email-address";
 import { looksLikeEmailAddress } from "./email-address";
-import { isApparelProduct, isSignsProduct } from "./order-flow";
+import { isApparelProduct, isPaperProduct, isSignsProduct } from "./order-flow";
+import { describePaperSpec, paperProductById, paperSpecFromProduct } from "./paper";
 
 export type QuoteEmailResult = {
   sent: boolean;
@@ -295,6 +296,9 @@ export function buildQuoteEmail(input: {
   const addOnsNote = str(order.addOnsNote);
   const apparel = isApparel(product);
   const signs = isSigns(product);
+  // Paper printing (4over): never priced online, always a hand quote.
+  const paper = isPaperProduct(product);
+  const paperSpec = paper ? paperSpecFromProduct(product) : null;
   /**
    * The sticker cart. `product` above is a SYNTHESIS — design 1's spec carrying
    * the combined quantity — kept so the payload still classifies as stickers
@@ -326,7 +330,9 @@ export function buildQuoteEmail(input: {
     : Number(pricing.stickerPrice) || total;
   const each = quantity > 0 ? baseForEach / quantity : 0;
 
-  const productLabel = apparel
+  const productLabel = paper
+    ? paperProductById(paperSpec?.productId)?.label ?? "Paper Printing"
+    : apparel
     ? str(
         (product.supplier as AnyRecord)?.productName ||
           product.garmentType ||
@@ -342,7 +348,7 @@ export function buildQuoteEmail(input: {
   // ESTIMATE section — an unpriced add-on must never hide a total the app
   // actually computed for the main job.
   const primaryNeedsHandQuote =
-    Boolean(product.specialOrder) || Boolean(pricing.quoteRequired);
+    paper || Boolean(product.specialOrder) || Boolean(pricing.quoteRequired);
 
   // Whether ANY part of this quote needs hand pricing. Subject line only:
   // it is the shop's inbox triage signal, so a priced sticker order carrying
@@ -411,6 +417,21 @@ export function buildQuoteEmail(input: {
       // Gabe's call, 31 Aug: ordering details live only in the Printavo
       // internal note, which no customer can ever see. The figure is not
       // lost — the note carries style, SKU, sample size and blank cost.
+    );
+  } else if (paper) {
+    // The same lines the Printavo description carries, one label per row, so
+    // the shop reads the spec identically in both places.
+    productLines.push(
+      line("Type", "Paper Printing"),
+      ...(paperSpec
+        ? describePaperSpec(paperSpec)
+            .filter((entry) => !entry.startsWith("Notes: "))
+            .map((entry) => {
+              const at = entry.indexOf(": ");
+              return line(entry.slice(0, at), entry.slice(at + 2));
+            })
+        : [line("Product", "Not understood — see the customer's notes")]),
+      ...(paperSpec?.notes.trim() ? [line("Print notes", paperSpec.notes.trim())] : [])
     );
   } else if (signs && signsDesigns.length > 1) {
     /**
@@ -541,7 +562,12 @@ export function buildQuoteEmail(input: {
       ? [line("Shipping", "Quoted separately")]
       : [];
 
-  const estimateLines: string[] = primaryNeedsHandQuote && !signs
+  const estimateLines: string[] = paper
+    ? [
+        line("Estimated Total", "NEEDS A HAND QUOTE"),
+        line("Why", "Paper printing is priced by hand (4over). No payment link was sent."),
+      ]
+    : primaryNeedsHandQuote && !signs
     ? [
         line("Estimated Total", "NEEDS A HAND QUOTE"),
         line("Why", str(pricing.note, "Special order — outside the online menu.")),
@@ -944,7 +970,13 @@ export function buildQuoteEmail(input: {
       newsletterNote: input.newsletterNote,
     }),
     ``,
-    apparel ? `APPAREL DETAILS` : signs ? `SIGNS DETAILS` : `STICKER DETAILS`,
+    apparel
+      ? `APPAREL DETAILS`
+      : paper
+      ? `PAPER DETAILS`
+      : signs
+      ? `SIGNS DETAILS`
+      : `STICKER DETAILS`,
     ...productLines,
     ``,
     `ESTIMATE`,
@@ -979,6 +1011,8 @@ export function buildQuoteEmail(input: {
     paymentNote: input.paymentNote,
     detailsLabel: apparel
       ? "Apparel Details"
+      : paper
+      ? "Paper Details"
       : signs
       ? "Signs Details"
       : "Sticker Details",

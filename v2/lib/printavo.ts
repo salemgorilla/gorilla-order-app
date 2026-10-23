@@ -14,13 +14,15 @@ import { getTrackUrl } from "./order-status";
 import {
   SKU,
   apparelLineSku,
+  paperSku,
   apparelSku,
   decalSku,
   signFeeSku,
   signSku,
 } from "./sku";
 import { STICKER_ORDER_MINIMUM } from "./pricing";
-import { isApparelProduct, isSignsProduct } from "./order-flow";
+import { isApparelProduct, isPaperProduct, isSignsProduct } from "./order-flow";
+import { describePaperSpec, paperProductById, paperSpecFromProduct } from "./paper";
 import { WINDOW_DAYS } from "./press-activity";
 import {
   lineItemTitle,
@@ -965,6 +967,8 @@ export function buildPrintavoQuotePlan(input: {
     : []) as AnyRecord[];
   const addOnsNote = str(order.addOnsNote);
   const apparel = isApparel(product);
+  // Paper printing (4over). A third flow with no price: see lib/paper-pricing.ts.
+  const paper = isPaperProduct(product);
 
   // asciiSafe() runs over the whole note before sending, so no transliteration
   // is needed here — but keep labels plain anyway (see lib/addons.ts).
@@ -986,7 +990,10 @@ export function buildPrintavoQuotePlan(input: {
 
   const quantity = Math.max(1, num(product.quantity, 1));
   const total = num(pricing.total);
-  const shippingPrice = num(pricing.shippingPrice);
+  // Paper is never priced here: the browser's numbers are not trusted, and the
+  // shop quotes it by hand. The route also rewrites `pricing` for paper; this
+  // is the second wall.
+  const shippingPrice = paper ? 0 : num(pricing.shippingPrice);
 
   // " — net of code DIME" on the fee rows a percent code changed.
   const discountSuffix =
@@ -1115,7 +1122,9 @@ export function buildPrintavoQuotePlan(input: {
 
   // The decal unit price excludes shipping — shipping becomes its own line
   // item so the Printavo total matches the website total.
-  const itemsSubtotal = apparel
+  const itemsSubtotal = paper
+    ? 0
+    : apparel
     ? // Garments only. Printing and screens are their own lines below, so
       // folding them in here would bill them twice.
       num(pricing.garmentTotal, total)
@@ -1236,7 +1245,7 @@ export function buildPrintavoQuotePlan(input: {
       : [];
 
   const stickerItems =
-    !apparel && !signs && Array.isArray(order.items)
+    !apparel && !signs && !paper && Array.isArray(order.items)
       ? (order.items as AnyRecord[])
       : [];
 
@@ -1249,7 +1258,7 @@ export function buildPrintavoQuotePlan(input: {
   // description — an unpriced add-on must never make a priced sign read as
   // "quoted by hand". `needsHandPricing` is the whole-quote triage signal and
   // only drives the #NeedsPricing tag.
-  const productNeedsHandPricing = Boolean(pricing.quoteRequired);
+  const productNeedsHandPricing = paper || Boolean(pricing.quoteRequired);
   const needsHandPricing =
     productNeedsHandPricing || addOns.some((a) => Boolean(a.quoteRequired));
   const isSpecialOrder = Boolean(product.specialOrder);
@@ -1276,10 +1285,15 @@ export function buildPrintavoQuotePlan(input: {
    */
   const nicknamePrefix = kiosk ? "IN STORE" : "WEB QUOTE";
 
+  const paperSpec = paper ? paperSpecFromProduct(product) : null;
+  const paperLabel = paperProductById(paperSpec?.productId)?.label ?? "Paper Printing";
+
   const nickname = apparel
     ? `${nicknamePrefix} ${quoteNumber} - ${quantity} ${garmentLabel}${
         isSpecialOrder ? " (SPECIAL ORDER - NEEDS QUOTE)" : ""
       }`
+    : paper
+    ? `${nicknamePrefix} ${quoteNumber} - ${quantity} ${paperLabel} (NEEDS PRICING)`
     : signs
     ? // A cart says "11 Signs / 2 designs", never "11 Vinyl Banner" — which
       // is design 1's product wearing the whole order's count, and reads in
@@ -1366,7 +1380,12 @@ export function buildPrintavoQuotePlan(input: {
     ].join("\n");
   };
 
-  const description = signsCart
+  const description = paper
+    ? [
+        ...(paperSpec ? describePaperSpec(paperSpec) : [`${quantity}x ${paperLabel}`]),
+        "PRICING NEEDED — paper is quoted by hand.",
+      ].join("\n")
+    : signsCart
     ? /**
        * A cart. The note has to say what the run actually IS.
        *
@@ -1520,6 +1539,8 @@ export function buildPrintavoQuotePlan(input: {
     "",
     apparel
       ? "APPAREL"
+      : paper
+      ? "PAPER PRINTING"
       : signs
       ? signsFamily === "banners"
         ? "BANNERS"
@@ -1671,7 +1692,7 @@ export function buildPrintavoQuotePlan(input: {
    * signs lines that are goods rather than fees — so it is derived once.
    */
   const salesTaxRate = isTaxableFlow(
-    apparel ? "apparel" : signs ? "signs" : "stickers"
+    apparel ? "apparel" : signs ? "signs" : paper ? "paper" : "stickers"
   )
     ? SALES_TAX.ratePercent
     : null;
@@ -1700,7 +1721,7 @@ export function buildPrintavoQuotePlan(input: {
        * the middle. Same flow test the line items and the note already use,
        * so the tag cannot disagree with the invoice it is on.
        */
-      apparel ? "#Apparel" : signs ? "#Signs" : "#Stickers",
+      apparel ? "#Apparel" : signs ? "#Signs" : paper ? "#Paper" : "#Stickers",
       // Two different jobs to work, so two different tags to filter on.
       ...(kiosk ? ["#InStore", "#PayAtCounter"] : ["#WebQuote"]),
       "#Unconfirmed",
@@ -1875,6 +1896,8 @@ export function buildPrintavoQuotePlan(input: {
                 ? signSku(str(product.signType, "NA"))
                 : apparel
                 ? apparelSku(str(supplier.catalogStyle, ""))
+                : paper
+                ? paperSku(paperSpec?.productId)
                 : decalSku(0, 1),
               price: unitPrice,
               quantity,
@@ -1966,7 +1989,7 @@ export function buildPrintavoQuotePlan(input: {
        * allow it, and "how much rush did we sell this quarter" has to have
        * an answer. Same reason setup is its own row.
        */
-      ...(num(pricing.rushFee) > 0
+      ...(!paper && num(pricing.rushFee) > 0
         ? [
             {
               description: `Rush scheduling - in hand by ${str(
@@ -1994,7 +2017,7 @@ export function buildPrintavoQuotePlan(input: {
        * quote's amountOutstanding with no human in the loop, so that shortfall
        * was money the shop simply did not collect.
        */
-      ...(!apparel && !signs && num(pricing.setupPrice) > 0
+      ...(!apparel && !signs && !paper && num(pricing.setupPrice) > 0
         ? [
             {
               description:
@@ -2026,7 +2049,7 @@ export function buildPrintavoQuotePlan(input: {
        * getStickerTotals already leaves it out of the taxable base, so the
        * estimate and this invoice agree to the cent.
        */
-      ...(!apparel && !signs && num(pricing.minimumPrice) > 0
+      ...(!apparel && !signs && !paper && num(pricing.minimumPrice) > 0
         ? [
             {
               description: `Minimum order ($${STICKER_ORDER_MINIMUM} for stickers)${discountSuffix}`,

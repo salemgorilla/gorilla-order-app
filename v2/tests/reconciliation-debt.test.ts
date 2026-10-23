@@ -54,7 +54,9 @@ test("a named flow file beats the generic *pricing* catch-all", () => {
   // reconcile its own order.
   assert.equal(flowForPath("lib/signs-pricing.ts"), "signs");
   assert.equal(flowForPath("lib/apparel-pricing.ts"), "apparel");
-  assert.equal(flowForPath("lib/paper-pricing-config.ts"), "signs");
+  assert.equal(flowForPath("lib/paper-pricing-config.ts"), "paper");
+  assert.equal(flowForPath("lib/paper-pricing.ts"), "paper");
+  assert.equal(flowForPath("lib/paper.ts"), "paper");
 });
 
 test("PR numbers come off a squash-merge subject, and only off the end", () => {

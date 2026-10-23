@@ -26,6 +26,12 @@ import {
   shopPaymentNote,
 } from "../../../lib/auto-bill";
 import { getEmailError } from "../../../lib/validation";
+import { isPaperProduct } from "../../../lib/order-flow";
+import {
+  paperQuoteOrder,
+  paperSpecFromProduct,
+  validatePaperSpec,
+} from "../../../lib/paper";
 import { describeSubmission } from "../../../lib/submission-log";
 import { earliestNeedBy, turnaroundLaneFor } from "../../../lib/turnaround";
 import {
@@ -365,6 +371,32 @@ export async function POST(request: Request) {
     }
 
     /**
+     * A PAPER ORDER MUST NAME SOMETHING THE CATALOGUE SELLS.
+     *
+     * Paper is a quote request: no price is computed and no payment link is
+     * raised, so a bad spec costs no money. It would still land in front of a
+     * person who has to read it, and "stock: asdf, quantity: 3" is a quote
+     * nobody can act on. Same check the form runs, refused here for the
+     * callers that never saw the form.
+     */
+    const submittedProduct =
+      ((order as Record<string, unknown>).product as Record<string, unknown> | undefined) ?? {};
+
+    if (isPaperProduct(submittedProduct)) {
+      const spec = paperSpecFromProduct(submittedProduct);
+      const problems = spec
+        ? Object.values(validatePaperSpec(spec))
+        : ["Choose what you would like printed."];
+
+      if (problems.length > 0) {
+        return NextResponse.json(
+          { success: false, message: String(problems[0]) },
+          { status: 400 }
+        );
+      }
+    }
+
+    /**
      * ONE SUBMIT, ONE ORDER.
      *
      * The quote number was `Math.random()` on every request, so a RETRIED
@@ -456,7 +488,16 @@ export async function POST(request: Request) {
     // lib/pricing.ts is pure and runs anywhere, so the same function the
     // customer was quoted from is the one that charges them. The browser's
     // number is kept only to log a disagreement.
-    const priced = repriceStickers(order);
+    const stickerPriced = repriceStickers(order);
+
+    // Paper has no server price: its pricing is replaced wholesale HERE, ahead
+    // of every later step, so a figure from the browser can never reach the
+    // record, the shop email or Printavo. (Stickers and signs pass through.)
+    const priced = isPaperProduct(
+      ((stickerPriced.order as Record<string, unknown>).product as Record<string, unknown>) ?? {}
+    )
+      ? { ...stickerPriced, order: paperQuoteOrder(stickerPriced.order as Record<string, unknown>) }
+      : stickerPriced;
 
     /**
      * Signs and banners get the same treatment, one line later. They never
@@ -902,6 +943,11 @@ export async function POST(request: Request) {
     });
 
     const isStickers = isStickerOrder(pricedOrder);
+    // Paper never bills. This is the second wall behind isPaperProduct having no
+    // authority predicate: even if a decision above were wrong, no link is raised.
+    const isPaper = isPaperProduct(
+      ((pricedOrder.product as Record<string, unknown>) ?? {})
+    );
 
     const stickersAutoBill = decideStickersAutoBill({
       order: pricedOrder,
@@ -1143,7 +1189,11 @@ export async function POST(request: Request) {
     // the real Printavo result is ANDed in here, once, for both. An order
     // over the ceiling DOES reach this call — it bills a deposit rather than
     // being refused — so the flag below is what makes the difference.
-    if (printavoReady && (stickersAutoBill.bill || signsAutoBill.bill)) {
+    if (
+      printavoReady &&
+      !isPaper &&
+      (stickersAutoBill.bill || signsAutoBill.bill)
+    ) {
       checkout = await createCheckout({
         quoteId: printavo.quoteId as string,
         publicUrl: printavo.publicUrl || "",
@@ -1217,6 +1267,8 @@ export async function POST(request: Request) {
               (pricedOrder.product as Record<string, unknown> | undefined)
                 ?.family || "signs"
             )
+          : isPaper
+          ? "paper"
           : "apparel",
         // The escape reaches the payload the same way in both flows —
         // product.specialOrder, read positively (lib/auto-bill.ts).

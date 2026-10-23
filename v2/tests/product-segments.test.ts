@@ -92,7 +92,9 @@ describe("the split is on how the work is made", () => {
   test("every product declares a segment", () => {
     for (const product of productCategories) {
       assert.ok(
-        product.segment === "decorated" || product.segment === "large-format",
+        product.segment === "decorated" ||
+          product.segment === "large-format" ||
+          product.segment === "paper",
         `${product.title} has segment ${product.segment}`
       );
     }
@@ -132,7 +134,8 @@ describe("the split is on how the work is made", () => {
     assert.match(page, /Large format/);
     assert.doesNotMatch(page, /flex w-full min-h-\[44px\]/);
     // Both segments render through the one component.
-    assert.equal((page.match(/<ProductCard/g) || []).length, 2);
+    // ...and the paper band (2026-10-23) uses the same component too.
+    assert.equal((page.match(/<ProductCard/g) || []).length, 3);
   });
 });
 
@@ -185,7 +188,7 @@ describe("only the pay-online paths are coloured", () => {
       (p) => !/pay online/i.test(p.fulfilment)
     );
 
-    assert.deepEqual(quiet.map((p) => p.id), ["apparel"]);
+    assert.deepEqual(quiet.map((p) => p.id), ["apparel", "paper"]);
   });
 
   test("apparel's status line stays muted, and never says price", () => {

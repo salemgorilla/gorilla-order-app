@@ -16,13 +16,20 @@ import {
   apparelLineSku,
   apparelSku,
   decalSku,
+  paperSku,
   signSku,
 } from "../lib/sku";
 import { shouldListGarments } from "../lib/apparel-cart-lines";
+import { paperProductById, type PaperSpec } from "../lib/paper";
 import ApparelMoney from "./apparel/ApparelMoney";
 import type { ApparelLineEach } from "../lib/apparel-per-line";
 
 type Props = {
+  /** Paper printing: a quote request with its own spec. */
+  isPaperSelected?: boolean;
+  paperSpec?: PaperSpec | null;
+  /** The paper order's one file, named here so this card reads no slot itself. */
+  paperArtworkName?: string | null;
   isApparelSelected: boolean;
   /**
    * The request flow asks three questions — garment, rough count, notes —
@@ -89,6 +96,9 @@ function CodeRow({ code }: { code: string }) {
 }
 
 export default function QuoteReviewCard({
+  isPaperSelected = false,
+  paperSpec = null,
+  paperArtworkName = null,
   isApparelSelected,
   isApparelRequest,
   isSignsSelected,
@@ -149,7 +159,9 @@ export default function QuoteReviewCard({
             this screen, and a chip is neither. */}
         <span className="spec border border-[var(--rule)] bg-[var(--shirt-blank)] px-4 py-2 text-spec font-bold text-[var(--ink-black)]">
           <span className="sr-only">Files under </span>
-          {isApparelSelected
+          {isPaperSelected
+            ? SKU_FAMILY.paper
+            : isApparelSelected
             ? SKU_FAMILY.apparel
             : isSignsSelected
             ? SKU_FAMILY.signs
@@ -158,7 +170,40 @@ export default function QuoteReviewCard({
       </div>
 
       <div className="mt-5 space-y-3 text-fine font-medium text-[var(--ink-muted)]">
-        {isSignsSelected ? (
+        {isPaperSelected && paperSpec ? (
+          <>
+            {(
+              [
+                ["Product", paperProductById(paperSpec.productId)?.label ?? ""],
+                ["Size", paperSpec.size],
+                ["Stock", paperSpec.stock],
+                ["Quantity", paperSpec.quantity.toLocaleString("en-US")],
+                ["Printing", paperSpec.sides],
+                ...(paperSpec.finishing.length
+                  ? [["Finishing", paperSpec.finishing.join(", ")]]
+                  : []),
+                ["Artwork", paperArtworkName || "Not uploaded"],
+                ...(paperSpec.notes.trim() ? [["Notes", paperSpec.notes.trim()]] : []),
+              ] as [string, string][]
+            ).map(([label, value]) => (
+              <div key={label} className="flex justify-between gap-4">
+                <span>{label}</span>
+                <span className="text-right font-bold text-[var(--ink-black)]">
+                  {value}
+                </span>
+              </div>
+            ))}
+
+            <CodeRow code={paperSku(paperSpec.productId)} />
+
+            <div className="flex justify-between gap-4">
+              <span>Estimate</span>
+              <span className="text-right font-bold text-[var(--gorilla-green)]">
+                Quoted by hand
+              </span>
+            </div>
+          </>
+        ) : isSignsSelected ? (
           <>
             {signsQuote.designs.map((design, index) => (
               <div

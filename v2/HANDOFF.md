@@ -238,6 +238,35 @@ week and a page of old invoices look identical. Each uncached fetch now logs
 fix is the sort argument — whose enum is still unconfirmed; if it is
 yesterday, the week really is quiet.
 
+## Press line, tenth finding, 2026-10-23 17:03 UTC: the sort WORKED; the check was too strict
+
+**Written 2026-10-23 from the production logs of `dpl_Hc6W16L9p2Q8N2nZVggk11Mcs8xu`
+(#213, `cb5767b`).** The evidence line did its job. The 25 dates, in the order
+Printavo returned them for `sortOn: VISUAL_ID, sortDescending: true`:
+
+    2025-07-21 2025-12-10 2025-07-23 2025-07-22 2025-07-21 2025-07-21 2025-06-12 2024-09-16 | 2026-10-22 2026-10-22 2026-10-20 2026-10-14 2026-10-07 2026-10-05 2026-10-05 2026-09-29 2026-09-28 2026-09-27 2026-09-24 2026-09-23 2026-09-22 2026-09-22 2026-09-17 2026-09-16 2026-09-16
+
+So the ninth finding was wrong about the cause. Eight OLD orders carry order
+numbers higher than anything current (hand-numbered or imported), and after
+them the page descends cleanly, newest first, down to mid-September. The sort
+works; #212's first-row-versus-last-row check refused exactly the page it was
+written to find. Nothing wrong was ever served.
+
+**Fix:** `pageTrendsNewestFirst` judges the trend (at least three quarters of
+dated steps not ascending: this page is 22 of 24; a page the wrong way round
+scores 0), and the stop rule for a proxy sort reads the LAST row, so the old
+stragglers at the top are not mistaken for "already past the window". The
+rows are then sorted by date in code as before. Expect, after deploy, a
+`PRESS ACTIVITY page:` line with newest 2026-10-22 and about 3 invoices inside
+the 7-day window (22 Oct x2, 20 Oct). Whether the hero then shows a count
+depends on the pieces in those (the line stays hidden under 50 pieces).
+
+Other facts from the same line: `Invoice` has `startAt`, `dueAt`,
+`customerDueAt`, `invoiceAt`, `timestamps`, `totalQuantity` and `status`;
+`inProductionAfter`/`inProductionBefore` are `ISO8601DateTime`. A
+production-window count remains possible later and is NOT being done: it
+would change what the hero means.
+
 ## Press line, ninth finding, 2026-10-22 17:04 UTC: the order number is not creation order
 
 **Written 2026-10-22 from the production logs of `dpl_94QVGq29t953sxVvzhKPrd3iDdMX`

@@ -3246,6 +3246,41 @@ export async function discoverInvoiceOrdering(
 }
 
 /**
+ * DID THIS PAGE COME BACK NEWEST-FIRST, ALLOWING FOR A FEW STRAGGLERS?
+ *
+ * 2026-10-23, from production: sorted by order number descending, the page's
+ * dates were
+ *
+ *   2025-07-21 2025-12-10 2025-07-23 2025-07-22 2025-07-21 2025-07-21
+ *   2025-06-12 2024-09-16 | 2026-10-22 2026-10-22 2026-10-20 2026-10-14
+ *   2026-10-07 2026-10-05 2026-10-05 2026-09-29 ... 2026-09-16 2026-09-16
+ *
+ * Eight OLD orders carry higher order numbers than anything current (hand-
+ * numbered or imported ones), and after them the page descends cleanly all
+ * the way down. The first version of this check compared the first row with
+ * the last and refused it, which threw away exactly the page it was written
+ * to find. What matters is the trend: here 22 of 24 steps do not go up.
+ *
+ * So the page passes when at least three quarters of its dated steps are not
+ * ascending. A page sorted the wrong way round fails by a wide margin (none
+ * of its steps descend), so the tolerance costs nothing it was guarding.
+ */
+export function pageTrendsNewestFirst(nodes: AnyRecord[]): boolean {
+  const stamps = nodes
+    .map((node) => (typeof node?.createdAt === "string" ? Date.parse(node.createdAt) : NaN))
+    .filter((at) => !Number.isNaN(at));
+
+  if (stamps.length < 2) return true;
+
+  let notAscending = 0;
+  for (let i = 1; i < stamps.length; i += 1) {
+    if (stamps[i] <= stamps[i - 1]) notAscending += 1;
+  }
+
+  return notAscending / (stamps.length - 1) >= 0.75;
+}
+
+/**
  * WHAT THE NEXT ROUND NEEDS WHEN THE ORDER NUMBER IS NOT CREATION ORDER.
  *
  * 2026-10-22: invoices sorted by VISUAL_ID descending came back with the first
@@ -3423,34 +3458,41 @@ export async function fetchRecentInvoicesForPress(
     }
 
     // A proxy sort is only worth anything if it really put the newest first.
-    // Checked on the first page: the first row must not be older than the last.
-    if (pages === 0 && ordering.proxy && nodes.length > 1) {
-      const stamp = (node: AnyRecord | undefined) =>
-        typeof node?.createdAt === "string" ? Date.parse(node.createdAt) : NaN;
-      const head = stamp(nodes[0]);
-      const tail = stamp(nodes[nodes.length - 1]);
+    // Judged on the first page, by the TREND of the dates and not by its two
+    // ends: see pageTrendsNewestFirst for why a strict first-versus-last test
+    // refused a perfectly good page.
+    if (pages === 0 && ordering.proxy && nodes.length > 1 && !pageTrendsNewestFirst(nodes)) {
+      const day = (node: AnyRecord | undefined) => {
+        const at = typeof node?.createdAt === "string" ? Date.parse(node.createdAt) : NaN;
+        return Number.isNaN(at) ? "?" : new Date(at).toISOString().slice(0, 10);
+      };
 
-      if (!Number.isNaN(head) && !Number.isNaN(tail) && head < tail) {
-        return {
-          orders: [],
-          error: `Printavo: sorting invoices by ${ordering.label} did not return newest-first (first row ${new Date(head).toISOString().slice(0, 10)}, last row ${new Date(tail).toISOString().slice(0, 10)}). ${await describeOrderingFailure(nodes, request)}`,
-          pages,
-          raw: data,
-        };
-      }
+      return {
+        orders: [],
+        error: `Printavo: sorting invoices by ${ordering.label} did not return newest-first (first row ${day(nodes[0])}, last row ${day(nodes[nodes.length - 1])}). ${await describeOrderingFailure(nodes, request)}`,
+        pages,
+        raw: data,
+      };
     }
 
     pages += 1;
     if (pages === 1) raw = data;
     collected.push(...nodes);
 
+    // Reached back past the window: everything older is irrelevant. With a
+    // proxy sort this is judged by the LAST row (the lowest order number),
+    // because a handful of old orders can sit at the top of the page (see
+    // pageTrendsNewestFirst) and would otherwise look like "already past it".
+    const stampOf = (node: AnyRecord | undefined) =>
+      typeof node?.createdAt === "string" ? Date.parse(node.createdAt) : NaN;
+    const tailAt = stampOf(nodes[nodes.length - 1]);
     const oldest = nodes.reduce((least, node) => {
-      const at = typeof node?.createdAt === "string" ? Date.parse(node.createdAt) : NaN;
+      const at = stampOf(node);
       return Number.isNaN(at) ? least : Math.min(least, at);
     }, Number.POSITIVE_INFINITY);
+    const reach = ordering.proxy && !Number.isNaN(tailAt) ? tailAt : oldest;
 
-    // Reached back past the window: everything older is irrelevant.
-    if (oldest < windowStart) break;
+    if (reach < windowStart) break;
 
     const info = data.invoices?.pageInfo;
     const cursor = info?.endCursor;

@@ -345,21 +345,23 @@ something you could not observe. Skipped ≠ passed.
 
   Quote it verbatim. It is what tells a quiet week from the wrong page.
   Printavo's invoices come back OLDEST-first, so on 20 October the query got
-  the 2021 invoices ("newest 2021-08-23, 0 inside the 7-day window"); `last:`
-  was tried and rejected on 21 October ("'last' is only supported when used
-  with the 'before' parameter"). Printavo has no creation-date sort at all (its `OrderSortField` is
-  CUSTOMER_DUE_AT, CUSTOMER_NAME, STATUS, OWNER, TOTAL, VISUAL_ID), so it
-  reads the members from the live schema and tried the order number
-  descending as a proxy. On 22 October the newest-first check refused that
-  page (first row 2025-07-21, last 2026-09-15): the order number is not
-  creation order. The refusal line now lists every row's date, the Invoice
-  fields and the `inProduction*` filter types: quote it in full. and ends the line with the pages read
-  (and "stopped early: …" if it did). If no creation-date sort exists, the
-  `PRESS ACTIVITY unavailable:` line lists the real argument names and enum
-  members: quote it verbatim. All of that is unverified against the live
-  account. If `newest` is months old, the page is still wrong; if
-  `newest` is recent and the window count is low, the week really is quiet. Any `PRESS ACTIVITY unavailable`
-  line: quote it verbatim, numbers included.
+  the 2021 invoices ("newest 2021-08-23, 0 inside the 7-day window").
+  `last:` was rejected on 21 October ("'last' is only supported when used
+  with the 'before' parameter"), and Printavo has no creation-date sort at
+  all (its `OrderSortField` is CUSTOMER_DUE_AT, CUSTOMER_NAME, STATUS, OWNER,
+  TOTAL, VISUAL_ID). The code now reads the members from the live schema and
+  sorts by order number, descending, as a proxy. A first version of the
+  newest-first check refused that page on 22 October; the evidence line of
+  23 October showed the sort WORKS (newest first from 2026-10-22 down to
+  mid-September) but eight old orders with the highest order numbers sit on
+  top, so the check now judges the trend instead. The line ends with the pages
+  read (and "stopped early: …" if it did). All of this is unverified against
+  the live account until a `PRESS ACTIVITY page:` line with a recent `newest`
+  date has been seen. If `newest` is months old, the page is still wrong; if
+  it is recent and the window count is low, the week really is quiet. Any
+  `PRESS ACTIVITY unavailable` line, including a refusal that lists every
+  row's date, the Invoice fields and the `inProduction*` filter types: quote
+  it verbatim, numbers included.
 - **The newsletter: fixed to the point of a new, real error.** Until 14
   October every order logged `NEWSLETTER NOT SENT … No subscriber store
   configured.` while the same request uploaded artwork to that same store;

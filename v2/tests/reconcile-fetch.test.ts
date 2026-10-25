@@ -116,6 +116,88 @@ describe("finding the order", () => {
     ]);
   });
 
+  /**
+   * THE CASE THAT MADE THE FIRST LIVE RUN USELESS.
+   *
+   * The search matches `... on Quote` AND `... on Invoice`, but the detail
+   * query reads `quote(id:)` only. Printavo answers null — not an error —
+   * when that id belongs to an Invoice. A billed order may well BE an
+   * Invoice by the time anyone reconciles it, which is precisely when this
+   * runs: AGENTS.md asks for a comparison against the Printavo invoice.
+   *
+   * Before this, that produced no error and no figures, and the headline
+   * check then reported that the customer note carried no total line —
+   * a statement about a record nobody had read.
+   */
+  test("an Invoice the detail query cannot read says so, loudly", async () => {
+    stubPrintavo((query) =>
+      query.includes("GorillaReconcileSearch")
+        ? {
+            orders: {
+              nodes: [
+                {
+                  __typename: "Invoice",
+                  id: "i1",
+                  visualId: "1291",
+                  nickname: "GS-20260908-REC01 — Dana",
+                },
+              ],
+            },
+          }
+        : // Printavo's answer for quote(id:) on an invoice id: null, no error.
+          { quote: null }
+    );
+
+    const order = await fetchQuoteForReconciliation("GS-20260908-REC01");
+
+    // The search half still worked, so the human keeps the Printavo number.
+    assert.equal(order.found, true);
+    assert.equal(order.visualId, "1291");
+    assert.equal(order.kind, "Invoice");
+
+    // And the silence is now a sentence.
+    assert.ok(order.error, "a null detail must not pass silently");
+    assert.match(order.error, /Invoice/);
+    assert.match(order.error, /quote\(id:\)/);
+    assert.match(order.error, /--raw/);
+
+    // Nothing was invented to fill the gap.
+    assert.equal(order.total, undefined);
+    assert.equal(order.customerNote, undefined);
+  });
+
+  test("the search asks what the record is, so the reason is a fact", async () => {
+    stubPrintavo((query) =>
+      query.includes("GorillaReconcileSearch") ? SEARCH_HIT : DETAIL
+    );
+
+    await fetchQuoteForReconciliation("GS-20260908-REC01");
+
+    // __typename is GraphQL spec, so this costs no schema assumption — and
+    // without it the message above would be a guess about the record type.
+    assert.match(queries[0], /__typename/);
+  });
+
+  test("a null detail with no typename still refuses to be silent", async () => {
+    stubPrintavo((query) =>
+      query.includes("GorillaReconcileSearch")
+        ? {
+            orders: {
+              nodes: [
+                { id: "q1", visualId: "7", nickname: "GS-20260908-REC01 — Dana" },
+              ],
+            },
+          }
+        : { quote: null }
+    );
+
+    const order = await fetchQuoteForReconciliation("GS-20260908-REC01");
+
+    assert.equal(order.found, true);
+    assert.ok(order.error, "a null detail must not pass silently");
+    assert.match(order.error, /no record/i);
+  });
+
   test("Printavo's fuzzy search is not trusted on its own", async () => {
     // The same guard lookupOrderStatus carries: the search returns what it
     // decided was close, and reconciling the WRONG order to the cent would

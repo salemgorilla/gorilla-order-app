@@ -23,6 +23,7 @@ import {
 import { STICKER_ORDER_MINIMUM } from "./pricing";
 import { isApparelProduct, isPaperProduct, isSignsProduct } from "./order-flow";
 import { describePaperSpec, paperProductById, paperSpecFromProduct } from "./paper";
+import { needByLabel } from "./need-by";
 import { WINDOW_DAYS } from "./press-activity";
 import {
   lineItemTitle,
@@ -1288,7 +1289,7 @@ export function buildPrintavoQuotePlan(input: {
   const paperSpec = paper ? paperSpecFromProduct(product) : null;
   const paperLabel = paperProductById(paperSpec?.productId)?.label ?? "Paper Printing";
 
-  const nickname = apparel
+  const nicknameBase = apparel
     ? `${nicknamePrefix} ${quoteNumber} - ${quantity} ${garmentLabel}${
         isSpecialOrder ? " (SPECIAL ORDER - NEEDS QUOTE)" : ""
       }`
@@ -1307,6 +1308,15 @@ export function buildPrintavoQuotePlan(input: {
     : `${nicknamePrefix} ${quoteNumber} - ${quantity} Stickers${
         stickerItems.length > 1 ? ` / ${stickerItems.length} designs` : ""
       }`;
+
+  /**
+   * The date the customer needs it, last in the string so the quote number
+   * order tracking matches (nicknameMatchesQuoteNumber) stays where it was.
+   * Without it the Printavo job list shows nothing about due dates until each
+   * quote is opened. See lib/need-by.ts.
+   */
+  const dueLabel = needByLabel(production);
+  const nickname = dueLabel ? `${nicknameBase} - ${dueLabel}` : nicknameBase;
 
   /**
    * The template brief, when the customer personalised one of ours.

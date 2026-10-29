@@ -30,6 +30,7 @@ export { looksLikeEmailAddress } from "./email-address";
 import { looksLikeEmailAddress } from "./email-address";
 import { isApparelProduct, isPaperProduct, isSignsProduct } from "./order-flow";
 import { describePaperSpec, paperProductById, paperSpecFromProduct } from "./paper";
+import { needByLabel } from "./need-by";
 
 export type QuoteEmailResult = {
   sent: boolean;
@@ -364,9 +365,14 @@ export function buildQuoteEmail(input: {
   // reply, somebody is waiting at the till. Say so first.
   const kioskPrefix = input.kiosk ? "IN STORE — " : "";
 
+  // The date the customer needs it, at the end where it cannot push the order
+  // number out of a narrow inbox preview. See lib/need-by.ts.
+  const dueLabel = needByLabel(production);
+  const dueSuffix = dueLabel ? ` — ${dueLabel}` : "";
+
   const subject = needsHandQuote
-    ? `${kioskPrefix}NEED TO QUOTE — ${quoteNumber} — ${quantity} ${productLabel}${suffix}`
-    : `${kioskPrefix}New Quote ${quoteNumber} — ${quantity} ${productLabel}${suffix}`;
+    ? `${kioskPrefix}NEED TO QUOTE — ${quoteNumber} — ${quantity} ${productLabel}${suffix}${dueSuffix}`
+    : `${kioskPrefix}New Quote ${quoteNumber} — ${quantity} ${productLabel}${suffix}${dueSuffix}`;
 
   // ---- product section ----
   const productLines: string[] = [];
@@ -954,10 +960,24 @@ export function buildQuoteEmail(input: {
     );
   }
 
+  // One definition for both renderings. The HTML body used to have none, so the
+  // date showed in a client that displays plain text and nowhere else.
+  const timelineLines = [
+    line("Needed In Hand", str(production.needBy, "Not entered")),
+    line("Deadline", str(production.deadlineType, "N/A")),
+    line(
+      "Delivery",
+      str(production.deliveryMethod) === "Ship"
+        ? `Ship to customer${str(production.shipZip) ? ` — ZIP ${str(production.shipZip)}` : ""}`
+        : "Local pickup in Salem"
+    ),
+  ];
+
   const text = [
     `NEW QUOTE REQUEST — Gorilla Salem`,
     `Quote #: ${quoteNumber}`,
     `Submitted: ${submittedAt}`,
+    ...(dueLabel ? [`${dueLabel}`] : []),
     ``,
     `CUSTOMER`,
     // `customer` here is order.customer; the HTML builder receives it already
@@ -985,14 +1005,7 @@ export function buildQuoteEmail(input: {
     ...(addOnLines.length ? [``, `ADD-ONS THE CUSTOMER ASKED FOR`, ...addOnLines] : []),
     ``,
     `TIMELINE`,
-    line("Needed In Hand", str(production.needBy, "Not entered")),
-    line("Deadline", str(production.deadlineType, "N/A")),
-    line(
-      "Delivery",
-      str(production.deliveryMethod) === "Ship"
-        ? `Ship to customer${str(production.shipZip) ? ` — ZIP ${str(production.shipZip)}` : ""}`
-        : "Local pickup in Salem"
-    ),
+    ...timelineLines,
     ``,
     `ARTWORK`,
     ...artworkGroups.flatMap((group) => [`-- ${group.title} --`, ...group.lines, ``]),
@@ -1017,6 +1030,8 @@ export function buildQuoteEmail(input: {
       ? "Signs Details"
       : "Sticker Details",
     customer,
+    dueLabel,
+    timelineLines,
     productLines,
     estimateLines,
     addOnLines,
@@ -1131,6 +1146,10 @@ function buildHtml(input: {
   apparel: boolean;
   detailsLabel: string;
   customer: AnyRecord;
+  /** "NEED BY Dec 2 (FIRM)", or null when no usable date. See lib/need-by.ts. */
+  dueLabel: string | null;
+  /** The TIMELINE rows, identical to the plain-text body's. */
+  timelineLines: string[];
   paymentNote?: string | null;
   productLines: string[];
   estimateLines: string[];
@@ -1158,6 +1177,13 @@ function buildHtml(input: {
     <p style="margin:0;color:${INK_MUTED};font-size:13px;font-family:${SPEC_FONT};">Submitted ${escapeHtml(
       input.submittedAt
     )}</p>
+    ${
+      input.dueLabel
+        ? `<p style="margin:14px 0 0;padding:10px 12px;border:2px solid ${INK_BLACK};font-size:16px;font-weight:800;letter-spacing:.04em;color:${INK_BLACK};">${escapeHtml(
+            input.dueLabel
+          )}</p>`
+        : ""
+    }
     ${htmlSection("Customer", customerLines)}
     ${htmlSection(input.detailsLabel, input.productLines)}
     ${htmlSection("Estimate", input.estimateLines)}
@@ -1167,6 +1193,7 @@ function buildHtml(input: {
         ? htmlSection("Add-ons the customer asked for", input.addOnLines)
         : ""
     }
+    ${htmlSection("Timeline", input.timelineLines)}
     ${htmlArtwork(input.artworkGroups)}
     ${htmlSection("Notes", [`_: ${input.notes}`]).replace("_", "")}
     <p style="margin:22px 0 0;padding-top:14px;border-top:1px solid ${RULE};font-size:13px;color:${INK_MUTED};">${

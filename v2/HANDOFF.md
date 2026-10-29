@@ -74,6 +74,25 @@ to the cent. Nothing in #149 touched any of that. It did not prove the RATE
 — that is a business figure, and #149 changed it, so the row above it is
 owed and the merge rule points at the next sticker order.
 
+## Customer's due date in the shop email and the Printavo list, 2026-10-29
+
+**Gabe: "I'm still not seeing it in the email I get confirming a quote has been
+submitted."** Cause: `buildQuoteEmail` renders the shop email twice, as plain
+text and as HTML, and only the TEXT body had a TIMELINE section (needed in hand,
+deadline, delivery). Gmail shows the HTML, so the date was never visible. The
+subject line and the Printavo job list never carried it either.
+
+**Fixed:** one `timelineLines` array now feeds both bodies; the HTML gains a
+Timeline section AND a boxed "NEED BY Dec 2 (FIRM)" line above the customer
+block; the subject ends `— NEED BY Dec 2`; the Printavo nickname ends
+`- NEED BY Dec 2` (order tracking still matches, the number comes first).
+`lib/need-by.ts` builds the label once and parses the date by hand (a
+date-only string through `new Date()` is UTC and prints a day early in
+Massachusetts). A firm deadline is marked, a flexible one is not. With no date
+there is no label; Printavo still gets its 14-day placeholder in the due-date
+fields, which is NOT the customer's date. The customer's own confirmation
+email still quotes no date, by design (see lib/order-confirmation.ts).
+
 ## Paper printing, 2026-10-23: a quote-request flow, switched off for prices
 
 **Gabe, 2026-10-23: "Can we add paper printing options to the app?"** Then,

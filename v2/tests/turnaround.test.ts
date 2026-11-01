@@ -113,7 +113,7 @@ describe("the floor and its message", () => {
   test("the message names the products, the date, and the out", () => {
     const message = needByTooSoonError("slow", MONDAY);
 
-    assert.match(message, /apparel and signs/);
+    assert.match(message, /apparel, signs and paper printing/);
     assert.match(message, /Fri, Sep 18/);
     assert.match(message, /Call or email us/);
   });
@@ -202,7 +202,7 @@ describe("all three validators enforce their lane", () => {
       "slow",
       MONDAY
     );
-    assert.match(refused.needBy ?? "", /apparel and signs/);
+    assert.match(refused.needBy ?? "", /apparel, signs and paper printing/);
 
     const rushed = getSignsFieldErrors(
       [signsDesign],
@@ -240,7 +240,7 @@ describe("all three validators enforce their lane", () => {
       24,
       MONDAY
     );
-    assert.match(refused.needBy ?? "", /apparel and signs/);
+    assert.match(refused.needBy ?? "", /apparel, signs and paper printing/);
 
     const rushed = getApparelFieldErrors(
       apparelQuote,
@@ -269,7 +269,7 @@ describe("all three validators enforce their lane", () => {
       MONDAY
     );
 
-    assert.match(refused.needBy ?? "", /apparel and signs/);
+    assert.match(refused.needBy ?? "", /apparel, signs and paper printing/);
   });
 });
 

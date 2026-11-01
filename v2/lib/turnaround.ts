@@ -54,7 +54,7 @@ export const turnaroundRules: Record<
   },
   slow: {
     minBusinessDays: 14,
-    products: "apparel and signs",
+    products: "apparel, signs and paper printing",
     promise: "about three weeks (14 business days)",
   },
 };
@@ -67,11 +67,18 @@ export const turnaroundRules: Record<
 export function turnaroundLaneFor(flow: {
   isApparel: boolean;
   isSigns: boolean;
+  /**
+   * Paper printing, produced by the shop's trade partner and shipped in.
+   * Slow lane until Gabe gives a real number: a next-day promise on work that
+   * has to be made elsewhere would be a lie, and a long one only costs a date.
+   */
+  isPaper?: boolean;
   signsFamily: "banners" | "signs";
   /** True on the shop's own terminal — see the walkin rule above. */
   isKiosk?: boolean;
 }): TurnaroundLane {
   if (flow.isApparel) return "slow";
+  if (flow.isPaper) return "slow";
   if (flow.isSigns && flow.signsFamily !== "banners") return "slow";
 
   // Fast-lane work (stickers, banners) — same day when a person is at the
@@ -161,5 +168,5 @@ export function turnaroundNote(lane: TurnaroundLane): string {
 
   return lane === "fast"
     ? `Stickers and banners are ${rule.promise}. Need it faster? Call or email us.`
-    : `Apparel and signs take ${rule.promise}. Need it faster? Call or email us — rush is sometimes possible.`;
+    : `Apparel, signs and paper printing take ${rule.promise}. Need it faster? Call or email us — rush is sometimes possible.`;
 }

@@ -46,13 +46,14 @@
  * what the customer is told they owe" — not "is this file under lib/".
  */
 
-/** The four buckets the Reconciled table's `Flow` column uses. */
-export type BilledFlow = "stickers" | "signs" | "apparel" | "all flows";
+/** The buckets the Reconciled table's `Flow` column uses. */
+export type BilledFlow = "stickers" | "signs" | "apparel" | "paper" | "all flows";
 
 export const BILLED_FLOWS: readonly BilledFlow[] = [
   "stickers",
   "signs",
   "apparel",
+  "paper",
   "all flows",
 ] as const;
 
@@ -123,10 +124,15 @@ export const BILLED_FIGURE_RULES: readonly PathRule[] = [
     flow: "signs",
     why: "signs and banner rates, repricing and cart arithmetic",
   },
+  // ── paper printing ────────────────────────────────────────────────────
+  // Not "signs", which this file's first version said: paper stock rates were
+  // never part of the signs price. Paper has its own flow since 2026-10-23
+  // (4over cost + the shop's markup), and no billed figure until
+  // pricesConfirmed is switched on and a test order has been reconciled.
   {
-    test: /^lib\/paper-pricing-config\.ts$/,
-    flow: "signs",
-    why: "paper stock rates feed the signs price",
+    test: /^lib\/paper(-pricing(-config)?)?\.ts$/,
+    flow: "paper",
+    why: "paper cost table, markup and the price it produces",
   },
   // ── apparel ───────────────────────────────────────────────────────────
   {

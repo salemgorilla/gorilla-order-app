@@ -77,7 +77,7 @@ export const APPAREL_EXEMPTION_CEILING = 175;
  * show the tax the customer will actually be invoiced, whether they pay now
  * or the shop bills them later.
  */
-export function isTaxableFlow(flow: "stickers" | "signs" | "apparel") {
+export function isTaxableFlow(flow: "stickers" | "signs" | "apparel" | "paper") {
   // Clothing is exempt in Massachusetts.
   return flow !== "apparel";
 }

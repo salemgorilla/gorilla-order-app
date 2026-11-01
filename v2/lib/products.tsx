@@ -18,7 +18,7 @@ export type ProductCategory = {
    * reason as `fulfilment` below: a rule about the business that lives in a
    * card component is a rule nobody can find later.
    */
-  segment: "decorated" | "large-format";
+  segment: "decorated" | "large-format" | "paper";
   /**
    * How this product reaches the customer.
    *
@@ -187,5 +187,30 @@ export const productCategories: ProductCategory[] = [
     // — same department, same freight. See `shipping` on the type.
     shipping: "Ships nationwide · delivery quoted separately",
     fulfilment: "Instant price · pay online",
+  },
+  /**
+   * Paper printing (Gabe, 2026-10-23): business cards, rack cards, postcards,
+   * trifold brochures, letterhead and menus, printed through the shop's 4over
+   * trade account.
+   *
+   * A HAND QUOTE for now, deliberately. Gabe chose "instant price, pay online"
+   * with prices built from 4over cost plus his markup, and that needs 4over's
+   * real costs, which this repo has never seen. Until
+   * lib/paper-pricing-config.ts holds them and a test order has been
+   * reconciled, no paper price is shown and no payment link is raised, and
+   * this line says so rather than promising what the server will not do.
+   * tests/product-fulfilment.test.ts checks that claim against the server.
+   * When prices go live this becomes "Instant price · pay online" in the same
+   * change that adds the paper auto-bill decision, not before.
+   */
+  {
+    id: "paper",
+    title: "Paper Printing",
+    description:
+      "Business cards, rack cards, postcards, brochures, letterhead and menus.",
+    segment: "paper",
+    status: "request",
+    shipping: "Ships nationwide · delivery quoted separately",
+    fulfilment: "Hand quote · we reply with a price",
   },
 ];

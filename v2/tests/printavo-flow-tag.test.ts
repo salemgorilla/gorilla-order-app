@@ -20,7 +20,7 @@ import { describe, test } from "node:test";
 
 import { buildPrintavoQuotePlan } from "../lib/printavo";
 
-const FLOW_TAGS = ["#Stickers", "#Signs", "#Apparel"] as const;
+const FLOW_TAGS = ["#Stickers", "#Signs", "#Apparel", "#Paper"] as const;
 
 const base = {
   customer: { customerName: "Dana", email: "dana@example.com" },
@@ -70,6 +70,23 @@ const ORDERS: Array<[string, string, Record<string, unknown>]> = [
     {
       product: { type: "Yard Signs", signType: "Coroplast", quantity: 5, size: '18" x 24"' },
       pricing: { total: 108, unitPrice: 21.6, lines: [] },
+    },
+  ],
+  [
+    // Paper printing (2026-10-23): a hand quote through the shop's 4over account.
+    "a paper order",
+    "#Paper",
+    {
+      product: {
+        type: "Paper Printing",
+        paperProductId: "postcards",
+        size: '4" x 6"',
+        stock: "14pt Gloss",
+        quantity: 500,
+        sides: "Double-sided",
+        finishing: [],
+      },
+      pricing: { total: 0, quoteRequired: true },
     },
   ],
   [
@@ -124,7 +141,7 @@ describe("every Printavo order says which pipeline it is", () => {
     assert.ok(counter.includes("#Stickers"));
     assert.ok(counter.includes("#InStore"), "fixture no longer exercises the kiosk path");
 
-    const handQuoted = plan(ORDERS[3][2]).tags;
+    const handQuoted = plan(ORDERS.find(([name]) => name === "an apparel request")![2]).tags;
     assert.ok(handQuoted.includes("#Apparel"));
     assert.ok(
       handQuoted.includes("#NeedsPricing"),

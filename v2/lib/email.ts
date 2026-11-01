@@ -28,7 +28,9 @@ import type { RepricingNote } from "./repricing-note";
 // lives alone so the form can use it without importing this file.
 export { looksLikeEmailAddress } from "./email-address";
 import { looksLikeEmailAddress } from "./email-address";
-import { isApparelProduct, isSignsProduct } from "./order-flow";
+import { isApparelProduct, isPaperProduct, isSignsProduct } from "./order-flow";
+import { describePaperSpec, paperProductById, paperSpecFromProduct } from "./paper";
+import { needByLabel } from "./need-by";
 
 export type QuoteEmailResult = {
   sent: boolean;
@@ -295,6 +297,9 @@ export function buildQuoteEmail(input: {
   const addOnsNote = str(order.addOnsNote);
   const apparel = isApparel(product);
   const signs = isSigns(product);
+  // Paper printing (4over): never priced online, always a hand quote.
+  const paper = isPaperProduct(product);
+  const paperSpec = paper ? paperSpecFromProduct(product) : null;
   /**
    * The sticker cart. `product` above is a SYNTHESIS — design 1's spec carrying
    * the combined quantity — kept so the payload still classifies as stickers
@@ -326,7 +331,9 @@ export function buildQuoteEmail(input: {
     : Number(pricing.stickerPrice) || total;
   const each = quantity > 0 ? baseForEach / quantity : 0;
 
-  const productLabel = apparel
+  const productLabel = paper
+    ? paperProductById(paperSpec?.productId)?.label ?? "Paper Printing"
+    : apparel
     ? str(
         (product.supplier as AnyRecord)?.productName ||
           product.garmentType ||
@@ -342,7 +349,7 @@ export function buildQuoteEmail(input: {
   // ESTIMATE section — an unpriced add-on must never hide a total the app
   // actually computed for the main job.
   const primaryNeedsHandQuote =
-    Boolean(product.specialOrder) || Boolean(pricing.quoteRequired);
+    paper || Boolean(product.specialOrder) || Boolean(pricing.quoteRequired);
 
   // Whether ANY part of this quote needs hand pricing. Subject line only:
   // it is the shop's inbox triage signal, so a priced sticker order carrying
@@ -358,9 +365,14 @@ export function buildQuoteEmail(input: {
   // reply, somebody is waiting at the till. Say so first.
   const kioskPrefix = input.kiosk ? "IN STORE — " : "";
 
+  // The date the customer needs it, at the end where it cannot push the order
+  // number out of a narrow inbox preview. See lib/need-by.ts.
+  const dueLabel = needByLabel(production);
+  const dueSuffix = dueLabel ? ` — ${dueLabel}` : "";
+
   const subject = needsHandQuote
-    ? `${kioskPrefix}NEED TO QUOTE — ${quoteNumber} — ${quantity} ${productLabel}${suffix}`
-    : `${kioskPrefix}New Quote ${quoteNumber} — ${quantity} ${productLabel}${suffix}`;
+    ? `${kioskPrefix}NEED TO QUOTE — ${quoteNumber} — ${quantity} ${productLabel}${suffix}${dueSuffix}`
+    : `${kioskPrefix}New Quote ${quoteNumber} — ${quantity} ${productLabel}${suffix}${dueSuffix}`;
 
   // ---- product section ----
   const productLines: string[] = [];
@@ -411,6 +423,21 @@ export function buildQuoteEmail(input: {
       // Gabe's call, 31 Aug: ordering details live only in the Printavo
       // internal note, which no customer can ever see. The figure is not
       // lost — the note carries style, SKU, sample size and blank cost.
+    );
+  } else if (paper) {
+    // The same lines the Printavo description carries, one label per row, so
+    // the shop reads the spec identically in both places.
+    productLines.push(
+      line("Type", "Paper Printing"),
+      ...(paperSpec
+        ? describePaperSpec(paperSpec)
+            .filter((entry) => !entry.startsWith("Notes: "))
+            .map((entry) => {
+              const at = entry.indexOf(": ");
+              return line(entry.slice(0, at), entry.slice(at + 2));
+            })
+        : [line("Product", "Not understood — see the customer's notes")]),
+      ...(paperSpec?.notes.trim() ? [line("Print notes", paperSpec.notes.trim())] : [])
     );
   } else if (signs && signsDesigns.length > 1) {
     /**
@@ -541,7 +568,12 @@ export function buildQuoteEmail(input: {
       ? [line("Shipping", "Quoted separately")]
       : [];
 
-  const estimateLines: string[] = primaryNeedsHandQuote && !signs
+  const estimateLines: string[] = paper
+    ? [
+        line("Estimated Total", "NEEDS A HAND QUOTE"),
+        line("Why", "Paper printing is priced by hand (4over). No payment link was sent."),
+      ]
+    : primaryNeedsHandQuote && !signs
     ? [
         line("Estimated Total", "NEEDS A HAND QUOTE"),
         line("Why", str(pricing.note, "Special order — outside the online menu.")),
@@ -928,10 +960,24 @@ export function buildQuoteEmail(input: {
     );
   }
 
+  // One definition for both renderings. The HTML body used to have none, so the
+  // date showed in a client that displays plain text and nowhere else.
+  const timelineLines = [
+    line("Needed In Hand", str(production.needBy, "Not entered")),
+    line("Deadline", str(production.deadlineType, "N/A")),
+    line(
+      "Delivery",
+      str(production.deliveryMethod) === "Ship"
+        ? `Ship to customer${str(production.shipZip) ? ` — ZIP ${str(production.shipZip)}` : ""}`
+        : "Local pickup in Salem"
+    ),
+  ];
+
   const text = [
     `NEW QUOTE REQUEST — Gorilla Salem`,
     `Quote #: ${quoteNumber}`,
     `Submitted: ${submittedAt}`,
+    ...(dueLabel ? [`${dueLabel}`] : []),
     ``,
     `CUSTOMER`,
     // `customer` here is order.customer; the HTML builder receives it already
@@ -944,7 +990,13 @@ export function buildQuoteEmail(input: {
       newsletterNote: input.newsletterNote,
     }),
     ``,
-    apparel ? `APPAREL DETAILS` : signs ? `SIGNS DETAILS` : `STICKER DETAILS`,
+    apparel
+      ? `APPAREL DETAILS`
+      : paper
+      ? `PAPER DETAILS`
+      : signs
+      ? `SIGNS DETAILS`
+      : `STICKER DETAILS`,
     ...productLines,
     ``,
     `ESTIMATE`,
@@ -953,14 +1005,7 @@ export function buildQuoteEmail(input: {
     ...(addOnLines.length ? [``, `ADD-ONS THE CUSTOMER ASKED FOR`, ...addOnLines] : []),
     ``,
     `TIMELINE`,
-    line("Needed In Hand", str(production.needBy, "Not entered")),
-    line("Deadline", str(production.deadlineType, "N/A")),
-    line(
-      "Delivery",
-      str(production.deliveryMethod) === "Ship"
-        ? `Ship to customer${str(production.shipZip) ? ` — ZIP ${str(production.shipZip)}` : ""}`
-        : "Local pickup in Salem"
-    ),
+    ...timelineLines,
     ``,
     `ARTWORK`,
     ...artworkGroups.flatMap((group) => [`-- ${group.title} --`, ...group.lines, ``]),
@@ -979,10 +1024,14 @@ export function buildQuoteEmail(input: {
     paymentNote: input.paymentNote,
     detailsLabel: apparel
       ? "Apparel Details"
+      : paper
+      ? "Paper Details"
       : signs
       ? "Signs Details"
       : "Sticker Details",
     customer,
+    dueLabel,
+    timelineLines,
     productLines,
     estimateLines,
     addOnLines,
@@ -1097,6 +1146,10 @@ function buildHtml(input: {
   apparel: boolean;
   detailsLabel: string;
   customer: AnyRecord;
+  /** "NEED BY Dec 2 (FIRM)", or null when no usable date. See lib/need-by.ts. */
+  dueLabel: string | null;
+  /** The TIMELINE rows, identical to the plain-text body's. */
+  timelineLines: string[];
   paymentNote?: string | null;
   productLines: string[];
   estimateLines: string[];
@@ -1124,6 +1177,13 @@ function buildHtml(input: {
     <p style="margin:0;color:${INK_MUTED};font-size:13px;font-family:${SPEC_FONT};">Submitted ${escapeHtml(
       input.submittedAt
     )}</p>
+    ${
+      input.dueLabel
+        ? `<p style="margin:14px 0 0;padding:10px 12px;border:2px solid ${INK_BLACK};font-size:16px;font-weight:800;letter-spacing:.04em;color:${INK_BLACK};">${escapeHtml(
+            input.dueLabel
+          )}</p>`
+        : ""
+    }
     ${htmlSection("Customer", customerLines)}
     ${htmlSection(input.detailsLabel, input.productLines)}
     ${htmlSection("Estimate", input.estimateLines)}
@@ -1133,6 +1193,7 @@ function buildHtml(input: {
         ? htmlSection("Add-ons the customer asked for", input.addOnLines)
         : ""
     }
+    ${htmlSection("Timeline", input.timelineLines)}
     ${htmlArtwork(input.artworkGroups)}
     ${htmlSection("Notes", [`_: ${input.notes}`]).replace("_", "")}
     <p style="margin:22px 0 0;padding-top:14px;border-top:1px solid ${RULE};font-size:13px;color:${INK_MUTED};">${

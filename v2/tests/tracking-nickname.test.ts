@@ -96,6 +96,21 @@ const FLOWS: Array<[string, Record<string, unknown>]> = [
     },
   ],
   [
+    // Paper printing: the " (NEEDS PRICING)" suffix branch, always.
+    "paper, hand-quoted",
+    {
+      product: {
+        type: "Paper Printing",
+        paperProductId: "business-cards",
+        size: '3.5" x 2"',
+        stock: "14pt Matte",
+        quantity: 500,
+        sides: "Double-sided",
+        finishing: [],
+      },
+    },
+  ],
+  [
     "apparel",
     {
       product: { type: "T-Shirts & Apparel", garmentType: "Tee", quantity: 24 },

@@ -17,7 +17,8 @@ import {
   getSignSizeLabel,
   type SignsQuote,
 } from "../lib/signs";
-import { apparelLineSku, apparelSku, decalSku, signSku } from "../lib/sku";
+import { apparelLineSku, apparelSku, decalSku, paperSku, signSku } from "../lib/sku";
+import { paperProductById, type PaperSpec } from "../lib/paper";
 import { shouldListGarments } from "../lib/apparel-cart-lines";
 import ApparelMoney from "./apparel/ApparelMoney";
 import type { ApparelLineEach } from "../lib/apparel-per-line";
@@ -25,6 +26,9 @@ import type { ApparelLineEach } from "../lib/apparel-per-line";
 type Props = {
   quoteConfirmation: QuoteConfirmation | null;
   order: Order;
+  /** Paper printing: confirmed as the spec asked for, quoted by hand. */
+  isPaperSubmitted?: boolean;
+  paperSpec?: PaperSpec | null;
   isApparelSubmitted: boolean;
   /** Request-flow submissions confirm the three questions asked, not the
       configurator fields the flow never showed. */
@@ -85,6 +89,8 @@ type Props = {
 export default function QuoteConfirmationScreen({
   quoteConfirmation,
   order,
+  isPaperSubmitted = false,
+  paperSpec = null,
   isApparelSubmitted,
   isApparelRequest,
   apparelEstimateBasis,
@@ -474,14 +480,35 @@ export default function QuoteConfirmationScreen({
 
             <div className=" border border-[var(--rule)] p-5">
               <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
-                {isApparelSubmitted
+                {isPaperSubmitted
+                  ? "Paper Details"
+                  : isApparelSubmitted
                   ? "Apparel Details"
                   : isSignsSubmitted
                   ? "Signs Details"
                   : "Sticker Details"}
               </p>
 
-              {isSignsSubmitted ? (
+              {isPaperSubmitted && paperSpec ? (
+                <>
+                  <p className="mt-2 text-value font-bold text-[var(--ink-black)]">
+                    {paperSpec.quantity.toLocaleString("en-US")}{" "}
+                    {paperProductById(paperSpec.productId)?.label}
+                  </p>
+                  <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
+                    {paperSpec.size} • {paperSpec.stock}
+                  </p>
+                  <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
+                    {paperSpec.sides}
+                    {paperSpec.finishing.length
+                      ? ` • ${paperSpec.finishing.join(", ")}`
+                      : ""}
+                  </p>
+                  <p className="spec mt-1 text-spec text-[var(--ink-muted)]">
+                    {paperSku(paperSpec.productId)}
+                  </p>
+                </>
+              ) : isSignsSubmitted ? (
                 // Every design, not just the first. A customer who ordered a
                 // banner and two yard signs has to see all three back, or the
                 // confirmation is confirming something they did not send.
@@ -614,7 +641,16 @@ export default function QuoteConfirmationScreen({
                 Estimate
               </p>
 
-              {isSignsSubmitted ? (
+              {isPaperSubmitted ? (
+                <>
+                  <p className="mt-2 text-head font-bold text-[var(--ink-black)]">
+                    Quoted by hand
+                  </p>
+                  <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
+                    Gorilla Salem will reply with your price
+                  </p>
+                </>
+              ) : isSignsSubmitted ? (
                 signsTotals !== null ? (
                   <>
                     <p

@@ -7,6 +7,7 @@ import { todayIso, type TurnaroundLane } from "./turnaround";
 import { isNeedByRefused, needByRefusedError } from "./rush";
 import { orderProblemsByStep, type FieldProblem } from "./steps";
 import { Order, StickerItem } from "../types/order";
+import { validatePaperSpec, type PaperSpec } from "./paper";
 
 /**
  * The email rule, once, for all three flows.
@@ -114,7 +115,9 @@ export type FieldKey =
   /** The apparel cart's extra garment lines — see lib/apparel-cart-lines. */
   | "garmentLines"
   /** Stickers, when shipped: the ZIP that decides the USPS zone. */
-  | "shipZip";
+  | "shipZip"
+  /** Paper printing: the product/stock/size/quantity choice (lib/paper.ts). */
+  | "paperSpec";
 
 /** Field key -> the short message shown under that field. */
 export type FieldErrors = Partial<Record<FieldKey, string>>;
@@ -667,4 +670,67 @@ export function getApparelFieldErrors(
   }
 
   return errors;
+}
+
+/**
+ * Paper printing failures.
+ *
+ * Paper is a quote request: no price, no payment link, and artwork is NOT
+ * required, for the same reason apparel's request flow does not require it. A
+ * customer asking what 500 menus cost often has no print-ready file yet, and
+ * demanding one turns an enquiry into an upload problem. The shop collects
+ * artwork in the reply.
+ *
+ * What it does need is a spec the catalogue actually sells, a name, a working
+ * email and a date. The date rides the slow lane: paper is produced by a
+ * trade partner and shipped in, so a next-day promise would be a lie.
+ */
+export function getPaperFieldErrors(
+  spec: PaperSpec,
+  order: {
+    customer: { customerName: string; email: string };
+    production: { needBy: string };
+  },
+  today: string = todayIso()
+): FieldErrors {
+  const errors: FieldErrors = {};
+
+  const specErrors = Object.values(validatePaperSpec(spec));
+  if (specErrors.length > 0) {
+    errors.paperSpec = String(specErrors[0]);
+  }
+
+  if (!order.customer.customerName.trim()) {
+    errors.customerName = "Enter your name.";
+  }
+
+  const emailError = getEmailError(order.customer.email);
+  if (emailError) {
+    errors.customerEmail = emailError;
+  }
+
+  if (!order.production.needBy.trim()) {
+    errors.needBy = "Enter the date you need this in hand.";
+  } else if (isNeedByRefused(order.production.needBy, "slow", today)) {
+    errors.needBy = needByRefusedError("slow", today);
+  }
+
+  return errors;
+}
+
+/** The paper problem list, as sentences, in the order the form asks. */
+export function getPaperValidationSummary(
+  spec: PaperSpec,
+  order: Parameters<typeof getPaperFieldErrors>[1],
+  today: string = todayIso()
+): string[] {
+  const fields = getPaperFieldErrors(spec, order, today);
+  const problems: FieldProblem[] = [];
+
+  if (fields.paperSpec) problems.push({ field: "paperSpec", message: fields.paperSpec });
+  if (fields.needBy) problems.push({ field: "needBy", message: fields.needBy });
+  if (fields.customerName) problems.push({ field: "customerName", message: fields.customerName });
+  if (fields.customerEmail) problems.push({ field: "customerEmail", message: fields.customerEmail });
+
+  return orderProblemsByStep(problems);
 }

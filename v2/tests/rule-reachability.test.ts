@@ -5,8 +5,10 @@ import {
   getOrderFieldErrors,
   getSignsFieldErrors,
   getApparelFieldErrors,
+  getPaperFieldErrors,
   type FieldKey,
 } from "../lib/validation";
+import { defaultPaperSpec } from "../lib/paper";
 import { FIELD_STEP } from "../lib/steps";
 
 /**
@@ -129,6 +131,13 @@ const REACHABLE: Record<FieldKey, () => string | undefined> = {
       undefined,
       { "garment-1": "Choose a garment." }
     ).garmentLines,
+
+  // Paper printing — a stock the product does not sell.
+  paperSpec: () =>
+    getPaperFieldErrors(
+      { ...defaultPaperSpec("rack-cards"), stock: "16pt Soft Touch" },
+      { customer: { customerName: "", email: "" }, production: { needBy: "" } }
+    ).paperSpec,
 
   // sizeBreakdown left this map when sizes became optional at estimate
   // time (the blend prices an assumed mix until they exist) — no rule

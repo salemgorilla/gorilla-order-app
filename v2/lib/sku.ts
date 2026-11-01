@@ -61,6 +61,7 @@ export const SKU_FAMILY = {
   stickers: "GORILLA-DECAL",
   signs: "GORILLA-SIGN",
   apparel: "GORILLA-APPAREL",
+  paper: "GORILLA-PAPER",
 } as const;
 
 /**
@@ -94,6 +95,14 @@ export function decalSku(index: number, designCount: number): string {
  */
 export function signSku(signType: string): string {
   return `${SKU_FAMILY.signs}-${skuPart(signType)}`;
+}
+
+/**
+ * A paper order's single line, by product (`GORILLA-PAPER-BUSINESS-CARDS`).
+ * Unknown or missing product falls to `GORILLA-PAPER-NA`, the way signSku does.
+ */
+export function paperSku(productId: string | undefined): string {
+  return `${SKU_FAMILY.paper}-${skuPart(productId || "") || "NA"}`;
 }
 
 /** A signs fee row, by its charge code (`SETUP`, `ADDON-HOLES`, `MINIMUM`…). */

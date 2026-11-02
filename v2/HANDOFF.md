@@ -7,6 +7,34 @@ next session will act on it.
 
 Read this first, then `AGENTS.md` and `DESIGN-SYSTEM.md`.
 
+## Customer quote link (added 2026-11-02, NOT yet run against live data)
+
+A private page `/q/<token>` where a customer edits sizes on a shop-built
+Printavo quote, sees the price move, approves, and is sent a payment link.
+Shop side: `/admin/quote-links` (ADMIN_SECRET).
+
+- **State is Vercel Blob** (`lib/quote-link-store.ts`), private, tokens stored
+  only as sha256. No database exists. Read-modify-write is last-writer-wins.
+- **Price shown** = apparel engine on a catalogue snapshot taken at link
+  creation (`lib/quote-link.ts`). **Amount charged** = Printavo's own
+  `amountOutstanding` via `createPaymentRequest` (fraction for a deposit).
+  If the customer changed sizes, payment is HELD until the shop updates
+  Printavo and clicks Release (`paymentGate`). This is deliberate: AGENTS.md
+  forbids billing a total this app computed.
+- **Not Stripe.** The spec asked for Stripe Checkout; Gabe chose Printavo
+  payment links. So no webhook: the page asks Printavo `amountOutstanding`
+  when opened, and treats an unreachable Printavo as "unknown", never paid.
+- **Unverified against the live account:** `findQuoteForLink` (matches
+  `visualId` exactly; sizes read through the existing shape ladder) and
+  `fetchQuoteOutstanding`. Whether a PAID quote stays readable as
+  `quote(id)` or becomes an invoice is unknown - if it 404s the page will
+  sit at "payment requested". Check with one real test quote.
+- **Owed before merge:** one real quote reconciled against its Printavo
+  invoice to the cent (see below). Not done - no credentials in the build
+  sandbox. Void the test quote afterwards; never pay it.
+- Not built: Printavo status push/notes, S&S stock counts (availability only),
+  customer receipt email (Printavo's payment email covers it), rush fees.
+
 ## Reconciled — every billed-figure change, against a real Printavo invoice
 
 **The empty rows are the point.** AGENTS.md: a pricing change ends with one

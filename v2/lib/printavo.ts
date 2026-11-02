@@ -3485,3 +3485,137 @@ export async function fetchRecentInvoicesForPress(
 
   return { orders, pages, ...(stoppedEarly ? { stoppedEarly } : {}), raw };
 }
+
+/* ── Customer quote link (lib/quote-link.ts) ─────────────────────────────── */
+
+export type LinkableQuote =
+  | {
+      found: true;
+      id: string;
+      visualId: string;
+      total: number;
+      amountOutstanding: number;
+      customerName: string;
+      customerEmail: string;
+      sizes: Record<string, number>;
+    }
+  | { found: false; error: string };
+
+/**
+ * Find a Printavo quote by the number the shop sees (#14431), and read the
+ * sizes on it. Matched on `visualId` EXACTLY - Printavo's search is fuzzy, and
+ * a link to the wrong customer's quote is the failure that matters here.
+ *
+ * Sizes use the same shape ladder as the reconciliation read, because the
+ * `sizes` selection has never been confirmed against the live account.
+ */
+export async function findQuoteForLink(visualId: string): Promise<LinkableQuote> {
+  const wanted = visualId.trim().replace(/^#/, "");
+
+  if (!isConfigured()) return { found: false, error: "Printavo is not configured." };
+  if (!/^[A-Za-z0-9-]{1,30}$/.test(wanted)) {
+    return { found: false, error: "Enter the quote number, like 14431." };
+  }
+
+  try {
+    const search = await printavoRequest<{ orders: { nodes: AnyRecord[] } }>(
+      `query GorillaLinkSearch($q: String!, $first: Int!) {
+         orders(query: $q, first: $first) {
+           nodes {
+             ... on Quote   { id visualId }
+             ... on Invoice { id visualId }
+           }
+         }
+       }`,
+      { q: wanted, first: ORDER_SEARCH_PAGE_SIZE }
+    );
+
+    const match = (search.orders?.nodes || []).find(
+      (node) => str(node.visualId) === wanted
+    );
+
+    if (!match?.id) {
+      return { found: false, error: `No Printavo quote numbered ${wanted}.` };
+    }
+
+    const data = await requestTryingSizeShapes<{ quote?: AnyRecord }>(
+      (sizes) =>
+        `query GorillaLinkDetail($id: ID!) {
+           quote(id: $id) {
+             id
+             visualId
+             total
+             amountOutstanding
+             contact { fullName email }
+             lineItemGroups(first: 10) {
+               nodes {
+                 lineItems(first: 25) {
+                   nodes { ${sizes} }
+                 }
+               }
+             }
+           }
+         }`,
+      { id: str(match.id) }
+    );
+
+    const quote = data.quote;
+    if (!quote?.id) return { found: false, error: `Quote ${wanted} could not be read.` };
+
+    const sizes: Record<string, number> = {};
+    const groups = ((quote.lineItemGroups as AnyRecord)?.nodes as AnyRecord[]) || [];
+
+    for (const group of groups) {
+      const rows = ((group?.lineItems as AnyRecord)?.nodes as AnyRecord[]) || [];
+
+      for (const row of rows) {
+        for (const entry of lineItemSizes(row) || []) {
+          if (!entry.size || entry.count <= 0) continue;
+          sizes[entry.size] = (sizes[entry.size] || 0) + Math.floor(entry.count);
+        }
+      }
+    }
+
+    const contact = (quote.contact as AnyRecord) || {};
+
+    return {
+      found: true,
+      id: str(quote.id),
+      visualId: str(quote.visualId, wanted),
+      total: num(quote.total),
+      amountOutstanding: num(quote.amountOutstanding, num(quote.total)),
+      customerName: str(contact.fullName),
+      customerEmail: str(contact.email).split(",")[0].trim(),
+      sizes,
+    };
+  } catch (error) {
+    return {
+      found: false,
+      error: error instanceof Error ? error.message : "Unknown Printavo error.",
+    };
+  }
+}
+
+/**
+ * What Printavo still says is owed. 0 or less means paid. `null` means
+ * Printavo could not be asked - callers must treat that as "unknown", never
+ * as paid.
+ */
+export async function fetchQuoteOutstanding(quoteId: string): Promise<number | null> {
+  if (!isConfigured()) return null;
+
+  try {
+    const data = await printavoRequest<{ quote: AnyRecord }>(
+      `query GorillaOutstanding($id: ID!) {
+         quote(id: $id) { amountOutstanding total }
+       }`,
+      { id: quoteId }
+    );
+
+    if (data.quote?.amountOutstanding === undefined) return null;
+
+    return num(data.quote.amountOutstanding);
+  } catch {
+    return null;
+  }
+}

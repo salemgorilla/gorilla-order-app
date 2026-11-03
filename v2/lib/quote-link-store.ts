@@ -43,10 +43,12 @@ export type QuoteEvent = {
     | "size_changed"
     | "approved"
     | "unlocked"
-    | "payment_released"
     | "payment_started"
     | "payment_failed"
-    | "paid";
+    | "payment_mismatch"
+    | "paid"
+    | "printavo_created"
+    | "printavo_failed";
   payload?: Record<string, unknown>;
   createdAt: string;
 };

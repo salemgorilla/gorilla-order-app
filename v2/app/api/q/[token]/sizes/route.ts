@@ -22,6 +22,5 @@ export async function POST(request: Request, ctx: { params: Promise<{ token: str
   return NextResponse.json({
     ok: true,
     quote: toPublicQuote(result.link),
-    warnings: result.warnings,
   });
 }

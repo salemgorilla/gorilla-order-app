@@ -38,13 +38,13 @@ export default async function ThanksPage({ params }: { params: Promise<{ token: 
           Order #{quote.orderNumber}
         </p>
         <h1 className="mt-2 text-head font-bold tracking-display">
-          {paid ? "Payment received. Thank you!" : "You're approved."}
+          {paid ? "Payment received. Thank you!" : "Almost done."}
         </h1>
         <p className="mt-3 text-body text-[var(--ink-muted)]">
           {paid
-            ? "We'll get your order into production. A receipt is on its way to your email."
-            : quote.status === "payment_requested"
-            ? "Your secure payment link is in your email. Once you've paid, this page will show it."
+            ? "We'll get your order into production. Your receipt is on its way from our card processor."
+            : quote.status === "payment_started"
+            ? "We're confirming your payment. Refresh this page in a minute. If you closed the payment page without paying, go back to your quote."
             : "We'll be in touch about payment."}
         </p>
         <a

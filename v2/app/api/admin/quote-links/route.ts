@@ -32,17 +32,20 @@ export async function GET(request: Request) {
     ok: true,
     links: links.map((l) => ({
       id: l.id,
-      order: l.printavo.visualId,
+      order: l.orderNumber,
       customer: l.customer.name,
       status: l.status,
       createdAt: l.createdAt,
-      held: l.status === "approved" && !l.paymentReleased,
       total: l.approvedSnapshot?.total,
+      paid: l.payment?.amountPaid,
+      printavo: l.printavo
+        ? { state: l.printavo.state, visualId: l.printavo.visualId, error: l.printavo.error }
+        : null,
     })),
   });
 }
 
-/** POST - create a link for a Printavo quote. Returns the URL once. */
+/** POST - create a link from the shop's own spec. Returns the URL once. */
 export async function POST(request: Request) {
   const blocked = denied(request);
   if (blocked) return blocked;
@@ -60,11 +63,8 @@ export async function POST(request: Request) {
     ? body.printLocations.map((l) => text(l, 40)).filter(Boolean).slice(0, 8)
     : [];
 
-  if (!text(body.printavoQuote, 30) || !style || !colorName) {
-    return NextResponse.json(
-      { ok: false, error: "Quote number, style and colour are required." },
-      { status: 400 }
-    );
+  if (!style || !colorName) {
+    return NextResponse.json({ ok: false, error: "Style and colour are required." }, { status: 400 });
   }
 
   const catalog = await catalogSizesFor(style, colorName);
@@ -77,7 +77,12 @@ export async function POST(request: Request) {
       : Number(depositRaw);
 
   const result = await createLink(liveDeps(), {
-    printavoQuote: text(body.printavoQuote, 30),
+    customer: {
+      name: text(body.customerName, 120),
+      email: text(body.customerEmail, 254),
+      phone: text(body.customerPhone, 40),
+    },
+    sizes: body.sizes && typeof body.sizes === "object" ? (body.sizes as Record<string, unknown> as Record<string, number>) : {},
     catalogSizes: catalog.sizes,
     minimumPieces: Number(body.minimumPieces) || 24,
     depositPercent: deposit,
@@ -102,6 +107,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ok: true,
     id: result.link.id,
+    orderNumber: result.link.orderNumber,
     url: `${SITE_ORIGIN}/q/${result.token}`,
   });
 }

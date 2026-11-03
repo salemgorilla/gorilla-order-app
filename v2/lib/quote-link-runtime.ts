@@ -1,10 +1,11 @@
 import { fetchSsActivewearCatalog } from "./ss-activewear";
 import { sendShopEmail, escapeEmailHtml } from "./email";
-import { createPaymentRequest, fetchQuoteOutstanding, findQuoteForLink } from "./printavo";
+import { createPaidQuoteLinkOrder, findExistingQuote } from "./printavo";
 import { liveQuoteLinkStore } from "./quote-link-blob";
 import type { Deps } from "./quote-link-service";
 import type { QuoteLinkSize } from "./quote-link";
 import { SITE_ORIGIN } from "./unsubscribe-token";
+import { createCheckoutSession, expireCheckoutSession, isStripeConfigured } from "./stripe";
 
 /**
  * The live wiring for lib/quote-link-service.ts. Nothing here decides
@@ -14,9 +15,15 @@ export function liveDeps(): Deps {
   return {
     store: liveQuoteLinkStore(),
     origin: SITE_ORIGIN,
-    findQuote: findQuoteForLink,
-    outstanding: fetchQuoteOutstanding,
-    requestPayment: ({ quoteId, fraction }) => createPaymentRequest({ quoteId, fraction }),
+    stripe: {
+      configured: isStripeConfigured(),
+      createSession: createCheckoutSession,
+      expireSession: expireCheckoutSession,
+    },
+    printavo: {
+      find: findExistingQuote,
+      create: createPaidQuoteLinkOrder,
+    },
     async notifyShop(subject, lines) {
       // Failure to email must never fail the customer's action - the event is
       // already in the log. It is logged loudly instead.
@@ -39,7 +46,7 @@ export async function catalogSizesFor(
   style: string,
   colorName: string
 ): Promise<
-  | { ok: true; sizes: QuoteLinkSize[]; brand: string; styleName: string; imageUrl?: string }
+  | { ok: true; sizes: QuoteLinkSize[]; brand: string; imageUrl?: string }
   | { ok: false; error: string }
 > {
   try {
@@ -57,7 +64,6 @@ export async function catalogSizesFor(
     return {
       ok: true,
       brand: product.brandName,
-      styleName: product.styleName,
       imageUrl: color.frontImage ?? undefined,
       // Wholesale is deliberately not copied.
       sizes: color.sizes.map((s) => ({

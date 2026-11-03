@@ -2,15 +2,15 @@ import { NextResponse } from "next/server";
 
 import { adminSecretMatches, isAdminSecretConfigured } from "../../../../../lib/admin-auth";
 import {
+  pushToPrintavo,
   regenerateLink,
-  releasePayment,
   unlockLink,
 } from "../../../../../lib/quote-link-service";
 import { liveDeps } from "../../../../../lib/quote-link-runtime";
 import { SITE_ORIGIN } from "../../../../../lib/unsubscribe-token";
 
 /**
- * POST /api/admin/quote-links/:id   { action: "regenerate" | "unlock" | "release" }
+ * POST /api/admin/quote-links/:id   { action: "regenerate" | "unlock" | "retry-printavo" }
  *
  * Regenerate returns the new URL once and kills the old one - the shop cannot
  * re-copy an existing link because only a hash of the token is kept.
@@ -38,12 +38,14 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
       : NextResponse.json({ ok: false, error: r.error }, { status: r.status });
   }
 
-  const r =
-    body.action === "unlock"
-      ? await unlockLink(deps, id)
-      : body.action === "release"
-      ? await releasePayment(deps, id)
-      : null;
+  if (body.action === "retry-printavo") {
+    const r = await pushToPrintavo(deps, id);
+    return r.ok
+      ? NextResponse.json({ ok: true, visualId: r.visualId })
+      : NextResponse.json({ ok: false, error: r.error }, { status: 502 });
+  }
+
+  const r = body.action === "unlock" ? await unlockLink(deps, id) : null;
 
   if (!r) return NextResponse.json({ ok: false, error: "Unknown action." }, { status: 400 });
 

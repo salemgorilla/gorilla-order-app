@@ -3488,134 +3488,120 @@ export async function fetchRecentInvoicesForPress(
 
 /* ── Customer quote link (lib/quote-link.ts) ─────────────────────────────── */
 
-export type LinkableQuote =
-  | {
-      found: true;
-      id: string;
-      visualId: string;
-      total: number;
-      amountOutstanding: number;
-      customerName: string;
-      customerEmail: string;
-      sizes: Record<string, number>;
-    }
-  | { found: false; error: string };
+export type PaidOrderInput = {
+  /** "GQ-..." - written into the nickname so a retry can find this order. */
+  orderNumber: string;
+  customer: { name: string; email: string; phone?: string };
+  /** YYYY-MM-DD */
+  customerDueDate: string;
+  garmentDescription: string;
+  /** apparelSku(style) - the same SKU a website apparel order files under. */
+  garmentSku: string;
+  garmentUnitPrice: number;
+  sizes: Record<string, number>;
+  /** Untaxed single-quantity rows: printing, setup, card fee. */
+  feeLines: Array<{ description: string; itemNumber: string; amount: number }>;
+  /** What the customer was charged and how, for the shop to read. */
+  paymentNote: string;
+  tags: string[];
+};
 
 /**
- * Find a Printavo quote by the number the shop sees (#14431), and read the
- * sizes on it. Matched on `visualId` EXACTLY - Printavo's search is fuzzy, and
- * a link to the wrong customer's quote is the failure that matters here.
+ * File a quote-link order in Printavo AFTER it was paid by card.
  *
- * Sizes use the same shape ladder as the reconciliation read, because the
- * `sizes` selection has never been confirmed against the live account.
+ * Uses only shapes this app already runs in production: findOrCreateContactId,
+ * quoteCreate and lineItemGroupCreate, exactly as createPrintavoQuote sends
+ * them. Printavo has no invoiceCreate - an order is an invoice by its STATUS
+ * (PRINTAVO-PROBE.md) - and no payment-recording mutation has been confirmed
+ * against the live account. So the payment is written into the production
+ * and customer notes and the shop records it; nothing here guesses a mutation.
+ *
+ * Line totals add up exactly to what Stripe charged: one garment row at the
+ * engine's 2dp unit across the real sizes, then each fee as a single row.
  */
-export async function findQuoteForLink(visualId: string): Promise<LinkableQuote> {
-  const wanted = visualId.trim().replace(/^#/, "");
-
-  if (!isConfigured()) return { found: false, error: "Printavo is not configured." };
-  if (!/^[A-Za-z0-9-]{1,30}$/.test(wanted)) {
-    return { found: false, error: "Enter the quote number, like 14431." };
-  }
+export async function createPaidQuoteLinkOrder(
+  input: PaidOrderInput
+): Promise<{ created: boolean; id?: string; visualId?: string; error?: string }> {
+  if (!isConfigured()) return { created: false, error: "Printavo is not configured." };
 
   try {
-    const search = await printavoRequest<{ orders: { nodes: AnyRecord[] } }>(
-      `query GorillaLinkSearch($q: String!, $first: Int!) {
-         orders(query: $q, first: $first) {
-           nodes {
-             ... on Quote   { id visualId }
-             ... on Invoice { id visualId }
-           }
-         }
-       }`,
-      { q: wanted, first: ORDER_SEARCH_PAGE_SIZE }
-    );
+    const { contactId } = await findOrCreateContactId({
+      customerName: input.customer.name,
+      email: input.customer.email,
+      phone: input.customer.phone ?? "",
+    });
 
-    const match = (search.orders?.nodes || []).find(
-      (node) => str(node.visualId) === wanted
-    );
-
-    if (!match?.id) {
-      return { found: false, error: `No Printavo quote numbered ${wanted}.` };
+    if (!contactId) {
+      return { created: false, error: "Could not resolve a Printavo contact for this customer." };
     }
 
-    const data = await requestTryingSizeShapes<{ quote?: AnyRecord }>(
-      (sizes) =>
-        `query GorillaLinkDetail($id: ID!) {
-           quote(id: $id) {
-             id
-             visualId
-             total
-             amountOutstanding
-             contact { fullName email }
-             lineItemGroups(first: 10) {
-               nodes {
-                 lineItems(first: 25) {
-                   nodes { ${sizes} }
-                 }
-               }
-             }
-           }
-         }`,
-      { id: str(match.id) }
-    );
-
-    const quote = data.quote;
-    if (!quote?.id) return { found: false, error: `Quote ${wanted} could not be read.` };
-
-    const sizes: Record<string, number> = {};
-    const groups = ((quote.lineItemGroups as AnyRecord)?.nodes as AnyRecord[]) || [];
-
-    for (const group of groups) {
-      const rows = ((group?.lineItems as AnyRecord)?.nodes as AnyRecord[]) || [];
-
-      for (const row of rows) {
-        for (const entry of lineItemSizes(row) || []) {
-          if (!entry.size || entry.count <= 0) continue;
-          sizes[entry.size] = (sizes[entry.size] || 0) + Math.floor(entry.count);
+    const quoteData = await printavoRequest<{ quoteCreate: AnyRecord }>(
+      `
+        mutation GorillaOrderQuoteCreate($input: QuoteCreateInput!) {
+          quoteCreate(input: $input) {
+            id
+            visualId
+            nickname
+          }
         }
+      `,
+      {
+        input: {
+          contact: { id: contactId },
+          nickname: asciiSafe(`${input.orderNumber} - PAID ONLINE - ${input.customer.name}`),
+          customerDueAt: input.customerDueDate,
+          dueAt: `${input.customerDueDate}T17:00:00Z`,
+          customerNote: asciiSafe(input.paymentNote),
+          productionNote: asciiSafe(input.paymentNote),
+          tags: input.tags,
+        },
       }
-    }
+    );
 
-    const contact = (quote.contact as AnyRecord) || {};
+    const quote = quoteData.quoteCreate as AnyRecord;
+    const garmentSizes = Object.entries(input.sizes)
+      .filter(([, count]) => count > 0)
+      .map(([size, count]) => ({ size: toPrintavoSize(size), count }));
 
-    return {
-      found: true,
-      id: str(quote.id),
-      visualId: str(quote.visualId, wanted),
-      total: num(quote.total),
-      amountOutstanding: num(quote.amountOutstanding, num(quote.total)),
-      customerName: str(contact.fullName),
-      customerEmail: str(contact.email).split(",")[0].trim(),
-      sizes,
-    };
+    await printavoRequest(
+      `
+        mutation GorillaOrderLineItemGroupCreate($parentId: ID!, $input: LineItemGroupCreateInput!) {
+          lineItemGroupCreate(parentId: $parentId, input: $input) {
+            id
+          }
+        }
+      `,
+      {
+        parentId: quote.id,
+        input: {
+          position: 1,
+          lineItems: [
+            {
+              description: asciiSafe(input.garmentDescription),
+              itemNumber: input.garmentSku,
+              position: 1,
+              price: input.garmentUnitPrice,
+              sizes: garmentSizes,
+              taxed: false,
+            },
+            ...input.feeLines.map((fee, index) => ({
+              description: asciiSafe(fee.description),
+              itemNumber: fee.itemNumber,
+              position: index + 2,
+              price: fee.amount,
+              sizes: [{ size: "size_other", count: 1 }],
+              taxed: false,
+            })),
+          ],
+        },
+      }
+    );
+
+    return { created: true, id: str(quote.id), visualId: str(quote.visualId) };
   } catch (error) {
     return {
-      found: false,
+      created: false,
       error: error instanceof Error ? error.message : "Unknown Printavo error.",
     };
-  }
-}
-
-/**
- * What Printavo still says is owed. 0 or less means paid. `null` means
- * Printavo could not be asked - callers must treat that as "unknown", never
- * as paid.
- */
-export async function fetchQuoteOutstanding(quoteId: string): Promise<number | null> {
-  if (!isConfigured()) return null;
-
-  try {
-    const data = await printavoRequest<{ quote: AnyRecord }>(
-      `query GorillaOutstanding($id: ID!) {
-         quote(id: $id) { amountOutstanding total }
-       }`,
-      { id: quoteId }
-    );
-
-    if (data.quote?.amountOutstanding === undefined) return null;
-
-    return num(data.quote.amountOutstanding);
-  } catch {
-    return null;
   }
 }

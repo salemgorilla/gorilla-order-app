@@ -43,6 +43,8 @@ export const SKU = {
   APPAREL_PRINT: "GORILLA-APPAREL-PRINT",
   APPAREL_SETUP: "GORILLA-APPAREL-SETUP",
   RUSH: "GORILLA-RUSH",
+  /** The 3% card processing fee on a quote-link order paid by card. */
+  CARD_FEE: "GORILLA-CARD-FEE",
   SHIPPING: "GORILLA-SHIPPING",
   /**
    * A cross-sell the customer ticked at checkout, carried onto the quote as

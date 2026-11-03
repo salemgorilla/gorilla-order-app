@@ -52,6 +52,12 @@ payable link the customer can pay immediately. Nothing between the browser and
 someone's card is reviewed. Apparel does not: it is an estimate priced off a
 supplier catalogue that can be stale, so the shop confirms it first.
 
+**One exception, by Gabe's decision (2026-11-02):** the customer quote link
+(`/q/<token>`, `lib/quote-link*.ts`) takes card payment for apparel via
+Stripe, because the SHOP builds and checks every one of those quotes before
+the customer can pay. It is not the website apparel flow, which still never
+takes money. See HANDOFF.md, "Customer quote link".
+
 **Two gates, and they must stay separate.**
 
 `isStickerOrder()` in `lib/sticker-repricing.ts` decides which submissions are

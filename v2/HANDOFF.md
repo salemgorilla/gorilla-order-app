@@ -7,33 +7,40 @@ next session will act on it.
 
 Read this first, then `AGENTS.md` and `DESIGN-SYSTEM.md`.
 
-## Customer quote link (added 2026-11-02, NOT yet run against live data)
+## Customer quote link (added 2026-11-02, redesigned 2026-11-03, NOT yet run live)
 
-A private page `/q/<token>` where a customer edits sizes on a shop-built
-Printavo quote, sees the price move, approves, and is sent a payment link.
-Shop side: `/admin/quote-links` (ADMIN_SECRET).
+A private page `/q/<token>` where a customer edits sizes on a quote the shop
+built at `/admin/quote-links`, sees the price move, approves, and pays by card
+on Stripe Checkout. Only after Stripe confirms payment is the order filed in
+Printavo, marked PAID ONLINE.
 
-- **State is Vercel Blob** (`lib/quote-link-store.ts`), private, tokens stored
-  only as sha256. No database exists. Read-modify-write is last-writer-wins.
-- **Price shown** = apparel engine on a catalogue snapshot taken at link
-  creation (`lib/quote-link.ts`). **Amount charged** = Printavo's own
-  `amountOutstanding` via `createPaymentRequest` (fraction for a deposit).
-  If the customer changed sizes, payment is HELD until the shop updates
-  Printavo and clicks Release (`paymentGate`). This is deliberate: AGENTS.md
-  forbids billing a total this app computed.
-- **Not Stripe.** The spec asked for Stripe Checkout; Gabe chose Printavo
-  payment links. So no webhook: the page asks Printavo `amountOutstanding`
-  when opened, and treats an unreachable Printavo as "unknown", never paid.
-- **Unverified against the live account:** `findQuoteForLink` (matches
-  `visualId` exactly; sizes read through the existing shape ladder) and
-  `fetchQuoteOutstanding`. Whether a PAID quote stays readable as
-  `quote(id)` or becomes an invoice is unknown - if it 404s the page will
-  sit at "payment requested". Check with one real test quote.
-- **Owed before merge:** one real quote reconciled against its Printavo
-  invoice to the cent (see below). Not done - no credentials in the build
-  sandbox. Void the test quote afterwards; never pay it.
-- Not built: Printavo status push/notes, S&S stock counts (availability only),
-  customer receipt email (Printavo's payment email covers it), rush fees.
+- **One price (Gabe, 2026-11-02):** our apparel engine, plus a 3% card fee
+  (Gabe, 2026-11-03), no sales tax. The approval snapshot is what Stripe
+  charges; the browser never supplies a figure. Over FULL_PAYMENT_CEILING the
+  customer pays DEPOSIT_FRACTION (imported from lib/auto-bill.ts, not copied)
+  unless the shop set its own deposit.
+- **This is a deliberate exception to "apparel never auto-bills"** in
+  AGENTS.md, decided by Gabe for quote links only: the shop builds and checks
+  every quote before the customer can pay it. The website apparel flow is
+  unchanged and still never takes money.
+- **Webhook** `/api/stripe/webhook`: signature checked on the raw body;
+  amount and session must match what the quote is waiting on, else nothing is
+  marked paid and the shop is emailed. Printavo filing is guarded three ways
+  against duplicates (link state, a "creating" marker, Printavo search for the
+  GQ- number); if Printavo cannot be searched nothing is created and the admin
+  page offers Retry Printavo.
+- **Printavo side uses only production-proven calls** (contact find/create,
+  quoteCreate, lineItemGroupCreate). Printavo has no invoiceCreate - an order
+  becomes an invoice by status - and no payment-recording mutation is
+  confirmed, so the payment is written into the notes and the SHOP records
+  it in Printavo. Run `/api/printavo-schema?like=payment` once to find one.
+- **State is private Vercel Blob** (`lib/quote-link-store.ts`), tokens stored
+  only as sha256. Last-writer-wins; not a ledger.
+- **Owed before merge:** one small real Stripe payment through a test link,
+  the Printavo order checked against it to the cent, then refunded in Stripe
+  and voided in Printavo. Record it in the table below.
+- **Needs:** STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET (see .env.local.example),
+  the webhook endpoint registered in Stripe, and the Blob store.
 
 ## Reconciled — every billed-figure change, against a real Printavo invoice
 

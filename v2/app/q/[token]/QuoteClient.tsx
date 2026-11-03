@@ -19,14 +19,12 @@ export default function QuoteClient({ token, initial }: { token: string; initial
   const [entered, setEntered] = useState<Record<string, string>>(
     Object.fromEntries(Object.entries(initial.entered).map(([k, v]) => [k, String(v)]))
   );
-  const [warnings, setWarnings] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [busy, setBusy] = useState<"" | "approve" | "pay">("");
-  const [emailedTo, setEmailedTo] = useState("");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sequence = useRef(0);
 
@@ -63,7 +61,6 @@ export default function QuoteClient({ token, initial }: { token: string; initial
 
         if (data.ok) {
           setQuote(data.quote);
-          setWarnings(data.warnings ?? []);
         } else {
           setError(data.error ?? "Something went wrong.");
         }
@@ -100,10 +97,12 @@ export default function QuoteClient({ token, initial }: { token: string; initial
     try {
       const res = await fetch(`/api/q/${token}/checkout`, { method: "POST" });
       const data = await res.json();
-      if (data.ok) {
-        setEmailedTo(data.emailedTo);
-        setQuote({ ...quote, status: "payment_requested", gate: { state: "requested" } });
-      } else setError(data.error ?? "Something went wrong.");
+      // Off to Stripe's own page; it brings them back to /thanks.
+      if (data.ok && typeof data.url === "string" && data.url.startsWith("https://")) {
+        window.location.assign(data.url);
+        return;
+      }
+      setError(data.error ?? "Something went wrong.");
     } catch {
       setError("We couldn't reach the server. Check your connection.");
     } finally {
@@ -191,11 +190,6 @@ export default function QuoteClient({ token, initial }: { token: string; initial
               Approved - sizes are locked. Call us if something needs to change.
             </p>
           )}
-          {warnings.map((w) => (
-            <p key={w} className="mt-3 border border-[var(--rule)] bg-[var(--surface-warn)] p-3 text-fine font-bold text-[var(--ink-warn)]">
-              {w}
-            </p>
-          ))}
         </section>
 
         <section className={card} aria-label="Totals" aria-live="polite">
@@ -205,6 +199,7 @@ export default function QuoteClient({ token, initial }: { token: string; initial
             <dt>Printing</dt><dd className="spec text-right">{money(p.decorationTotal)}</dd>
             <dt>Screens / setup</dt><dd className="spec text-right">{money(p.setupTotal)}</dd>
             {p.rushTotal > 0 && (<><dt>Rush</dt><dd className="spec text-right">{money(p.rushTotal)}</dd></>)}
+            {p.cardFee > 0 && (<><dt>Card processing (3%)</dt><dd className="spec text-right">{money(p.cardFee)}</dd></>)}
             {p.tax > 0 && (<><dt>Tax</dt><dd className="spec text-right">{money(p.tax)}</dd></>)}
             <dt className="border-t border-[var(--rule-faint)] pt-2 text-value font-bold">Total</dt>
             <dd className="spec border-t border-[var(--rule-faint)] pt-2 text-right text-value font-bold">
@@ -212,9 +207,9 @@ export default function QuoteClient({ token, initial }: { token: string; initial
             </dd>
             {p.pieces > 0 && (<><dt className="text-fine text-[var(--ink-muted)]">Per piece</dt>
               <dd className="spec text-right text-fine text-[var(--ink-muted)]">{money(p.perPiece)}</dd></>)}
-            {p.depositAmount !== null && p.pieces > 0 && (
-              <><dt className="font-bold">Deposit due now ({p.depositPercent}%)</dt>
-                <dd className="spec text-right font-bold">{money(p.depositAmount)}</dd></>
+            {p.deposit && p.pieces > 0 && (
+              <><dt className="font-bold">Deposit due now ({p.deposit.percent}%)</dt>
+                <dd className="spec text-right font-bold">{money(p.amountDue)}</dd></>
             )}
           </dl>
           {quote.belowMinimum && !locked && (
@@ -263,31 +258,20 @@ export default function QuoteClient({ token, initial }: { token: string; initial
             {quote.gate.state === "ready" && (
               <>
                 <p className="mt-2 text-body">
-                  We&apos;ll email you a secure payment link
-                  {p.depositAmount !== null ? ` for the ${money(p.depositAmount)} deposit` : ""}.
+                  {p.deposit
+                    ? `Pay the ${money(quote.gate.amountDue)} deposit now. The balance is due before pickup.`
+                    : `Pay ${money(quote.gate.amountDue)} by card on our secure payment page.`}
                 </p>
                 <button className={`${button} mt-3`} disabled={busy !== ""} onClick={pay}>
-                  {busy === "pay" ? "Sending..." : p.depositAmount !== null ? "Pay deposit" : "Pay now"}
+                  {busy === "pay" ? "Opening payment..." : p.deposit ? `Pay deposit ${money(quote.gate.amountDue)}` : `Pay ${money(quote.gate.amountDue)}`}
                 </button>
               </>
             )}
 
-            {quote.gate.state === "held" && (
-              <p className="mt-2 border border-[var(--rule)] bg-[var(--surface-warn)] p-3 text-body font-bold text-[var(--ink-warn)]">
-                Thanks - you changed the sizes, so we&apos;re updating your invoice first. We&apos;ll
-                email your payment link as soon as it&apos;s ready.
-              </p>
-            )}
-
-            {quote.gate.state === "requested" && (
-              <p className="mt-2 text-body font-bold">
-                {emailedTo ? `A secure payment link is on its way to ${emailedTo}.` : "Your secure payment link was emailed to you."}{" "}
-                <a className="underline" href={`/q/${token}/thanks`}>Already paid? Check status</a>
-              </p>
-            )}
-
             {quote.gate.state === "paid" && (
-              <p className="mt-2 text-body font-bold">Paid - thank you!</p>
+              <p className="mt-2 text-body font-bold">
+                Paid{quote.amountPaid ? ` ${money(quote.amountPaid)}` : ""} - thank you! We&apos;ll be in touch when it&apos;s ready.
+              </p>
             )}
           </section>
         )}

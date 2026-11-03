@@ -5,10 +5,10 @@ import { liveDeps } from "../../../../../lib/quote-link-runtime";
 import { guard } from "../../_guard";
 
 /**
- * POST /api/q/:token/checkout
+ * POST /api/q/:token/checkout -> { url } of the Stripe Checkout page.
  *
- * Asks Printavo to email the customer their payment link. Held when the
- * customer changed sizes - see paymentGate in lib/quote-link.ts.
+ * The amount is the approved snapshot's, decided on the server. Nothing the
+ * browser sends is read.
  */
 export async function POST(request: Request, ctx: { params: Promise<{ token: string }> }) {
   const { token } = await ctx.params;
@@ -20,5 +20,5 @@ export async function POST(request: Request, ctx: { params: Promise<{ token: str
     return NextResponse.json({ ok: false, error: result.error }, { status: result.status });
   }
 
-  return NextResponse.json({ ok: true, amount: result.amount, emailedTo: result.emailedTo });
+  return NextResponse.json({ ok: true, url: result.url });
 }

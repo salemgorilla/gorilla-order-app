@@ -274,12 +274,22 @@ describe("the public view", () => {
     }
   });
 
-  test("once approved, shows the frozen snapshot that will be charged", async () => {
+  test("once approved, shows the frozen snapshot that will be charged, even if prices move", async () => {
     const t = setup();
     const made = await newLink(t);
     await approveLink(t.deps, made.token, WHO);
     const link = (await t.store.getById(made.link.id))!;
-    assert.equal(toPublicQuote(link).price.total, link.approvedSnapshot!.total);
+    // The catalogue (or the engine) changes after approval: the page must
+    // keep showing what Stripe will charge, not a fresh reprice.
+    const repriced = {
+      ...link,
+      catalogSizes: link.catalogSizes.map((s) => ({ ...s, markedUpPrice: s.markedUpPrice + 5, priceByMarkup: undefined })),
+    };
+    assert.notEqual(priceQuoteLink(repriced, repriced.sizes).total, link.approvedSnapshot!.total);
+    assert.equal(toPublicQuote(repriced).price.total, link.approvedSnapshot!.total);
+    const gate = toPublicQuote(repriced).gate;
+    assert.ok(gate.state === "ready");
+    assert.equal(gate.amountDue, link.approvedSnapshot!.amountDue);
   });
 });
 
@@ -338,6 +348,15 @@ describe("checkout", () => {
     const again = await startPayment(t.deps, made.token);
     assert.ok(again.ok);
     assert.equal(t.sessions.length, 1);
+  });
+
+  test("after the reuse window, a fresh session gets a fresh idempotency key", async () => {
+    const t = setup();
+    const { made, link } = await approvedAndStarted(t);
+    await t.store.save({ ...link, payment: { ...link.payment!, startedAt: "2020-01-01T00:00:00Z" } });
+    assert.ok((await startPayment(t.deps, made.token)).ok);
+    assert.equal(t.sessions.length, 2);
+    assert.notEqual(t.sessions[0].idempotencyKey, t.sessions[1].idempotencyKey);
   });
 
   test("unlock closes the open payment page first, or unlocks nothing", async () => {

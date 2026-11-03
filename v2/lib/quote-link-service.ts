@@ -303,7 +303,10 @@ export async function startPayment(
       metadata: { linkId: link.id, orderNumber: link.orderNumber, tokenVersion: String(link.tokenVersion) },
       // Keyed on the approval, so the SAME approval can never mint two
       // sessions even if two requests race past the reuse check above.
-      idempotencyKey: `quote-link-${link.id}-${link.approval?.approvedAt}-${amountCents}`,
+      // The previous session id is part of the key: once the reuse window
+      // has passed, Stripe must open a NEW page rather than replay the old,
+      // nearly-expired one from its 24h idempotency cache.
+      idempotencyKey: `quote-link-${link.id}-${link.approval?.approvedAt}-${amountCents}-${open?.sessionId ?? "first"}`,
     });
   } catch (error) {
     await deps.store.logEvent(link.id, "payment_failed", { stage: "session", error: String(error) });

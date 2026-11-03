@@ -8,7 +8,8 @@ license: MIT
 
 A comprehensive verification system for Claude Code sessions.
 
-> **Adapted for this repo. Last checked 2026-09-25 against `main`.** The
+> **Adapted for this repo. Last checked 2026-11-03 against `claude/customer-quote-link`
+> (every path, script and baseline below was run, not read).** The
 > commands below are the ones that actually work here. Two of the original's
 > phases assumed a project shape this repo does not have — a `src/` tree and
 > a coverage-enabled test runner — and a phase that silently does nothing
@@ -107,16 +108,18 @@ Report:
 ```bash
 cd v2
 # Secret-shaped literals
-grep -rnE "(sk-[A-Za-z0-9]{12,}|api_key\s*[:=]\s*[\"'][^\"']{8,})" \
+grep -rnE "(sk-[A-Za-z0-9]{12,}|sk_(live|test)_[A-Za-z0-9]{8,}|whsec_[A-Za-z0-9]{8,}|api_key\s*[:=]\s*[\"'][^\"']{8,})" \
   --include="*.ts" --include="*.tsx" app/ lib/ components/ features/ | head -10
 
 # THIS project's credential names, hardcoded
-grep -rnE "(PRINTAVO_TOKEN|PRINTAVO_EMAIL|SS_API_KEY|ADMIN_SECRET|KIOSK_PIN|GMAIL_APP_PASSWORD|BLOB_READ_WRITE_TOKEN|NEWSLETTER_SECRET|DROPOFF_SECRET)\s*=\s*[\"'][^\"']+[\"']" \
+grep -rnE "(PRINTAVO_TOKEN|PRINTAVO_EMAIL|SS_API_KEY|ADMIN_SECRET|KIOSK_PIN|GMAIL_APP_PASSWORD|BLOB_READ_WRITE_TOKEN|NEWSLETTER_SECRET|DROPOFF_SECRET|STRIPE_SECRET_KEY|STRIPE_WEBHOOK_SECRET)\s*=\s*[\"'][^\"']+[\"']" \
   --include="*.ts" --include="*.tsx" app/ lib/ components/ features/ | head -10
 
 # Stray debugging in CLIENT code. console.log in app/api/ is deliberate
-# server logging; in a component it is something someone forgot.
-grep -rn "console\.log" --include="*.ts" --include="*.tsx" components/ features/ | head -10
+# server logging; in a component it is something someone forgot. Client
+# pages live under app/ too (app/q/[token]/QuoteClient.tsx, app/admin/...),
+# so find them by their directive rather than by folder:
+grep -rl '"use client"' app/ components/ features/ | xargs grep -n "console\.log" | head -10
 ```
 
 There is no `src/` directory — the original's paths match nothing here, which
@@ -158,10 +161,13 @@ The phases above check that the code is sound. They cannot tell you it is
   cd v2 && (setsid nohup npm run dev -- -p 3021 > /tmp/dev.log 2>&1 < /dev/null &)
   for i in $(seq 1 45); do curl -sf -o /dev/null http://localhost:3021 && break; sleep 1; done
   SMOKE_URL=http://localhost:3021 \
-    SMOKE_CHROMIUM=/opt/pw-browsers/chromium-1194/chrome-linux/chrome \
+    SMOKE_CHROMIUM=$(ls -d /opt/pw-browsers/chromium-*/chrome-linux*/chrome | head -1) \
     npm run test:e2e
   ```
-  The suite drives all three flows to review, asserts the signs total against
+  The browser path is looked up, not typed: it was `chromium-1194/chrome-linux`
+  in September and `chromium-1243/chrome-linux64` by November, and a typed path
+  fails the whole phase. The suite drives the stickers, signs and apparel flows
+  (plus the kiosk) to review, asserts the signs total against
   `quoteSignsCart` + `getSignsTotals`, and snapshots each flow's summary
   LABELS — a dropped spec row fails and names which row.
 
@@ -170,6 +176,13 @@ The phases above check that the code is sound. They cannot tell you it is
   ```bash
   kill $(fuser 3021/tcp 2>/dev/null | tr -d " ")
   ```
+
+- **Quote-link orders (GQ- numbers) are not covered by `npm run reconcile`.**
+  That script reads a website order's GS- number and its "WEBSITE ESTIMATE"
+  note. A quote-link order is priced by the app, charged by Stripe, then filed
+  in Printavo already paid, so its check is: the Stripe charge, the approved
+  snapshot on the link, and the Printavo order's line total, all equal to the
+  cent. Until a script does it, do it by hand and record it in the same table.
 
 - **Anything touching a billed figure ends with a Printavo reconciliation**,
   not a passing test: `npm run reconcile -- GS-XXXXXXXX-XXXXX`, recorded in
@@ -201,6 +214,11 @@ The phases above check that the code is sound. They cannot tell you it is
 
 - **Mutation-test every new guard.** A check that has never failed is unproven.
   Reintroduce the bug, confirm that test fails and only that test, revert.
+  **Commit (or stash) first.** Reverting a mutation with `git checkout -- file`
+  also throws away any uncommitted work in that file; on 2026-11-03 that
+  silently discarded a fix mid-run. Of 14 guards mutated that day, one
+  survived: the test never changed prices after approval, so removing the
+  "show the frozen price" guard changed nothing it looked at.
 
 - **Read production, don't wait to be told.** `get_runtime_errors` and
   `get_runtime_logs` name the failing call in one request. Three rounds of

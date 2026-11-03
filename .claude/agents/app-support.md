@@ -49,9 +49,12 @@ gorillasalem.com. Treat every change accordingly.
 - **Deploys:** `main` → production (labs.gorillasalem.com). `develop` → preview.
   Both via Vercel, ~30s. `GET /api/artwork-upload` returns a `build` field —
   a reliable deploy fingerprint.
-- **Flows:** Custom Stickers (live, instant price, **self-checkout**), Banners
-  & Signs (live, priced from the shop's boards), T-Shirts & Apparel (live as a
-  *hand-quote request* — the full configurator exists but is not rendered).
+- **Flows:** Custom Stickers (instant price, **self-checkout**), Banners &
+  Signs (priced from the shop's boards, **self-checkout** since 2026-09-07),
+  T-Shirts & Apparel (live configurator since 2026-09-06, an ESTIMATE the shop
+  confirms - **never** a payment link), Paper (quote request, no price). Plus
+  the customer quote link at `/q/<token>`: a quote the SHOP builds, which the
+  customer approves and pays by Stripe (Gabe, 2026-11-02).
 - **Shape:** five steps — Product · Details · Artwork · Contact · Review.
 - **On submit:** an email to the shop plus a Printavo quote on the customer's
   record.
@@ -64,14 +67,15 @@ and open work. Do not reintroduce raw hex — add a token.
 
 ## The invariants. Break these and it costs real money.
 
-**1. Stickers self-check-out. Nothing else does.**
-`isStickerOrder()` in `v2/lib/sticker-repricing.ts` (called from the quote
-route) decides which submissions
-auto-generate a Printavo payment link with no human in the loop. It requires
-the product type to say "sticker" *and* carry no supplier/garmentType/signType.
-Any new flow whose payload misses those markers becomes a sticker order, gets
-repriced against the sticker table, and bills a customer for something nobody
-priced. When you add a flow, assert its payload against this function.
+**1. Stickers, signs and banners auto-bill. Website apparel never does.**
+`AGENTS.md` ("The one that matters most") is the authority; read it. Two
+gates, kept separate: `isStickerOrder()` in `v2/lib/sticker-repricing.ts`
+decides which submissions are stickers (it requires the product type to say
+"sticker" - classifying by absence once billed customers for things nobody
+priced), and `v2/lib/auto-bill.ts` decides billing for stickers and for signs
+and banners. When you add a flow, assert its payload against both. The one
+apparel exception is the quote link, which charges only what the shop built
+and the customer approved.
 
 **2. The server reprices stickers. The browser is not trusted.**
 `repriceStickers()` recomputes the total from the spec server-side and logs
@@ -96,10 +100,11 @@ That produces a "show what's missing" the customer can never satisfy. It has
 happened twice. Walk the flow in a browser after touching validation.
 
 **6. Never show a price the shop has not signed off.**
-Apparel is a hand-quote request for exactly this reason. `ApparelBuilder` and
-its S&S/screen-print pricing stay unrendered until Gabe approves them —
-flipping `status: "request"` → `"active"` in `v2/lib/products.tsx` is that
-decision, and it is his, not yours.
+The apparel configurator went live on 2026-09-06 ("Yes flip.") as an ESTIMATE
+the shop confirms, and must never say "pay online" or raise a payment link.
+Rolling it back is `status: "active"` -> `"request"` on apparel in
+`v2/lib/products.tsx`; that call, and any change to what apparel charges, is
+Gabe's, not yours.
 
 **7. The magenta cut line is three things in sync.**
 `--cut-line` must stay RGB 255,0,255. `isMagentaPixel()` in `v2/lib/artwork.ts`
@@ -112,15 +117,16 @@ palette.
 
 ## How to work
 
-- **Branch:** develop on `develop`, push there, look at the preview, merge to
-  `main` only once a human has. Never push straight to `main`.
+- **Branch:** off `main`, PR back to `main` (AGENTS.md). Merged PRs land on
+  `main`, which deploys production. Never push straight to `main`.
 - **Verify by running, not by reading.** This repo has been bitten by patches
   that matched nothing and reported success. Load the flow in a browser and
-  step it. Chromium is at `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`.
+  step it. Chromium: `ls -d /opt/pw-browsers/chromium-*/chrome-linux*/chrome` (the
+  version number in the path changes; it was `chromium-1194`, now `-1243`).
 - **Check both breakpoints:** 1280px and 360px.
-- `npm run build` and `npx tsc --noEmit` clean before you claim done. Two lint
-  errors in `v2/app/page.tsx` are pre-existing — compare against baseline
-  rather than assuming you caused them.
+- `npm run build` and `npx tsc --noEmit` clean before you claim done. Lint
+  baseline is 0 errors and 13 warnings (2026-11-03); a different count means
+  your change moved it.
 - Match the surrounding comment density. This codebase explains *why*, not
   what, and records the bug a guard exists to prevent. Keep that.
 

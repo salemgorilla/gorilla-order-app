@@ -74,6 +74,34 @@ to the cent. Nothing in #149 touched any of that. It did not prove the RATE
 — that is a business figure, and #149 changed it, so the row above it is
 owed and the merge rule points at the next sticker order.
 
+## Embroidery on apparel, 2026-11-09: table in, calculator drafted, NOT wired
+
+**Gabe, 2026-11-09:** add embroidery to the apparel decorations: instant
+estimate, left chest + caps/hats + sleeve/other, a one-time digitizing fee, and
+an AGENT that reads the customer's logo image and works out the stitch count
+(he supplies the price table). He sent `Embroidery-Pricing-Matrix-Export-20261109`.
+
+**Done (inert, new files only):** `lib/embroidery-pricing-config.ts` (the
+export cell for cell; every open question written beside it),
+`lib/embroidery-pricing.ts` (column/row lookup, step-down quantity, never-
+cheaper clamp), `lib/embroidery.ts` (placements and a size + "how busy" stitch
+ESTIMATE, the fallback and sanity bound for the agent), tests pinning all of it.
+`embroideryRatesConfirmed = false`, so nothing shows an embroidery price.
+
+**What the export leaves open (answered conservatively, Gabe to confirm):**
+gaps at 5,001-6,000 and 11,001-11,999 (a count rides the NEXT column up); the
+"20000" column's meaning (recorded, NOT used: above 13,000 stitches is a hand
+quote); one backwards cell, qty 6, 10-11K $8.50 under 9001-10000 $8.76 (read as
+$8.76; likely meant ~$9.30); no row below 6 pieces (hand quote); digitizing fee
+amount not given (`null`).
+
+**Still to build:** the image-reading agent (a server route calling a Claude
+vision model with the uploaded logo + its stated size; needs `ANTHROPIC_API_KEY`
+in Vercel, never in chat; falls back to `estimateStitches` when absent or when
+its answer disagrees wildly), the apparel decoration choice in
+`ApparelBuilder`/`page.tsx`, the payload, the Printavo embroidery + digitizing
+lines, the shop email, and a reconciled test order.
+
 ## Customer's due date in the shop email and the Printavo list, 2026-10-29
 
 **Gabe: "I'm still not seeing it in the email I get confirming a quote has been

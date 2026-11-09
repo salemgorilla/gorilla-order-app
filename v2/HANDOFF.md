@@ -88,12 +88,19 @@ cheaper clamp), `lib/embroidery.ts` (placements and a size + "how busy" stitch
 ESTIMATE, the fallback and sanity bound for the agent), tests pinning all of it.
 `embroideryRatesConfirmed = false`, so nothing shows an embroidery price.
 
-**What the export leaves open (answered conservatively, Gabe to confirm):**
-gaps at 5,001-6,000 and 11,001-11,999 (a count rides the NEXT column up); the
-"20000" column's meaning (recorded, NOT used: above 13,000 stitches is a hand
-quote); one backwards cell, qty 6, 10-11K $8.50 under 9001-10000 $8.76 (read as
-$8.76; likely meant ~$9.30); no row below 6 pieces (hand quote); digitizing fee
-amount not given (`null`).
+**The table was completed the same day (Gabe: "make the missing quantities
+relative to how the rest of the pricing works").** The export is kept verbatim in
+`lib/embroidery-export.ts`; `lib/embroidery-matrix.ts` derives the table the app
+prices from, by RULES read off the table itself, every cell tagged exported /
+filled / adjusted: 5,001-6,000 priced as 0-5,000 (the 6001-7000 column is exactly
+one step above 0-5000); the one backwards cell (qty 6, 10-11K $8.50) becomes the
+previous column plus the row's step, $9.38; 11,001-12,000 is 10-11K plus one
+step; 13,001-19,000 is a straight line from the 12-13K price to the "20000"
+column, read as the 19,001-20,000 band. Fewer than 6 pieces and above 20,000
+stitches stay hand quotes. `npx tsx scripts/embroidery-matrix-csv.ts <dir>`
+writes a marked CSV to print and a plain one. STILL for Gabe to confirm: the
+5,001-6,000 reading, the "20000" meaning, the under-6 rule, and the digitizing
+fee amount (`null`). `embroideryRatesConfirmed` is still false.
 
 **Agent built (2026-11-09, not yet called by any page):** `lib/embroidery-agent.ts`
 + `POST /api/embroidery-estimate` (logo + placement + size in, stitches out). It

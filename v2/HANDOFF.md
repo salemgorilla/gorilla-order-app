@@ -95,10 +95,17 @@ quote); one backwards cell, qty 6, 10-11K $8.50 under 9001-10000 $8.76 (read as
 $8.76; likely meant ~$9.30); no row below 6 pieces (hand quote); digitizing fee
 amount not given (`null`).
 
-**Still to build:** the image-reading agent (a server route calling a Claude
-vision model with the uploaded logo + its stated size; needs `ANTHROPIC_API_KEY`
-in Vercel, never in chat; falls back to `estimateStitches` when absent or when
-its answer disagrees wildly), the apparel decoration choice in
+**Agent built (2026-11-09, not yet called by any page):** `lib/embroidery-agent.ts`
++ `POST /api/embroidery-estimate` (logo + placement + size in, stitches out). It
+calls the Messages API with `ANTHROPIC_API_KEY` (set in Vercel Production by
+Gabe on 2026-11-09, never in chat; model overridable with
+`EMBROIDERY_AGENT_MODEL`, default `claude-sonnet-5-5`). The answer must fall in
+the calculator's believable band for that size or the calculator's medium
+reading replaces it (`source: "calculator"`), which also covers no key, a
+timeout and a prompt-injected logo. Bounded by 6 calls/min per caller, a 3.5 MB
+image cap and a 120/hour per-instance ceiling.
+
+**Still to build:** the apparel decoration choice in
 `ApparelBuilder`/`page.tsx`, the payload, the Printavo embroidery + digitizing
 lines, the shop email, and a reconciled test order.
 

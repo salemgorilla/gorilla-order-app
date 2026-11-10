@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, test } from "node:test";
 import {
   fetchRecentInvoicesForPress,
   discoverInvoiceOrdering,
+  pageTrendsNewestFirst,
   PRESS_MAX_PAGES,
   PRINTAVO_MAX_PAGE,
   resetProvenInvoiceOrdering,
@@ -529,5 +530,80 @@ describe("when the live schema has no creation-date sort (21 October 2026)", () 
     await fetchRecentInvoicesForPress({}, { request, now: NOW });
 
     assert.match(calls[0].query, /sortOn: CREATED_AT, sortDescending: true\)/);
+  });
+});
+
+describe("the real production page of 23 October 2026", () => {
+  // Verbatim from the PRESS ACTIVITY log: eight old orders with the highest
+  // order numbers, then a clean newest-first run.
+  const REAL = [
+    "2025-07-21", "2025-12-10", "2025-07-23", "2025-07-22", "2025-07-21", "2025-07-21",
+    "2025-06-12", "2024-09-16", "2026-10-22", "2026-10-22", "2026-10-20", "2026-10-14",
+    "2026-10-07", "2026-10-05", "2026-10-05", "2026-09-29", "2026-09-28", "2026-09-27",
+    "2026-09-24", "2026-09-23", "2026-09-22", "2026-09-22", "2026-09-17", "2026-09-16",
+    "2026-09-16",
+  ];
+  const LIVE: Schema = {
+    args: ["sortDescending", "sortOn", "after", "first"],
+    members: ["CUSTOMER_DUE_AT", "TOTAL", "VISUAL_ID"],
+  };
+  const page = (more: boolean): PageSpec => ({
+    nodes: REAL.map((day) => node(`${day}T12:00:00.000Z`)),
+    hasNextPage: more,
+    endCursor: more ? "c1" : null,
+  });
+  const NOW_REAL = new Date("2026-10-23T17:00:00Z");
+
+  test("is accepted, even though its first row is older than its last", async () => {
+    const { request } = scripted([page(true)], LIVE);
+
+    const result = await fetchRecentInvoicesForPress({}, { request, now: NOW_REAL });
+
+    assert.equal(result.error, undefined);
+    assert.equal(result.orders.length, 25);
+    // newest first once sorted in code: the stragglers go to the bottom
+    assert.equal(result.orders[0].createdAt, "2026-10-22T12:00:00.000Z");
+    assert.equal(result.orders[24].createdAt, "2024-09-16T12:00:00.000Z");
+  });
+
+  test("one page is enough: the last row is already past the 7-day window", async () => {
+    const { request, calls } = scripted([page(true), page(true)], LIVE);
+
+    const result = await fetchRecentInvoicesForPress({}, { request, now: NOW_REAL });
+
+    assert.equal(calls.length, 1, "the old stragglers must not be mistaken for the end of the data");
+    assert.equal(result.pages, 1);
+    assert.equal(result.stoppedEarly, undefined);
+  });
+
+  test("but it keeps going while the last row is still inside the window", async () => {
+    const recent = (days: number[]) => ({
+      nodes: days.map((d) => node(ago(d))),
+      hasNextPage: true,
+      endCursor: "c",
+    });
+    const { request, calls } = scripted(
+      [
+        // stragglers at the top, but the tail (lowest number) is only 2 days old
+        { ...recent([700, 1, 1, 2, 2, 2, 2, 2]) },
+        recent([3, 4]),
+        recent([30]),
+      ],
+      LIVE
+    );
+
+    await fetchRecentInvoicesForPress({}, { request, now: NOW });
+
+    assert.equal(calls.length, 3, "must read on until a page ends past the window");
+  });
+
+  test("pageTrendsNewestFirst: tolerant of stragglers, strict about direction", () => {
+    const nodes = (days: string[]) => days.map((d) => ({ createdAt: `${d}T00:00:00Z` }));
+
+    assert.equal(pageTrendsNewestFirst(nodes(REAL)), true);
+    assert.equal(pageTrendsNewestFirst(nodes([...REAL].reverse())), false, "oldest-first must be refused");
+    assert.equal(pageTrendsNewestFirst(nodes(["2026-01-01", "2026-02-01"])), false);
+    assert.equal(pageTrendsNewestFirst(nodes(["2026-02-01", "2026-01-01"])), true);
+    assert.equal(pageTrendsNewestFirst([{ createdAt: "garbage" }, {}]), true, "undated pages are not judged");
   });
 });

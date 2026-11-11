@@ -2,7 +2,8 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-import { QUOTE_RUN, buildOfferings, turnaroundFacts, type SpecimenKind } from "../lib/landing";
+import { QUOTE_RUN, buildOfferings, buildPanels, turnaroundFacts, type SpecimenKind } from "../lib/landing";
+import { LANDING_PHOTOS } from "../lib/landing-photos";
 import { getReferenceStickerPrice } from "../lib/reference-quote";
 import { productCategories } from "../lib/products";
 import { signsPricingConfig } from "../lib/signs-pricing-config";
@@ -91,6 +92,56 @@ describe("the line", () => {
   });
 });
 
+describe("the five panels", () => {
+  const panels = buildPanels();
+
+  test("one per product family — exactly the five product cards, in the order they are sold", () => {
+    assert.deepEqual(
+      panels.map((p) => p.productId),
+      productCategories.map((p) => p.id)
+    );
+  });
+
+  test("each starts a flow that is live, and its label is the product's, not a slogan", () => {
+    for (const panel of panels) {
+      const product = productCategories.find((p) => p.id === panel.productId)!;
+
+      assert.notEqual(product.status, "coming-soon");
+      assert.equal(panel.lines.length, 2);
+      assert.ok(panel.lines.every((line) => line.trim().length > 0));
+    }
+  });
+
+  test("the money on a panel is the engine's", () => {
+    const by = (id: string) => panels.find((p) => p.productId === id)!;
+
+    assert.ok(by("stickers").spec.includes(`$${getReferenceStickerPrice().toFixed(2)}`));
+    assert.ok(by("banners").spec.includes(`$${signsPricingConfig.minimumOrder.banners}`));
+    assert.ok(by("signs").spec.includes(`$${signsPricingConfig.minimumOrder.signs}`));
+  });
+
+  test("no photograph is invented: a panel has one only if the shop supplied it", () => {
+    for (const panel of panels) {
+      assert.deepEqual(panel.photo, LANDING_PHOTOS[panel.productId] ?? null);
+    }
+  });
+
+  test("a supplied photo renders as an image with its alt text; otherwise the emblem", () => {
+    const landing = read("../features/landing/Landing.tsx");
+
+    assert.match(landing, /panel\.photo \?[\s\S]*?<img[\s\S]*?alt=\{panel\.photo\.alt\}[\s\S]*?\) : \(/);
+    assert.match(landing, /<Specimen kind=\{panel\.emblem\} \/>/);
+  });
+
+  test("the label is on a solid band, not a fade", () => {
+    const landing = read("../features/landing/Landing.tsx");
+    const panel = landing.slice(landing.indexOf("function PanelButton"), landing.indexOf("function Cell"));
+
+    assert.match(panel, /bg-\[var\(--ink-black\)\] px-3/);
+    assert.doesNotMatch(panel.replace(/\/\*[\s\S]*?\*\//g, ""), /gradient|from-|to-|via-/);
+  });
+});
+
 describe("the page itself", () => {
   const landing = read("../features/landing/Landing.tsx");
   const specimen = read("../features/landing/Specimen.tsx");
@@ -119,11 +170,11 @@ describe("the page itself", () => {
   test("every interactive thing is a real button with a focus ring and a 44px target", () => {
     const buttons = landing.match(/<button[\s\S]*?>/g) ?? [];
 
-    assert.equal(buttons.length, 2, "one thumb component, one 'Start a quote'");
+    assert.equal(buttons.length, 3, "a panel, a thumb, and 'Start a quote'");
     for (const button of buttons) {
       assert.match(button, /type="button"/);
     }
-    assert.ok((landing.match(/min-h-\[44px\]/g) ?? []).length >= 2);
+    assert.ok((landing.match(/min-h-\[(44|380)px\]/g) ?? []).length >= 3);
     assert.ok(landing.includes("focus-visible:outline"));
   });
 

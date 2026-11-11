@@ -3,6 +3,7 @@ import { paperProducts } from "./paper";
 import { signsPricingConfig } from "./signs-pricing-config";
 import { apparelPricingConfig } from "./apparel-pricing-config";
 import { turnaroundRules } from "./turnaround";
+import { LANDING_PHOTOS, type LandingPhoto } from "./landing-photos";
 
 /**
  * THE LANDING PAGE'S DATA — one place, and every figure in it is read from the
@@ -198,5 +199,69 @@ export function turnaroundFacts(): Array<{ products: string; promise: string }> 
   return [
     { products: turnaroundRules.fast.products, promise: turnaroundRules.fast.promise },
     { products: turnaroundRules.slow.products, promise: turnaroundRules.slow.promise },
+  ];
+}
+
+/**
+ * THE FIVE PANELS — one per product family, in the order the shop sells them.
+ *
+ * "Something like this but with various products" (Gabe, 2026-11-11, showing a
+ * row of tall full-height photo panels, one per print process, each with a big
+ * centred label). Ours is one per FAMILY because that is what the shop has:
+ * exactly the five productCategories. A panel starts the same flow its product
+ * card starts. `lines` is the label, broken the way it is set; `spec` is one
+ * line of values, read from the config that bills; `photo` is null until the
+ * shop supplies one (lib/landing-photos.ts).
+ */
+export type Panel = {
+  productId: Offering["productId"];
+  /** The label, as it is set across the bottom of the panel. */
+  lines: [string, string];
+  spec: string;
+  /** What to draw when there is no photograph. */
+  emblem: SpecimenKind;
+  photo: LandingPhoto | null;
+};
+
+export function buildPanels(): Panel[] {
+  const cfg = signsPricingConfig;
+  const rigidRates = Object.values(cfg.rigid.perSqftByMaterial);
+
+  return [
+    {
+      productId: "stickers",
+      lines: ["Custom", "Stickers"],
+      spec: `from ${money(getReferenceStickerPrice())} · ${REFERENCE_STICKER.label}`,
+      emblem: "sticker",
+      photo: LANDING_PHOTOS.stickers ?? null,
+    },
+    {
+      productId: "apparel",
+      lines: ["Tees &", "Hoodies"],
+      spec: `screen printed · up to ${apparelPricingConfig.maxColorsPerLocation} colours a placement`,
+      emblem: "tee",
+      photo: LANDING_PHOTOS.apparel ?? null,
+    },
+    {
+      productId: "banners",
+      lines: ["Vinyl", "Banners"],
+      spec: `from ${money(cfg.minimumOrder.banners)} · hemmed + grommets`,
+      emblem: "banner",
+      photo: LANDING_PHOTOS.banners ?? null,
+    },
+    {
+      productId: "signs",
+      lines: ["Signs &", "Posters"],
+      spec: `from ${money(cfg.minimumOrder.signs)} · yard, rigid (${rigidRates.length} materials), window`,
+      emblem: "yard-sign",
+      photo: LANDING_PHOTOS.signs ?? null,
+    },
+    {
+      productId: "paper",
+      lines: ["Paper", "Printing"],
+      spec: "cards, postcards, brochures, menus",
+      emblem: "business-card",
+      photo: LANDING_PHOTOS.paper ?? null,
+    },
   ];
 }

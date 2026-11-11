@@ -1,6 +1,6 @@
 "use client";
 
-import { QUOTE_RUN, buildOfferings, turnaroundFacts, type Offering } from "../../lib/landing";
+import { QUOTE_RUN, buildOfferings, buildPanels, turnaroundFacts, type Offering, type Panel } from "../../lib/landing";
 import { SHOP } from "../../lib/shop";
 import Specimen from "./Specimen";
 
@@ -14,7 +14,7 @@ import Specimen from "./Specimen";
  * JetBrains Mono, radius 0, hairlines and no shadows (see app/globals.css).
  *
  * ── THE HELD CONSTRAINT ───────────────────────────────────────────────────
- * Every cell on this page is a PRINT TICKET: a hairline frame, a mono code
+ * Every cell below the panels is a PRINT TICKET: a hairline frame, a mono code
  * strip across the top, the thing itself, one line of values. Nothing is laid
  * out by whitespace alone; the grid is the structure and it is visible, built
  * from 1px rules between cells rather than a gap between cards.
@@ -44,6 +44,61 @@ type Props = {
 
 const focus =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gorilla-green)]";
+
+/**
+ * ONE PANEL — a tall slab with the label set across its foot.
+ *
+ * "Something like this but with various products" (Gabe, 2026-11-11): five
+ * full-height panels edge to edge, one per product family, a big centred label
+ * on each. With a photograph (lib/landing-photos.ts) the picture fills the
+ * panel; without one, the family's emblem sits on a flat field — never a stock
+ * image. The label sits on a SOLID ink band rather than a fade (flat is ink;
+ * a gradient is the effect this system does not use), and on hover the band
+ * inverts, the same move as every tile below it.
+ */
+function PanelButton({ panel, onSelect }: { panel: Panel; onSelect: Props["onSelect"] }) {
+  return (
+    <li className="basis-[72%] shrink-0 snap-start sm:basis-0 sm:flex-1 sm:shrink">
+      <button
+        type="button"
+        onClick={() => onSelect(panel.productId)}
+        data-panel={panel.productId}
+        className={`group relative flex aspect-[3/5] min-h-[380px] w-full cursor-pointer flex-col overflow-clip bg-[var(--ink-black)] text-left text-[var(--paper)] ${focus}`}
+      >
+        {panel.photo ? (
+          // A photograph from the shop. Plain <img>: the files are committed,
+          // sized for the panel, and next/image would add a loader for nothing.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={panel.photo.src}
+            alt={panel.photo.alt}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        ) : (
+          <span
+            aria-hidden="true"
+            className="absolute inset-0 flex items-start justify-center bg-[var(--shirt-blank)] p-8 pt-10 text-[var(--ink-black)] [--knock:var(--shirt-blank)] sm:p-6 sm:pt-10 lg:p-10 lg:pt-12"
+          >
+            <span className="block aspect-square w-full max-w-[260px]">
+              <Specimen kind={panel.emblem} />
+            </span>
+          </span>
+        )}
+
+        <span className="relative mt-auto block bg-[var(--ink-black)] px-3 pb-5 pt-6 text-center transition-colors duration-[120ms] ease-linear group-hover:bg-[var(--paper)] group-hover:text-[var(--ink-black)]">
+          <span className="block text-[clamp(1.6rem,2.6vw,2.5rem)] font-bold uppercase leading-[1.02] tracking-display">
+            {panel.lines[0]}
+            <br />
+            {panel.lines[1]}
+          </span>
+          <span className="spec mt-3 block text-spec leading-snug text-[var(--rule-faint)] group-hover:text-[var(--ink-muted)]">
+            {panel.spec}
+          </span>
+        </span>
+      </button>
+    </li>
+  );
+}
 
 function Cell({ offering, onSelect }: { offering: Offering; onSelect: Props["onSelect"] }) {
   return (
@@ -108,10 +163,23 @@ function emptySlots(count: number): string[] {
 
 export default function Landing({ onSelect, onStart }: Props) {
   const offerings = buildOfferings();
+  const panels = buildPanels();
   const times = turnaroundFacts();
 
   return (
     <div className="mb-10 flex flex-col gap-10">
+      {/* ── THE FIVE FAMILIES, AS PANELS ─────────────────────────────────── */}
+      {/* Pulled out to the container's edges so the row reads as one slab. On a
+          phone it scrolls sideways, a panel and a bit at a time, so the next one
+          is visibly there. */}
+      <section aria-label="What we print" className="-mx-4 sm:-mx-8">
+        <ul className="flex snap-x snap-mandatory gap-px overflow-x-auto bg-[var(--rule)] sm:overflow-visible">
+          {panels.map((panel) => (
+            <PanelButton key={panel.productId} panel={panel} onSelect={onSelect} />
+          ))}
+        </ul>
+      </section>
+
       {/* ── THE LINE ─────────────────────────────────────────────────────── */}
       <section aria-labelledby="line-heading">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-x-6 gap-y-1">

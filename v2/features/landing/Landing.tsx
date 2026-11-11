@@ -52,7 +52,10 @@ function Cell({ offering, onSelect }: { offering: Offering; onSelect: Props["onS
         type="button"
         onClick={() => onSelect(offering.productId)}
         data-offering={offering.code}
-        className={`group flex h-full min-h-[44px] w-full cursor-pointer flex-col text-left transition-colors duration-[120ms] ease-linear hover:bg-[var(--ink-black)] hover:text-[var(--paper)] ${focus}`}
+        // --knock is the colour the marks' cut-outs are drawn in. It is the
+        // cell colour, and it flips with the cell on hover, so the knocked
+        // details stay knocked out on the inverted tile (see ./Specimen).
+        className={`group flex h-full min-h-[44px] w-full cursor-pointer flex-col text-left transition-colors duration-[120ms] ease-linear [--knock:var(--paper)] hover:bg-[var(--ink-black)] hover:text-[var(--paper)] hover:[--knock:var(--ink-black)] ${focus}`}
       >
         {/* The code strip: a ticket's header row. */}
         <span className="spec flex items-center justify-between border-b border-[var(--rule-faint)] px-3 py-1.5 text-spec uppercase tracking-eyebrow text-[var(--ink-muted)] group-hover:border-[var(--ink-muted)] group-hover:text-[var(--paper)]">
@@ -60,11 +63,11 @@ function Cell({ offering, onSelect }: { offering: Offering; onSelect: Props["onS
           <span>{offering.how === "price" ? "Instant price" : "Hand quote"}</span>
         </span>
 
-        <span className="block aspect-[3/2] w-full px-4 pt-3 text-[var(--ink-black)] group-hover:text-[var(--paper)]">
+        <span className="mx-auto block aspect-square w-full max-w-[150px] p-3 sm:max-w-[220px] sm:p-5 text-[var(--ink-black)] group-hover:text-[var(--paper)]">
           <Specimen kind={offering.specimen} />
         </span>
 
-        <span className="mt-auto block px-3 pb-3 pt-2">
+        <span className="mt-auto block min-h-[6.75rem] sm:min-h-[5.25rem] border-t border-[var(--rule-faint)] px-3 pb-3 pt-2 group-hover:border-[var(--ink-muted)]">
           <span className="block text-body font-bold leading-tight">{offering.name}</span>
           <span className="spec mt-1 block text-spec leading-snug text-[var(--ink-muted)] group-hover:text-[var(--paper)]">
             {offering.spec}
@@ -119,7 +122,7 @@ export default function Landing({ onSelect, onStart }: Props) {
             Everything we make
           </h2>
           <p className="spec text-spec uppercase tracking-eyebrow text-[var(--ink-muted)]">
-            {offerings.length} items &middot; choose one to start
+            {`${offerings.length} items`} &middot; choose one to start
           </p>
         </div>
 

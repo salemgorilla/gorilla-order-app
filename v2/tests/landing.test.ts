@@ -106,9 +106,14 @@ describe("the page itself", () => {
 
   test("the grid is built from rules, with the Order Desk tokens and no raw colour or shadow", () => {
     assert.match(landing, /gap-px[^"]*bg-\[var\(--rule\)\]/);
-    assert.doesNotMatch(landing, /#[0-9a-fA-F]{3,8}\b/, "raw hex — add a token instead");
-    assert.doesNotMatch(landing, /shadow-|blur|gradient|rounded-/);
-    assert.doesNotMatch(specimen, /gradient|blur|filter/);
+    // The files explain, in their header comments, what they refuse to do
+    // ("no gradient, no shadow"); only the CODE is held to it.
+    const code = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+    for (const [name, source] of [["Landing", code(landing)], ["Specimen", code(specimen)]]) {
+      assert.doesNotMatch(source, /#[0-9a-fA-F]{3,8}\b/, `${name}: raw hex — add a token instead`);
+      assert.doesNotMatch(source, /shadow-|blur|gradient|filter|rounded-/, `${name}: a banned surface effect`);
+    }
   });
 
   test("every interactive thing is a real button with a focus ring and a 44px target", () => {

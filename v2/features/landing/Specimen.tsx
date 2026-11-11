@@ -1,51 +1,46 @@
 import type { SpecimenKind } from "../../lib/landing";
 
 /**
- * ONE DRAWING PER OFFERING — flat, one ink, hairlines.
+ * ONE MARK PER OFFERING — a solid block of ink with its working parts cut out.
  *
- * These stand in for photographs, and are not trying to look like them. Each
- * is a SPEC DRAWING in the register the whole app is in (Republic: every panel
- * is a print ticket): the object in outline, its construction marks, nothing
- * decorative. A grommet is where a grommet goes; a die-cut sticker has its
- * cut line; a yard sign has its stake. The only fill anywhere is the ink.
+ * Gabe, 2026-11-11: "a grid with all the options for the client as a button
+ * represented in some art/design logo like image." The first pass drew these as
+ * thin outlines (spec drawings); they read as diagrams, not as buttons. These
+ * are emblems: each product is a heavy, flat silhouette — the way a rubber
+ * stamp or a stencil is — and everything that makes it THAT product (the
+ * grommets on a banner, the stake under a yard sign, the folds of a trifold) is
+ * knocked out of the block in negative space.
  *
- * Authored constraint, held on all thirteen: every stroke is 1.5 units at a
- * 120 x 80 viewBox and `vectorEffect="non-scaling-stroke"`, so a hairline is a
- * hairline at thumb size and at hero size, and a corner is square (radius 0 is
- * the house rule; a sticker's curve is product geometry, not UI radius).
+ * ── THE HELD CONSTRAINT (named, and kept on all thirteen) ─────────────────
+ * One ink, no outline anywhere: a mark is a filled shape plus holes. Holes are
+ * drawn in `--knock`, which the button sets to the cell colour and flips on
+ * hover, so ink inversion recolours the block AND its cut-outs and the knocked
+ * details are never left behind as stray white shapes on an inverted tile. The
+ * only strokes are the few that ARE cut lines (a die-cut's offset, a fold) and
+ * they are 4 units on a 100-unit tile — as heavy as the block they sit in.
  *
- * They draw in `currentColor`, so the card's hover state (ink inversion)
- * recolours the whole drawing without a second set of assets.
+ * Every product is drawn at its own proportion where it has one — a business
+ * card is 3.5 x 2 (1.75:1), a rack card 4 x 9, a postcard 4 x 6 — so the mark
+ * is derived from the real thing and the shapes are not interchangeable.
+ *
+ * Square corners (the house rule is radius 0; a sticker's curve is product
+ * geometry, not UI radius). No gradient, no shadow, no blur, no photograph.
  */
 
-const S = { fill: "none", stroke: "currentColor", strokeWidth: 1.5, vectorEffect: "non-scaling-stroke" as const };
-const F = { fill: "currentColor", stroke: "none" };
-const HAIR = { ...S, strokeWidth: 1 };
+const K = "var(--knock, var(--paper))";
+const KNOCK = { fill: K, stroke: "none" } as const;
+const CUT = { fill: "none", stroke: K, strokeWidth: 4, vectorEffect: "non-scaling-stroke" } as const;
 
-function Grommets({ x, y, w, h }: { x: number; y: number; w: number; h: number }) {
-  const pts = [
-    [x + 4, y + 4],
-    [x + w - 4, y + 4],
-    [x + 4, y + h - 4],
-    [x + w - 4, y + h - 4],
-    [x + w / 2, y + 4],
-    [x + w / 2, y + h - 4],
-  ];
-
-  return (
-    <>
-      {pts.map(([cx, cy]) => (
-        <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={1.6} {...S} />
-      ))}
-    </>
-  );
+/** A row of copy, as a bar. Heavier than a hairline: it has to read at thumb size. */
+function Bar({ x, y, w, h = 3.4 }: { x: number; y: number; w: number; h?: number }) {
+  return <rect x={x} y={y} width={w} height={h} {...KNOCK} />;
 }
 
-function Lines({ x, y, w, count, gap = 5 }: { x: number; y: number; w: number; count: number; gap?: number }) {
+function Bars({ x, y, w, rows, gap = 7 }: { x: number; y: number; w: number; rows: number; gap?: number }) {
   return (
     <>
-      {Array.from({ length: count }, (_, i) => (
-        <line key={i} x1={x} x2={x + w * (i % 3 === 2 ? 0.6 : 1)} y1={y + i * gap} y2={y + i * gap} {...HAIR} />
+      {Array.from({ length: rows }, (_, i) => (
+        <Bar key={i} x={x} y={y + i * gap} w={i % 3 === 2 ? w * 0.6 : w} />
       ))}
     </>
   );
@@ -53,142 +48,140 @@ function Lines({ x, y, w, count, gap = 5 }: { x: number; y: number; w: number; c
 
 export default function Specimen({ kind }: { kind: SpecimenKind }) {
   return (
-    <svg
-      viewBox="0 0 120 80"
-      role="img"
-      aria-hidden="true"
-      className="h-full w-full"
-      focusable="false"
-    >
+    <svg viewBox="0 0 100 100" role="img" aria-hidden="true" className="h-full w-full" focusable="false" fill="currentColor">
       {kind === "sticker" && (
         <>
-          {/* A die-cut: the cut line sits outside the art, with its bleed. */}
-          <path d="M60 10 C84 10 100 26 100 42 C100 60 84 70 62 70 C36 70 20 60 20 42 C20 24 38 10 60 10 Z" {...S} />
-          <path d="M60 18 C78 18 92 30 92 42 C92 55 78 62 62 62 C42 62 28 54 28 42 C28 30 42 18 60 18 Z" {...HAIR} strokeDasharray="3 3" />
-          <path d="M44 44 L56 54 L78 32" {...S} />
+          {/* The sticker, and its die cut: an offset line around it, knocked
+              out of the surrounding block so the cut reads as a cut. */}
+          <path d="M50 12 C74 12 90 28 90 50 C90 72 72 88 48 88 C24 88 10 72 10 48 C10 26 26 12 50 12 Z" />
+          <path d="M50 20 C70 20 82 32 82 50 C82 67 68 80 48 80 C30 80 18 67 18 48 C18 32 30 20 50 20 Z" {...CUT} strokeDasharray="7 6" />
+          <path d="M32 50 L46 64 L70 36" {...CUT} strokeWidth={9} />
         </>
       )}
       {kind === "banner" && (
         <>
-          <rect x={10} y={20} width={100} height={40} {...S} />
-          <rect x={14} y={24} width={92} height={32} {...HAIR} strokeDasharray="3 3" />
-          <Grommets x={10} y={20} w={100} h={40} />
-          <path d="M34 46 L44 30 L54 46 M38 40 H50" {...S} />
-          <line x1={64} x2={96} y1={34} y2={34} {...S} />
-          <line x1={64} x2={88} y1={42} y2={42} {...HAIR} />
+          <rect x={6} y={26} width={88} height={48} />
+          {[[14, 34], [50, 34], [86, 34], [14, 66], [50, 66], [86, 66]].map(([cx, cy]) => (
+            <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={3.2} {...KNOCK} />
+          ))}
+          {/* The headline, as the letter A and a rule. */}
+          <path d="M26 62 L38 38 L50 62 M31 54 H45" {...CUT} strokeWidth={6} />
+          <rect x={58} y={42} width={24} height={5} {...KNOCK} />
+          <rect x={58} y={53} width={16} height={5} {...KNOCK} />
         </>
       )}
       {kind === "yard-sign" && (
         <>
-          <rect x={30} y={8} width={60} height={42} {...S} />
-          {/* The corrugation: flutes run the height of the board. */}
-          {[40, 50, 60, 70, 80].map((x) => (
-            <line key={x} x1={x} x2={x} y1={8} y2={50} {...HAIR} />
+          <rect x={16} y={8} width={68} height={50} />
+          {/* The corrugation: flutes run the full height of the board. */}
+          {[30, 43, 56, 69].map((x) => (
+            <rect key={x} x={x} y={8} width={2.6} height={50} {...KNOCK} />
           ))}
-          <line x1={48} x2={48} y1={50} y2={74} {...S} />
-          <line x1={72} x2={72} y1={50} y2={74} {...S} />
-          <line x1={40} x2={80} y1={74} y2={74} {...HAIR} />
+          <rect x={30} y={58} width={9} height={34} />
+          <rect x={61} y={58} width={9} height={34} />
+          <rect x={22} y={92} width={56} height={4} />
         </>
       )}
       {kind === "rigid-sign" && (
         <>
-          <rect x={16} y={14} width={88} height={52} {...S} />
-          {/* Drilled holes at the corners, the way a rigid panel is mounted. */}
-          {[[22, 20], [98, 20], [22, 60], [98, 60]].map(([cx, cy]) => (
-            <circle key={`${cx}${cy}`} cx={cx} cy={cy} r={1.8} {...S} />
+          <rect x={8} y={20} width={84} height={60} />
+          {[[16, 28], [84, 28], [16, 72], [84, 72]].map(([cx, cy]) => (
+            <circle key={`${cx}${cy}`} cx={cx} cy={cy} r={3.6} {...KNOCK} />
           ))}
-          <rect x={22} y={26} width={76} height={28} {...HAIR} />
-          <line x1={16} x2={104} y1={70} y2={70} {...HAIR} />
-          <line x1={16} x2={16} y1={67} y2={73} {...HAIR} />
-          <line x1={104} x2={104} y1={67} y2={73} {...HAIR} />
+          <rect x={22} y={34} width={56} height={32} {...CUT} />
+          <rect x={32} y={44} width={36} height={5} {...KNOCK} />
+          <rect x={32} y={54} width={22} height={5} {...KNOCK} />
         </>
       )}
       {kind === "poster" && (
         <>
-          <rect x={38} y={6} width={44} height={68} {...S} />
-          <rect x={44} y={12} width={32} height={30} {...HAIR} />
-          <Lines x={44} y={50} w={32} count={4} />
+          <rect x={22} y={6} width={56} height={88} />
+          <rect x={30} y={14} width={40} height={36} {...KNOCK} />
+          <path d="M30 50 L44 30 L52 40 L58 34 L70 50 Z" />
+          <Bars x={30} y={60} w={40} rows={4} gap={8} />
         </>
       )}
       {kind === "window" && (
         <>
-          <rect x={18} y={10} width={84} height={60} {...S} />
-          <line x1={60} x2={60} y1={10} y2={70} {...HAIR} />
-          <line x1={18} x2={102} y1={40} y2={40} {...HAIR} />
-          <path d="M28 28 H50 M28 33 H44" {...S} />
-          <circle cx={82} cy={25} r={7} {...S} />
+          <rect x={14} y={8} width={72} height={84} />
+          <rect x={20} y={14} width={60} height={72} {...CUT} />
+          <rect x={48} y={14} width={4.4} height={72} {...KNOCK} />
+          <rect x={20} y={48} width={60} height={4.4} {...KNOCK} />
+          {/* The vinyl: a circle and a line of type, applied to the glass. */}
+          <circle cx={34} cy={31} r={7} {...KNOCK} />
+          <rect x={58} y={26} width={16} height={5} {...KNOCK} />
+          <rect x={58} y={35} width={11} height={5} {...KNOCK} />
         </>
       )}
       {kind === "tee" && (
         <>
-          <path d="M40 10 L22 20 L10 38 L26 44 L30 36 V70 H90 V36 L94 44 L110 38 L98 20 L80 10 C76 16 44 16 40 10 Z" {...S} />
-          {/* The print area: a left-chest and a full-front placement. */}
-          <rect x={64} y={24} width={12} height={10} {...HAIR} strokeDasharray="2 2" />
-          <rect x={42} y={40} width={36} height={22} {...HAIR} strokeDasharray="3 3" />
+          <path d="M36 8 L8 24 L18 46 L30 40 V92 H70 V40 L82 46 L92 24 L64 8 C60 18 40 18 36 8 Z" />
+          {/* Two placements, as printed: left chest, and full front. */}
+          <rect x={56} y={30} width={12} height={12} {...KNOCK} />
+          <rect x={36} y={50} width={28} height={30} {...CUT} strokeDasharray="6 5" />
         </>
       )}
       {kind === "business-card" && (
         <>
-          {/* 3.5 x 2, drawn at its own ratio. */}
-          <rect x={22} y={20} width={76} height={43.4} {...S} />
-          <line x1={30} x2={56} y1={32} y2={32} {...S} />
-          <Lines x={30} y={42} w={36} count={3} gap={5} />
-          <rect x={78} y={44} width={12} height={12} {...HAIR} />
+          {/* 3.5 x 2 — 1.75:1. */}
+          <rect x={8} y={30} width={84} height={48} />
+          <rect x={16} y={39} width={30} height={6} {...KNOCK} />
+          <Bars x={16} y={52} w={34} rows={3} gap={7} />
+          <rect x={66} y={52} width={18} height={18} {...KNOCK} />
         </>
       )}
       {kind === "rack-card" && (
         <>
-          {/* 4 x 9, drawn at its own ratio. */}
-          <rect x={44} y={6} width={32} height={72} {...S} />
-          <rect x={48} y={10} width={24} height={24} {...HAIR} />
-          <line x1={48} x2={72} y1={42} y2={42} {...S} />
-          <Lines x={48} y={50} w={24} count={5} />
+          {/* 4 x 9 — 0.44:1. */}
+          <rect x={30} y={4} width={40} height={92} />
+          <rect x={36} y={10} width={28} height={30} {...KNOCK} />
+          <rect x={36} y={48} width={28} height={6} {...KNOCK} />
+          <Bars x={36} y={60} w={28} rows={5} gap={7} />
         </>
       )}
       {kind === "postcard" && (
         <>
-          {/* 4 x 6 on its side. */}
-          <rect x={20} y={14} width={80} height={53.4} {...S} />
-          <line x1={64} x2={64} y1={14} y2={67} {...HAIR} />
-          <Lines x={70} y={36} w={24} count={3} />
-          <rect x={82} y={18} width={13} height={10} {...HAIR} />
+          {/* 4 x 6 on its side — 1.5:1. */}
+          <rect x={8} y={22} width={84} height={56} />
+          <rect x={53} y={28} width={3.2} height={44} {...KNOCK} />
+          <Bars x={61} y={46} w={24} rows={3} gap={7} />
+          <rect x={72} y={28} width={14} height={12} {...KNOCK} />
+          <rect x={16} y={34} width={28} height={30} {...CUT} />
         </>
       )}
       {kind === "brochure" && (
         <>
-          {/* Three panels, the way it folds. */}
-          <rect x={14} y={14} width={92} height={52} {...S} />
-          <line x1={44.7} x2={44.7} y1={14} y2={66} {...S} strokeDasharray="3 3" />
-          <line x1={75.4} x2={75.4} y1={14} y2={66} {...S} strokeDasharray="3 3" />
-          <Lines x={20} y={24} w={20} count={4} />
-          <Lines x={50} y={24} w={20} count={4} />
-          <rect x={81} y={22} width={20} height={20} {...HAIR} />
+          {/* Three panels, and the two folds between them. */}
+          <rect x={6} y={18} width={88} height={64} />
+          <rect x={35} y={18} width={3.6} height={64} {...KNOCK} />
+          <rect x={63} y={18} width={3.6} height={64} {...KNOCK} />
+          <Bars x={12} y={28} w={18} rows={5} gap={9} />
+          <Bars x={43} y={28} w={18} rows={5} gap={9} />
+          <rect x={72} y={28} width={16} height={16} {...KNOCK} />
+          <rect x={72} y={52} width={16} height={5} {...KNOCK} />
         </>
       )}
       {kind === "menu" && (
         <>
-          <rect x={34} y={6} width={52} height={68} {...S} />
-          <line x1={42} x2={78} y1={16} y2={16} {...S} />
-          {[28, 38, 48, 58].map((y) => (
+          <rect x={22} y={6} width={56} height={88} />
+          <rect x={30} y={14} width={40} height={6} {...KNOCK} />
+          {[30, 42, 54, 66, 78].map((y) => (
             <g key={y}>
-              <line x1={42} x2={64} y1={y} y2={y} {...HAIR} />
-              <line x1={70} x2={78} y1={y} y2={y} {...HAIR} />
+              <rect x={30} y={y} width={26} height={4} {...KNOCK} />
+              <rect x={62} y={y} width={8} height={4} {...KNOCK} />
             </g>
           ))}
         </>
       )}
       {kind === "letterhead" && (
         <>
-          <rect x={34} y={6} width={52} height={68} {...S} />
-          <circle cx={46} cy={18} r={4} {...S} />
-          <line x1={56} x2={78} y1={16} y2={16} {...S} />
-          <line x1={56} x2={72} y1={21} y2={21} {...HAIR} />
-          <Lines x={42} y={34} w={36} count={6} gap={5} />
+          <rect x={22} y={6} width={56} height={88} />
+          <circle cx={36} cy={22} r={7} {...KNOCK} />
+          <rect x={48} y={17} width={22} height={5} {...KNOCK} />
+          <rect x={48} y={25} width={15} height={3.4} {...KNOCK} />
+          <Bars x={30} y={44} w={40} rows={6} gap={8} />
         </>
       )}
-      {/* An ink dot, so a sparse drawing still reads as printed. Never decoration:
-          it is the registration mark every printer's proof carries. */}
-      <circle cx={6} cy={6} r={1.4} {...F} />
     </svg>
   );
 }

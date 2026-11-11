@@ -17,6 +17,26 @@
  */
 export type LandingPhoto = { src: string; alt: string };
 
+/** The thirteen thumbs' codes (lib/landing.ts buildOfferings), for the map below. */
+export type OfferingCode =
+  | "STK" | "BNR" | "YRD" | "RGD" | "PST" | "WIN" | "TEE"
+  | "BCD" | "RCK" | "PCD" | "TRI" | "MNU" | "LTR";
+
 export const LANDING_PHOTOS: Partial<
   Record<"stickers" | "banners" | "signs" | "apparel" | "paper", LandingPhoto>
 > = {};
+
+/**
+ * A PHOTOGRAPH FOR EACH THUMB IN THE "EVERYTHING WE MAKE" GRID.
+ *
+ * Same rule, same emptiness: a thumb with no entry shows its emblem. SQUARE
+ * images here (the tile is square, the picture is cropped to fill it), keyed
+ * by the thumb's code —
+ *
+ *   TEE: { src: "/landing/tee.jpg", alt: "A black tee printed on the chest" },
+ *
+ * Codes: STK stickers, BNR banners, YRD yard signs, RGD rigid signs, PST
+ * posters, WIN window graphics, TEE tees & hoodies, BCD business cards, RCK rack
+ * cards, PCD postcards, TRI trifolds, MNU menus, LTR letterhead.
+ */
+export const OFFERING_PHOTOS: Partial<Record<OfferingCode, LandingPhoto>> = {};

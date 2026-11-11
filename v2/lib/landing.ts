@@ -3,7 +3,7 @@ import { paperProducts } from "./paper";
 import { signsPricingConfig } from "./signs-pricing-config";
 import { apparelPricingConfig } from "./apparel-pricing-config";
 import { turnaroundRules } from "./turnaround";
-import { LANDING_PHOTOS, type LandingPhoto } from "./landing-photos";
+import { LANDING_PHOTOS, OFFERING_PHOTOS, type LandingPhoto, type OfferingCode } from "./landing-photos";
 
 /**
  * THE LANDING PAGE'S DATA — one place, and every figure in it is read from the
@@ -47,7 +47,9 @@ export type SpecimenKind =
 
 export type Offering = {
   /** The shop's own shorthand. Mono furniture; each one is unique. */
-  code: string;
+  code: OfferingCode;
+  /** The shop's photograph of it, or null (then the emblem is drawn). */
+  photo: LandingPhoto | null;
   name: string;
   specimen: SpecimenKind;
   /** A productCategories id — what clicking this selects. */
@@ -73,7 +75,7 @@ export function buildOfferings(): Offering[] {
   const cfg = signsPricingConfig;
   const rigidRates = Object.values(cfg.rigid.perSqftByMaterial);
 
-  return [
+  const offerings: Array<Omit<Offering, "photo">> = [
     {
       code: "STK",
       name: "Die-cut stickers",
@@ -179,6 +181,8 @@ export function buildOfferings(): Offering[] {
       how: "quote",
     },
   ];
+
+  return offerings.map((offering) => ({ ...offering, photo: OFFERING_PHOTOS[offering.code] ?? null }));
 }
 
 /**

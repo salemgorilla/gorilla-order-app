@@ -127,9 +127,20 @@ function Cell({ offering, onSelect }: { offering: Offering; onSelect: Props["onS
           <span>{offering.how === "price" ? "Instant price" : "Hand quote"}</span>
         </span>
 
-        <span className="mx-auto block aspect-square w-full max-w-[150px] p-3 sm:max-w-[220px] sm:p-5 text-[var(--ink-black)] group-hover:text-[var(--paper)]">
-          <Specimen kind={offering.specimen} />
-        </span>
+{offering.photo ? (
+          // The shop's photograph, cropped to the square tile. Plain <img>: the
+          // file is committed and sized for it.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={offering.photo.src}
+            alt={offering.photo.alt}
+            className="mx-auto block aspect-square w-full object-cover"
+          />
+        ) : (
+          <span className="mx-auto block aspect-square w-full max-w-[150px] p-3 text-[var(--ink-black)] group-hover:text-[var(--paper)] sm:max-w-[220px] sm:p-5">
+            <Specimen kind={offering.specimen} />
+          </span>
+        )}
 
         <span className="mt-auto block min-h-[6.75rem] sm:min-h-[5.25rem] border-t border-[var(--rule-faint)] px-3 pb-3 pt-2 group-hover:border-[var(--ink-muted)]">
           <span className="block text-body font-bold leading-tight">{offering.name}</span>

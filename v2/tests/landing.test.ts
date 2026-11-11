@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import { QUOTE_RUN, buildOfferings, buildPanels, turnaroundFacts, type SpecimenKind } from "../lib/landing";
-import { LANDING_PHOTOS } from "../lib/landing-photos";
+import { existsSync } from "node:fs";
+import { LANDING_PHOTOS, OFFERING_PHOTOS } from "../lib/landing-photos";
 import { getReferenceStickerPrice } from "../lib/reference-quote";
 import { productCategories } from "../lib/products";
 import { signsPricingConfig } from "../lib/signs-pricing-config";
@@ -139,6 +140,41 @@ describe("the five panels", () => {
 
     assert.match(panel, /bg-\[var\(--ink-black\)\] px-3/);
     assert.doesNotMatch(panel.replace(/\/\*[\s\S]*?\*\//g, ""), /gradient|from-|to-|via-/);
+  });
+});
+
+describe("the shop's photographs", () => {
+  const registered = [
+    ...Object.entries(LANDING_PHOTOS).map(([key, photo]) => ({ key: `panel ${key}`, photo })),
+    ...Object.entries(OFFERING_PHOTOS).map(([key, photo]) => ({ key: `thumb ${key}`, photo })),
+  ];
+
+  test("every registered photo points at a file that is really there, and says what is in it", () => {
+    // Empty today: no entry, nothing to check. The day one is added with a
+    // mistyped path, this is what catches it before the page shows a broken
+    // picture where an emblem would have been.
+    for (const { key, photo } of registered) {
+      assert.ok(photo, key);
+      assert.match(photo.src, /^\/landing\/[\w.-]+\.(jpe?g|png|webp)$/, `${key}: ${photo.src}`);
+      assert.ok(existsSync(new URL(`../public${photo.src}`, import.meta.url)), `${key}: public${photo.src} is missing`);
+      assert.ok(photo.alt.trim().length >= 8, `${key}: describe what is in the picture`);
+    }
+  });
+
+  test("every thumb takes a photo when it has one, and draws its emblem when it does not", () => {
+    const landing = read("../features/landing/Landing.tsx");
+
+    assert.match(landing, /offering\.photo \?[\s\S]*?<img[\s\S]*?alt=\{offering\.photo\.alt\}[\s\S]*?\) : \([\s\S]*?<Specimen kind=\{offering\.specimen\} \/>/);
+    for (const offering of buildOfferings()) {
+      assert.deepEqual(offering.photo, OFFERING_PHOTOS[offering.code] ?? null);
+    }
+  });
+
+  test("every code the photo map accepts is a real thumb", () => {
+    const source = read("../lib/landing-photos.ts");
+    const codes = [...source.matchAll(/"([A-Z]{3})"/g)].map((m) => m[1]).filter((c, i, all) => all.indexOf(c) === i);
+
+    assert.deepEqual(codes.sort(), buildOfferings().map((o) => o.code).sort());
   });
 });
 

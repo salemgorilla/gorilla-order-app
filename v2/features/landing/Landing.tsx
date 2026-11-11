@@ -128,26 +128,48 @@ function Cell({ offering, onSelect }: { offering: Offering; onSelect: Props["onS
         </span>
 
 {offering.photo ? (
-          // The shop's photograph, cropped to the square tile. Plain <img>: the
-          // file is committed and sized for it.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={offering.photo.src}
-            alt={offering.photo.alt}
-            className="mx-auto block aspect-square w-full object-cover"
-          />
+          // THE SHOP'S PHOTOGRAPH, WITH THE PRODUCTION TYPE SET OVER IT
+          // (Gabe, 2026-11-11: "the thumb image will have text overlay for
+          // each production type"). The photograph should arrive CLEAN — no
+          // lettering in the file — because the label is live type here:
+          // crisp at any size, one typeface across the page, readable by
+          // assistive tech and editable in the code. It sits on a solid ink
+          // band across the foot of the picture (flat, not a fade), and the
+          // band inverts on hover like everything else on this page.
+          <span className="relative block w-full flex-1">
+            {/* A square sizer: the tile is at least as tall as the picture is
+                wide, and grows to fill the row when a neighbour is taller. */}
+            <span aria-hidden="true" className="block aspect-square w-full" />
+            {/* Plain <img>: the file is committed and sized for the tile. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={offering.photo.src}
+              alt={offering.photo.alt}
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+            <span className="absolute inset-x-0 bottom-0 block bg-[var(--ink-black)] px-3 pb-3 pt-3 text-[var(--paper)] transition-colors duration-[120ms] ease-linear group-hover:bg-[var(--paper)] group-hover:text-[var(--ink-black)]">
+              <span className="block text-body font-bold uppercase leading-tight tracking-display">
+                {offering.name}
+              </span>
+              <span className="spec mt-1 block text-spec leading-snug text-[var(--rule-faint)] group-hover:text-[var(--ink-muted)]">
+                {offering.spec}
+              </span>
+            </span>
+          </span>
         ) : (
-          <span className="mx-auto block aspect-square w-full max-w-[150px] p-3 text-[var(--ink-black)] group-hover:text-[var(--paper)] sm:max-w-[220px] sm:p-5">
-            <Specimen kind={offering.specimen} />
-          </span>
-        )}
+          <>
+            <span className="mx-auto block aspect-square w-full max-w-[150px] p-3 text-[var(--ink-black)] group-hover:text-[var(--paper)] sm:max-w-[220px] sm:p-5">
+              <Specimen kind={offering.specimen} />
+            </span>
 
-        <span className="mt-auto block min-h-[6.75rem] sm:min-h-[5.25rem] border-t border-[var(--rule-faint)] px-3 pb-3 pt-2 group-hover:border-[var(--ink-muted)]">
-          <span className="block text-body font-bold leading-tight">{offering.name}</span>
-          <span className="spec mt-1 block text-spec leading-snug text-[var(--ink-muted)] group-hover:text-[var(--paper)]">
-            {offering.spec}
-          </span>
-        </span>
+            <span className="mt-auto block min-h-[6.75rem] border-t border-[var(--rule-faint)] px-3 pb-3 pt-2 group-hover:border-[var(--ink-muted)] sm:min-h-[5.25rem]">
+              <span className="block text-body font-bold leading-tight">{offering.name}</span>
+              <span className="spec mt-1 block text-spec leading-snug text-[var(--ink-muted)] group-hover:text-[var(--paper)]">
+                {offering.spec}
+              </span>
+            </span>
+          </>
+        )}
       </button>
     </li>
   );

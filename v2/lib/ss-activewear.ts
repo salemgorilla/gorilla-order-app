@@ -1,3 +1,4 @@
+import { RETAIL_MULTIPLIER } from "./retail";
 import {
   apparelPricingConfig,
   garmentMarkupKey,
@@ -141,7 +142,8 @@ function getMarkedUpPrice(customerPrice: number | undefined, markupRate: number)
     return 0;
   }
 
-  return roundCurrency(customerPrice * (1 + markupRate));
+  // RETAIL: the blank at its markup, plus 3% (lib/retail.ts).
+  return roundCurrency(customerPrice * (1 + markupRate) * RETAIL_MULTIPLIER);
 }
 
 /** The size at every markup the matrix uses, from the UNROUNDED cost. */

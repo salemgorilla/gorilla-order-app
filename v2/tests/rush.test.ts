@@ -116,7 +116,9 @@ describe("the fee", () => {
 
   test("the worked example: 24 tees rushed", () => {
     // 24 tees at a fixed $3.49 unit, rushed: $216.76 goods under the
-    // matrix (6 Sep) + 25% = $270.95.
+    // matrix (6 Sep) + 25% = $270.95. RETAIL, 2026-11-11 (+3% on the print
+    // cell and screen; the $3.49 garment unit is an input): goods $220.87, +25%
+    // rush = $55.22, $276.09.
     const goods = calculateApparelPricing({
       quantity: 24,
       garmentUnitPrice: 3.49,
@@ -131,9 +133,9 @@ describe("the fee", () => {
       today: MONDAY,
     });
 
-    assert.equal(goods.total.toFixed(2), "216.76");
-    assert.equal(rush.fee.toFixed(2), "54.19");
-    assert.equal((goods.total + rush.fee).toFixed(2), "270.95");
+    assert.equal(goods.total.toFixed(2), "220.87");
+    assert.equal(rush.fee.toFixed(2), "55.22");
+    assert.equal((goods.total + rush.fee).toFixed(2), "276.09");
   });
 });
 

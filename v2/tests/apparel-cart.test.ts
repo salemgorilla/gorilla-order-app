@@ -40,14 +40,20 @@ describe("THE INVARIANT: one line prices exactly as today", () => {
    * 24 tees at a fixed $3.49 unit, front, one colour. Under the matrix
    * (6 Sep) that prints at the 24 row's 1c cell, $4.50 × 24 = $108, plus
    * one $25 screen: $216.76. A cart of one must not move it by a cent.
+   *
+   * RETAIL, 2026-11-11 (+3% on every print cell and the screen fee; the
+   * $3.49 garment unit is an INPUT here, so it is not scaled): the 1c cell is
+   * $4.64 × 24 = $111.36 and the screen $25.75, so $83.76 + $111.36 + $25.75
+   * = $220.87. The old-book figures in the comments below carry their retail
+   * value in the assertions.
    */
-  test("24 tees at $3.49 is $216.76, as one garment is", () => {
+  test("24 tees at $3.49 is $220.87, as one garment is ($216.76 old book)", () => {
     const cart = quoteApparelCart([line("a", 3.49, 24)], FRONT_ONE_COLOR);
 
-    assert.equal(cart.total.toFixed(2), "216.76");
+    assert.equal(cart.total.toFixed(2), "220.87");
     assert.equal(cart.garmentTotal.toFixed(2), "83.76");
-    assert.equal(cart.printTotal.toFixed(2), "108.00");
-    assert.equal(cart.setupTotal.toFixed(2), "25.00");
+    assert.equal(cart.printTotal.toFixed(2), "111.36"); // 24 x $4.64 ($108.00 old book)
+    assert.equal(cart.setupTotal.toFixed(2), "25.75"); // $25.00 old book
   });
 
   test("and matches the engine directly, across the whole grid", () => {
@@ -80,25 +86,26 @@ describe("several garments, one run", () => {
 
   test("the print tier is read from the COMBINED count", () => {
     // 20 + 20 is a 40-piece run, tiered as one — the matrix's 24 row
-    // ($4.50), not two 12-row runs at $6.00. This is what the press
-    // actually does.
+    // ($4.50 old book, $4.64 retail), not two 12-row runs at $6.00 ($6.18).
+    // This is what the press actually does.
     //
     // Never-pay-more (4 Sep) still rides it: the 48 row's minimum, 48 ×
-    // $4.00 = $192, is dearer than 40 × $4.50 = $180, so the run stays on
-    // its own tier this time. Was $4.75 × 50 under the formula table.
+    // $4.12 = $197.76, is dearer than 40 × $4.64 = $185.60 (old book $192 vs
+    // $180), so the run stays on its own tier this time. Was $4.75 × 50
+    // under the formula table.
     const cart = quoteApparelCart(twoLines, FRONT_ONE_COLOR);
 
     assert.equal(cart.quantity, 40);
     assert.equal(cart.printTierQuantity, 40);
-    assert.equal(cart.printUnitPrice.toFixed(2), "4.50");
-    assert.equal(cart.printTotal.toFixed(2), "180.00");
+    assert.equal(cart.printUnitPrice.toFixed(2), "4.64");
+    assert.equal(cart.printTotal.toFixed(2), "185.60");
   });
 
   test("setup is charged ONCE — the same screens print both", () => {
     const cart = quoteApparelCart(twoLines, FRONT_ONE_COLOR);
 
     assert.equal(apparelCartRules.shareSetupAcrossLines, true);
-    assert.equal(cart.setupTotal.toFixed(2), "25.00");
+    assert.equal(cart.setupTotal.toFixed(2), "25.75"); // $25.00 old book
   });
 
   test("each line keeps its own garment total", () => {
@@ -112,9 +119,10 @@ describe("several garments, one run", () => {
   test("the grand total is the three parts, to the cent", () => {
     const cart = quoteApparelCart(twoLines, FRONT_ONE_COLOR);
 
-    // $349.80 garments + $237.50 print + $25 setup. Was $614.80 while the
-    // print sat at the 40-piece figure — see the tier test above.
-    assert.equal(cart.total.toFixed(2), "554.80");
+    // $349.80 garments (inputs, not scaled) + $185.60 print + $25.75 setup.
+    // Was $554.80 in the old book ($349.80 + $180.00 + $25.00), and $614.80
+    // while the print sat at the 40-piece figure — see the tier test above.
+    assert.equal(cart.total.toFixed(2), "561.15");
     assert.equal(
       (cart.garmentTotal + cart.printTotal + cart.setupTotal).toFixed(2),
       cart.total.toFixed(2)
@@ -126,7 +134,8 @@ describe("several garments, one run", () => {
     // run pays its own screens and its own (24-piece, never-pay-more) print
     // figure; together they reach the 50-piece rate and burn one set.
     // The saving was $105.00 before never-pay-more softened the separate
-    // runs' cliff; it is $75.50 now, and still the whole point.
+    // runs' cliff; it was $75.50, then $61.00 in the old book and is $62.87
+    // at retail, and still the whole point.
     const together = quoteApparelCart(twoLines, FRONT_ONE_COLOR).total;
     const apart =
       quoteApparelCart([twoLines[0]], FRONT_ONE_COLOR).total +
@@ -134,8 +143,9 @@ describe("several garments, one run", () => {
 
     assert.ok(together < apart, `${together} should beat ${apart}`);
     // Apart, each 20-piece run prints at the 24 row's minimum (never pay
-    // more) and burns its own screen: $615.80 against $554.80 together.
-    assert.equal((apart - together).toFixed(2), "61.00");
+    // more) and burns its own screen: $624.02 against $561.15 together
+    // ($615.80 against $554.80 in the old book).
+    assert.equal((apart - together).toFixed(2), "62.87");
   });
 
   test("the saving is named for the screen, not left implied", () => {
@@ -188,7 +198,7 @@ describe("empty and edge carts", () => {
 
     assert.equal(cart.lines.length, 1);
     assert.equal(cart.quantity, 24);
-    assert.equal(cart.total.toFixed(2), "216.76");
+    assert.equal(cart.total.toFixed(2), "220.87"); // $216.76 old book
   });
 
   test("the next tier is named so the screen can offer it", () => {

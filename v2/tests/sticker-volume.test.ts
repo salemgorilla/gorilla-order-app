@@ -10,6 +10,11 @@
  * the way to 5,000. This restores that SHAPE, re-anchored so 100 x 3" still
  * comes to the $85 the re-rate was sized to.
  *
+ * RETAIL, 2026-11-11: every price is the old price + 3% (lib/retail.ts), so
+ * the anchor is now $87.55 ($85 x 1.03) and the other figures below carry
+ * their old-book value in the comment. The SHAPE is unchanged, so the v1
+ * comparison below is scaled by the same 1.03 and keeps its 0.995..1.06 band.
+ *
  * Two properties matter more than any figure, and the second is the one a
  * quantity table always gets wrong: more stickers must never cost less in
  * total, and a sticker must never get dearer because you bought one more.
@@ -34,7 +39,8 @@ const total = (q: number, dims = THREE) => getStickerPrice(q, VINYL, "gloss", ""
 describe("the shape is the old site's — every size of it", () => {
   /**
    * data/sticker-pricing.js, the v1 site, re-anchored so 3x3 at 100 is $85
-   * (a factor of 85/41). Four sizes, six quantities. The rule is "at or
+   * (a factor of 85/41), then x 1.03 for the retail book (2026-11-11), so 3x3
+   * at 100 is $87.55 (87.55/41). Four sizes, six quantities. The rule is "at or
    * above, with the least overshoot" — Gabe, 2026-09-12: margins "where
    * they need to be or higher". A single-curve discount could only hold one
    * size; this holds all four.
@@ -45,7 +51,7 @@ describe("the shape is the old site's — every size of it", () => {
     16: { 100: 54, 250: 92, 500: 148, 1000: 255, 2500: 585, 5000: 1040 },
     25: { 100: 69, 250: 118, 500: 190, 1000: 325, 2500: 760, 5000: 1375 },
   };
-  const F = 85 / 41;
+  const F = (85 / 41) * 1.03;
   const side: Record<number, number> = { 4: 2, 9: 3, 16: 4, 25: 5 };
 
   test("at every tier from 250 up, every v1 size prices at or above the old table", () => {
@@ -62,16 +68,17 @@ describe("the shape is the old site's — every size of it", () => {
     }
   });
 
-  test("100 x 3\" is still exactly $85 — the anchor, and the first tier is (1, 1)", () => {
-    assert.equal(total(100), 85);
+  test("100 x 3\" is still exactly the anchor — $85 old book, $87.55 retail — and the first tier is (1, 1)", () => {
+    assert.equal(total(100), 87.55);
     assert.deepEqual(stickerVolumeKeep(100), { piece: 1, area: 1 });
   });
 
   test("at 100 the other sizes are where the hand-quote calibration put them", () => {
     // Fixed by the $85 anchor, not by the old table: 2x2 sits 10% under it
     // and 5x5 5% over, which is the shape Gabe approved when he chose the
-    // per-sticker term. The curves start at 250.
-    assert.equal(total(100, { widthInches: 2, heightInches: 2 }), 65);
+    // per-sticker term. The curves start at 250. 2x2 at 100 was $65.00 in the
+    // old book; retail is $66.95.
+    assert.equal(total(100, { widthInches: 2, heightInches: 2 }), 66.95);
   });
 
   test("below 100 nothing changes — the setup fee already discounts harder than v1 did there", () => {
@@ -117,10 +124,21 @@ describe("no cliffs, at any quantity", () => {
      * at $0.036 that is 360 pieces; measured, the worst case is 4,940
      * one-inch stickers costing 46 cents MORE than 4,941.
      *
+     * RETAIL (2026-11-11) DOUBLES THE BOUND, ON PURPOSE. The shop's unit is
+     * quantised to four decimals and then the retail unit (plus 3%) is
+     * quantised to four decimals again, so a one-step drop in the first can be
+     * a two-step drop in the second (1.03 x 0.0001 = 0.000103). Measured over
+     * every quantity to 6,000: worst drop 0.000152 per piece, 12 violations of
+     * the old single-step bound, none near two. The bound below is therefore
+     * two steps — one for each rounding — and a real cliff still fails it by
+     * an order of magnitude. Rounding ONCE (the exact unit x 1.03) would
+     * restore the single step, but it moves 21 sheet rows and every oracle
+     * figure by a cent for a quirk that was already there; not worth it.
+     *
      * There is no fix that is not worse. A unit that never slides is a
      * stepped table, and a step at 250 moves dollars, not cents — the
      * cliff tests/pricing-invariants exists to stop. Printavo has no fifth
-     * decimal to give. So the bound held here is the true one, 0.0001 x
+     * decimal to give. So the bound held here is the true one, two steps x
      * quantity, and a real cliff still fails it by an order of magnitude.
      */
     for (const dims of [THREE, { widthInches: 1, heightInches: 1 }, { widthInches: 4, heightInches: 6 }]) {
@@ -129,7 +147,7 @@ describe("no cliffs, at any quantity", () => {
       for (const q of sweep.slice(1)) {
         const now = total(q, dims);
         assert.ok(
-          now >= previous - (0.0001 * q + 0.01),
+          now >= previous - (0.0002 * q + 0.01),
           `${dims.widthInches}x${dims.heightInches}: ${q} stickers ($${now}) cost less than ${q - 1} ($${previous})`
         );
         previous = now;
@@ -139,7 +157,7 @@ describe("no cliffs, at any quantity", () => {
 
   test("and over any hundred-sticker stretch it rises, always", () => {
     // The wobble above is a one-piece artefact. A hundred more stickers is
-    // real money at every size — at least $3.60 even for a 1" — and no run
+    // real money at every size — at least $3.60 even for a 1" ($3.71 retail) — and no run
     // of fourth-decimal steps inside a hundred pieces can add up to that.
     for (const dims of [THREE, { widthInches: 1, heightInches: 1 }]) {
       for (const q of sweep.slice(0, -100)) {
@@ -174,9 +192,11 @@ describe("no cliffs, at any quantity", () => {
 
 describe("what it applies to, and what it leaves alone", () => {
   test("material only — setup is labour and does not get cheaper by the roll", () => {
-    // 1,000 x 3": (0.34 x 0.80 + 9 x 0.04 x 0.39) x 1000 = $412.40, setup untouched.
-    assert.equal(getStickerMaterialPrice(1000, VINYL, "", THREE), 412.4);
-    assert.equal(total(1000), 412.4 + STICKER_SETUP_FEE);
+    // 1,000 x 3": (0.34 x 0.80 + 9 x 0.04 x 0.39) x 1000 = $412.40 old book,
+    // setup untouched. Retail: unit 0.4124 x 1.03 -> 0.4248, so $424.80
+    // (412.40 x 1.03 = 424.77; the unit is rounded to four decimals first).
+    assert.equal(getStickerMaterialPrice(1000, VINYL, "", THREE), 424.8);
+    assert.equal(total(1000), 424.8 + STICKER_SETUP_FEE);
   });
 
   test("premium material is discounted on the same curve, then marked up", () => {
@@ -194,7 +214,7 @@ describe("what it applies to, and what it leaves alone", () => {
     const small = getStickerMaterialPrice(100, VINYL, "", THREE);
     const large = getStickerMaterialPrice(900, VINYL, "", THREE);
 
-    assert.equal(small, 70);
+    assert.equal(small, 72.1); // $70.00 old book
     assert.ok(large < 9 * small, "the 900-piece design got no discount");
     assert.ok(large > getStickerMaterialPrice(1000, VINYL, "", THREE) * 0.9);
   });

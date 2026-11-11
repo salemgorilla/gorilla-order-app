@@ -67,9 +67,12 @@ describe("the figure is the engine's, to the cent", () => {
     // The same 100-pack has been publicly quoted on signs and apparel
     // quotes since add-ons shipped. Two public prices for one pack would be
     // the entry screen contradicting the review step.
-    assert.equal(getReferenceStickerPrice(), 99);
+    assert.equal(getReferenceStickerPrice(), 101.97);
     // ^ ONE literal, here only, and it is the check that a repricing shows
     // up as a readable diff in this file — the price-sheet discipline.
+    //
+    // $99.00 in the old book; $101.97 at retail (2026-11-11, +3%: 99 x 1.03,
+    // exactly — $86.52 of vinyl plus the $15.45 setup).
     //
     // $53.80 until the 2026-09-11 re-rate. This pack is 100 x 3" pickup —
     // the exact spec of the order that prompted it, and the figure Gabe

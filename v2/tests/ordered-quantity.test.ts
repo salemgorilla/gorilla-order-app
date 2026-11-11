@@ -111,13 +111,14 @@ describe("a forged product.quantity cannot outrun the price", () => {
 
   test("an honest single-design order is completely unchanged", () => {
     // The fix must not move a real price. 100 x 3in die cut is the
-    // reference pack: $84 of vinyl, $15 setup, $99 total.
+    // reference pack: $84 of vinyl, $15 setup, $99 total. RETAIL, 2026-11-11
+    // (+3%): $86.52 of vinyl ($0.8652 each), $15.45 setup, $101.97 total.
     const honest = submit(100, [100]);
 
-    assert.equal(honest.serverTotal, 99);
+    assert.equal(honest.serverTotal, 101.97);
     assert.equal(honest.productQuantity, 100);
     assert.equal(honest.piecesOnInvoice, 100);
-    assert.equal(Number(honest.rows[0]?.price), 0.84);
+    assert.equal(Number(honest.rows[0]?.price), 0.8652);
   });
 
   test("an honest cart is unchanged too", () => {

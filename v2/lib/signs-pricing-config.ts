@@ -11,6 +11,8 @@
 // Tier rule: tiers are ranges. `minQuantity: 10` means 10–19, `20` means
 // 20–29, and the largest tier is open-ended (30+ / 40+).
 
+import { retail2 } from "./retail";
+
 export type SignQuantityTier = {
   minQuantity: number;
   single: number; // price EACH, single-sided
@@ -23,7 +25,16 @@ export type YardSignSizePricing = {
   tiers: SignQuantityTier[];
 };
 
-export const signsPricingConfig = {
+/**
+ * THE SHOP'S OLD PRICE BOOK, as set in the file's own notes. Edit prices HERE.
+ *
+ * Exported for tests/retail-uplift.test.ts ONLY — never price from it. What
+ * the app prices from is `signsPricingConfig` at the
+ * bottom of this file: every PRICE below plus 3% (Gabe's retail price, 2026-11-11 — see
+ * lib/retail.ts), and nothing else changed. Ratios (the two-thirds second side),
+ * quantities, footage and labels are not prices and are left alone.
+ */
+export const engineSignsConfig = {
   // ---------------- Order-level fees (from the PRICING GUIDE board) -------
   /**
    * Setup, PER DESIGN, on every signs and banners order — every sign type,
@@ -285,4 +296,96 @@ export const signsPricingConfig = {
    * are fees, and fees are untaxed (Gabe, 2026-09-04).
    */
   taxNote: "Tax is estimated on the signs; setup and rush are not taxed.",
+};
+
+/**
+ * The same book at retail: every dollar figure plus 3%, to the cent.
+ *
+ * Written out field by field rather than by walking the object, on purpose: a
+ * walker would also multiply minQuantity, footage and the 2/3 ratio, and the
+ * next number someone adds would be inflated or not depending on its name.
+ * A new PRICE added above has to be listed here, and
+ * tests/retail-signs-config.test.ts fails until it is.
+ */
+export const signsPricingConfig: typeof engineSignsConfig = {
+  ...engineSignsConfig,
+  setupFee: retail2(engineSignsConfig.setupFee),
+  minimumOrder: {
+    signs: retail2(engineSignsConfig.minimumOrder.signs),
+    banners: retail2(engineSignsConfig.minimumOrder.banners),
+  },
+  doubleSidedPerSqft: retail2(engineSignsConfig.doubleSidedPerSqft),
+  yardSigns: {
+    stepStakePerSign: retail2(engineSignsConfig.yardSigns.stepStakePerSign),
+    sizes: Object.fromEntries(
+      Object.entries(engineSignsConfig.yardSigns.sizes).map(([key, size]) => [
+        key,
+        {
+          singleUnitPrice: retail2(size.singleUnitPrice),
+          tiers: size.tiers.map((tier) => ({
+            minQuantity: tier.minQuantity,
+            single: retail2(tier.single),
+            double: retail2(tier.double),
+          })),
+        },
+      ])
+    ) as Record<string, YardSignSizePricing>,
+  },
+  banner: {
+    ...engineSignsConfig.banner,
+    perSqft: retail2(engineSignsConfig.banner.perSqft),
+    perSqftByMaterial: Object.fromEntries(
+      Object.entries(engineSignsConfig.banner.perSqftByMaterial).map(([key, rate]) => [
+        key,
+        retail2(rate),
+      ])
+    ) as Record<string, number>,
+    noHemCreditPerLinearFoot: retail2(engineSignsConfig.banner.noHemCreditPerLinearFoot),
+    doubleSided: Object.fromEntries(
+      Object.entries(engineSignsConfig.banner.doubleSided).map(([key, rule]) => [
+        key,
+        {
+          ...rule,
+          ...(rule.constructionPerLinearFoot === undefined
+            ? {}
+            : { constructionPerLinearFoot: retail2(rule.constructionPerLinearFoot) }),
+        },
+      ])
+    ) as typeof engineSignsConfig.banner.doubleSided,
+    addOns: {
+      polePockets: {
+        ...engineSignsConfig.banner.addOns.polePockets,
+        flat: retail2(engineSignsConfig.banner.addOns.polePockets.flat),
+      },
+      windSlits: {
+        ...engineSignsConfig.banner.addOns.windSlits,
+        flat: retail2(engineSignsConfig.banner.addOns.windSlits.flat),
+      },
+      reinforcedWebbing: {
+        ...engineSignsConfig.banner.addOns.reinforcedWebbing,
+        flat: retail2(engineSignsConfig.banner.addOns.reinforcedWebbing.flat),
+        perLinearFoot: retail2(engineSignsConfig.banner.addOns.reinforcedWebbing.perLinearFoot),
+      },
+    },
+  },
+  poster: { perSqft: retail2(engineSignsConfig.poster.perSqft) },
+  rigid: {
+    ...engineSignsConfig.rigid,
+    perSqftByMaterial: Object.fromEntries(
+      Object.entries(engineSignsConfig.rigid.perSqftByMaterial).map(([key, rate]) => [
+        key,
+        retail2(rate),
+      ])
+    ) as Record<string, number>,
+  },
+  signAddOns: Object.fromEntries(
+    Object.entries(engineSignsConfig.signAddOns).map(([key, addOn]) => [
+      key,
+      { ...addOn, perSign: retail2(addOn.perSign) },
+    ])
+  ) as typeof engineSignsConfig.signAddOns,
+  velcro: {
+    ...engineSignsConfig.velcro,
+    perLinearFoot: retail2(engineSignsConfig.velcro.perLinearFoot),
+  },
 };

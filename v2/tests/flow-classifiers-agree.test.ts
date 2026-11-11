@@ -14,7 +14,8 @@
  *
  * Verified before the fix: the reference pack priced at $99.00 and invoiced
  * at $84.00 — the $15 setup silently gone. On a small order the $45 minimum
- * goes the same way, so one sticker bills $0.84 instead of $45.00.
+ * goes the same way, so one sticker bills $0.84 instead of $45.00. (Old-book
+ * figures; at retail, 2026-11-11, +3%: $101.97, $86.52, $15.45 and $46.35.)
  * serverTotal, the ceiling gate and the log line all still said $99; only
  * amountOutstanding was short, and that is the number the card is charged.
  *
@@ -126,12 +127,14 @@ describe("THE INVARIANT — what is priced is what is invoiced", () => {
     }
   });
 
-  test("the crafted string that found this bills the full $99", () => {
+  test("the crafted string that found this bills the full $101.97 ($99 old book)", () => {
     // The specific regression: $99 priced, $84 invoiced, $15 setup gone.
+    // RETAIL, 2026-11-11 (+3%): $101.97 priced ($86.52 material + $15.45
+    // setup); 99 x 1.03 = 101.97 exactly.
     const { priced, invoiced } = invoiceFor("Custom Sticker Banners");
 
-    assert.equal(priced, 99);
-    assert.equal(Number(invoiced.toFixed(2)), 99);
+    assert.equal(priced, 101.97);
+    assert.equal(Number(invoiced.toFixed(2)), 101.97);
   });
 
   test("the apparel half of the same pair, found by the sweep", () => {
@@ -174,7 +177,8 @@ describe("THE INVARIANT — what is priced is what is invoiced", () => {
   test("an honest sticker order is unchanged", () => {
     const { priced, invoiced } = invoiceFor("Custom Stickers");
 
-    assert.equal(priced, 99);
-    assert.equal(Number(invoiced.toFixed(2)), 99);
+    // $99.00 in the old book; $101.97 retail (+3%, 2026-11-11).
+    assert.equal(priced, 101.97);
+    assert.equal(Number(invoiced.toFixed(2)), 101.97);
   });
 });

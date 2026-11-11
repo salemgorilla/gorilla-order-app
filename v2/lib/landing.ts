@@ -225,7 +225,6 @@ export type Panel = {
 
 export function buildPanels(): Panel[] {
   const cfg = signsPricingConfig;
-  const rigidRates = Object.values(cfg.rigid.perSqftByMaterial);
 
   return [
     {
@@ -252,7 +251,7 @@ export function buildPanels(): Panel[] {
     {
       productId: "signs",
       lines: ["Signs &", "Posters"],
-      spec: `from ${money(cfg.minimumOrder.signs)} · yard, rigid (${rigidRates.length} materials), window`,
+      spec: `from ${money(cfg.minimumOrder.signs)} · yard, rigid, window`,
       emblem: "yard-sign",
       photo: LANDING_PHOTOS.signs ?? null,
     },

@@ -56,14 +56,23 @@ const focus =
  * a gradient is the effect this system does not use), and on hover the band
  * inverts, the same move as every tile below it.
  */
-function PanelButton({ panel, onSelect }: { panel: Panel; onSelect: Props["onSelect"] }) {
+function PanelButton({
+  panel,
+  onSelect,
+  wideOnPhone,
+}: {
+  panel: Panel;
+  onSelect: Props["onSelect"];
+  /** An odd one out in a two-up grid runs the full width on a phone. */
+  wideOnPhone: boolean;
+}) {
   return (
-    <li className="basis-[72%] shrink-0 snap-start sm:basis-0 sm:flex-1 sm:shrink">
+    <li className={wideOnPhone ? "col-span-2 sm:col-span-1" : ""}>
       <button
         type="button"
         onClick={() => onSelect(panel.productId)}
         data-panel={panel.productId}
-        className={`group relative flex aspect-[3/5] min-h-[380px] w-full cursor-pointer flex-col overflow-clip bg-[var(--ink-black)] text-left text-[var(--paper)] ${focus}`}
+        className={`group relative flex w-full ${wideOnPhone ? "aspect-[4/3] sm:aspect-[3/5]" : "aspect-[3/5]"} min-h-[300px] sm:min-h-[380px] cursor-pointer flex-col overflow-clip bg-[var(--ink-black)] text-left text-[var(--paper)] ${focus}`}
       >
         {panel.photo ? (
           // A photograph from the shop. Plain <img>: the files are committed,
@@ -79,13 +88,13 @@ function PanelButton({ panel, onSelect }: { panel: Panel; onSelect: Props["onSel
             aria-hidden="true"
             className="absolute inset-0 flex items-start justify-center bg-[var(--shirt-blank)] p-8 pt-10 text-[var(--ink-black)] [--knock:var(--shirt-blank)] sm:p-6 sm:pt-10 lg:p-10 lg:pt-12"
           >
-            <span className="block aspect-square w-full max-w-[260px]">
+            <span className="block aspect-square h-[54%] max-h-[260px] max-w-full">
               <Specimen kind={panel.emblem} />
             </span>
           </span>
         )}
 
-        <span className="relative mt-auto block bg-[var(--ink-black)] px-3 pb-5 pt-6 text-center transition-colors duration-[120ms] ease-linear group-hover:bg-[var(--paper)] group-hover:text-[var(--ink-black)]">
+        <span className="relative mt-auto block min-h-[9.5rem] bg-[var(--ink-black)] px-3 pb-5 pt-6 text-center transition-colors duration-[120ms] ease-linear group-hover:bg-[var(--paper)] group-hover:text-[var(--ink-black)]">
           <span className="block text-[clamp(1.6rem,2.6vw,2.5rem)] font-bold uppercase leading-[1.02] tracking-display">
             {panel.lines[0]}
             <br />
@@ -169,13 +178,18 @@ export default function Landing({ onSelect, onStart }: Props) {
   return (
     <div className="mb-10 flex flex-col gap-10">
       {/* ── THE FIVE FAMILIES, AS PANELS ─────────────────────────────────── */}
-      {/* Pulled out to the container's edges so the row reads as one slab. On a
-          phone it scrolls sideways, a panel and a bit at a time, so the next one
-          is visibly there. */}
+      {/* Pulled out to the container's edges so the row reads as one slab. Five
+          across on a tablet and up; on a phone a two-up grid of tall panels
+          (Gabe's reference), the odd one out running the full width. */}
       <section aria-label="What we print" className="-mx-4 sm:-mx-8">
-        <ul className="flex snap-x snap-mandatory gap-px overflow-x-auto bg-[var(--rule)] sm:overflow-visible">
-          {panels.map((panel) => (
-            <PanelButton key={panel.productId} panel={panel} onSelect={onSelect} />
+        <ul className="grid grid-cols-2 gap-px bg-[var(--rule)] sm:grid-cols-5">
+          {panels.map((panel, i) => (
+            <PanelButton
+              key={panel.productId}
+              panel={panel}
+              onSelect={onSelect}
+              wideOnPhone={panels.length % 2 === 1 && i === panels.length - 1}
+            />
           ))}
         </ul>
       </section>

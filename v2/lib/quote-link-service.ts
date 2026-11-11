@@ -475,12 +475,15 @@ export async function pushToPrintavo(
 
   const s = link.approvedSnapshot;
   const paidNote = [
-    `PAID ONLINE BY CARD (Stripe) via quote link ${link.orderNumber}.`,
+    `PAID ONLINE (Stripe) via quote link ${link.orderNumber}.`,
     `Charged ${money(link.payment.amountPaid ?? 0)} on ${(link.payment.paidAt ?? "").slice(0, 10)}` +
       (link.payment.kind === "deposit"
         ? ` as a ${s.deposit?.percent}% deposit. Balance due before pickup: ${money(s.total - (link.payment.amountPaid ?? 0))}.`
         : " in full."),
     `Stripe payment: ${link.payment.paymentIntentId ?? link.payment.sessionId}.`,
+    // THE 3% (Gabe, 2026-11-11): the price is retail. If this was paid by
+    // bank transfer (ACH) the customer is owed the 3% back; the shop issues it.
+    `If this was paid by bank transfer (ACH), refund ${money(s.achRefund)} after it clears — the 3% in the retail price. Card payments are not refunded.`,
     `Approved by ${link.approval?.name} <${link.approval?.email}> at ${link.approval?.approvedAt}.`,
     `Print: ${link.spec.method}, ${link.spec.printLocations.join(" + ")}, ${link.spec.inkColors}${link.spec.hasUnderbase ? ", white underbase" : ""}.`,
   ].join("\n");
@@ -497,7 +500,6 @@ export async function pushToPrintavo(
       { description: `Printing (${link.spec.printLocations.join(" + ")}, ${link.spec.inkColors})`, itemNumber: SKU.APPAREL_PRINT, amount: s.decorationTotal },
       { description: "Screens / setup", itemNumber: SKU.APPAREL_SETUP, amount: s.setupTotal },
       ...(s.rushTotal > 0 ? [{ description: "Rush scheduling", itemNumber: SKU.RUSH, amount: s.rushTotal }] : []),
-      { description: "Card processing fee (3%)", itemNumber: SKU.CARD_FEE, amount: s.cardFee },
     ].filter((line) => line.amount > 0),
     paymentNote: paidNote,
     tags: ["QuoteLink", "PaidOnline"],

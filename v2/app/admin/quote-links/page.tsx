@@ -134,7 +134,7 @@ export default function QuoteLinksAdmin() {
         </label>
         <input className={input} placeholder="Turnaround note shown to the customer" value={form.turnaroundNote} onChange={set("turnaroundNote")} />
         <p className="text-fine text-[var(--ink-muted)]">
-          Priced by the website engine plus a 3% card fee. Over $4,999.99 the customer pays a 50% deposit unless you set one.
+          Priced by the website engine at retail (the 3% is already in the price; bank-transfer payers are refunded it afterwards, and there is never a card fee). Over $4,999.99 the customer pays a 50% deposit unless you set one.
         </p>
         <button className={btn} onClick={create}>Create link</button>
       </section>

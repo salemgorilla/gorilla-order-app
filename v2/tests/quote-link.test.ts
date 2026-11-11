@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 
 import {
-  CARD_FEE_RATE,
   createQuoteToken,
   depositFor,
   isValidQuoteToken,
@@ -223,13 +222,17 @@ describe("sizes", () => {
 });
 
 describe("pricing - one price, from our engine", () => {
-  test("adds the 3% card fee and no tax, and the parts add up", async () => {
+  test("charges the retail price with NOTHING added at checkout, and the parts add up", async () => {
     const made = await newLink(setup());
     const p = priceQuoteLink(made.link, { M: 12, L: 10, "2XL": 2 });
-    assert.equal(CARD_FEE_RATE, 0.03);
+    // Gabe, 2026-11-11: no card fee, ever — the 3% is inside the engine's
+    // retail prices, and bank-transfer payers are refunded it afterwards.
     assert.equal(p.tax, 0);
-    assert.equal(p.cardFee, Math.round(p.subtotal * 0.03 * 100) / 100);
-    assert.equal(Math.round((p.subtotal + p.cardFee) * 100), Math.round(p.total * 100));
+    assert.equal("cardFee" in p, false, "a card fee is a card surcharge, which Massachusetts bans");
+    assert.equal(Math.round(p.subtotal * 100), Math.round(p.total * 100));
+    // The refund undoes the 3% in the retail total exactly: total - total/1.03.
+    assert.equal(p.achRefund, Math.round((p.total - p.total / 1.03) * 100) / 100);
+    assert.ok(p.achRefund > 0 && p.achRefund < p.total * 0.03 + 0.01);
     assert.equal(
       Math.round((p.garmentTotal + p.decorationTotal + p.setupTotal + p.rushTotal) * 100),
       Math.round(p.subtotal * 100)
@@ -396,8 +399,11 @@ describe("Stripe webhook", () => {
     const lines = Math.round(order.garmentUnitPrice * pieces * 100) +
       order.feeLines.reduce((sum, f) => sum + Math.round(f.amount * 100), 0);
     assert.equal(lines, cents, "Printavo lines must equal what Stripe charged, to the cent");
-    assert.ok(order.feeLines.some((f) => f.itemNumber === "GORILLA-CARD-FEE"));
-    assert.match(order.paymentNote, /PAID ONLINE BY CARD/);
+    // No card-fee row, ever (Gabe, 2026-11-11): the 3% is inside the prices.
+    assert.ok(!order.feeLines.some((f) => /card/i.test(f.description) || /CARD/.test(f.itemNumber)));
+    assert.match(order.paymentNote, /PAID ONLINE \(Stripe\)/);
+    // The shop is told what a bank-transfer payer is owed back.
+    assert.match(order.paymentNote, /If this was paid by bank transfer \(ACH\), refund \$\d[\d,]*\.\d\d after it clears/);
     assert.ok(t.sent.some((s) => s.includes("PAID")));
   });
 

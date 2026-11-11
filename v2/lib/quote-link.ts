@@ -1,6 +1,7 @@
 import { quoteApparelCart } from "./apparel-cart";
 import { garmentPriceByMarkup, sizePriceAtMarkup } from "./apparel-blend";
 import { apparelPricingConfig } from "./apparel-pricing-config";
+import { achRefund } from "./retail";
 import { DEPOSIT_FRACTION, FULL_PAYMENT_CEILING } from "./auto-bill";
 import type { SsCatalogColor, SsCatalogSize } from "../features/types";
 
@@ -16,7 +17,7 @@ import type { SsCatalogColor, SsCatalogSize } from "../features/types";
  * "Your own pricing engine is the single source of price, and the customer
  * pays through Stripe on the quote page." So the figure on screen IS the
  * figure charged: quoteApparelCart on a catalogue snapshot taken when the
- * link was made, plus the card fee, computed on the server. The browser never
+ * link was made, computed on the server. The browser never
  * supplies a number, and Printavo plays no part until after payment, when it
  * receives the order as already paid (lib/quote-link-service.ts).
  *
@@ -26,13 +27,23 @@ import type { SsCatalogColor, SsCatalogSize } from "../features/types";
  */
 
 /**
- * Card processing fee on every quote-link order (Gabe, 2026-11-03: "3% card
- * fee", matching the CC Processing fee line on his hand quotes). Untaxed.
+ * NO CARD FEE — RETAIL PRICE, BANK-TRANSFER DISCOUNT (Gabe, 2026-11-11).
+ *
+ * This page used to add a 3% "card processing fee" (Gabe, 2026-11-03). On
+ * 2026-11-11 he replaced it: "We will not charge 3%, we will increase our
+ * retail price by 3% and discount those who pay via ACH." Massachusetts bans a
+ * card SURCHARGE and allows a discount for cash, so a fee added at checkout —
+ * under any name — is exactly what must not exist here.
+ *
+ * The engine's prices are retail already (the 3% is in every print cell, the
+ * screen fee and the blank — lib/retail.ts), so the figure on this page is
+ * the engine's, with nothing added. A customer who pays by bank transfer is
+ * refunded the 3% in it afterwards (`achRefund`); the shop issues that, and it
+ * is written on the Printavo order.
  *
  * No sales tax is added: apparel is not a taxed flow in this app
  * (lib/tax.ts isTaxableFlow) and Gabe did not ask for it here.
  */
-export const CARD_FEE_RATE = 0.03;
 
 export type QuoteLinkStatus =
   | "sent"
@@ -82,11 +93,16 @@ export type PriceBreakdown = {
   decorationTotal: number;
   setupTotal: number;
   rushTotal: number;
-  /** Goods and setup, before the card fee. */
+  /** Garments, printing, setup and rush — all retail. The whole price. */
   subtotal: number;
-  cardFee: number;
   tax: number;
   total: number;
+  /**
+   * What a customer who pays by bank transfer (ACH) is refunded afterwards:
+   * the 3% inside the retail total. Not a fee and not a discount applied at
+   * checkout — the customer pays `total`, and the shop sends this back.
+   */
+  achRefund: number;
   /** Per-piece, all in. */
   perPiece: number;
   /** What is charged now: the total, or a deposit of it. */
@@ -280,7 +296,7 @@ export function depositFor(
   return null;
 }
 
-/** The full price for these sizes, from the shop's engine, plus the card fee. */
+/** The full price for these sizes, from the shop's engine. Retail; nothing is added. */
 export function priceQuoteLink(
   link: QuoteLink,
   sizes: Record<string, number>
@@ -299,9 +315,9 @@ export function priceQuoteLink(
       setupTotal: 0,
       rushTotal: 0,
       subtotal: 0,
-      cardFee: 0,
       tax: 0,
       total: 0,
+      achRefund: 0,
       perPiece: 0,
       amountDue: 0,
       deposit: null,
@@ -349,8 +365,7 @@ export function priceQuoteLink(
 
   const rushTotal = quote.rushFee ?? 0;
   const subtotal = round2(quote.total + rushTotal);
-  const cardFee = round2(subtotal * CARD_FEE_RATE);
-  const total = round2(subtotal + cardFee);
+  const total = subtotal;
   const deposit = depositFor(total, link.depositPercent);
 
   return {
@@ -364,9 +379,9 @@ export function priceQuoteLink(
     setupTotal: quote.setupTotal,
     rushTotal,
     subtotal,
-    cardFee,
     tax: 0,
     total,
+    achRefund: achRefund(total),
     perPiece: round2(total / pieces),
     amountDue: deposit ? round2((total * deposit.percent) / 100) : total,
     deposit,

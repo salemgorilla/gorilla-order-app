@@ -199,12 +199,16 @@ export default function QuoteClient({ token, initial }: { token: string; initial
             <dt>Printing</dt><dd className="spec text-right">{money(p.decorationTotal)}</dd>
             <dt>Screens / setup</dt><dd className="spec text-right">{money(p.setupTotal)}</dd>
             {p.rushTotal > 0 && (<><dt>Rush</dt><dd className="spec text-right">{money(p.rushTotal)}</dd></>)}
-            {p.cardFee > 0 && (<><dt>Card processing (3%)</dt><dd className="spec text-right">{money(p.cardFee)}</dd></>)}
             {p.tax > 0 && (<><dt>Tax</dt><dd className="spec text-right">{money(p.tax)}</dd></>)}
             <dt className="border-t border-[var(--rule-faint)] pt-2 text-value font-bold">Total</dt>
             <dd className="spec border-t border-[var(--rule-faint)] pt-2 text-right text-value font-bold">
               {saving ? "..." : money(p.total)}
             </dd>
+            {p.pieces > 0 && p.achRefund > 0 && (
+              <dt className="col-span-2 text-fine text-[var(--ink-muted)]" data-ach-refund={p.achRefund.toFixed(2)}>
+                Pay by bank transfer (ACH) and we refund {money(p.achRefund)} once it clears.
+              </dt>
+            )}
             {p.pieces > 0 && (<><dt className="text-fine text-[var(--ink-muted)]">Per piece</dt>
               <dd className="spec text-right text-fine text-[var(--ink-muted)]">{money(p.perPiece)}</dd></>)}
             {p.deposit && p.pieces > 0 && (
@@ -260,7 +264,7 @@ export default function QuoteClient({ token, initial }: { token: string; initial
                 <p className="mt-2 text-body">
                   {p.deposit
                     ? `Pay the ${money(quote.gate.amountDue)} deposit now. The balance is due before pickup.`
-                    : `Pay ${money(quote.gate.amountDue)} by card on our secure payment page.`}
+                    : `Pay ${money(quote.gate.amountDue)} on our secure payment page.`}
                 </p>
                 <button className={`${button} mt-3`} disabled={busy !== ""} onClick={pay}>
                   {busy === "pay" ? "Opening payment..." : p.deposit ? `Pay deposit ${money(quote.gate.amountDue)}` : `Pay ${money(quote.gate.amountDue)}`}

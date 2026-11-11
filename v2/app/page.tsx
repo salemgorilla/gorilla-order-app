@@ -72,6 +72,7 @@ import {
   REFERENCE_STICKER,
 } from "../lib/reference-quote";
 import { productCategories, type ProductCategory } from "../lib/products";
+import Landing from "../features/landing/Landing";
 import {
   getTemplate,
   getTemplateTextErrors,
@@ -4783,6 +4784,24 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         </div>
         )}
 
+        {/* THE FRONT DOOR (Gabe, 2026-11-11): the whole line on one page, as
+            thumbs, then how a quote runs and the terms. Held to the product
+            step and off at the kiosk, where a person is standing at the
+            counter and the picker below is the whole job. A thumb runs the
+            SAME selectProduct as the card, so nothing about checkout moves. */}
+        {currentStepId === "product" && !kiosk.enabled && (
+          <Landing
+            onSelect={(productId) => {
+              const product = productCategories.find((entry) => entry.id === productId);
+              if (product) selectProduct(product);
+              document.getElementById("start")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+            onStart={() =>
+              document.getElementById("start")?.scrollIntoView({ behavior: "smooth", block: "start" })
+            }
+          />
+        )}
+
         {/* Scroll target for step changes. Above the estimate stub in document
             order, so landing here never puts the sticky bar over the heading. */}
         <div id="order-steps" className="scroll-mt-4">
@@ -4811,7 +4830,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         )}
 
         {currentStepId === "product" && (
-        <section className="border border-[var(--rule)] bg-white p-5 sm:p-8">
+        <section id="start" className="scroll-mt-4 border border-[var(--rule)] bg-white p-5 sm:p-8">
           {stepHeading}
 
           {/* All three options in one group, so the semantic set survives the

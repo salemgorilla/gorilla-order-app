@@ -144,23 +144,46 @@ website total  ==  independently hand-computed total  ==  Printavo total
 Line by line: per-design goods lines, the setup line, the order-minimum line
 when it applies, and 6.25% tax **on goods but not on fees**.
 
-**Anchors (Local Pickup, no discount code), as of `b0c8a26`:**
+**Every price is RETAIL since 2026-11-11 (Gabe: "we will increase our retail
+price by 3% and discount those who pay via ACH").** The old price plus 3%, in
+every rate, fee and floor — so the minimum is $46.35 (was $45), setup is
+$15.45 / $7.73 (was $15 / $7.50), shipping tiers are $8.24 / $12.36 / $18.54
+/ $25.75, and a percent code takes its percent off the retail figure (a
+minimum-floored order with FAMFRE is $27.81, was $27.00 — deliberate, not
+drift). **There is NO card fee, surcharge or checkout add-on, ever** — if you
+see one on any screen, invoice or email, that is a P0 (Massachusetts bans card
+surcharges). Sales tax is on the retail price. The 50% deposit is judged on
+the retail amount CHARGED (incl. tax).
+
+**New, and required on every order you place: the bank-transfer refund.** A
+customer who pays by bank transfer (ACH) is refunded the 3% afterwards. Check
+that it is on all three surfaces and that they agree to the cent:
+the confirmation screen ("Pay by bank transfer (ACH) and we refund $X once it
+clears"), the shop email (an `If paid by bank transfer` row under the estimate)
+and the Printavo customer note (`Pay by bank transfer (ACH) and save $X: refund
+the 3% after payment clears.`). X is the PRE-TAX retail total minus that total
+divided by 1.03, to the cent (retail $327.13 → $9.53); tax is never part of it.
+Never pay a test quote, so you cannot exercise the refund — only read it.
+
+**Anchors (Local Pickup, no discount code), as of the 3% retail uplift,
+2026-11-11:**
 
 | Order | Goods | Setup | Minimum | Pre-tax | **With tax** |
 |---|---|---|---|---|---|
-| 100 × 3" Gloss White Vinyl, die cut | $84.00 | $15.00 | — | $99.00 | **$104.25** |
-| 100 × 3" Matte White Vinyl, circle | $73.50 | $15.00 | — | $88.50 | **$93.09** |
-| 25 × 2" Gloss, die cut | $15.00 | $15.00 | **$15.00** | $45.00 | **$45.94** |
-| 150 × 4" + 50 × 2" Gloss (2 designs) | $190.23 | $22.50 | — | $212.73 | **$224.62** |
+| 100 × 3" Gloss White Vinyl, die cut | $86.52 | $15.45 | — | $101.97 | **$107.38** |
+| 100 × 3" Matte White Vinyl, circle | $75.71 | $15.45 | — | $91.16 | **$95.89** |
+| 25 × 2" Gloss, die cut | $15.45 | $15.45 | **$15.45** | $46.35 | **$47.32** |
+| 150 × 4" + 50 × 2" Gloss (2 designs) | $195.93 | $23.18 | — | $219.11 | **$231.36** |
 
 **The rules behind them:**
 
 ```
 unit    = ($0.34/piece × pieceKeep + areaSqIn × $0.04 × areaKeep)
           × shapeMultiplier × materialMultiplier
-line    = round(round(unit, 4dp) × quantity, 4dp)      # Printavo stores 4dp
-setup   = $15 first design + $7.50 each additional design
-minimum = tops the ORDER up to $45 of goods+setup, as its own line
+retail  = round(round(unit, 4dp) × 1.03, 4dp)          # the 3%, 2026-11-11
+line    = round(retail × quantity, 4dp)                # Printavo stores 4dp
+setup   = $15.45 first design + $7.73 each additional design
+minimum = tops the ORDER up to $46.35 of goods+setup, as its own line
 tax     = 6.25% on goods only — never on setup, minimum, rush or add-ons
 ```
 
@@ -212,7 +235,7 @@ go quietly out of date.
 > happens the next run will report *its own staleness* as a production
 > mismatch.
 
-**Include an order under $45 of goods every few runs.** The $45 order minimum
+**Include an order under $46.35 of goods every few runs.** The $46.35 order minimum
 is the largest single distortion on a small order, it is the figure the #186
 money story turns on, and the repo's own independent oracle
 (`npm run audit:oracle`) does **not** cover it — nor multi-design setup,
@@ -324,7 +347,7 @@ something you could not observe. Skipped ≠ passed.
   the live list. **Writing a row records the debt; only a real invoice clears
   it.** A report saying "every commit has reached a row" is *not* a report
   saying nothing is owed — read both halves of that output.
-- **The $45 order minimum, multi-design setup, non-square sizes, shipping and
+- **The $46.35 order minimum, multi-design setup, non-square sizes, shipping and
   discount codes** are not covered by the repo's independent oracle.
 - **The press line has failed five different ways, each hiding the next.**
   In order: `sortOn` was an invalid enum; `LineItem` has no `quantity`

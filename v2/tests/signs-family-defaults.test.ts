@@ -73,15 +73,17 @@ describe("every family's default design wears its own product's spec", () => {
 
   test("both families' default quotes still price online, at the known totals", () => {
     // Banners: the historical 3' x 6' scrim default the entry price quotes.
-    // Signs: one 18" x 24" coroplast yard sign ($31) plus the $15 setup.
+    // Signs: one 18" x 24" coroplast yard sign ($31.93; $31 old book) plus the
+    // $15.45 setup ($15 old book). RETAIL, 2026-11-11: every figure is old + 3%.
     // Literal figures on purpose, price-sheet style: a drift here is a
     // repricing and must be a readable diff, not a surprise.
-    assert.equal(quoteSignsCart(createSignsQuote("banners").designs).total, 177);
+    assert.equal(quoteSignsCart(createSignsQuote("banners").designs).total, 182.31); // $177 old book
     const signs = quoteSignsCart(createSignsQuote("signs").designs);
     assert.equal(signs.priceable, true);
-    // $46 on its own ($31 + $15 setup), lifted to the $60 order minimum —
-    // Gabe, 2026-09-05. Was pinned at 46; moved deliberately with the rule.
-    assert.equal(signs.total, 60);
-    assert.equal(signs.minimumApplied, 60);
+    // $47.38 on its own ($31.93 + $15.45 setup; $46 old book), lifted to the
+    // $61.80 order minimum ($60 old book) — Gabe, 2026-09-05. Was pinned at 46;
+    // moved deliberately with the rule.
+    assert.equal(signs.total, 61.8);
+    assert.equal(signs.minimumApplied, 61.8);
   });
 });

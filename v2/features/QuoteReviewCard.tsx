@@ -3,6 +3,7 @@
 import { describeInkColors } from "../lib/apparel-pricing";
 import type { Order } from "../types/order";
 import { getSignsTotals, getStickerTotals } from "../lib/tax";
+import { BankTransferNote } from "./BankTransferNote";
 import type { ApparelQuote } from "../lib/apparel";
 import type { ApparelPricingResult } from "../lib/apparel-pricing";
 import type { SsCatalogColor } from "./types";
@@ -272,6 +273,7 @@ export default function QuoteReviewCard({
                   : "Quoted by hand"}
               </span>
             </div>
+            {signsTotals !== null && <BankTransferNote refund={signsTotals.achRefund} />}
           </>
         ) : isApparelRequest ? (
           <>
@@ -481,6 +483,7 @@ export default function QuoteReviewCard({
                 ${stickerTotals.estimatedTotal.toFixed(2)}
               </span>
             </div>
+            <BankTransferNote refund={stickerTotals.achRefund} />
           </>
         )}
 

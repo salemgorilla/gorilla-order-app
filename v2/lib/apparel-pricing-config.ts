@@ -34,6 +34,8 @@
  * correction fixed in the original export (D1–D3 in PRICING.md).
  */
 
+import { retail2 } from "./retail";
+
 export type ApparelMatrixTier = {
   /** The run size this row starts at. Rows are ranges: 24 means 24–47. */
   minQuantity: number;
@@ -47,7 +49,14 @@ export type ApparelMatrixTier = {
   garmentMarkup: number;
 };
 
-export const apparelPricingConfig = {
+/**
+ * THE SHOP'S OLD PRICE BOOK. Edit numbers HERE. Exported for tests/retail-uplift.test.ts ONLY — never price from it: the app prices
+ * from `apparelPricingConfig` below, which is this plus 3% on every dollar
+ * figure (Gabe's retail price, 2026-11-11, lib/retail.ts). The blank's markup
+ * is left alone — it is a multiplier of cost, and the 3% goes on the finished
+ * garment price (lib/ss-activewear.ts getMarkedUpPrice).
+ */
+export const engineApparelConfig = {
   tiers: [
     { minQuantity: 1, perPieceByColors: [21.0, 41.0, 61.0, 71.0, 80.0, 91.0, 101.0], garmentMarkup: 1.5 },
     { minQuantity: 12, perPieceByColors: [6.0, 13.0, 16.0, 19.0, 22.0, 25.0, 28.0], garmentMarkup: 1.5 },
@@ -88,3 +97,13 @@ export function garmentMarkups(): number[] {
     (a, b) => b - a
   );
 }
+
+/** The same book at retail: print cells and the screen fee plus 3%, to the cent. */
+export const apparelPricingConfig: typeof engineApparelConfig = {
+  ...engineApparelConfig,
+  tiers: engineApparelConfig.tiers.map((tier) => ({
+    ...tier,
+    perPieceByColors: tier.perPieceByColors.map(retail2),
+  })),
+  setupFeePerColorPerLocation: retail2(engineApparelConfig.setupFeePerColorPerLocation),
+};

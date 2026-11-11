@@ -17,6 +17,10 @@
  * are the same arithmetic, so no existing quote may move by a cent —
  * tests/apparel-price-sheet.test.ts holds 66 committed totals to that, and
  * the first describe below states the equivalence directly.
+ *
+ * (Dollar figures in the prose are the old price book; at retail, 2026-11-11,
+ * every print cell and the screen fee are +3% — a screen is $25.75. Every
+ * assertion here reads the config, so none carries a literal price.)
  */
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
@@ -108,9 +112,11 @@ describe("Gabe's example: front 2 colours, back 1", () => {
   const tier = tierFor(24);
 
   test("each placement is charged at its own matrix cell", () => {
+    // Rounded to the cent: at retail the two cells ($6.85 + $4.64) sum to
+    // 11.489999999999998 in floating point, and the engine's figure is $11.49.
     assert.equal(
       mixed.printUnitPrice,
-      printPerPieceOneLocation(tier, 2) + printPerPieceOneLocation(tier, 1)
+      Math.round((printPerPieceOneLocation(tier, 2) + printPerPieceOneLocation(tier, 1)) * 100) / 100
     );
   });
 

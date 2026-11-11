@@ -10,6 +10,7 @@ import { describeAssumedMix } from "../lib/apparel-blend";
 import type { ApparelPricingResult } from "../lib/apparel-pricing";
 import type { QuoteConfirmation, SsCatalogColor } from "./types";
 import { SALES_TAX, getSignsTotals, getStickerTotals } from "../lib/tax";
+import { BankTransferNote } from "./BankTransferNote";
 import { formatBytes } from "../lib/upload-limits";
 import { canOfferTracker, getTrackUrl } from "../lib/order-status";
 import {
@@ -664,6 +665,7 @@ export default function QuoteConfirmationScreen({
                         Includes estimated {SALES_TAX.label}
                       </p>
                     )}
+                    <BankTransferNote refund={signsTotals.achRefund} />
                     {/* The order minimum, where the money is. The summary
                         card explains it while they are building; this screen
                         is the one with a pay button on it, and a customer
@@ -767,6 +769,7 @@ export default function QuoteConfirmationScreen({
                       Includes estimated {SALES_TAX.label}
                     </p>
                   )}
+                  <BankTransferNote refund={stickerTotals.achRefund} />
                   {/**
                    * SAID OUT LOUD, ONCE.
                    *

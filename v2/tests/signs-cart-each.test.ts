@@ -11,7 +11,8 @@ import { quoteSignsCart } from "../lib/signs-cart";
  * ── THE DEFECT ────────────────────────────────────────────────────────────
  * The signs summary showed an each-price whenever the order held more than
  * one SIGN. On a cart that is an average of unlike things: a quote with a
- * $162 banner and a $288 banner reported
+ * $162 banner and a $288 banner reported (old book; $166.86 and $296.64 at
+ * retail, 2026-11-11)
  *
  *     Estimated Each   $240.00
  *
@@ -49,13 +50,14 @@ describe("the arithmetic is right; the meaning is what was wrong", () => {
       design({ customWidthInches: 96, customHeightInches: 48 }),
     ]);
 
-    assert.equal(cart.designs[0].pricing.subtotal, 162);
-    assert.equal(cart.designs[1].pricing.subtotal, 288);
-    assert.equal(cart.unitPrice, 240);
+    // Retail (+3%, 2026-11-11): the old book was $162 / $288 / $240 each.
+    assert.equal(cart.designs[0].pricing.subtotal, 166.86);
+    assert.equal(cart.designs[1].pricing.subtotal, 296.64);
+    assert.equal(cart.unitPrice, 247.2);
 
-    // 240 is not what either sign costs, and that is the point.
-    assert.notEqual(cart.unitPrice, 162);
-    assert.notEqual(cart.unitPrice, 288);
+    // 247.20 is not what either sign costs, and that is the point.
+    assert.notEqual(cart.unitPrice, 166.86);
+    assert.notEqual(cart.unitPrice, 296.64);
   });
 
   test("one design at a real quantity still has a meaningful each", () => {
@@ -123,8 +125,9 @@ describe("removing a design leaves the rest coherent", () => {
     const setupOf = (cart: ReturnType<typeof quoteSignsCart>) =>
       cart.lines.find((line) => line.kind === "setup")?.amount;
 
-    assert.equal(setupOf(three), 45);
-    assert.equal(setupOf(two), 30);
+    // $15.45 a design at retail (+3%, 2026-11-11); $45 / $30 in the old book.
+    assert.equal(setupOf(three), 46.35);
+    assert.equal(setupOf(two), 30.9);
   });
 
   test("the total falls by exactly the design that left", () => {

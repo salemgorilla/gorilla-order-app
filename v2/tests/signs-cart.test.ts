@@ -9,7 +9,8 @@ import { signsPricingConfig } from "../lib/signs-pricing-config";
  * A signs quote with more than one design in it.
  *
  * ── THE MODEL ─────────────────────────────────────────────────────────────
- * Setup is $15 per design and calculateSignsPricing already prices one design
+ * Setup is $15 per design ($15.45 at retail since 2026-11-11, +3% — every
+ * figure below is the old price book + 3% unless it says otherwise) and calculateSignsPricing already prices one design
  * including its own setup, so a cart is the SUM of its designs. There is no
  * cart-level arithmetic, which is the point: nothing here can drift from the
  * engine, because nothing here recomputes anything the engine computes.
@@ -59,7 +60,8 @@ describe("one design is exactly what it always was", () => {
 
   it("keeps the 3' x 6' banner at the price on the sheet", () => {
     // tests/signs-price-sheet.test.ts row: banner | 1 | 72x36 | 13 oz | single
-    assert.equal(quoteSignsCart([design()]).total, 177);
+    // $177.00 in the old book; $182.31 retail (177 x 1.03 exactly).
+    assert.equal(quoteSignsCart([design()]).total, 182.31);
   });
 
   it("does not prefix or rename anything", () => {
@@ -93,8 +95,9 @@ describe("several designs are summed", () => {
     const setup = cart.lines.filter((line) => line.kind === "setup");
 
     assert.equal(setup.length, 1, "three setup rows would read as a mistake");
-    assert.equal(setup[0].amount, signsPricingConfig.setupFee * 3);
-    assert.equal(setup[0].label, "Setup (3 designs × $15)");
+    assert.equal(setup[0].amount, round2(signsPricingConfig.setupFee * 3));
+    assert.equal(setup[0].amount, 46.35, "$45 old book");
+    assert.equal(setup[0].label, "Setup (3 designs × $15.45)");
   });
 
   it("prices three of the same design as three times one", () => {
@@ -106,7 +109,7 @@ describe("several designs are summed", () => {
     assert.equal(three, round2(one * 3));
   });
 
-  it("charges $15 more for splitting a run across two designs", () => {
+  it("charges one more setup ($15.45) for splitting a run across two designs", () => {
     // What a customer actually pays to have two different layouts instead of
     // one: exactly one extra setup. The vinyl is the same either way.
     const asOne = quoteSignsCart([design({ quantity: 2 })]).total;
@@ -217,9 +220,10 @@ describe("the two carts are different on purpose", () => {
     const setupOf = (cart: ReturnType<typeof quoteSignsCart>) =>
       cart.lines.filter((l) => l.kind === "setup").reduce((s, l) => s + l.amount, 0);
 
-    assert.equal(setupOf(one), 15);
-    assert.equal(setupOf(two), 30);
-    assert.equal(setupOf(three), 45);
+    // $15 / $30 / $45 in the old book.
+    assert.equal(setupOf(one), 15.45);
+    assert.equal(setupOf(two), 30.9);
+    assert.equal(setupOf(three), 46.35);
   });
 });
 

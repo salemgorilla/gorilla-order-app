@@ -31,6 +31,7 @@ import { looksLikeEmailAddress } from "./email-address";
 import { isApparelProduct, isPaperProduct, isSignsProduct } from "./order-flow";
 import { describePaperSpec, paperProductById, paperSpecFromProduct } from "./paper";
 import { needByLabel } from "./need-by";
+import { achRefund } from "./retail";
 
 export type QuoteEmailResult = {
   sent: boolean;
@@ -590,6 +591,26 @@ export function buildQuoteEmail(input: {
         ...signsShipping,
       ]
     : [line("Estimated Total", money(total)), line("Estimated Each", money(each))];
+
+  /**
+   * THE 3% (Gabe, 2026-11-11). Every price is retail — the old price plus 3% —
+   * and a customer who pays by bank transfer (ACH) is refunded that 3% after
+   * their payment clears. There is no card fee. The shop is the one who issues
+   * the refund, so the figure is written here, where the shop reads the order,
+   * rather than left to be worked out from the total (lib/retail.ts).
+   */
+  const bankRefund =
+    paper || primaryNeedsHandQuote || (signs && Boolean(pricing.quoteRequired))
+      ? 0
+      : achRefund(total);
+  if (bankRefund > 0) {
+    estimateLines.push(
+      line(
+        "If paid by bank transfer",
+        `Refund ${money(bankRefund)} after it clears — the 3% in the retail price. Card payers pay retail; there is no card fee.`
+      )
+    );
+  }
 
   // Immediately after the total, because the total is the thing in question.
   if (input.repricing) {

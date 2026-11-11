@@ -40,6 +40,7 @@ PRINTAVO_TOKEN set. It reads only. Never pay a test quote; void it after.
 | _(none yet)_ | | stickers | #206 | **owed** — flagged by `npm run reconcile:debt` (2026-10-23). #206 touched `lib/pricing.ts` and `app/api/quote/route.ts`; the line-item naming it added changes what the Printavo invoice rows are CALLED, not what they cost. **The check is one ordinary sticker order: invoice lines named after the artwork, total unchanged to the cent** |
 | _(none yet)_ | | signs | #206 | **owed** — flagged by `npm run reconcile:debt` (2026-10-23). #206 touched `lib/signs-cart.ts`. One ordinary banner or yard sign, total unchanged to the cent |
 | _(none yet)_ | | all flows | #206 #207 #209 #210 #212 #213 | **owed** — flagged by `npm run reconcile:debt` (2026-10-23). These touched `lib/printavo.ts` and `app/api/quote/route.ts` for the press line, the newsletter store and the shop email, not for any rate. **Expected to be a no-op: one ordinary sticker order must still bill EXACTLY what it billed before** |
+| _(none yet)_ | | all flows | **the 3% retail uplift (2026-11-11)** | **owed — and the most important one on this table.** Every price moved +3% (stickers, signs, banners, apparel, shipping, fees). **The order to place:** one sticker order (100 x 3" gloss circle, pickup is **$87.55** pre-tax, **$92.06** with tax (tax on the $72.10 of stickers only)) — read the Printavo invoice and confirm (a) lines + tax match the screen to the cent, (b) the customer note carries `Pay by bank transfer (ACH) and save $2.55`, (c) the shop email has the `If paid by bank transfer` row. Then one over-the-ceiling order: the 50% deposit is judged on the RETAIL charge. Not yet reconciled — the Printavo token was expired until 2026-11-11. |
 
 **The three rows above were computed, not remembered** — 2026-09-25. The
 independent audit found this table's newest row covering #158 while `main`
@@ -73,6 +74,62 @@ the payload, the per-line `taxed` flags and Printavo's arithmetic all agree,
 to the cent. Nothing in #149 touched any of that. It did not prove the RATE
 — that is a business figure, and #149 changed it, so the row above it is
 owed and the merge rule points at the next sticker order.
+
+## Retail price, 2026-11-11: the 3% is in the price book (Gabe's decision, option A)
+
+> "We will not charge 3%, we will increase our retail price by 3% and discount
+> those who pay via ACH." Then: **A** — retail everywhere, refund the 3% after
+> an ACH payment. Printavo's payment page offers ACH. **Sales tax is always on
+> the retail (higher) price.** Test numbers change together with the prices.
+
+**What it is.** Every price the app shows or bills is the old price + 3%. There
+is NO card fee, surcharge or add-on at checkout, under any name —
+Massachusetts bans card surcharges and allows a discount for cash. A customer
+who pays by bank transfer is refunded the 3% afterwards; the shop issues it.
+
+**Where it lives.** One file, `lib/retail.ts` (`RETAIL_UPLIFT`, `retail2`,
+`retail4`, `engineTerms`, `achRefund`). It is applied AT THE SOURCE — each
+rate, fee and floor is a retail number where it is defined — so the screens,
+the email, the Printavo lines, the tax and the deposit ceiling all read retail
+without a change, and the invoice lines sum to the screen because they are the
+same numbers:
+
+- stickers: the per-sticker unit (to 4 dp, what Printavo stores), setup
+  (15.45 / 7.73), the minimum (46.35), shipping (tiers 8.24 / 12.36 / 18.54 /
+  25.75 and Ground Advantage rates);
+- signs & banners: every rate, fee and add-on in `lib/signs-pricing-config.ts`
+  (the config is written out field by field and `tests/retail-uplift.test.ts`
+  fails if a new PRICE is added without the uplift);
+- apparel (estimate only): every print cell, the screen fee
+  (`lib/apparel-pricing-config.ts`) and the blank (`lib/ss-activewear.ts`).
+
+**What deliberately did NOT inflate:** shipping tier THRESHOLDS ($75 / $200 /
+$500 of goods are old-book figures — a retail subtotal is converted back with
+`engineTerms` before comparing, so no order moves tier); percentages (rush 25%,
+discount codes) which scale by themselves; the 2/3 second-side ratio. The one
+retail threshold is `FULL_PAYMENT_CEILING` ($4,999.99), which Gabe set against
+"the amount charged (incl. tax)" — and that is retail now.
+
+**The refund** is `achRefund(preTaxRetail)` = retail − retail/1.03, to the cent
+(retail $327.13 → $9.53). Tax is NOT refunded. It is carried on `QuoteTotals`,
+shown on the review and confirmation screens (`features/BankTransferNote.tsx`),
+written on the shop email ("If paid by bank transfer") and on the Printavo
+customer note ("Pay by bank transfer (ACH) and save $X"). Whoever issues the
+refund reads it off the order.
+
+**Regenerated:** `tests/price-sheet.test.ts` (199 rows), `signs-price-sheet`
+(130), `apparel-price-sheet`. The regeneration refused any row further from
+(old × 1.03) than rate rounding allows — every row passed, so those diffs are
+the 3% and nothing else. `verification/independent-oracle.ts` was updated from
+the decision (1,731 configurations agree). `npm run audit:anchors` prints the
+retail figures; the health check reads that, not a copied table.
+
+**Still open:** (1) the reconciliation above; (2) the apparel estimate screens
+do not yet say a bank-transfer discount exists when the shop invoices (the
+skill's item 3) — they show the retail figure; (3) the unmerged customer quote
+link (`claude/customer-quote-link`) was converted off its 3% card fee locally
+and needs pushing; (4) embroidery pricing, when it ships, is ENGINE price —
+apply `retail2` to its cells.
 
 ## Customer's due date in the shop email and the Printavo list, 2026-10-29
 

@@ -6,6 +6,11 @@
  *   holes             $5 per sign     yard and rigid signs
  *   velcro            $1.50 / ft      banners — top, middle, bottom, sides, all
  *
+ * RETAIL, 2026-11-11 (every price is the old price + 3%, lib/retail.ts):
+ * corners and holes are $5.15 per sign and velcro is $1.55 / ft ($1.545
+ * rounded to the cent). The $5 / $1.50 above are the old book; the
+ * assertions below carry the retail figures.
+ *
  * Three things are pinned beyond the arithmetic. (1) They are FEES: kind
  * "addOn", out of the taxable base on the estimate and taxed:false on the
  * invoice, on the one-design path and the cart path alike. (2) The server
@@ -56,31 +61,31 @@ const BANNER: SignsDesign = {
 };
 
 describe("the figures are the decision", () => {
-  test("$5 per sign for corners and holes, $1.50 a foot for velcro", () => {
-    assert.equal(signsPricingConfig.signAddOns.roundedCorners.perSign, 5);
-    assert.equal(signsPricingConfig.signAddOns.holes.perSign, 5);
-    assert.equal(signsPricingConfig.velcro.perLinearFoot, 1.5);
+  test("$5.15 per sign for corners and holes, $1.55 a foot for velcro (old book $5 / $1.50)", () => {
+    assert.equal(signsPricingConfig.signAddOns.roundedCorners.perSign, 5.15);
+    assert.equal(signsPricingConfig.signAddOns.holes.perSign, 5.15);
+    assert.equal(signsPricingConfig.velcro.perLinearFoot, 1.55);
   });
 });
 
 describe("per sign, on yard and rigid signs", () => {
-  test("ten yard signs with rounded corners: +$50", () => {
+  test("ten yard signs with rounded corners: +$51.50 (old book +$50)", () => {
     const plain = quoteSignsCart([YARD]).total;
     const cornered = quoteSignsCart([{ ...YARD, signAddOns: ["roundedCorners"] }]);
     const line = cornered.lines.find((l) => l.code === "ADDON-ROUNDEDCORNERS");
 
-    assert.equal(cornered.total - plain, 50);
+    assert.equal(Math.round((cornered.total - plain) * 100) / 100, 51.5);
     assert.ok(line);
-    assert.equal(line.amount, 50);
+    assert.equal(line.amount, 51.5);
     assert.equal(line.kind, "addOn");
-    assert.match(line.label, /10 × \$5/);
+    assert.match(line.label, /10 × \$5\.15/);
   });
 
-  test("four rigid signs with holes AND corners: +$40", () => {
+  test("four rigid signs with holes AND corners: +$41.20 (old book +$40)", () => {
     const plain = quoteSignsCart([RIGID]).total;
     const both = quoteSignsCart([{ ...RIGID, signAddOns: ["holes", "roundedCorners"] }]);
 
-    assert.equal(Math.round((both.total - plain) * 100) / 100, 40);
+    assert.equal(Math.round((both.total - plain) * 100) / 100, 41.2);
     assert.equal(both.lines.filter((l) => l.kind === "addOn").length, 2);
   });
 
@@ -115,7 +120,8 @@ describe("velcro, by the foot of the edges chosen", () => {
     });
     const line = priced.lines.find((l) => l.code?.startsWith("ADDON-VELCRO"));
 
-    return line ? line.amount / 1.5 : 0;
+    // Feet, not dollars: the line amount over the (retail) rate per foot.
+    return line ? Math.round((line.amount / signsPricingConfig.velcro.perLinearFoot) * 1000) / 1000 : 0;
   };
 
   test("top, middle, bottom: the width", () => {
@@ -142,7 +148,8 @@ describe("velcro, by the foot of the edges chosen", () => {
     const line = quote.lines.find((l) => l.code === "ADDON-VELCRO-ALL");
 
     assert.ok(line);
-    assert.equal(line.amount, 72, "24 ft × $1.50 × 2 banners");
+    // $72.00 old book; $74.40 retail (the rate rounds 1.545 up to 1.55 first).
+    assert.equal(line.amount, 74.4, "24 ft × $1.55 × 2 banners");
     assert.equal(line.kind, "addOn");
     assert.match(line.label, /all of the above/);
   });

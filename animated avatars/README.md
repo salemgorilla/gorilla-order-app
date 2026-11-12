@@ -14,3 +14,10 @@ Notes
 - GIFs play in the body of an email but not in the Gmail app attachment preview.
 - Look settings live in gorilla.py: colors (dark/mid/face/light, background),
   zoom crop (last line of frame()), animation timing (N, duration).
+
+## Flying monkey avatar (for the flying monkey email)
+- flying-monkey-avatar.gif       animated, 512x512, 36 frames at 60 ms, loops forever
+- flying-monkey-avatar-250.png   static 250x250 fallback
+- flying-monkey-avatar-still.png static 512x512 first frame
+- flying-monkey.py               generates all of the above (run: python3 flying-monkey.py)
+Brown monkey with royal purple wings flapping twice per loop, drifting clouds on sky blue.

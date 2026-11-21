@@ -1,13 +1,15 @@
 export const apparelCatalog = {
   quantities: [12, 24, 36, 50, 75, 100, 150, 250, 500],
   garmentTypes: ["T-Shirts", "Hoodies", "Crewnecks", "Long Sleeves", "Hats"],
+  // Most-ordered first, the same order as lib/garment-color-ranking.ts.
+  // Only shown when the live S&S catalogue fails to load.
   garmentColors: [
     "Black",
-    "White",
-    "Heather Gray",
     "Navy",
-    "Forest Green",
+    "Heather Gray",
+    "White",
     "Red",
+    "Forest Green",
     "Custom / Not Sure",
   ],
   // Gabe's placement chart, 2026-11-21 — the ids, sizes and which garments

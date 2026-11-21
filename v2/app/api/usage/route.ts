@@ -50,6 +50,15 @@ export async function POST(request: Request) {
 
   try {
     await recordVisit(vercelUsageStore(), beacons);
+    // Previews only: one line per visit is how a preview proves the path
+    // works end to end. Production stays quiet; its proof is the report.
+    if (process.env.VERCEL_ENV !== "production") {
+      console.log(
+        `USAGE RECORDED: ${beacons
+          .map((b) => `${b.flow} steps=${b.steps.join(",") || "-"} picks=${b.picks.length}`)
+          .join(" | ")}`
+      );
+    }
   } catch (error) {
     // Counting failed; the customer is unaffected. One line, no payload.
     console.error(

@@ -11,6 +11,12 @@ type Props = {
   garmentColor: string;
   garmentImage?: string | null;
   /**
+   * The same colour's BACK photograph. A back placement is measured against
+   * the back photo (lib/garment-zones.ts), so it can only be composited onto
+   * that photo — drawn on the front photo it would sit on the chest.
+   */
+  garmentBackImage?: string | null;
+  /**
    * S&S styleID, when the catalog has loaded. Keys the placement-zone lookup
    * in lib/garment-zones.ts — absent, unknown, or unverified all mean the
    * side-by-side view below, automatically.
@@ -82,6 +88,7 @@ export default function ApparelPreview({
   garmentType,
   garmentColor,
   garmentImage,
+  garmentBackImage,
   garmentColorHex,
   catalogStyle,
   printLocations,
@@ -106,6 +113,9 @@ export default function ApparelPreview({
     ? ("Back" as const)
     : null;
   const zone = placement ? getVerifiedGarmentZone(catalogStyle, placement) : null;
+  // The photograph the zone was measured on. No back photo, no back mockup:
+  // the side-by-side view is the honest fallback, as for any missing zone.
+  const placementImage = placement === "Back" ? garmentBackImage : garmentImage;
 
   /**
    * The mockup is stored WITH the inputs it was composed from, and rendered
@@ -116,8 +126,8 @@ export default function ApparelPreview({
    * forbids).
    */
   const mockupKey =
-    zone && garmentImage && artworkPreview
-      ? `${garmentImage}|${artworkPreview}|${placement}`
+    zone && placementImage && artworkPreview
+      ? `${placementImage}|${artworkPreview}|${placement}`
       : null;
   const [mockup, setMockup] = useState<{ key: string; url: string } | null>(
     null
@@ -127,12 +137,12 @@ export default function ApparelPreview({
   useEffect(() => {
     // Nothing to compose; whatever is stored no longer matches and will not
     // render.
-    if (!zone || !garmentImage || !artworkPreview || !mockupKey) return;
+    if (!zone || !placementImage || !artworkPreview || !mockupKey) return;
 
     let cancelled = false;
 
     composeGarmentMockup({
-      garmentUrl: garmentImage,
+      garmentUrl: placementImage,
       artworkUrl: artworkPreview,
       zone,
     }).then((url) => {
@@ -144,7 +154,7 @@ export default function ApparelPreview({
     return () => {
       cancelled = true;
     };
-  }, [zone, garmentImage, artworkPreview, mockupKey]);
+  }, [zone, placementImage, artworkPreview, mockupKey]);
 
   return (
     <div className="border border-[var(--rule)] bg-white p-5 sm:p-8">

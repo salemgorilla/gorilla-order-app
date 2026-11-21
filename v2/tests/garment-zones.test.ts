@@ -162,6 +162,16 @@ describe("the component keeps its honest default", () => {
     );
   });
 
+  test("a back placement composites onto the back photo", () => {
+    // Back zones are measured on the back photograph; drawn on the front
+    // photo they land on the chest.
+    assert.match(preview, /placement === "Back" \? garmentBackImage : garmentImage/);
+    assert.match(preview, /garmentUrl: placementImage/);
+    const page = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
+    assert.match(page, /garmentBackImage=\{selectedGarmentBackPhotoSrc\}/);
+    assert.match(page, /chosenSsColor\?\.backImage/);
+  });
+
   test("the page passes the style through", () => {
     const page = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
     assert.match(page, /catalogStyle=\{selectedSsProduct\?\.catalogStyle\}/);

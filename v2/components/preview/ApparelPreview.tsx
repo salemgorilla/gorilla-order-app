@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 
 import { composeGarmentMockup } from "../../lib/garment-composite";
-import { getVerifiedGarmentZone } from "../../lib/garment-zones";
+import { getVerifiedGarmentZone, type GarmentZone } from "../../lib/garment-zones";
+import { getPrintPlacement } from "../../lib/print-placements";
 
 type Props = {
   artworkPreview: string | null;
@@ -104,18 +105,37 @@ export default function ApparelPreview({
    * default this component exists for. There is no flag to remember to
    * flip: the absence of a verified zone IS the fallback trigger.
    *
-   * Front wins when both locations are picked — one composite, matching the
-   * face of the shirt a customer pictures.
+   * The front face wins when both are picked — one composite, matching the
+   * face of the shirt a customer pictures — and every placement picked on
+   * that face is drawn on it (a left chest AND a sleeve, say). Placements
+   * with no verified zone are left off; with none at all, side by side.
    */
-  const placement = printLocations.includes("Front")
-    ? ("Front" as const)
-    : printLocations.includes("Back")
-    ? ("Back" as const)
+  const frontPlacements = printLocations.filter(
+    (location) => (getPrintPlacement(location)?.side ?? "front") === "front"
+  );
+  const side = frontPlacements.length
+    ? ("front" as const)
+    : printLocations.length
+    ? ("back" as const)
     : null;
-  const zone = placement ? getVerifiedGarmentZone(catalogStyle, placement) : null;
-  // The photograph the zone was measured on. No back photo, no back mockup:
-  // the side-by-side view is the honest fallback, as for any missing zone.
-  const placementImage = placement === "Back" ? garmentBackImage : garmentImage;
+  const sidePlacements = side === "front"
+    ? frontPlacements
+    : printLocations.filter((location) => getPrintPlacement(location)?.side === "back");
+  const placed = sidePlacements
+    .map((location) => ({
+      location,
+      zone: getVerifiedGarmentZone(catalogStyle, location),
+    }))
+    .filter((item): item is { location: string; zone: GarmentZone } =>
+      Boolean(item.zone)
+    );
+  const zone = placed[0]?.zone ?? null;
+  const extraZones = placed.slice(1).map((item) => item.zone);
+  const placement = placed.map((item) => item.location).join(" + ") || null;
+  // The photograph the zones were measured on. No back photo, no back
+  // mockup: the side-by-side view is the honest fallback, as for any
+  // missing zone.
+  const placementImage = side === "back" ? garmentBackImage : garmentImage;
 
   /**
    * The mockup is stored WITH the inputs it was composed from, and rendered
@@ -145,6 +165,7 @@ export default function ApparelPreview({
       garmentUrl: placementImage,
       artworkUrl: artworkPreview,
       zone,
+      extraZones,
     }).then((url) => {
       // A failed composite resolves null (never throws), which lands us in
       // the side-by-side view — losing the mockup must never lose the page.
@@ -154,6 +175,8 @@ export default function ApparelPreview({
     return () => {
       cancelled = true;
     };
+    // extraZones is derived from the same placement string mockupKey holds.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zone, placementImage, artworkPreview, mockupKey]);
 
   return (

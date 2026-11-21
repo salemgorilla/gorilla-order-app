@@ -36,6 +36,11 @@ export async function composeGarmentMockup(input: {
   garmentUrl: string;
   artworkUrl: string;
   zone: GarmentZone;
+  /**
+   * More placements on the SAME photo (a left chest and a sleeve, say).
+   * The same artwork is drawn into each, by the same rules as `zone`.
+   */
+  extraZones?: GarmentZone[];
 }): Promise<string | null> {
   if (typeof document === "undefined") return null;
 
@@ -65,25 +70,26 @@ export async function composeGarmentMockup(input: {
 
     ctx.drawImage(garment, 0, 0, canvasW, canvasH);
 
-    const { zone } = input;
-    let drawW = zone.width * canvasW;
-    let drawH = drawW * (artwork.naturalHeight / artwork.naturalWidth);
+    for (const zone of [input.zone, ...(input.extraZones ?? [])]) {
+      let drawW = zone.width * canvasW;
+      let drawH = drawW * (artwork.naturalHeight / artwork.naturalWidth);
 
-    const maxH = zone.maxHeight * canvasH;
-    if (drawH > maxH) {
-      // Scale DOWN to fit, keeping the art's aspect — never squash.
-      const shrink = maxH / drawH;
-      drawH = maxH;
-      drawW *= shrink;
+      const maxH = zone.maxHeight * canvasH;
+      if (drawH > maxH) {
+        // Scale DOWN to fit, keeping the art's aspect — never squash.
+        const shrink = maxH / drawH;
+        drawH = maxH;
+        drawW *= shrink;
+      }
+
+      ctx.drawImage(
+        artwork,
+        zone.centerX * canvasW - drawW / 2,
+        zone.top * canvasH,
+        drawW,
+        drawH
+      );
     }
-
-    ctx.drawImage(
-      artwork,
-      zone.centerX * canvasW - drawW / 2,
-      zone.top * canvasH,
-      drawW,
-      drawH
-    );
 
     return canvas.toDataURL("image/png");
   } catch {

@@ -114,6 +114,11 @@ import {
   rushOffer,
 } from "../lib/rush";
 import { apparelCatalogStyles } from "../lib/apparel-catalog";
+import {
+  garmentFamily,
+  keepOfferedPlacements,
+  togglePlacement,
+} from "../lib/print-placements";
 import { sameOriginGarmentPhotoUrl } from "../lib/garment-photo";
 import {
   getItemFieldErrors,
@@ -1131,6 +1136,11 @@ export default function Home() {
       ...current,
       garmentType: product.customerLabel || product.displayName,
       garmentColor: firstColor?.colorName || current.garmentColor,
+      // A hoodie cannot take an oversize front or a collar-back print.
+      printLocations: keepOfferedPlacements(
+        current.printLocations,
+        garmentFamily({ catalogStyle: product.catalogStyle })
+      ),
     }));
   }
 
@@ -1579,14 +1589,10 @@ export default function Home() {
   }
 
   function togglePrintLocation(location: string) {
-    const alreadySelected = apparelQuote.printLocations.includes(location);
-
-    const nextLocations = alreadySelected
-      ? apparelQuote.printLocations.filter((item) => item !== location)
-      : [...apparelQuote.printLocations, location];
-
+    // Placements that overlap on the garment replace each other (a left
+    // chest sits inside a full front) — lib/print-placements.ts.
     updateApparelQuote({
-      printLocations: nextLocations,
+      printLocations: togglePlacement(apparelQuote.printLocations, location),
     });
   }
 

@@ -46,9 +46,14 @@ export type GarmentZone = {
   maxHeight: number;
 };
 
-export type GarmentPlacement = "Front" | "Back";
+/**
+ * A print location as the quote stores it ("Front", "Left Chest", …) — the
+ * ids in lib/print-placements.ts, which also says which photo (front or
+ * back) each one is measured on.
+ */
+export type GarmentPlacement = string;
 
-type StyleZones = Partial<Record<"front" | "back", GarmentZone>>;
+type StyleZones = Partial<Record<GarmentPlacement, GarmentZone>>;
 
 /**
  * MEASURED 2026-11-21 against the live S&S photos (1000x1250 each), with the
@@ -75,62 +80,51 @@ type StyleZones = Partial<Record<"front" | "back", GarmentZone>>;
  *   7584  front: Solid Black Blend, Solid White Blend, Heather Navy, Heather Red
  *         back:  Solid Black Blend, Heather Navy, Heather Red
  *   395   front and back: Black, Sport Grey, Red
+ *
+ * The other placements (left chest, center chest, oversize front, sleeve,
+ * collar back, upper back) were added 2026-11-21 from Gabe's placement
+ * chart and the Stahls' guide, sized in inches off each photo's body width
+ * and placed off its collar, then checked on the same colours with a square
+ * test logo. Sleeve boxes sit on the wearer's LEFT sleeve, which is the
+ * right-hand side of a front photo, as the left chest is.
  */
 export const garmentZones: Record<string, StyleZones> = {
   // Basic Tee — Gildan 2000 Ultra Cotton
   "39": {
-    front: {
-      verified: true,
-      centerX: 0.5,
-      top: 0.225,
-      width: 0.28,
-      maxHeight: 0.26,
-    },
-    back: {
-      verified: true,
-      centerX: 0.5,
-      top: 0.165,
-      width: 0.28,
-      maxHeight: 0.27,
-    },
+    "Left Chest": { verified: true, centerX: 0.607, top: 0.240, width: 0.095, maxHeight: 0.076 },
+    "Center Chest": { verified: true, centerX: 0.500, top: 0.225, width: 0.190, maxHeight: 0.135 },
+    Front: { verified: true, centerX: 0.500, top: 0.225, width: 0.280, maxHeight: 0.260 },
+    "Oversize Front": { verified: true, centerX: 0.500, top: 0.215, width: 0.335, maxHeight: 0.285 },
+    Sleeve: { verified: true, centerX: 0.835, top: 0.260, width: 0.065, maxHeight: 0.050 },
+    "Collar Back": { verified: true, centerX: 0.500, top: 0.115, width: 0.060, maxHeight: 0.048 },
+    "Upper Back": { verified: true, centerX: 0.500, top: 0.140, width: 0.285, maxHeight: 0.076 },
+    Back: { verified: true, centerX: 0.500, top: 0.165, width: 0.280, maxHeight: 0.270 },
   },
   // Premium Soft Tee — Bella+Canvas 3001CVC. Slimmer body in the photos than
-  // the Gildan, so the box is a touch narrower.
+  // the Gildan, so every box is a touch narrower.
   "7584": {
-    front: {
-      verified: true,
-      centerX: 0.5,
-      top: 0.205,
-      width: 0.27,
-      maxHeight: 0.25,
-    },
-    back: {
-      verified: true,
-      centerX: 0.5,
-      top: 0.135,
-      width: 0.27,
-      maxHeight: 0.26,
-    },
+    "Left Chest": { verified: true, centerX: 0.603, top: 0.215, width: 0.092, maxHeight: 0.074 },
+    "Center Chest": { verified: true, centerX: 0.500, top: 0.205, width: 0.184, maxHeight: 0.130 },
+    Front: { verified: true, centerX: 0.500, top: 0.205, width: 0.270, maxHeight: 0.250 },
+    "Oversize Front": { verified: true, centerX: 0.500, top: 0.195, width: 0.322, maxHeight: 0.276 },
+    Sleeve: { verified: true, centerX: 0.840, top: 0.260, width: 0.063, maxHeight: 0.050 },
+    "Collar Back": { verified: true, centerX: 0.500, top: 0.090, width: 0.058, maxHeight: 0.046 },
+    "Upper Back": { verified: true, centerX: 0.500, top: 0.115, width: 0.276, maxHeight: 0.074 },
+    Back: { verified: true, centerX: 0.500, top: 0.135, width: 0.270, maxHeight: 0.260 },
   },
-  // Classic Hoodie — Gildan 18500. Front: starts below the hood opening and
-  // ends above the pouch pocket; the drawcords hang over the top of the art,
-  // as they do on a real print. Back: the old placeholder already sat just
-  // under the hood point at a 12.5" width, so it is kept as measured.
+  // Classic Hoodie — Gildan 18500. Front placements start below the hood
+  // opening and end above the pouch pocket; the drawcords hang over the top
+  // of the art, as they do on a real print. Back placements sit just under
+  // the point of the hood. No oversize front (it would run over the pocket)
+  // and no collar back (the hood covers it) — see lib/print-placements.ts.
+  // The sleeve is printed down the arm, so its box is tall and narrow.
   "395": {
-    front: {
-      verified: true,
-      centerX: 0.5,
-      top: 0.22,
-      width: 0.31,
-      maxHeight: 0.26,
-    },
-    back: {
-      verified: true,
-      centerX: 0.5,
-      top: 0.28,
-      width: 0.34,
-      maxHeight: 0.32,
-    },
+    "Left Chest": { verified: true, centerX: 0.635, top: 0.225, width: 0.108, maxHeight: 0.086 },
+    "Center Chest": { verified: true, centerX: 0.500, top: 0.220, width: 0.216, maxHeight: 0.130 },
+    Front: { verified: true, centerX: 0.500, top: 0.220, width: 0.310, maxHeight: 0.260 },
+    Sleeve: { verified: true, centerX: 0.850, top: 0.360, width: 0.054, maxHeight: 0.250 },
+    "Upper Back": { verified: true, centerX: 0.500, top: 0.280, width: 0.324, maxHeight: 0.086 },
+    Back: { verified: true, centerX: 0.500, top: 0.280, width: 0.340, maxHeight: 0.320 },
   },
 };
 
@@ -151,7 +145,7 @@ export function getVerifiedGarmentZone(
 ): GarmentZone | null {
   if (!catalogStyle) return null;
 
-  const zone = zones[catalogStyle]?.[placement === "Back" ? "back" : "front"];
+  const zone = zones[catalogStyle]?.[placement];
 
   if (!zone || !zone.verified) return null;
 

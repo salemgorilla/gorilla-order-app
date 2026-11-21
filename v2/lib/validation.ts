@@ -565,6 +565,8 @@ export function getApparelFieldErrors(
      */
     inkColors?: string;
     inkColorsByLocation?: Record<string, string>;
+    /** A white underbase under the print: one more colour (Gabe, 2026-11-21). */
+    hasUnderbase?: boolean;
     /**
      * Pieces across EVERY garment line on the quote. The minimum is per
      * design and a quote is one design, so 12 tees and 12 hoodies count as
@@ -676,7 +678,8 @@ export function getApparelFieldErrors(
 
   /**
    * THE MINIMUM, by ink colours — Gabe, 2026-11-21: 1 colour 12, 2 colours
-   * 24, 3 and up 48, per design (lib/print-minimums.ts). Checked only once
+   * 24, 3 and up 48, per design, the white underbase counted as a colour
+   * (lib/print-minimums.ts). Checked only once
    * there is a count, so an empty box still asks "how many" first. A
    * special order returned above: it is priced by hand, embroidery and
    * hats included, and the shop answers its minimum in the reply.
@@ -688,7 +691,9 @@ export function getApparelFieldErrors(
         printLocations: apparelQuote.printLocations,
         inkColors: apparelQuote.inkColors,
         inkColorsByLocation: apparelQuote.inkColorsByLocation,
-      })
+        hasUnderbase: apparelQuote.hasUnderbase,
+      }),
+      { underbase: apparelQuote.hasUnderbase }
     );
     if (short) errors.quantity = short;
   }

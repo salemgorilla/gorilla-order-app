@@ -81,6 +81,17 @@ describe("the design's colour count", () => {
     );
   });
 
+  test("the white underbase counts as a color (Gabe: \"Under base counts as a colors\")", () => {
+    assert.equal(
+      designColorCount({ printLocations: ["Front"], inkColors: "1 color", hasUnderbase: true }),
+      2
+    );
+    assert.equal(
+      designColorCount({ printLocations: ["Front"], inkColors: "2 colors", hasUnderbase: true }),
+      3
+    );
+  });
+
   test("no placement yet reads the order-level choice", () => {
     assert.equal(designColorCount({ printLocations: [], inkColors: "3 colors" }), 3);
   });
@@ -113,6 +124,22 @@ describe("the message", () => {
     assert.equal(
       screenPrintMinimumMessage(10, 3),
       "A design with 3 or more colors starts at 48 pieces. You have 10, so add 38 more."
+    );
+  });
+});
+
+describe("the message with an underbase", () => {
+  test("says the underbase is what moved it", () => {
+    assert.equal(
+      screenPrintMinimumMessage(18, 2, { underbase: true }),
+      "On a dark garment the white underbase counts as a color, so this design prints 2 colors and starts at 24 pieces. You have 18, so add 6 more."
+    );
+  });
+
+  test("offers fewer INK colors, never below what the dark garment can print", () => {
+    assert.equal(
+      screenPrintMinimumMessage(30, 3, { underbase: true }),
+      "On a dark garment the white underbase counts as a color, so this design prints 3 or more colors and starts at 48 pieces. You have 30, so add 18 more, or print it in 1 ink color (24 minimum)."
     );
   });
 });
@@ -165,6 +192,22 @@ describe("the form refuses a design under its minimum", () => {
         TODAY
       ).quantity,
       undefined
+    );
+  });
+
+  test("1-color print on a dark garment: underbase makes it 2 colors, 24", () => {
+    const dark = { inkColors: "1 color", hasUnderbase: true };
+    assert.match(
+      getApparelFieldErrors(quote({ ...dark, quantity: 12 }), order, 0, TODAY).quantity ?? "",
+      /underbase counts as a color.*starts at 24 pieces/
+    );
+    assert.equal(getApparelFieldErrors(quote({ ...dark, quantity: 24 }), order, 0, TODAY).quantity, undefined);
+  });
+
+  test("2 colors on a dark garment is 3 colors: 48", () => {
+    assert.match(
+      getApparelFieldErrors(quote({ inkColors: "2 colors", hasUnderbase: true, quantity: 47 }), order, 0, TODAY).quantity ?? "",
+      /starts at 48 pieces/
     );
   });
 

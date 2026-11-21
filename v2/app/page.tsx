@@ -703,6 +703,17 @@ export default function Home() {
   const apparelEstimateBasis: "assumed" | "exact" =
     sizeQuantityTotal > 0 ? "exact" : "assumed";
 
+  /**
+   * A white underbase under the print, for the whole run — see
+   * anyGarmentNeedsUnderbase for why a mixed cart errs high rather than
+   * low. Named once because two things read it: the engine (one more
+   * colour per placement) and the minimum (Gabe, 2026-11-21: "Under base
+   * counts as a colors").
+   */
+  const apparelHasUnderbase =
+    anyGarmentNeedsUnderbase(apparelQuote.garmentColor, extraGarmentLines) &&
+    Boolean(artworkAnalysis?.estimatedColorCount);
+
   const apparelPricing = useMemo(() => {
     /**
      * The garment component of the estimate, replacing the old model that
@@ -771,9 +782,7 @@ export default function Home() {
         inkColorsByLocation: apparelQuote.inkColorsByLocation,
         // One decision for the whole run — see anyGarmentNeedsUnderbase for
         // why a mixed cart errs high rather than low.
-        hasUnderbase:
-          anyGarmentNeedsUnderbase(apparelQuote.garmentColor, extraGarmentLines) &&
-          Boolean(artworkAnalysis?.estimatedColorCount),
+        hasUnderbase: apparelHasUnderbase,
       }
     );
 
@@ -797,12 +806,14 @@ export default function Home() {
     sizeBreakdownFromButtons,
     extraGarmentLines,
     ssProducts,
+    apparelHasUnderbase,
   ]);
 
   /**
    * The colour-based minimum, said while the customer is still choosing —
    * not only as a red error after they press submit. Gabe, 2026-11-21: 1
-   * colour 12, 2 colours 24, 3 and up 48, per design (lib/print-minimums).
+   * colour 12, 2 colours 24, 3 and up 48, per design, underbase counted
+   * (lib/print-minimums).
    * Null for a special order: that is priced by hand.
    */
   const apparelMinimumNotice = useMemo(
@@ -810,10 +821,11 @@ export default function Home() {
       !apparelQuote.specialOrder && apparelPricing.quantity > 0
         ? screenPrintMinimumMessage(
             apparelPricing.quantity,
-            designColorCount(apparelQuote)
+            designColorCount({ ...apparelQuote, hasUnderbase: apparelHasUnderbase }),
+            { underbase: apparelHasUnderbase }
           )
         : null,
-    [apparelQuote, apparelPricing.quantity]
+    [apparelQuote, apparelPricing.quantity, apparelHasUnderbase]
   );
 
   /**
@@ -2110,6 +2122,7 @@ export default function Home() {
         // Every garment line's pieces: the colour-based minimum is per
         // design, and a quote is one design (lib/print-minimums.ts).
         totalQuantity: apparelPricing.quantity,
+        hasUnderbase: apparelHasUnderbase,
       },
       order,
       sizeQuantityTotal,
@@ -2127,6 +2140,7 @@ export default function Home() {
         // Every garment line's pieces: the colour-based minimum is per
         // design, and a quote is one design (lib/print-minimums.ts).
         totalQuantity: apparelPricing.quantity,
+        hasUnderbase: apparelHasUnderbase,
       },
       order,
       sizeQuantityTotal,

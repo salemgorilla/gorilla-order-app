@@ -1,4 +1,4 @@
-import { getInkColorCount } from "./apparel-pricing";
+import { locationColorCounts } from "./apparel-pricing";
 
 /**
  * MINIMUM PIECES — set by how many ink colours the design prints.
@@ -22,11 +22,11 @@ import { getInkColorCount } from "./apparel-pricing";
  *
  * ── WHICH COLOUR COUNT ────────────────────────────────────────────────────
  * The design's MOST colours on any one placement: a 2-colour front with a
- * 1-colour back is a 2-colour design (24). The white underbase the pricing
- * adds on dark garments is NOT counted here: it is a screen the shop adds,
- * not a colour the customer chose, and counting it would push every 1-colour
- * print on a coloured shirt up to 24. If Gabe wants the underbase counted,
- * it is the one `designColorCount` line below.
+ * 1-colour back is a 2-colour design (24). The white underbase a dark
+ * garment needs COUNTS as a colour — Gabe, 2026-11-21: "Under base counts
+ * as a colors." So a 1-colour print on a black shirt is 2 colours (24). It
+ * is the same count the pricing engine charges screens for
+ * (locationColorCounts), so the minimum and the price read one number.
  */
 export const SCREEN_PRINT_MINIMUMS = [
   { colors: 1, minimum: 12 },
@@ -52,20 +52,22 @@ export function screenPrintMinimum(colors: number): number {
 
 /**
  * The design's colour count for the minimum: the most colours on any one
- * placement, as the customer chose them (no underbase).
+ * placement, the white underbase included.
  */
 export function designColorCount(spec: {
   printLocations: string[];
   inkColors: string;
   inkColorsByLocation?: Record<string, string>;
+  hasUnderbase?: boolean;
 }): number {
-  const labels = spec.printLocations.length
-    ? spec.printLocations.map(
-        (location) => spec.inkColorsByLocation?.[location] || spec.inkColors
-      )
-    : [spec.inkColors];
-
-  return Math.max(...labels.map((label) => getInkColorCount(label)));
+  return Math.max(
+    ...locationColorCounts({
+      printLocations: spec.printLocations,
+      inkColors: spec.inkColors,
+      inkColorsByLocation: spec.inkColorsByLocation,
+      hasUnderbase: Boolean(spec.hasUnderbase),
+    })
+  );
 }
 
 const colorWords = (colors: number) =>
@@ -73,26 +75,39 @@ const colorWords = (colors: number) =>
 
 /**
  * The customer-facing sentence when a design is under its minimum, or null
- * when it meets it. Names the shortfall, and the fewer-colours option when
- * the count they already have would meet that one.
+ * when it meets it. Names the shortfall, says when the underbase is what
+ * moved it, and offers fewer ink colours when the count they already have
+ * would meet that minimum. With an underbase the fewest a design can print
+ * is 2 (1 ink + the underbase), so 12 is never offered then.
  */
-export function screenPrintMinimumMessage(pieces: number, colors: number): string | null {
+export function screenPrintMinimumMessage(
+  pieces: number,
+  colors: number,
+  options: { underbase?: boolean } = {}
+): string | null {
   const minimum = screenPrintMinimum(colors);
   const have = Math.max(0, Math.floor(pieces) || 0);
   if (have >= minimum) return null;
 
   const short = minimum - have;
-  const lead =
-    minimum === SCREEN_PRINT_MINIMUMS[0].minimum
+  const underbase = Boolean(options.underbase);
+  const lead = underbase
+    ? `On a dark garment the white underbase counts as a color, so this design prints ${colorWords(colors)} and starts at ${minimum} pieces.`
+    : minimum === SCREEN_PRINT_MINIMUMS[0].minimum
       ? `Screen printing starts at ${minimum} pieces.`
       : `A design with ${colorWords(colors)} starts at ${minimum} pieces.`;
 
-  // The biggest colour count their current number already qualifies for.
+  // The biggest colour count their current number already qualifies for,
+  // never below what this garment can print (2 with an underbase).
+  const floor = underbase ? 2 : 1;
   const fits = [...SCREEN_PRINT_MINIMUMS]
     .reverse()
-    .find((row) => row.colors < Math.min(colors, 3) && have >= row.minimum);
+    .find((row) => row.colors >= floor && row.colors < Math.min(colors, 3) && have >= row.minimum);
+  const inks = fits ? fits.colors - (underbase ? 1 : 0) : 0;
   const alternative = fits
-    ? `, or print it in ${colorWords(fits.colors)} (${fits.minimum} minimum)`
+    ? underbase
+      ? `, or print it in ${inks} ink color${inks === 1 ? "" : "s"} (${fits.minimum} minimum)`
+      : `, or print it in ${colorWords(fits.colors)} (${fits.minimum} minimum)`
     : "";
 
   return `${lead} You have ${have}, so add ${short} more${alternative}.`;

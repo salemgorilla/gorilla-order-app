@@ -565,6 +565,10 @@ export default function Home() {
    * relative optimizer path is meaningless in an email or a Printavo note.
    */
   const selectedGarmentPhotoSrc = sameOriginGarmentPhotoUrl(selectedGarmentImage);
+  /** The back photo, for a back-placement mockup (see ApparelPreview). */
+  const selectedGarmentBackPhotoSrc = sameOriginGarmentPhotoUrl(
+    chosenSsColor?.backImage || null
+  );
   const selectedGarmentIsOutOfStock = chosenSsColor?.outOfStock || false;
   const selectedGarmentLabel =
     chosenSsProduct?.customerLabel ||
@@ -3711,6 +3715,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       garmentType={selectedGarmentLabel}
       garmentColor={selectedSsColor?.colorName || apparelQuote.garmentColor}
       garmentImage={selectedGarmentPhotoSrc}
+      garmentBackImage={selectedGarmentBackPhotoSrc}
       garmentColorHex={selectedSsColor?.colorHex}
       catalogStyle={selectedSsProduct?.catalogStyle}
       printLocations={apparelQuote.printLocations}

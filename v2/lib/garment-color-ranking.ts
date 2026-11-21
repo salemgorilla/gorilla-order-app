@@ -1,3 +1,5 @@
+import { PINNED_COLOR_SLOTS } from "./order-adapt-config";
+
 /**
  * Which garment colours show first, most-ordered at the top.
  *
@@ -21,6 +23,12 @@
  * Every colour not named here keeps its old place: alphabetical, after the
  * ranked ones. So nothing disappears and a new S&S colour still shows up.
  *
+ * ── THIS IS THE STARTING ORDER, NOT THE FINAL ONE ─────────────────────────
+ * Once a garment has enough real picks and quotes behind it, the catalogue
+ * route re-sorts it from that data (lib/adaptive-color-order.ts), with this
+ * list as the prior it starts from and the pins always on top. Until then,
+ * and whenever the data cannot be read, this order is exactly what shows.
+ *
  * ── WHERE THE ORDER CAME FROM ─────────────────────────────────────────────
  * The first three are Gabe's own words. The rest are ranked by pieces the
  * shop bought from S&S: 65 order confirmations in the shop's mail, Nov 2025
@@ -30,10 +38,9 @@
  * usual print-shop staples fill in.
  */
 export const GARMENT_COLOR_RANKING: readonly (readonly string[])[] = [
-  // Gabe's three, in his order.
-  ["Black", "Solid Black Blend", "Black Heather"],
-  ["Navy", "Heather Navy", "Solid Navy Blend", "Heather Midnight Navy"],
-  ["Sport Grey", "Athletic Heather", "Heather Grey", "Heather Gray"],
+  // Gabe's three, in his order. They live in lib/order-adapt-config.ts
+  // because they are also the colours the learned order may never move.
+  ...PINNED_COLOR_SLOTS,
   // Then the shop's own S&S orders, Nov 2025 to Nov 2026, with White kept
   // high as the staple every shop sells.
   ["White", "Solid White Blend"],

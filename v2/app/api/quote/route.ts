@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { rateLimited, requestKey } from "../../../lib/rate-limit";
 
 import { MAX_ATTACHED_ARTWORK_BYTES } from "../../../lib/upload-limits";
@@ -33,6 +33,13 @@ import {
   validatePaperSpec,
 } from "../../../lib/paper";
 import { describeSubmission } from "../../../lib/submission-log";
+import { orderUsageFromPayload } from "../../../lib/order-usage";
+import {
+  isUsageTrackingEnabled,
+  recordOrder,
+  vercelUsageStore,
+} from "../../../lib/order-usage-store";
+import { isTestIdentity } from "../../../lib/usage-beacon";
 import { earliestNeedBy, turnaroundLaneFor } from "../../../lib/turnaround";
 import {
   isNewsletterConfigured,
@@ -1359,6 +1366,38 @@ export async function POST(request: Request) {
         },
         { status: 502 }
       );
+    }
+
+    /**
+     * Count what this quote ordered, for the colour order that learns and
+     * the weekly review (lib/order-usage.ts). Apparel on the priced door
+     * only: a special order's garment fields are form defaults, not a choice.
+     * The scheduled health check's test quote is not a customer and is left
+     * out. AFTER the response, so the customer never waits on it, and it
+     * cannot fail the quote.
+     */
+    if (
+      isUsageTrackingEnabled() &&
+      !isSpecialOrder(pricedOrder) &&
+      !isTestIdentity(customerRecord.email, `${customerRecord.customerName || ""} ${customerRecord.company || ""}`)
+    ) {
+      const usage = orderUsageFromPayload(pricedOrder, quoteNumber);
+      if (usage) {
+        try {
+          after(async () => {
+            try {
+              await recordOrder(vercelUsageStore(), usage);
+            } catch (error) {
+              console.error(
+                `ORDER USAGE NOT RECORDED for ${quoteNumber}:`,
+                error instanceof Error ? error.message : String(error)
+              );
+            }
+          });
+        } catch {
+          // No request scope (a direct call in a test): nothing to count.
+        }
+      }
     }
 
     /**

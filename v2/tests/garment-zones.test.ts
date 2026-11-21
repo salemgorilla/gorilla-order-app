@@ -21,9 +21,10 @@ import { apparelCatalogItems } from "../lib/apparel-catalog";
  * signature, and getVerifiedGarmentZone() returning null for everything
  * else is what makes the fallback automatic. There is no flag to remember.
  *
- * Every zone ships verified:false with placeholder numbers, so nothing
- * customer-facing changes until someone does the look-at-a-picture work
- * (see the handoff in lib/garment-zones.ts's header).
+ * The seeded zones were measured against S&S's photos on 2026-11-21 and
+ * ship verified:true (see the note above garmentZones). The gate itself is
+ * still pinned below with an injected table, so a placeholder added later
+ * cannot render until someone flips it after looking at the picture.
  */
 
 const VERIFIED: GarmentZone = {
@@ -36,13 +37,23 @@ const VERIFIED: GarmentZone = {
 
 describe("the gate", () => {
   test("an unverified zone is null — the whole safety property", () => {
-    // Every seeded style, both placements: placeholders must never render.
+    // Injected table: a placeholder must never render, whatever its numbers.
+    const zones = {
+      "39": { front: { ...VERIFIED, verified: false }, back: { ...VERIFIED, verified: false } },
+    };
+
+    assert.equal(getVerifiedGarmentZone("39", "Front", zones), null);
+    assert.equal(getVerifiedGarmentZone("39", "Back", zones), null);
+  });
+
+  test("every catalog style composites, front and back", () => {
+    // The measured table: each live garment has a verified zone on both
+    // sides, so the mockup shows instead of the side-by-side fallback.
     for (const item of apparelCatalogItems) {
       for (const placement of ["Front", "Back"] as const) {
-        assert.equal(
+        assert.ok(
           getVerifiedGarmentZone(item.style, placement),
-          null,
-          `${item.label} ${placement} would render from placeholder coordinates`
+          `${item.label} ${placement} has no verified zone`
         );
       }
     }
@@ -87,6 +98,24 @@ describe("the seeded table is coherent", () => {
         }
       }
     }
+  });
+
+  test("every box stays on the photo and on the garment's centreline", () => {
+    for (const [style, zones] of Object.entries(garmentZones)) {
+      for (const [side, zone] of Object.entries(zones)) {
+        const label = `${style} ${side}`;
+        assert.ok(zone.centerX - zone.width / 2 >= 0, `${label} runs off the left`);
+        assert.ok(zone.centerX + zone.width / 2 <= 1, `${label} runs off the right`);
+        assert.ok(zone.top + zone.maxHeight <= 1, `${label} runs off the bottom`);
+        assert.ok(Math.abs(zone.centerX - 0.5) < 0.02, `${label} is off centre`);
+      }
+    }
+  });
+
+  test("the hoodie front box ends above the pouch pocket", () => {
+    // Measured: the pocket's top edge sits at ~0.525 of the 18500 photo.
+    const front = garmentZones["395"].front!;
+    assert.ok(front.top + front.maxHeight <= 0.5);
   });
 });
 

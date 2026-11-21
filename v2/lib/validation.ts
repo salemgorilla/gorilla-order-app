@@ -8,6 +8,7 @@ import { isNeedByRefused, needByRefusedError } from "./rush";
 import { orderProblemsByStep, type FieldProblem } from "./steps";
 import { Order, StickerItem } from "../types/order";
 import { validatePaperSpec, type PaperSpec } from "./paper";
+import { designColorCount, screenPrintMinimumMessage } from "./print-minimums";
 
 /**
  * The email rule, once, for all three flows.
@@ -557,6 +558,20 @@ export function getApparelFieldErrors(
     quantity: number;
     printLocations: string[];
     /**
+     * The print's ink colours, for the colour-based minimum (lib/print-
+     * minimums.ts). Optional so a caller that only checks the contact rules
+     * need not build a print spec; page.tsx always passes the real quote,
+     * so the live form always checks the minimum.
+     */
+    inkColors?: string;
+    inkColorsByLocation?: Record<string, string>;
+    /**
+     * Pieces across EVERY garment line on the quote. The minimum is per
+     * design and a quote is one design, so 12 tees and 12 hoodies count as
+     * 24. Defaults to `quantity` (a quote of one garment).
+     */
+    totalQuantity?: number;
+    /**
      * The configured garment's customer-facing name, when the catalogue has
      * answered — "Premium Soft Tee". Optional: the fallback garment list and
      * the request flow have no catalogue label, and the message falls back
@@ -657,6 +672,25 @@ export function getApparelFieldErrors(
     errors.quantity = apparelQuote.garmentLabel
       ? `Enter how many ${apparelQuote.garmentLabel} you need.`
       : "Enter roughly how many you need.";
+  }
+
+  /**
+   * THE MINIMUM, by ink colours — Gabe, 2026-11-21: 1 colour 12, 2 colours
+   * 24, 3 and up 48, per design (lib/print-minimums.ts). Checked only once
+   * there is a count, so an empty box still asks "how many" first. A
+   * special order returned above: it is priced by hand, embroidery and
+   * hats included, and the shop answers its minimum in the reply.
+   */
+  if (!errors.quantity && apparelQuote.quantity > 0 && apparelQuote.inkColors) {
+    const short = screenPrintMinimumMessage(
+      apparelQuote.totalQuantity ?? apparelQuote.quantity,
+      designColorCount({
+        printLocations: apparelQuote.printLocations,
+        inkColors: apparelQuote.inkColors,
+        inkColorsByLocation: apparelQuote.inkColorsByLocation,
+      })
+    );
+    if (short) errors.quantity = short;
   }
 
   // A blank or half-filled extra garment: the customer pressed "add" and

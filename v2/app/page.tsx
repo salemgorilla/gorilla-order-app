@@ -10,6 +10,7 @@ import {
 import { SALES_TAX, getSignsTotals, getStickerTotals } from "../lib/tax";
 import { getTrackUrl } from "../lib/order-status";
 import { describeInkColors } from "../lib/apparel-pricing";
+import { designColorCount, screenPrintMinimumMessage } from "../lib/print-minimums";
 import { SHOP } from "../lib/shop";
 import { SKU } from "../lib/sku";
 import { looksLikeEmailAddress } from "../lib/email-address";
@@ -797,6 +798,23 @@ export default function Home() {
     extraGarmentLines,
     ssProducts,
   ]);
+
+  /**
+   * The colour-based minimum, said while the customer is still choosing —
+   * not only as a red error after they press submit. Gabe, 2026-11-21: 1
+   * colour 12, 2 colours 24, 3 and up 48, per design (lib/print-minimums).
+   * Null for a special order: that is priced by hand.
+   */
+  const apparelMinimumNotice = useMemo(
+    () =>
+      !apparelQuote.specialOrder && apparelPricing.quantity > 0
+        ? screenPrintMinimumMessage(
+            apparelPricing.quantity,
+            designColorCount(apparelQuote)
+          )
+        : null,
+    [apparelQuote, apparelPricing.quantity]
+  );
 
   /**
    * Each garment's OWN per-piece figure.
@@ -2086,7 +2104,13 @@ export default function Home() {
       // The garment's NAME rides along so the count rule can say which
       // garment it means — a quote can carry several now, each with its own
       // count. See the quantity rule in lib/validation.ts.
-      { ...apparelQuote, garmentLabel: selectedGarmentLabel },
+      {
+        ...apparelQuote,
+        garmentLabel: selectedGarmentLabel,
+        // Every garment line's pieces: the colour-based minimum is per
+        // design, and a quote is one design (lib/print-minimums.ts).
+        totalQuantity: apparelPricing.quantity,
+      },
       order,
       sizeQuantityTotal,
       undefined,
@@ -2097,7 +2121,13 @@ export default function Home() {
   function getApparelValidationErrors() {
     // The sentences live in lib/validation.ts, like the other two flows.
     return getApparelValidationSummary(
-      { ...apparelQuote, garmentLabel: selectedGarmentLabel },
+      {
+        ...apparelQuote,
+        garmentLabel: selectedGarmentLabel,
+        // Every garment line's pieces: the colour-based minimum is per
+        // design, and a quote is one design (lib/print-minimums.ts).
+        totalQuantity: apparelPricing.quantity,
+      },
       order,
       sizeQuantityTotal,
       undefined,
@@ -4418,6 +4448,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     }))
                   }
                   sizesEntered={sizeQuantityTotal > 0}
+                  minimumNotice={apparelMinimumNotice}
                 />
                   <ApparelCartLines
                     lines={extraGarmentLines}

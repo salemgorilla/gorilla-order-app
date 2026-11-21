@@ -1,6 +1,33 @@
 # Sticker cart — agreed plan
 
-Decisions made with Gabe 2026-08-05. Not yet built.
+Decisions made with Gabe 2026-08-05. **BUILT — verified against the repo
+2026-09-09.** Every section below shipped; the plan is kept as the record of
+what was decided and why, not as work outstanding.
+
+The header said "Not yet built" for a month after it was. That is the failure
+AGENTS.md names — a doc stating stale facts confidently is worse than no doc,
+because the next session acts on it — and here it invited rebuilding machinery
+that already takes money. Where this file and the repo disagree, the repo wins.
+
+Where each piece landed:
+
+| Plan section | Where it lives now |
+|---|---|
+| Setup $25 + $12.50 per extra design | `getCartSetupFee()` / `quoteStickerCart()` in `lib/pricing.ts` |
+| Setup visible in Printavo | its own line, `SKU.DECAL_SETUP` (`GORILLA-DECAL-SETUP`) |
+| Per-item artwork, item-keyed parts | `artwork:${id}` → `collectKeyed()` in `app/api/quote/route.ts` |
+| Two attachment ceilings | 15 MB per file + 20 MB per email, `lib/attachment-plan.ts` |
+| ARTWORK block per design | `lib/email.ts`, one block per design, `design-N-*.png` |
+| Rendered proof attached | `lib/sticker-proof.ts` → `proof:${id}` parts |
+
+All four "bugs to fix while in here" are fixed — see the notes on each below.
+
+**One claim in this file is now wrong rather than stale.** "Highest-risk
+change" says the submit path "has no test coverage". It has since gained
+`tests/quote-route.test.ts`, which drives the real `POST` end to end. The
+paragraph is corrected in place rather than deleted, because its warning about
+verifying a real multi-design submission still stands — and per AGENTS.md a
+real reconciliation, not a test, is what closes that out.
 
 ## Scope
 
@@ -9,9 +36,18 @@ they are — one configuration per order.
 
 A mixed cart was considered and rejected. Its main justification is correct
 sales tax on apparel (clothing is MA-exempt while stickers and signs are
-taxed), but apparel is still `status: "coming-soon"` in `lib/products.tsx`.
-That is machinery for a product the shop cannot currently sell, landing on the
-one flow that already takes money unattended. Revisit when apparel launches.
+taxed), but apparel was `status: "coming-soon"` in `lib/products.tsx` when
+this was written. That is machinery for a product the shop cannot currently
+sell, landing on the one flow that already takes money unattended. Revisit
+when apparel launches.
+
+> **That condition has now expired — apparel is `status: "active"` (#116,
+> 2026-09-06), so the reason this was rejected no longer holds.** That does
+> NOT make a mixed cart agreed: it makes it an open question for Gabe, and
+> the per-line sales tax listed under "Out of scope for v1" becomes required
+> rather than optional the moment one exists, because a mixed cart mixes a
+> taxed line with an MA-exempt one. Nobody should build this off the strength
+> of an expired objection. — 2026-09-09
 
 ## Setup fee: $25 first design, $12.50 each additional
 
@@ -34,8 +70,10 @@ Two knock-on edits:
 
 - `components/QuantitySelector.tsx` says "The $25 setup is split across your
   order" — reword to "across this design".
+  → MOOT: that component no longer exists.
 - `lib/pricing.ts` doc comment says "Flat setup, once per order" — no longer
   true.
+  → FIXED: it now reads "Setup is per DESIGN, not per order".
 
 ## Make setup visible in Printavo
 
@@ -72,23 +110,30 @@ The largest part of the work. Artwork is single-file end to end today.
   file-to-design mapping can exist. The ARTWORK block must become one block
   per design.
 
-## Bugs to fix while in here
+## Bugs to fix while in here — ALL FIXED
 
-Found during the design pass, all pre-existing:
+Found during the design pass, all pre-existing. Each is fixed; the wording is
+kept so the fix can be checked against what it was meant to do.
 
-1. **`handleArtworkUpload` stale-closure spread** (`app/page.tsx`) — uses
+1. **`handleArtworkUpload` stale-closure spread** (`app/page.tsx`) — used
    `setOrder({ ...order })` rather than the functional form used elsewhere. An
    analysis resolving after the customer edits something else clobbers that
    edit. Scoped away naturally once uploads carry an item id.
+   → FIXED: `handleArtworkUpload(file, itemId?)` takes the design id, and the
+   comment above it records the version that did not.
 2. **Blob URLs never revoked on replace** — `URL.createObjectURL` is called per
    upload and only revoked in one place. Revoke on replace, on item removal,
    and across all items in `startNewQuote`.
+   → FIXED: `revokeObjectURL` is now called at every one of those points.
 3. **Three identical designs produce byte-identical Printavo rows** — the
    sticker description carries no filename and `itemNumber` is hardcoded
    `GORILLA-DECAL`. Put the filename in the description and vary the item
    number per design.
+   → FIXED: `decalSku(index, count)`, and the description leads with
+   `Design N`. The code cites this entry as "CART-PLAN bug 3".
 4. **Magenta auto-detect forces `magentaCutLine` onto the single product** —
    must apply to the item the file belongs to.
+   → FIXED: it is set on `item.magentaCutLine`, per design.
 
 ## Also agreed: attach the rendered proof to the shop email
 
@@ -129,8 +174,19 @@ and doing them separately means migrating that path twice.
 ## Highest-risk change
 
 The submit path in `app/page.tsx` and `app/api/quote/route.ts`. It is the money
-path, it has no test coverage, and sticker self-checkout fires a real Printavo
-payment request off the back of it. Verify with a real multi-design submission
-to a test customer BEFORE deploying, and confirm: one quote, one email with
-every file attached and correctly labelled, setup charged $25 + $12.50 per
-extra design, and a payment request for the correct combined total.
+path and sticker self-checkout fires a real Printavo payment request off the
+back of it.
+
+It no longer has *no* test coverage — `tests/quote-route.test.ts` drives the
+real `POST` end to end — but that file says plainly what it cannot reach: with
+no credentials configured the route runs the whole pipeline and then reports
+that the quote reached nobody, so **the checkout branch itself is not covered
+by it**. The instruction below is therefore unchanged, and is the thing that
+actually closes this out:
+
+Verify with a real multi-design submission to a test customer, and confirm:
+one quote, one email with every file attached and correctly labelled, setup
+charged $25 + $12.50 per extra design, and a payment request for the correct
+combined total. `npm run reconcile -- GS-XXXXXXXX-XXXXX` does the figure
+comparison; record it in the `## Reconciled` table in HANDOFF.md. Never pay a
+test quote; void it in Printavo afterwards.

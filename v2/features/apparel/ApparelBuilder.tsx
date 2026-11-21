@@ -4,6 +4,11 @@ import OptionSelector from "../../components/OptionSelector";
 import SpecialOrderEscape from "../../components/SpecialOrderEscape";
 import SizeBreakdownGrid from "./SizeBreakdownGrid";
 import { apparelCatalog, type ApparelQuote } from "../../lib/apparel";
+import {
+  garmentFamily,
+  placementsFor,
+  type PrintPlacement,
+} from "../../lib/print-placements";
 import type { ArtworkAnalysis } from "../../lib/artwork";
 import type { FieldErrors } from "../../lib/validation";
 import type {
@@ -88,6 +93,14 @@ export default function ApparelBuilder({
   onSetRoughQuantity,
   sizesEntered,
 }: Props) {
+  // Which of the chart's placements this garment takes (a hoodie's hood and
+  // pocket rule some out) — lib/print-placements.ts.
+  const family = garmentFamily({
+    catalogStyle: selectedSsProduct?.catalogStyle,
+    garmentType: apparelQuote.garmentType,
+  });
+  const offeredPlacements: PrintPlacement[] = placementsFor(family);
+
   return (
     <>
       {/* No quantity picker. Quantity comes from the size grid below — asking
@@ -542,7 +555,9 @@ export default function ApparelBuilder({
             Print Locations
           </p>
           <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
-            Choose all that apply.
+            One per side, plus a sleeve or collar print if you like. Sizes are
+            the usual print sizes for this garment; we confirm yours on the
+            proof.
           </p>
         </div>
 
@@ -561,21 +576,33 @@ export default function ApparelBuilder({
             fieldErrors?.printLocations ? "print-locations-error" : undefined
           }
         >
-          {apparelCatalog.printLocations.map((location) => {
+          {offeredPlacements.map((placement) => {
+            const location = placement.id;
             const isSelected = apparelQuote.printLocations.includes(location);
+            const size = placement.sizes[family];
 
             return (
               <button
                 key={location}
                 type="button"
+                aria-pressed={isSelected}
                 onClick={() => onTogglePrintLocation(location)}
-                className={` border px-4 py-4 text-fine font-bold transition ${
+                className={` border px-4 py-3 text-left text-fine font-bold transition ${
                   isSelected
                     ? "border-[var(--gorilla-green)] bg-[var(--gorilla-green)] text-white"
                     : "border-[var(--rule)] bg-[var(--shirt-blank)] text-[var(--ink-black)] hover:bg-white"
                 }`}
               >
-                {location}
+                <span className="block">{location}</span>
+                {size && (
+                  <span
+                    className={`mt-1 block text-spec font-medium ${
+                      isSelected ? "text-white" : "text-[var(--ink-muted)]"
+                    }`}
+                  >
+                    {size}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -634,7 +661,7 @@ export default function ApparelBuilder({
         idPrefix="apparel-special-order"
         checked={Boolean(apparelQuote.specialOrder)}
         notes={apparelQuote.specialOrderNotes || ""}
-        examples="Different garment (crewneck, long sleeve, youth, hats), another print location (left chest, sleeve, tag), embroidery, or anything custom."
+        examples="Different garment (crewneck, long sleeve, youth, hats), another print location (inside tag, hood, pocket), embroidery, or anything custom."
         placeholder="e.g. 40 crewnecks, left chest logo + full back, plus 12 embroidered hats"
         consequence="Heads up: special orders don't get an online price. Everything you fill in above still comes through — Gorilla Salem will price it and reply."
         error={fieldErrors?.specialOrderNotes}

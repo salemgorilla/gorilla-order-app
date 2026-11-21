@@ -10,9 +10,20 @@ export const apparelCatalog = {
     "Red",
     "Custom / Not Sure",
   ],
-  // Launching small: front and back only. Anything else (left chest, sleeve,
-  // tags, hats, custom placement) goes through the special-order request.
-  printLocations: ["Front", "Back"],
+  // Gabe's placement chart, 2026-11-21 — the ids, sizes and which garments
+  // offer which live in lib/print-placements.ts. "Front" and "Back" are the
+  // chart's full front and full back. Anything else (tags, hats, custom
+  // placement) still goes through the special-order request.
+  printLocations: [
+    "Left Chest",
+    "Center Chest",
+    "Front",
+    "Oversize Front",
+    "Sleeve",
+    "Collar Back",
+    "Upper Back",
+    "Back",
+  ],
   inkColors: [
     "1 color",
     "2 colors",

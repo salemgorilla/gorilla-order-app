@@ -76,7 +76,7 @@ function drawTestArt(aspect: number): string | null {
 }
 
 const startingZone = (style: string, side: Side): CalibrationZone => {
-  const known = garmentZones[style]?.[side];
+  const known = garmentZones[style]?.[side === "front" ? "Front" : "Back"];
 
   return known
     ? {

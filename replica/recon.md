@@ -1,7 +1,7 @@
 # Recon map: Squeej (web)
 
-Scope (proposed, not yet confirmed): the core loop only — one shared order page where shop and customer edit the mockup, sizes and price, talk in a synced email thread, then approve and pay. Plus the minimum shop side needed to run it (sign-in, dashboard, price chart, statuses).
-For (assumed, not yet confirmed): Gorilla's own shop.
+Scope: the Squeej-style customer quote page inside Gorilla Labs (`v2/`), following the Gorilla Apparel App Plan from the "Squidward - app creator" session. Platform features for hosting other shops are out.
+For: Gorilla's own shop.
 Date: 2026-11-22
 
 Read from public pages only. No account was used, so every logged-in screen below is inferred from the help center, not seen. No screenshots yet: `screens/` is empty.
@@ -133,7 +133,7 @@ Relationships: Shop 1-n TeamMember, Customer, Order, CatalogItem. Order 1-n Line
 
 ## Feature matrix
 
-See `features.csv`. Must: 24, should: 19, could: 12, skip: 2.
+See `features.csv`. Must: 22, should: 16, could: 6, skip: 13 (11 of them platform features a single shop does not need).
 
 ## Out of scope (cannot or should not be cloned)
 
@@ -146,3 +146,24 @@ See `features.csv`. Must: 24, should: 19, could: 12, skip: 2.
 Screens 17 (13 inferred), flows 8, entities 14.
 Hard parts: two-way Gmail / Outlook thread sync (and Google's OAuth security review for mail scopes); the shared live-editing mockup canvas; Stripe Connect with platform fees; the pricing engine with supplier costs.
 Size: core loop M (a few weeks). Everything in the matrix: L (a quarter).
+
+## Merged with the Squidward plan (2026-11-22)
+
+The earlier project is the Gorilla Apparel App Plan (https://claude.ai/artifact/59T4Xs1oi6ZjesSPwJEKGs) and the branch `claude/customer-quote-link` (4 commits, 2026-11-02 to 11-03, no pull request, 8 commits behind main, one merge conflict in `v2/.env.local.example`). That plan listed "Squeej reference" as an open question because the site could not be found then. This map answers it.
+
+Parity against Squeej today: 20.2 / 100, 0 of 22 must-haves fully done, 14 partly done. Statuses come from the plan doc, file lists and commit history; nothing was run.
+
+| Squeej feature | Squidward plan | state |
+| --- | --- | --- |
+| No-login order link, size edits, live reprice, approve, card payment | phase 1 | built on the branch, not merged |
+| Customer sees the mockup | phase 2 | zones verified and mockups merged to main (#218-#220); not on the quote page |
+| Wider garment choice | phase 2 | small catalog live |
+| Customer moves and resizes art, swaps garment | phase 3 | not built |
+| Reorder | phase 4 | not built |
+| Order thread synced with the shop's Gmail | not in the plan | not built; largest new piece |
+| "Request a new quote" when live pricing is off | not in the plan | not built |
+| Pay link for a different payer, logged offline payments, invoice download | not in the plan | not built (Printavo covers some) |
+| Bank transfer payment | not in the plan | not built; fits the 2026-11-11 cash-discount decision |
+| Team stores | not in the plan | not built |
+
+Conflict to settle before phase 1 ships: the branch charges a 3% card fee (`CARD_FEE_RATE` in `v2/lib/quote-link.ts`, decided 2026-11-02). The cash-discount decision of 2026-11-11 says there is never a card fee.

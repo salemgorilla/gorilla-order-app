@@ -1,29 +1,29 @@
 feature,area,priority,original,clone,notes
-Shop signs in with Google or Microsoft mailbox (OAuth),onboarding,must,yes,no,mailbox connection is the whole setup
-Shop and first order page created on first sign-in,onboarding,must,yes,no,
+Shop signs in with Google or Microsoft mailbox (OAuth),onboarding,must,yes,skip,single-shop build for Gorilla - platform feature not needed
+Shop and first order page created on first sign-in,onboarding,must,yes,skip,single-shop build for Gorilla - platform feature not needed
 Create an order with line items,order page,must,yes,no,
-Pick a garment and color from a blank catalog,order page,must,yes,no,catalog data itself is out of scope - see skip row
-Upload artwork (PNG JPG PDF SVG) and place it on the mockup,order page,must,yes,no,
-Move and resize the design on the mockup,order page,must,yes,no,shop and customer both
-Enter size counts per line item,order page,must,yes,no,
+Pick a garment and color from a blank catalog,order page,must,yes,partial,S&S catalog live with a small set of styles; plan phase 2 adds top sellers
+Upload artwork (PNG JPG PDF SVG) and place it on the mockup,order page,must,yes,partial,upload + background removal live in the order builder; mockups on verified zones merged (#218-#220); not on the quote page
+Move and resize the design on the mockup,order page,must,yes,no,plan phase 3
+Enter size counts per line item,order page,must,yes,partial,built on branch claude/customer-quote-link - not merged; size grid also live in the order builder
 Decoration method per line (screen print embroidery DTG heat transfer),order page,must,yes,no,
-Live pricing from a price chart (markup + print grid by qty and colors),pricing,must,yes,no,
-Upcharges: dark garment / extended sizes / extra locations,pricing,must,yes,no,
+Live pricing from a price chart (markup + print grid by qty and colors),pricing,must,yes,partial,Gorilla pricing engine live on main (lib/apparel-pricing.ts); quote page reprices on the server on the branch
+Upcharges: dark garment / extended sizes / extra locations,pricing,must,yes,partial,size upcharges and setup live in the engine; not checked line by line against Squeej's list
 Manual pricing mode (live pricing off; customer sees price only after shop enters it),pricing,must,yes,no,
 Hand-set and locked line price and line discount,pricing,must,yes,no,
-Send the order to the customer as an email from the shop's own address,email thread,must,yes,no,
-Two-way sync: replies by email or on the page land in both,email thread,must,yes,no,hard part
-Customer opens order from a no-login link,customer access,must,yes,no,
+Send the order to the customer as an email from the shop's own address,email thread,must,yes,no,shop emails are sent by the app today - not from a synced Gmail thread
+Two-way sync: replies by email or on the page land in both,email thread,must,yes,no,not in the Squidward plan; biggest new piece
+Customer opens order from a no-login link,customer access,must,yes,partial,built on branch claude/customer-quote-link - not merged
 One-time email code when the customer returns on a new device,customer access,must,yes,no,
-Shop controls whether the customer can edit (design / sizes / garment swap),order page,must,yes,no,
-Customer edit reprices live or turns approve into request a new quote,pricing,must,yes,no,depends on pricing mode
-Customer approves on the page; order locks; approval recorded with who and when,approval,must,yes,no,
-Approved orders never reprice; later changes visible to both sides,approval,must,yes,no,
-Pay on the order page by card / Apple Pay / Google Pay / bank transfer (Stripe Connect),payments,must,yes,no,funds go to the shop's own Stripe account
-Order statuses: quote / approved / in production / complete / cancelled,production,must,yes,no,
-Customer sees current status on their page,production,must,yes,no,
-Shop dashboard listing orders,dashboard,must,yes,no,
-Platform fee on payments taken through the app,payments,should,yes,no,0.9% card and 1.5% bank in the original; only matters if sold to other shops
+Shop controls whether the customer can edit (design / sizes / garment swap),order page,must,yes,partial,built on branch claude/customer-quote-link - not merged; customer edits sizes only - garment and art editing are plan phase 3
+Customer edit reprices live or turns approve into request a new quote,pricing,must,yes,partial,built on branch claude/customer-quote-link - not merged; live reprice only - no request-a-new-quote mode
+Customer approves on the page; order locks; approval recorded with who and when,approval,must,yes,partial,built on branch claude/customer-quote-link - not merged; records name / email / time / IP
+Approved orders never reprice; later changes visible to both sides,approval,must,yes,partial,built on branch claude/customer-quote-link - not merged (frozen price pinned)
+Pay on the order page by card / Apple Pay / Google Pay / bank transfer (Stripe Connect),payments,must,yes,partial,built on branch claude/customer-quote-link - not merged; card via Gorilla's own Stripe - no Apple/Google Pay or bank transfer confirmed; branch adds a 3% card fee that the 2026-11-11 cash-discount decision replaced
+Order statuses: quote / approved / in production / complete / cancelled,production,must,yes,partial,quote link has sent / viewed / approved / payment_started / paid on the branch; production status lives in Printavo
+Customer sees current status on their page,production,must,yes,partial,order tracking page exists on main (v2/app/track); not on the quote page
+Shop dashboard listing orders,dashboard,must,yes,partial,admin quote-links page on the branch; Printavo is the order dashboard
+Platform fee on payments taken through the app,payments,should,yes,skip,single-shop build for Gorilla - platform feature not needed
 Log offline payments (check cash) against the balance,payments,should,yes,no,
 Downloadable invoice,payments,should,yes,no,
 No-login pay link for a different payer,payments,should,yes,no,
@@ -32,27 +32,27 @@ Public order page where a walk-in starts an order with name and email,storefront
 Due date and estimated delivery from a turnaround setting; rush option,production,should,yes,no,
 Calendar of what is due,production,should,yes,no,
 Customer list with search and order history,customers,should,yes,no,
-Customer CSV import (Printavo export format),customers,should,yes,no,people only - not orders
-Reorder carrying garments artwork and placement at current costs,customers,should,yes,no,
+Customer CSV import (Printavo export format),customers,should,yes,skip,customers already live in Printavo
+Reorder carrying garments artwork and placement at current costs,customers,should,yes,no,plan phase 4; lib/reorder.ts exists on main - not reviewed
 Returning customer sees all their orders,customer access,should,yes,no,
 Team members by email with one-time code and optional team PIN,team,should,yes,no,
 Audit trail: who sent or changed what on an order,team,should,yes,no,
 Shop logo and brand color on order page and emails,branding,should,yes,no,
 Custom catalog items (specialty garment or service) saved for reuse,catalog,should,yes,no,
-Supplier account connection for contract cost (S&S / SanMar / AS Colour),pricing,should,yes,no,needs the user's own supplier API credentials
+Supplier account connection for contract cost (S&S / SanMar / AS Colour),pricing,should,yes,skip,Gorilla already prices from its own S&S catalog feed
 Count print colors from artwork for pricing,pricing,should,yes,no,
 Files sent in the thread stay attached to the order,email thread,should,yes,no,
-Switch the connected mailbox without losing orders,onboarding,could,yes,no,
+Switch the connected mailbox without losing orders,onboarding,could,yes,skip,single-shop build for Gorilla - platform feature not needed
 Metrics: booked revenue / collected / outstanding / volume over time,analytics,could,yes,no,
 Team stores: group store from an order with retail prices and per-buyer checkout,team stores,could,yes,no,Pro in the original
 Team store roster / pull sheet by item and size / CSV export,team stores,could,yes,no,
 Team store organizer payout tracking and Stripe refund sync,team stores,could,yes,no,
 Team store ship-to-buyer with flat shipping charge,team stores,could,yes,no,
-Public shop subdomain with product and search pages,storefront,could,yes,no,
-Custom domain or subdomain with DNS instructions,storefront,could,yes,no,Pro in the original
-Remove platform mark from customer pages,branding,could,yes,no,Pro in the original
+Public shop subdomain with product and search pages,storefront,could,yes,skip,single-shop build for Gorilla - platform feature not needed
+Custom domain or subdomain with DNS instructions,storefront,could,yes,skip,single-shop build for Gorilla - platform feature not needed
+Remove platform mark from customer pages,branding,could,yes,skip,single-shop build for Gorilla - platform feature not needed
 In-app support button that sends the current page,support,could,yes,no,
-Paid plan billing ($49 per month in the original),billing,could,yes,no,only if sold to other shops
-Live public stats on the marketing page,marketing,could,yes,no,must be the clone's own real numbers - never copied
+Paid plan billing ($49 per month in the original),billing,could,yes,skip,single-shop build for Gorilla - platform feature not needed
+Live public stats on the marketing page,marketing,could,yes,skip,single-shop build for Gorilla - platform feature not needed
 9000+ blank catalog with wholesaler product photos,catalog,could,yes,skip,wholesaler data and photos are licensed; get them through your own S&S / SanMar account
 Squeej name / logo / copy / shop network and its recorded order data,brand,could,yes,skip,owned by Squeej - not cloned

@@ -74,6 +74,29 @@ to the cent. Nothing in #149 touched any of that. It did not prove the RATE
 — that is a business figure, and #149 changed it, so the row above it is
 owed and the merge rule points at the next sticker order.
 
+## The order page adapts to what customers order, 2026-11-21 — built, draft PR, not live
+
+Gabe, 2026-11-21: "Build both" — (1) the app re-sorts itself from what
+customers pick and order, Black/Navy/Sport Grey pinned on top; (2) a weekly
+review that only suggests changes. This is (1) plus the data (2) reads.
+Built on `claude/sort-garment-colors` (#222), whose hand-written order is now
+the starting point the learned order works from.
+
+- **Counted:** colour, garment, print location and size picks per page visit
+  (`lib/usage-beacon.ts` → `POST /api/usage`), the same four read off every
+  apparel quote that reaches the shop (`/api/quote`, server-side), and funnel
+  steps per product. No cookie, no id, nothing about the visitor; the
+  scheduled test identity is dropped. Blob store, `order-usage/` in
+  production, `order-usage-preview/` on previews.
+- **Sorting:** `lib/adaptive-color-order.ts`, applied in `/api/ss-catalog`.
+  Every knob and the pins are in `lib/order-adapt-config.ts`. Rebuilt once a
+  day after a catalogue response; a broken store means the hand-written order.
+- **Weekly read:** `GET /api/usage/report?days=7` with `USAGE_REPORT_KEY`
+  (read-only, `x-usage-key`) or `ADMIN_SECRET`. Needs `USAGE_REPORT_KEY` set
+  in Vercel Production to be readable without the admin secret.
+- **Not counted:** whether a quote was PAID — that is in Printavo; the report
+  lists the period's quote numbers to look up.
+
 ## Customer's due date in the shop email and the Printavo list, 2026-10-29
 
 **Gabe: "I'm still not seeing it in the email I get confirming a quote has been

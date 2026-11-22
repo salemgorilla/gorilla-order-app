@@ -159,6 +159,13 @@ import {
   sendAnalyticsEvent,
   type AnalyticsFlow,
 } from "../lib/analytics";
+import {
+  flushUsage,
+  isTestIdentity,
+  recordUsagePick,
+  recordUsageStep,
+  suppressUsage,
+} from "../lib/usage-beacon";
 import { renderStickerProof } from "../lib/sticker-proof";
 import {
   isRemovalFailure,
@@ -1157,7 +1164,15 @@ export default function Home() {
     }
   }
 
+  /** A size with pieces in it: counted once per visit (lib/usage-beacon.ts). */
+  function recordSizeEntered(sizeName: string) {
+    recordUsagePick("apparel", { field: "size", value: sizeName });
+    recordUsageStep("apparel", "garment_chosen");
+    recordUsageStep("apparel", "sizes_entered");
+  }
+
   function updateSizeQuantity(sizeName: string, change: number) {
+    if (change > 0) recordSizeEntered(sizeName);
     setSizeQuantities((current) => {
       const nextQuantity = Math.max(0, (current[sizeName] || 0) + change);
       const next = {
@@ -1184,6 +1199,7 @@ export default function Home() {
   }
 
   function setSizeQuantity(sizeName: string, value: number) {
+    if (Number.isFinite(value) && value >= 1) recordSizeEntered(sizeName);
     setSizeQuantities((current) => {
       const nextQuantity = Number.isFinite(value)
         ? Math.max(0, Math.floor(value))
@@ -1231,6 +1247,17 @@ export default function Home() {
     setSelectedSsColorName(color.colorName);
     setSelectedSsSizeName(firstSize?.sizeName || "");
     pruneSizeQuantitiesToColor(color);
+
+    // A colour the CUSTOMER chose — the one the product's default colour is
+    // not. This is what the learned colour order counts as a click.
+    if (selectedSsProduct?.catalogStyle) {
+      recordUsagePick("apparel", {
+        field: "color",
+        style: selectedSsProduct.catalogStyle,
+        color: color.colorName,
+      });
+    }
+    recordUsageStep("apparel", "garment_chosen");
 
     setApparelQuoteState((current) => ({
       ...current,
@@ -1589,6 +1616,10 @@ export default function Home() {
   }
 
   function togglePrintLocation(location: string) {
+    if (!apparelQuote.printLocations.includes(location)) {
+      recordUsagePick("apparel", { field: "placement", value: location });
+      recordUsageStep("apparel", "garment_chosen");
+    }
     // Placements that overlap on the garment replace each other (a left
     // chest sits inside a full front) — lib/print-placements.ts.
     updateApparelQuote({
@@ -1674,6 +1705,7 @@ export default function Home() {
   }, []);
 
   async function handleArtworkUpload(file: File, itemId?: string) {
+    recordUsageStep(analyticsFlow, "art_uploaded");
     const isStickers = !isSignsSelected && !isApparelSelected && !isPaperSelected;
     /** Which design this file belongs to. Signs are a cart too now. */
     const targetId =
@@ -2440,6 +2472,14 @@ export default function Home() {
     // lib/analytics.ts.
     sendAnalyticsEvent({ name: "step_reached", flow: analyticsFlow, step: id });
 
+    // The shop's own funnel. The health check's test identity is dropped
+    // as soon as it has been typed: its visits are not customers.
+    if (isTestIdentity(order.customer.email, `${order.customer.customerName} ${order.customer.company}`)) {
+      suppressUsage();
+    } else if (id === "review") {
+      recordUsageStep(analyticsFlow, "quote_viewed");
+    }
+
     // Prefill the contact boxes when the customer arrives at the step that
     // has them, once, and never over anything already typed.
     //
@@ -3056,6 +3096,15 @@ export default function Home() {
             ? "special"
             : "priced",
       });
+
+      // Bottom of the shop's funnel, sent now rather than when the tab
+      // closes: a finished visit is the one most worth not losing.
+      if (isTestIdentity(order.customer.email, `${order.customer.customerName} ${order.customer.company}`)) {
+        suppressUsage();
+      } else {
+        recordUsageStep(analyticsFlow, "submitted");
+        flushUsage();
+      }
 
       /**
        * Remember the contact details for next time — contact fields only.
@@ -3863,19 +3912,19 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
     // The id, never the title. "Yard signs, rigid signs & more" is copy that
     // changes; `signs` is the thing being counted.
-    sendAnalyticsEvent({
-      name: "product_selected",
-      flow:
-        product.id === "apparel"
-          ? "apparel"
-          : product.id === "banners"
-          ? "banners"
-          : product.id === "signs"
-          ? "signs"
-          : product.id === "paper"
-          ? "paper"
-          : "stickers",
-    });
+    const chosenFlow: AnalyticsFlow =
+      product.id === "apparel"
+        ? "apparel"
+        : product.id === "banners"
+        ? "banners"
+        : product.id === "signs"
+        ? "signs"
+        : product.id === "paper"
+        ? "paper"
+        : "stickers";
+    sendAnalyticsEvent({ name: "product_selected", flow: chosenFlow });
+    // The shop's own funnel (lib/usage-beacon.ts): the top of it.
+    recordUsageStep(chosenFlow, "product_chosen");
 
     // Apparel is a hand-quote request, not the configurator. Pinning
     // specialOrder here routes it down the path that already exists for
@@ -4374,7 +4423,18 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   sizeQuantities={sizeQuantities}
                   fieldErrors={fieldErrors}
                   onSelectCategory={handleApparelCategorySelect}
-                  onSelectProduct={handleSsProductSelect}
+                  onSelectProduct={(product: SsCatalogProduct) => {
+                    // The customer's own pick, unlike the first product a
+                    // category opens on (handleApparelCategorySelect).
+                    if (product.catalogStyle) {
+                      recordUsagePick("apparel", {
+                        field: "garment",
+                        style: product.catalogStyle,
+                      });
+                    }
+                    recordUsageStep("apparel", "garment_chosen");
+                    handleSsProductSelect(product);
+                  }}
                   onSelectColor={handleSsColorSelect}
                   onSelectSize={handleSsSizeSelect}
                   onSelectGarmentType={(garmentType) =>

@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
+
 import OptionSelector from "../../components/OptionSelector";
 import SpecialOrderEscape from "../../components/SpecialOrderEscape";
 import SizeBreakdownGrid from "./SizeBreakdownGrid";
 import { apparelCatalog, type ApparelQuote } from "../../lib/apparel";
+import { POPULAR_COLOR_COUNT } from "../../lib/garment-color-ranking";
 import {
   garmentFamily,
   placementsFor,
@@ -108,6 +111,23 @@ export default function ApparelBuilder({
     garmentType: apparelQuote.garmentType,
   });
   const offeredPlacements: PrintPlacement[] = placementsFor(family);
+
+  // The colour list arrives most-ordered first (lib/garment-color-ranking.ts),
+  // so the first POPULAR_COLOR_COUNT are the likely picks. The rest wait
+  // behind "Show all colors": the Premium Soft Tee alone has 84, and listing
+  // them all pushed sizes, print location and the price below the fold. A
+  // chosen colour from the long tail is always shown, even when collapsed.
+  const [showAllColors, setShowAllColors] = useState(false);
+  const allColors = selectedSsProduct?.colors ?? [];
+  const hasMoreColors = allColors.length > POPULAR_COLOR_COUNT;
+  const visibleColors =
+    showAllColors || !hasMoreColors
+      ? allColors
+      : allColors.filter(
+          (color, index) =>
+            index < POPULAR_COLOR_COUNT ||
+            color.colorName === selectedSsColor?.colorName
+        );
 
   return (
     <>
@@ -301,7 +321,7 @@ export default function ApparelBuilder({
                 </p>
 
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {selectedSsProduct.colors.map((color) => {
+                  {visibleColors.map((color) => {
                     const isSelected =
                       selectedSsColor?.colorName === color.colorName;
 
@@ -398,6 +418,20 @@ export default function ApparelBuilder({
                     );
                   })}
                 </div>
+
+                {hasMoreColors && (
+                  <button
+                    type="button"
+                    data-testid="apparel-show-all-colors"
+                    aria-expanded={showAllColors}
+                    onClick={() => setShowAllColors((open) => !open)}
+                    className="mt-3 min-h-[44px] cursor-pointer border border-[var(--rule)] bg-white/70 px-4 text-fine font-bold text-[var(--ink-black)] transition-colors duration-[120ms] ease-linear hover:border-[var(--ink-black)]"
+                  >
+                    {showAllColors
+                      ? "Show most popular colors"
+                      : `Show all ${allColors.length} colors`}
+                  </button>
+                )}
               </div>
             )}
 

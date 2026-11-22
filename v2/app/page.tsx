@@ -10,6 +10,7 @@ import {
 import { SALES_TAX, getSignsTotals, getStickerTotals } from "../lib/tax";
 import { getTrackUrl } from "../lib/order-status";
 import { describeInkColors } from "../lib/apparel-pricing";
+import { designColorCount, screenPrintMinimumMessage } from "../lib/print-minimums";
 import { SHOP } from "../lib/shop";
 import { SKU } from "../lib/sku";
 import { looksLikeEmailAddress } from "../lib/email-address";
@@ -709,6 +710,24 @@ export default function Home() {
   const apparelEstimateBasis: "assumed" | "exact" =
     sizeQuantityTotal > 0 ? "exact" : "assumed";
 
+  /**
+   * Does the run print on a garment that takes a white underbase? See
+   * anyGarmentNeedsUnderbase for why a mixed cart errs high rather than low.
+   *
+   * The MINIMUM reads this alone (Gabe, 2026-11-21: "Under base counts as a
+   * colors"). The PRICE also waits for the artwork to be read, below — but
+   * artwork is the step AFTER the quantity, so a minimum that waited too
+   * would tell a black-shirt customer 12 while they choose and 24 at
+   * submit. The garment decides the screens; say so from the start.
+   */
+  const apparelNeedsUnderbase = anyGarmentNeedsUnderbase(
+    apparelQuote.garmentColor,
+    extraGarmentLines
+  );
+  /** What the engine prices with — unchanged: the garment AND read artwork. */
+  const apparelHasUnderbase =
+    apparelNeedsUnderbase && Boolean(artworkAnalysis?.estimatedColorCount);
+
   const apparelPricing = useMemo(() => {
     /**
      * The garment component of the estimate, replacing the old model that
@@ -777,9 +796,7 @@ export default function Home() {
         inkColorsByLocation: apparelQuote.inkColorsByLocation,
         // One decision for the whole run — see anyGarmentNeedsUnderbase for
         // why a mixed cart errs high rather than low.
-        hasUnderbase:
-          anyGarmentNeedsUnderbase(apparelQuote.garmentColor, extraGarmentLines) &&
-          Boolean(artworkAnalysis?.estimatedColorCount),
+        hasUnderbase: apparelHasUnderbase,
       }
     );
 
@@ -803,7 +820,27 @@ export default function Home() {
     sizeBreakdownFromButtons,
     extraGarmentLines,
     ssProducts,
+    apparelHasUnderbase,
   ]);
+
+  /**
+   * The colour-based minimum, said while the customer is still choosing —
+   * not only as a red error after they press submit. Gabe, 2026-11-21: 1
+   * colour 12, 2 colours 24, 3 and up 48, per design, underbase counted
+   * (lib/print-minimums).
+   * Null for a special order: that is priced by hand.
+   */
+  const apparelMinimumNotice = useMemo(
+    () =>
+      !apparelQuote.specialOrder && apparelPricing.quantity > 0
+        ? screenPrintMinimumMessage(
+            apparelPricing.quantity,
+            designColorCount({ ...apparelQuote, hasUnderbase: apparelNeedsUnderbase }),
+            { underbase: apparelNeedsUnderbase }
+          )
+        : null,
+    [apparelQuote, apparelPricing.quantity, apparelNeedsUnderbase]
+  );
 
   /**
    * Each garment's OWN per-piece figure.
@@ -2118,7 +2155,14 @@ export default function Home() {
       // The garment's NAME rides along so the count rule can say which
       // garment it means — a quote can carry several now, each with its own
       // count. See the quantity rule in lib/validation.ts.
-      { ...apparelQuote, garmentLabel: selectedGarmentLabel },
+      {
+        ...apparelQuote,
+        garmentLabel: selectedGarmentLabel,
+        // Every garment line's pieces: the colour-based minimum is per
+        // design, and a quote is one design (lib/print-minimums.ts).
+        totalQuantity: apparelPricing.quantity,
+        hasUnderbase: apparelNeedsUnderbase,
+      },
       order,
       sizeQuantityTotal,
       undefined,
@@ -2129,7 +2173,14 @@ export default function Home() {
   function getApparelValidationErrors() {
     // The sentences live in lib/validation.ts, like the other two flows.
     return getApparelValidationSummary(
-      { ...apparelQuote, garmentLabel: selectedGarmentLabel },
+      {
+        ...apparelQuote,
+        garmentLabel: selectedGarmentLabel,
+        // Every garment line's pieces: the colour-based minimum is per
+        // design, and a quote is one design (lib/print-minimums.ts).
+        totalQuantity: apparelPricing.quantity,
+        hasUnderbase: apparelNeedsUnderbase,
+      },
       order,
       sizeQuantityTotal,
       undefined,
@@ -4478,6 +4529,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     }))
                   }
                   sizesEntered={sizeQuantityTotal > 0}
+                  minimumNotice={apparelMinimumNotice}
                 />
                   <ApparelCartLines
                     lines={extraGarmentLines}

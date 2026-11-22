@@ -64,6 +64,13 @@ type Props = {
   onSetRoughQuantity: (quantity: number) => void;
   /** True once the size grid holds anything — the rough count is then retired. */
   sizesEntered: boolean;
+  /**
+   * The colour-based minimum when the design is under it, else null —
+   * lib/print-minimums.ts. Shown live in the quantity box and under the ink
+   * question, so a customer sees it before submit rather than only as a red
+   * error after.
+   */
+  minimumNotice?: string | null;
 };
 
 export default function ApparelBuilder({
@@ -95,6 +102,7 @@ export default function ApparelBuilder({
   onResetSizeBreakdown,
   onSetRoughQuantity,
   sizesEntered,
+  minimumNotice,
 }: Props) {
   // Which of the chart's placements this garment takes (a hoodie's hood and
   // pocket rule some out) — lib/print-placements.ts.
@@ -556,6 +564,16 @@ export default function ApparelBuilder({
             {fieldErrors.quantity}
           </p>
         )}
+
+        {!fieldErrors?.quantity && minimumNotice && (
+          <p
+            role="status"
+            data-testid="apparel-minimum-notice"
+            className="mt-2 text-fine font-bold text-[var(--ink-black)]"
+          >
+            {minimumNotice}
+          </p>
+        )}
       </div>
 
       {/* The SAME control every added garment gets — see
@@ -685,6 +703,14 @@ export default function ApparelBuilder({
           selected={apparelQuote.inkColors}
           onSelect={(inkColors) => onSelectInkColors(inkColors)}
         />
+      )}
+
+      {/* The same sentence as the quantity box above, beside the choice
+          that sets it: picking a third colour is what moves 24 to 48. */}
+      {minimumNotice && (
+        <p className="-mt-2 text-fine font-medium leading-5 text-[var(--ink-muted)]">
+          {minimumNotice}
+        </p>
       )}
 
       {/* The same control signs use — see components/SpecialOrderEscape for

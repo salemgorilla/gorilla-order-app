@@ -11,7 +11,9 @@ import { TEE_DEALS, TEE_DEAL_SIZES, teeDealTotal } from "./tee-deal";
  * Gabe, 2026-11-23: "everything will be canned pricing ... it'll always be
  * the same price", and "They can't add more, they can't add less." So every
  * Black Friday deal is a set quantity at a set price. (The 50 Hoodie Special
- * is the exception he named: "hoodie deal is different from this.")
+ * is the exception he named: "hoodie deal is different from this.", and
+ * on 2026-11-23 he took it off this page: "Remove the 50 hoodie deal off of
+ * the Black Friday page." It keeps its own badge on the order page.)
  *
  * Every word and figure here is shown to customers as written. A deal with
  * `price: null` has no number from Gabe yet: its card says the price is
@@ -66,20 +68,6 @@ const [teeOne, teeTwo] = TEE_DEALS;
 const teeSizes = `sizes ${TEE_DEAL_SIZES[0]} to ${TEE_DEAL_SIZES[TEE_DEAL_SIZES.length - 1]}`;
 
 export const DEALS: readonly Deal[] = [
-  {
-    id: "hoodie-special",
-    title: "50 Hoodie Special",
-    price: null,
-    regularPrice: null,
-    priceText: "$27 each front · $33 each front and back",
-    item: "Cutter & Buck Clique Stockholm Pullover Hoodie, 8 colors",
-    quantity: "50 or more, one price XS to 5XL",
-    print: "Screen printed, up to 2 colors a side, front or front and back",
-    youAdd: "Artwork, hoodie color and sizes",
-    endsOn: "2026-12-01",
-    how: "order",
-    start: "hoodie-special",
-  },
   {
     id: "stickers-50",
     title: "50 Stickers",

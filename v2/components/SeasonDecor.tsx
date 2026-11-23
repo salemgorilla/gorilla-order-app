@@ -1,3 +1,5 @@
+import { THANKSGIVING_TAG } from "../lib/season";
+
 /**
  * Christmas decor (Gabe, 2026-11-23: "I would like some holiday decor also,
  * for Christmas theme. Holly, bells, snowflakes.").
@@ -269,7 +271,9 @@ export function Pumpkin({ className = "" }: { className?: string }) {
 export function ThanksgivingBanner() {
   return (
     <p className="fall-banner spec text-spec font-bold uppercase tracking-eyebrow">
-      Happy Thanksgiving from Gorilla
+      <span>Happy Thanksgiving from Gorilla</span>
+      {/* The placeholder deal tag; its words live in lib/season.ts. */}
+      {THANKSGIVING_TAG && <span className="fall-tag">{THANKSGIVING_TAG}</span>}
     </p>
   );
 }

@@ -267,11 +267,22 @@ html[data-theme="thanksgiving"] .fall-decor {
   display: block;
 }
 html[data-theme="thanksgiving"] .fall-banner {
-  display: block;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem 0.75rem;
   padding: 0.5rem 1rem;
   text-align: center;
   background: var(--badge-fill);
   color: var(--paper);
+}
+/* The deal tag inside the banner: harvest gold, dark type (8:1). */
+.fall-tag {
+  padding: 0.125rem 0.5rem;
+  background: var(--green-bright);
+  color: var(--ink-black);
+  box-shadow: 2px 2px 0 var(--ink-black);
 }
 html[data-theme="thanksgiving"] .quote-desk {
   background-image:

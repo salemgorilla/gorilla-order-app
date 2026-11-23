@@ -218,6 +218,7 @@ import {
   type HoodieSpecialSides,
 } from "../lib/hoodie-special";
 import {
+  TEE_DEAL_FRONTS,
   TEE_DEAL_GARMENT,
   TEE_DEAL_QUANTITY,
   TEE_DEAL_SIZES,
@@ -729,7 +730,9 @@ export default function Home() {
     const effectiveQuantity =
       // The special has no rough count: its sizes ARE the order, so an
       // empty grid is zero hoodies, never the regular builder's 24.
-      isHoodieSpecial || teeDeal || sizeQuantityTotal > 0
+      teeDeal
+        ? TEE_DEAL_QUANTITY
+        : isHoodieSpecial || sizeQuantityTotal > 0
         ? sizeQuantityTotal
         : apparelQuoteState.quantity;
 
@@ -738,7 +741,7 @@ export default function Home() {
         // not see a new reference every render.
         apparelQuoteState
       : { ...apparelQuoteState, quantity: effectiveQuantity };
-  }, [apparelQuoteState, isApparelRequest, isHoodieSpecial, sizeQuantityTotal]);
+  }, [apparelQuoteState, isApparelRequest, isHoodieSpecial, teeDeal, sizeQuantityTotal]);
 
   const sizeBreakdownFromButtons = useMemo(() => {
     return Object.entries(sizeQuantities)
@@ -934,14 +937,14 @@ export default function Home() {
   const apparelMinimumNotice = useMemo(
     () =>
       // The special has its own floor, said in its own builder.
-      !apparelQuote.specialOrder && !isHoodieSpecial && apparelPricing.quantity > 0
+      !apparelQuote.specialOrder && !isHoodieSpecial && !teeDeal && apparelPricing.quantity > 0
         ? screenPrintMinimumMessage(
             apparelPricing.quantity,
             designColorCount(apparelPrint),
             { underbase: apparelPrint.hasUnderbase }
           )
         : null,
-    [apparelQuote, apparelPricing.quantity, apparelPrint, isHoodieSpecial]
+    [apparelQuote, apparelPricing.quantity, apparelPrint, isHoodieSpecial, teeDeal]
   );
 
   /**
@@ -1725,8 +1728,13 @@ export default function Home() {
    * one. The catalogue loads after the deal starts and picks its own first
    * garment, so this puts the deal's back once it has.
    */
+  const teeDealColorSet = useRef<string | null>(null);
   useEffect(() => {
-    if (!teeDeal || ssProducts.length === 0) return;
+    if (!teeDeal) {
+      teeDealColorSet.current = null;
+      return;
+    }
+    if (ssProducts.length === 0) return;
     const basic = ssProducts.find((p) => p.catalogStyle === TEE_DEAL_STYLE);
     if (!basic) return;
     if (selectedSsProduct?.catalogStyle !== TEE_DEAL_STYLE) {
@@ -1734,7 +1742,11 @@ export default function Home() {
       handleSsProductSelect(basic);
       return;
     }
-    if (teeDeal.maxScreens < 2 && !isLightGarment(apparelQuote.garmentColor)) {
+    // Start on White once per deal: a light tee fits either deal's art.
+    // After that only the 1-color deal keeps the tee light.
+    const firstLook = teeDealColorSet.current !== teeDeal.id;
+    teeDealColorSet.current = teeDeal.id;
+    if ((firstLook || teeDeal.maxScreens < 2) && !isLightGarment(apparelQuote.garmentColor)) {
       const white = basic.colors.find((c) => c.colorName === "White" && c.isAvailable);
       if (!white) return;
       setSelectedSsColorName(white.colorName);
@@ -4416,7 +4428,15 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       apparelEach={apparelEach}
       underbase={apparelNeedsUnderbase && !isHoodieSpecial}
       flatRate={
-        isHoodieSpecial
+        teeDeal
+          ? {
+              name: teeDeal.name,
+              unitPrice: teeDeal.unitPrice,
+              sides: "one front print",
+              unit: "tees",
+              note: `Fixed price for exactly ${TEE_DEAL_QUANTITY} tees. Color and sizes don\u2019t change it.`,
+            }
+          : isHoodieSpecial
           ? {
               name: HOODIE_SPECIAL.name,
               unitPrice: hoodieSpecialUnitPrice(apparelQuote.printLocations),
@@ -5107,7 +5127,18 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   }
                   sizesEntered={sizeQuantityTotal > 0}
                   minimumNotice={apparelMinimumNotice}
+                  fixedDeal={
+                    teeDeal
+                      ? {
+                          quantity: TEE_DEAL_QUANTITY,
+                          sizes: TEE_DEAL_SIZES,
+                          placements: TEE_DEAL_FRONTS,
+                          inks: teeDeal.maxInks === 1 ? ["1 color"] : ["1 color", "2 colors"],
+                        }
+                      : null
+                  }
                 />
+                  {!teeDeal && (
                   <ApparelCartLines
                     lines={extraGarmentLines}
                     products={ssProducts}
@@ -5168,6 +5199,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                       )
                     }
                   />
+                  )}
                 </>
                 )}
                 </>

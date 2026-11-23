@@ -9,10 +9,12 @@ describe("the deals list", () => {
     assert.equal(new Set(DEALS.map((d) => d.id)).size, DEALS.length);
   });
   it("hides a deal after its last day, on that day still shows it", () => {
-    const hoodie = DEALS.find((d) => d.id === "hoodie-special");
-    assert.ok(hoodie?.endsOn);
-    assert.ok(liveDeals(hoodie.endsOn).some((d) => d.id === "hoodie-special"));
-    assert.ok(!liveDeals("2099-01-01").some((d) => d.id === "hoodie-special"));
+    const dated = { ...DEALS[0], id: "dated", endsOn: "2026-12-01" };
+    assert.ok(liveDeals("2026-12-01", [dated]).some((d) => d.id === "dated"));
+    assert.ok(!liveDeals("2026-12-02", [dated]).some((d) => d.id === "dated"));
+  });
+  it("leaves the 50 Hoodie Special off the page (Gabe, 2026-11-23)", () => {
+    assert.ok(!DEALS.some((d) => d.id === "hoodie-special"));
   });
   it("links only into the app or to the shop's own email", () => {
     for (const deal of DEALS) {

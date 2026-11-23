@@ -1798,6 +1798,16 @@ export default function Home() {
 
   function leaveTeeDeal() {
     setApparelQuoteState((current) => ({ ...current, promo: "" }));
+    // A deal-only blank (the 24-tee deals' Gildan 5000) is not in the
+    // regular builder, so leaving the deal hands the customer the Basic Tee
+    // rather than a garment the builder no longer lists.
+    const current = ssProducts.find((p) => p.id === selectedSsProductId);
+    if (current && !apparelCatalogStyles.includes(current.catalogStyle)) {
+      const regular =
+        ssProducts.find((p) => p.catalogStyle === apparelCatalogStyles[0]) ??
+        ssProducts.find((p) => apparelCatalogStyles.includes(p.catalogStyle));
+      if (regular) handleSsProductSelect(regular);
+    }
   }
 
   function addDesign() {

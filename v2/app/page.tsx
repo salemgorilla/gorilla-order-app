@@ -91,7 +91,7 @@ import {
 import { quoteApparelCart, withApparelRush } from "../lib/apparel-cart";
 import { apparelLineEach } from "../lib/apparel-per-line";
 import {
-  anyGarmentNeedsUnderbase,
+  apparelPrintSpec,
   applyExtraLineUpdate,
   describeGarmentLines,
   describeQuoteSizeBasis,
@@ -753,22 +753,18 @@ export default function Home() {
     sizeQuantityTotal > 0 ? "exact" : "assumed";
 
   /**
-   * Does the run print on a garment that takes a white underbase? See
+   * The print spec the PRICE, the MINIMUM and the validation all read — one
+   * object, so they cannot disagree about the underbase (see
+   * apparelPrintSpec). The garment decides it from the start; it no longer
+   * waits for artwork to be read (23 Nov: 24 black tees at 1 colour were
+   * priced $394.60 instead of $471.20 until art was uploaded). See
    * anyGarmentNeedsUnderbase for why a mixed cart errs high rather than low.
-   *
-   * The MINIMUM reads this alone (Gabe, 2026-11-21: "Under base counts as a
-   * colors"). The PRICE also waits for the artwork to be read, below — but
-   * artwork is the step AFTER the quantity, so a minimum that waited too
-   * would tell a black-shirt customer 12 while they choose and 24 at
-   * submit. The garment decides the screens; say so from the start.
    */
-  const apparelNeedsUnderbase = anyGarmentNeedsUnderbase(
-    apparelQuote.garmentColor,
-    extraGarmentLines
+  const apparelPrint = useMemo(
+    () => apparelPrintSpec(apparelQuote, extraGarmentLines),
+    [apparelQuote, extraGarmentLines]
   );
-  /** What the engine prices with — unchanged: the garment AND read artwork. */
-  const apparelHasUnderbase =
-    apparelNeedsUnderbase && Boolean(artworkAnalysis?.estimatedColorCount);
+  const apparelNeedsUnderbase = apparelPrint.hasUnderbase;
 
   const apparelPricing = useMemo(() => {
     // The special's flat price, and nothing of the matrix: no garment
@@ -840,17 +836,9 @@ export default function Home() {
         // which keeps the cart-of-one invariant exactly true.
         ...resolveExtraGarmentLines(extraGarmentLines, ssProducts),
       ],
-      {
-        printLocations: apparelQuote.printLocations,
-        inkColors: apparelQuote.inkColors,
-        // Per-placement ink, where the customer set it. Sparse: a location
-        // with no entry falls back to inkColors above, so this changes
-        // nothing for an order that never touches it.
-        inkColorsByLocation: apparelQuote.inkColorsByLocation,
-        // One decision for the whole run — see anyGarmentNeedsUnderbase for
-        // why a mixed cart errs high rather than low.
-        hasUnderbase: apparelHasUnderbase,
-      }
+      // The shared spec: locations, ink (per placement where the customer
+      // set it) and the underbase, exactly as the minimum reads them.
+      apparelPrint
     );
 
     return withApparelRush(base, {
@@ -865,15 +853,12 @@ export default function Home() {
     sizeQuantities,
     apparelQuote.quantity,
     apparelQuote.printLocations,
-    apparelQuote.inkColors,
-    apparelQuote.inkColorsByLocation,
     apparelQuote.garmentColor,
-    artworkAnalysis?.estimatedColorCount,
     chosenSsProduct?.catalogStyle,
     sizeBreakdownFromButtons,
     extraGarmentLines,
     ssProducts,
-    apparelHasUnderbase,
+    apparelPrint,
     isHoodieSpecial,
     sizeQuantityTotal,
   ]);
@@ -891,11 +876,11 @@ export default function Home() {
       !apparelQuote.specialOrder && !isHoodieSpecial && apparelPricing.quantity > 0
         ? screenPrintMinimumMessage(
             apparelPricing.quantity,
-            designColorCount({ ...apparelQuote, hasUnderbase: apparelNeedsUnderbase }),
-            { underbase: apparelNeedsUnderbase }
+            designColorCount(apparelPrint),
+            { underbase: apparelPrint.hasUnderbase }
           )
         : null,
-    [apparelQuote, apparelPricing.quantity, apparelNeedsUnderbase, isHoodieSpecial]
+    [apparelQuote, apparelPricing.quantity, apparelPrint, isHoodieSpecial]
   );
 
   /**
@@ -3479,7 +3464,7 @@ File Size: ${artworkAnalysis?.fileSize || "N/A"}
 Image Dimensions: ${artworkAnalysis?.dimensions || "N/A"}
 Estimated Artwork Colors: ${artworkAnalysis?.estimatedColorCount || "N/A"}
 Underbase White Added: ${
-      isApparelSubmitted && apparelQuote.garmentColor !== "White" ? "Yes (+1)" : "No"
+      isApparelSubmitted && apparelNeedsUnderbase ? "Yes (+1)" : "No"
     }
 Suggested Ink Count: ${
       isApparelSubmitted && estimatedInkCount

@@ -202,3 +202,22 @@ for (const season of SEASONS) {
     });
   });
 }
+
+describe("Christmas decor stays out of the way", () => {
+  it("is hidden by default and shown only under the Christmas theme", () => {
+    assert.match(css, /\.xmas-decor,\s*\.xmas-snow\s*\{\s*display:\s*none;/);
+    assert.match(css, /html\[data-theme="christmas"\] \.xmas-decor\s*\{\s*display:\s*block;/);
+    assert.match(css, /html\[data-theme="christmas"\] \.xmas-snow\s*\{[^}]*z-index:\s*-1;/);
+  });
+  it("only falls for visitors who have not asked for less motion", () => {
+    const start = css.indexOf("@media (prefers-reduced-motion: no-preference)");
+    assert.ok(start >= 0);
+    const before = css.slice(0, start);
+    assert.doesNotMatch(before.slice(before.indexOf(".xmas-flake {")), /animation-name:\s*snowfall/);
+  });
+  it("never takes a click", () => {
+    const src = readFileSync(new URL("../components/SeasonDecor.tsx", import.meta.url), "utf8");
+    assert.equal((src.match(/pointer-events-none/g) ?? []).length, 3);
+    assert.equal((src.match(/aria-hidden="true"/g) ?? []).length, 3);
+  });
+});

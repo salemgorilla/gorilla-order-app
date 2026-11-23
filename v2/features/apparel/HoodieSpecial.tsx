@@ -12,6 +12,7 @@ import {
 } from "../../lib/hoodie-special";
 import { getPrintPlacement } from "../../lib/print-placements";
 import type { FieldErrors } from "../../lib/validation";
+import { Holly } from "../../components/SeasonDecor";
 
 /**
  * The 50 Hoodie Special, in the apparel step — lib/hoodie-special.ts has the
@@ -481,6 +482,9 @@ export function HoodieSpecialAd({ onStart }: { onStart: () => void }) {
         className="absolute inset-0 bg-[var(--badge-fill)] transition-colors duration-[120ms] ease-linear group-hover:bg-[var(--ink-black)]"
         style={{ clipPath: STARBURST_CLIP }}
       />
+
+      {/* Christmas only (SeasonDecor): a holly sprig on the burst. */}
+      <Holly className="absolute left-6 top-6 z-10 h-16 w-20 -rotate-12" />
 
       <span
         aria-hidden="true"

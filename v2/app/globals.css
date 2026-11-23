@@ -117,6 +117,16 @@ html[data-theme="christmas"] {
   --green-bright: #d6ac3a;   /* gold, ink-on-black only                         */
   --surface-ok: #e6f0e7;
   --badge-fill: #a11a2e;     /* cranberry red                                   */
+  /* Decor (components/SeasonDecor.tsx): holly, bells, snowflakes. */
+  --decor-leaf: #1d5c34;
+  --decor-leaf-dark: #154628;
+  --decor-vein: #5f8f6c;
+  --decor-berry: #b3172f;
+  --decor-shine: #f3c6cc;
+  --decor-gold: #d6ac3a;
+  --decor-gold-dark: #8c6a12;
+  --decor-snow: #9fb4bd;     /* pale winter blue-grey: visible on warm white,   */
+                             /* never near the text it drifts behind           */
   --season-band: repeating-linear-gradient(
     -45deg,
     #a11a2e 0 0.75rem,
@@ -124,6 +134,55 @@ html[data-theme="christmas"] {
     #1d5c34 1.5rem 2.25rem,
     #fbf7ef 2.25rem 3rem
   );
+}
+
+/* Christmas decor (components/SeasonDecor.tsx). In the markup all year and
+   display:none outside the Christmas theme. Decorative only: aria-hidden,
+   no pointer events, nothing in the layout flow. */
+.xmas-decor,
+.xmas-snow {
+  display: none;
+}
+html[data-theme="christmas"] .xmas-decor {
+  display: block;
+}
+html[data-theme="christmas"] .xmas-snow {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: -1;          /* behind every panel; shows only on the ground */
+  overflow: hidden;
+}
+/* Pages paint the same --shirt-blank on <main> as the body already does;
+   let the body's show through instead, so the snow layer behind it is
+   visible on the ground. Same colour, so nothing else changes. */
+html[data-theme="christmas"] main {
+  background-color: transparent;
+}
+.xmas-flake {
+  position: absolute;
+  top: var(--flake-y);  /* reduced motion: a still scatter of snow */
+  opacity: 0.85;
+}
+/* Falling only for visitors who have not asked for less motion. Kept out of
+   the reduced-motion case entirely, because the global reduce rule would
+   otherwise run an infinite animation at 0.01ms. */
+@media (prefers-reduced-motion: no-preference) {
+  .xmas-flake {
+    top: -24px;
+    animation-name: snowfall;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    will-change: transform;
+  }
+}
+@keyframes snowfall {
+  from {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  to {
+    transform: translate3d(var(--flake-drift), calc(100vh + 48px), 0) rotate(180deg);
+  }
 }
 
 /* The header's seasonal stripe, painted along its top edge. Unlayered, so

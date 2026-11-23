@@ -1,4 +1,5 @@
 import { SHOP } from "../lib/shop";
+import { Bells, Holly } from "./SeasonDecor";
 
 export default function Header() {
   return (
@@ -19,7 +20,7 @@ export default function Header() {
             heading; a second <h1> wrapping the wordmark leaves the document
             with no single outline root, which is both an a11y defect and an
             SEO one on a page whose job is local custom-print search. */}
-        <p className="text-wordmark font-bold tracking-display">
+        <p className="flex items-center gap-2 text-wordmark font-bold tracking-display">
           <a
             href="https://gorillasalem.com"
             className="transition-colors duration-[120ms] ease-linear hover:text-[var(--gorilla-green)]"
@@ -34,6 +35,8 @@ export default function Header() {
                 identity move. */}
             <span className="text-[var(--gorilla-green)]">LABS</span>
           </a>
+          {/* Christmas only (SeasonDecor). */}
+          <Bells className="h-[1.3em] w-[1.7em] -mt-1" />
         </p>
 
         {/* Spec furniture, not a label. "Quote Builder" named the tool; this
@@ -41,7 +44,9 @@ export default function Header() {
             the mono register the rest of the app reserves for real values.
             The address is the shop's, from lib/shop.ts, the same string the
             pickup notice uses. */}
-        <div className="spec border border-[var(--rule)] bg-[var(--paper)] px-4 py-2 text-spec text-[var(--ink-muted)]">
+        <div className="spec relative border border-[var(--rule)] bg-[var(--paper)] px-4 py-2 text-spec text-[var(--ink-muted)]">
+          {/* Christmas only (SeasonDecor): holly tucked on the corner. */}
+          <Holly className="absolute -right-5 -top-5 h-9 w-12 rotate-12" />
           <p className="font-bold uppercase tracking-eyebrow text-[var(--ink-black)]">
             Quote desk
           </p>

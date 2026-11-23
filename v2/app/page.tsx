@@ -3966,8 +3966,13 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         signsFeeTotal={signsPricing.feeTotal}
         apparelQuote={apparelQuote}
         selectedGarmentLabel={selectedGarmentLabel}
-        selectedSsColor={selectedSsColor}
-        catalogStyle={chosenSsProduct?.catalogStyle}
+        // The special names its own blank; the regular selection may be a tee.
+        selectedSsColor={isHoodieSpecial ? hoodieSpecialPhoto : selectedSsColor}
+        catalogStyle={
+          isHoodieSpecial
+            ? HOODIE_SPECIAL.catalogStyle
+            : chosenSsProduct?.catalogStyle
+        }
         garmentLines={apparelPricing.lines}
         apparelEach={apparelEach}
         apparelPricing={apparelPricing}
@@ -5279,8 +5284,13 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               signsTotal={signsPriceable ? signsPricing.total : null}
               signsFeeTotal={signsPricing.feeTotal}
               selectedGarmentLabel={selectedGarmentLabel}
-              selectedSsColor={selectedSsColor}
-              catalogStyle={chosenSsProduct?.catalogStyle}
+              // The special names its own blank; the regular selection may be a tee.
+              selectedSsColor={isHoodieSpecial ? hoodieSpecialPhoto : selectedSsColor}
+              catalogStyle={
+                isHoodieSpecial
+                  ? HOODIE_SPECIAL.catalogStyle
+                  : chosenSsProduct?.catalogStyle
+              }
               isReady={currentValidationErrors.length === 0}
             />
 

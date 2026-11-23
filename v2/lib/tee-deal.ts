@@ -3,36 +3,43 @@ import { getInkColorCount } from "./apparel-pricing";
 import { isLightGarment } from "./light-garments";
 
 /**
- * BLACK FRIDAY TEE DEALS: 24 Basic Tees, one front print, ONE FIXED PRICE.
+ * BLACK FRIDAY TEE DEALS: a set number of Basic Tees, one front print, ONE
+ * FIXED PRICE.
  *
- * Gabe, 2026-11-23: "Twenty-four T-shirts, one color print on the front,
- * it's the same price it would be, but take 25% off. and no screen fee."
- * Then the 2-color version, and: "2 color is strictly 2 color. No 3 color no
- * underbase after 1 color images." Then: "everything will be canned
- * pricing ... so it'll always be the same price", and "They can't add more,
- * they can't add less ... There's no breaking the quantity."
+ * Gabe, 2026-11-23: "Let's do fifty dollars off twelve t-shirts and a hundred
+ * dollars off twenty-four t-shirts. And that's off the full price." Then:
+ * "also mention that there's no setup." Earlier the same day: "everything
+ * will be canned pricing ... so it'll always be the same price", "They can't
+ * add more, they can't add less", and "2 color is strictly 2 color. No 3
+ * color no underbase after 1 color images."
  *
- * So each deal is a flat price for exactly 24 tees. The customer adds
- * artwork, a colour and their sizes; nothing they pick moves the total.
+ * So each deal is a flat price for exactly its count. The customer adds
+ * artwork, a colour and their sizes; nothing they pick moves the total, and
+ * no setup or screen fee is charged on top.
  *
  * ── HOW THE PRICES WERE SET (2026-11-23) ─────────────────────────────────
- * The app's own regular estimate for 24 Basic Tees (Gildan, style 39), one
- * front print, before sizes (its usual mix: about 15% 2XL/3XL), less 25%,
- * with no screen fee, per tee rounded to the cent:
+ * `regularPrice` is the app's own full estimate for the same order, read
+ * from labs.gorillasalem.com that evening: Basic Tee (Gildan, style 39), one
+ * front print, before sizes (its usual mix, about 15% 2XL/3XL), screens
+ * included. The deal is that less Gabe's dollars off, per tee rounded DOWN to
+ * the cent so the saving is never short of what the card promises:
  *
- *   1-color deal: 1 screen  (1 ink on a light tee)            $8.59 a tee
- *   2-color deal: 2 screens (2 inks on a light tee, or 1 ink
- *                 plus the white underbase on a dark tee)    $10.31 a tee
+ *   12 tees, 1 color, white  $83.40 + $72.00 + $25.00 = $180.40, less $50
+ *                            = $130.40 -> $10.86 a tee, $130.32
+ *   24 tees, 1 color, white  $166.80 + $108.00 + $25.00 = $299.80, less $100
+ *                            = $199.80 -> $8.32 a tee, $199.68
+ *   24 tees, 2 screens on    $170.40 + $159.60 + $50.00 = $380.00, less $100
+ *   a black tee              = $280.00 -> $11.66 a tee, $279.84
  *
  * A dark tee needs the white underbase, which counts as a colour (Gabe,
  * 2026-11-21), so 1-colour art on a dark tee is two screens: that is the
- * 2-color deal, and the 1-color deal is light tees only.
+ * 2-color deal, and the 1-colour deals are light tees only. Two colours start
+ * at 24 (the minimums), which is also why the 12-tee deal is 1 colour.
  *
  * Change a price here and nowhere else; tests/tee-deal.test.ts pins them.
  * Apparel is a quote the shop confirms before invoicing (AGENTS.md).
  */
-export const TEE_DEAL_QUANTITY = 24;
-/** Gildan Basic Tee (S&S style 39): the deal's only blank. */
+/** Gildan Basic Tee (S&S style 39): the deals' only blank. */
 export const TEE_DEAL_STYLE = "39";
 export const TEE_DEAL_GARMENT = "Basic Tee";
 /** Sizes the flat price covers. */
@@ -42,19 +49,38 @@ export const TEE_DEAL_FRONTS = ["Left Chest", "Center Chest", "Front", "Oversize
 
 export const TEE_DEALS = [
   {
-    id: "tees-24-1c",
-    name: "24 Tees, 1-Color Front",
-    /** Per tee. 24 x this is the whole price. */
-    unitPrice: 8.59,
+    id: "tees-12-1c",
+    name: "12 Tees, 1-Color Front",
+    /** Exactly this many. */
+    quantity: 12,
+    /** Per tee. quantity x this is the whole price. */
+    unitPrice: 10.86,
+    /** The app's full price for the same order, setup included. */
+    regularPrice: 180.4,
+    /** What the card promises off the regular price. */
+    dollarsOff: 50,
     /** Ink colours the art may print in. */
     maxInks: 1,
     /** Screens on press, white underbase included. */
     maxScreens: 1,
   },
   {
+    id: "tees-24-1c",
+    name: "24 Tees, 1-Color Front",
+    quantity: 24,
+    unitPrice: 8.32,
+    regularPrice: 299.8,
+    dollarsOff: 100,
+    maxInks: 1,
+    maxScreens: 1,
+  },
+  {
     id: "tees-24-2c",
     name: "24 Tees, 2-Color Front",
-    unitPrice: 10.31,
+    quantity: 24,
+    unitPrice: 11.66,
+    regularPrice: 380,
+    dollarsOff: 100,
     maxInks: 2,
     maxScreens: 2,
   },
@@ -69,14 +95,14 @@ export function teeDealFor(promo: unknown): TeeDeal | null {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-/** The deal's whole price: 24 x the per-tee price. */
+/** The deal's whole price: its count x the per-tee price. */
 export function teeDealTotal(deal: TeeDeal): number {
-  return round2(deal.unitPrice * TEE_DEAL_QUANTITY);
+  return round2(deal.unitPrice * deal.quantity);
 }
 
 /**
  * The deal's quote, in the shape every apparel surface already reads: one
- * garment line, 24 x the flat price, and nothing else. Printing, screens,
+ * garment line, the count x the flat price, and nothing else. Printing, screens,
  * underbase and rush are zero because the price includes or waives them,
  * so Printavo writes one row and the total never moves.
  */
@@ -84,7 +110,7 @@ export function quoteTeeDeal(
   deal: TeeDeal,
   input: { colorName: string; sizeBreakdown: string }
 ): ApparelCartQuote {
-  const quantity = TEE_DEAL_QUANTITY;
+  const quantity = deal.quantity;
   const total = teeDealTotal(deal);
   return {
     lines: [
@@ -144,7 +170,7 @@ export function teeDealProblem(
     printLocations: string[];
     inkColors: string;
     inkColorsByLocation?: Record<string, string>;
-    /** "M-12, L-12": the sizes ARE the quantity, and must make exactly 24. */
+    /** "M-12, L-12": the sizes ARE the quantity, and must make the deal's count. */
     sizeBreakdown: string;
     /** Added garments on the quote. The deal is one tee. */
     extraLines?: number;
@@ -180,11 +206,12 @@ export function teeDealProblem(
   if (outside.length > 0) {
     return `The deal covers sizes ${TEE_DEAL_SIZES[0]} to ${TEE_DEAL_SIZES[TEE_DEAL_SIZES.length - 1]}. Remove ${outside.join(", ")}.`;
   }
-  if (total !== TEE_DEAL_QUANTITY) {
+  const want = deal.quantity;
+  if (total !== want) {
     return total === 0
-      ? `Enter your sizes. They need to add up to exactly ${TEE_DEAL_QUANTITY} tees.`
-      : `Your sizes add up to ${total}. The deal is exactly ${TEE_DEAL_QUANTITY} tees, so ${
-          total < TEE_DEAL_QUANTITY ? `add ${TEE_DEAL_QUANTITY - total}` : `take off ${total - TEE_DEAL_QUANTITY}`
+      ? `Enter your sizes. They need to add up to exactly ${want} tees.`
+      : `Your sizes add up to ${total}. The deal is exactly ${want} tees, so ${
+          total < want ? `add ${want - total}` : `take off ${total - want}`
         }.`;
   }
 
@@ -193,11 +220,11 @@ export function teeDealProblem(
 
 /** The line the shop reads beside the figure. */
 export function teeDealNote(deal: TeeDeal): string {
-  return `Black Friday deal, ${deal.name}: exactly ${TEE_DEAL_QUANTITY} ${TEE_DEAL_GARMENT}s (Gildan, style ${TEE_DEAL_STYLE}), sizes ${TEE_DEAL_SIZES[0]}-${
+  return `Black Friday deal, ${deal.name}: exactly ${deal.quantity} ${TEE_DEAL_GARMENT}s (Gildan, style ${TEE_DEAL_STYLE}), sizes ${TEE_DEAL_SIZES[0]}-${
     TEE_DEAL_SIZES[TEE_DEAL_SIZES.length - 1]
   }, one front print, flat $${deal.unitPrice.toFixed(2)} a tee ($${teeDealTotal(deal).toFixed(
     2
-  )}), printing and screens included. Never more than ${deal.maxScreens} screen${
+  )}, $${deal.dollarsOff} off the regular $${deal.regularPrice.toFixed(2)}), printing included, no setup fee. Never more than ${deal.maxScreens} screen${
     deal.maxScreens === 1 ? "" : "s"
   }, underbase included.`;
 }
@@ -215,8 +242,8 @@ export function teeDealSubmissionProblem(
   if (!deal) return null;
 
   const supplier = (product.supplier ?? {}) as Record<string, unknown>;
-  if (Number(product.quantity) !== TEE_DEAL_QUANTITY) {
-    return `The ${deal.name} deal is exactly ${TEE_DEAL_QUANTITY} tees.`;
+  if (Number(product.quantity) !== deal.quantity) {
+    return `The ${deal.name} deal is exactly ${deal.quantity} tees.`;
   }
   const problem = teeDealProblem(deal, {
     catalogStyle: String(supplier.catalogStyle ?? ""),

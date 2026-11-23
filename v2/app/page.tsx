@@ -220,7 +220,6 @@ import {
 import {
   TEE_DEAL_FRONTS,
   TEE_DEAL_GARMENT,
-  TEE_DEAL_QUANTITY,
   TEE_DEAL_SIZES,
   TEE_DEAL_STYLE,
   quoteTeeDeal,
@@ -495,7 +494,7 @@ export default function Home() {
   const hoodieSpecialOpen = isHoodieSpecialOpen();
   /**
    * A Black Friday tee deal (lib/tee-deal.ts), chosen from the deals page.
-   * The regular builder, priced 25% off with no screen fee; null on every
+   * The regular builder at the deal's one fixed price; null on every
    * regular quote, which then prices exactly as it always has.
    */
   const teeDeal =
@@ -731,7 +730,7 @@ export default function Home() {
       // The special has no rough count: its sizes ARE the order, so an
       // empty grid is zero hoodies, never the regular builder's 24.
       teeDeal
-        ? TEE_DEAL_QUANTITY
+        ? teeDeal.quantity
         : isHoodieSpecial || sizeQuantityTotal > 0
         ? sizeQuantityTotal
         : apparelQuoteState.quantity;
@@ -4434,7 +4433,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               unitPrice: teeDeal.unitPrice,
               sides: "one front print",
               unit: "tees",
-              note: `Fixed price for exactly ${TEE_DEAL_QUANTITY} tees. Color and sizes don\u2019t change it.`,
+              note: `Fixed price for exactly ${teeDeal.quantity} tees, no setup fee. Color and sizes don\u2019t change it.`,
             }
           : isHoodieSpecial
           ? {
@@ -5012,7 +5011,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   <DealActive
                     testId="tee-deal-active"
                     name={teeDeal.name}
-                    terms={`$${teeDealTotal(teeDeal).toFixed(2)} for exactly ${TEE_DEAL_QUANTITY} ${TEE_DEAL_GARMENT}s, sizes ${TEE_DEAL_SIZES[0]} to ${TEE_DEAL_SIZES[TEE_DEAL_SIZES.length - 1]}, one ${teeDeal.maxInks === 1 ? "1-color" : "1- or 2-color"} print on the front. ${teeDeal.maxInks === 1 ? "Light tees only." : "Dark tees take 1-color art (the white underbase is the 2nd color)."} Printing and screens included. You add your artwork, color and sizes.`}
+                    terms={`$${teeDealTotal(teeDeal).toFixed(2)} (regular $${teeDeal.regularPrice.toFixed(2)}) for exactly ${teeDeal.quantity} ${TEE_DEAL_GARMENT}s, sizes ${TEE_DEAL_SIZES[0]} to ${TEE_DEAL_SIZES[TEE_DEAL_SIZES.length - 1]}, one ${teeDeal.maxInks === 1 ? "1-color" : "1- or 2-color"} print on the front. ${teeDeal.maxInks === 1 ? "Light tees only." : "Dark tees take 1-color art (the white underbase is the 2nd color)."} Printing included, no setup fee. You add your artwork, color and sizes.`}
                     problem={teeDealLiveProblem}
                     onLeave={leaveTeeDeal}
                   />
@@ -5130,7 +5129,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   fixedDeal={
                     teeDeal
                       ? {
-                          quantity: TEE_DEAL_QUANTITY,
+                          quantity: teeDeal.quantity,
                           sizes: TEE_DEAL_SIZES,
                           placements: TEE_DEAL_FRONTS,
                           inks: teeDeal.maxInks === 1 ? ["1 color"] : ["1 color", "2 colors"],

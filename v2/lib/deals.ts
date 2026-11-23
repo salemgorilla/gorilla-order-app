@@ -33,7 +33,13 @@ export type DealHow = "order" | "soon";
  * Every `?start=` value the order page acts on (app/page.tsx). A deal can
  * only start at one of these.
  */
-export const DEAL_STARTS = ["hoodie-special", "stickers-deal", "tees-24-1c", "tees-24-2c"] as const;
+export const DEAL_STARTS = [
+  "hoodie-special",
+  "stickers-deal",
+  "tees-12-1c",
+  "tees-24-1c",
+  "tees-24-2c",
+] as const;
 export type DealStart = (typeof DEAL_STARTS)[number];
 
 export interface Deal {
@@ -64,7 +70,7 @@ export interface Deal {
   start?: DealStart;
 }
 
-const [teeOne, teeTwo] = TEE_DEALS;
+const [teeTwelve, teeOne, teeTwo] = TEE_DEALS;
 const teeSizes = `sizes ${TEE_DEAL_SIZES[0]} to ${TEE_DEAL_SIZES[TEE_DEAL_SIZES.length - 1]}`;
 
 export const DEALS: readonly Deal[] = [
@@ -82,29 +88,41 @@ export const DEALS: readonly Deal[] = [
     start: "stickers-deal",
   },
   {
+    // Gabe, 2026-11-23: "$50 off twelve t-shirts ... off the full price",
+    // "no setup". Prices and how they were set: lib/tee-deal.ts.
+    id: "tees-12-1color",
+    title: "12 Tees, 1-Color Front",
+    price: teeDealTotal(teeTwelve),
+    regularPrice: teeTwelve.regularPrice,
+    item: "Gildan Basic Tee in a light color: white, off-white, Ash, Natural or Sand",
+    quantity: `Exactly 12, ${teeSizes}`,
+    print: "Screen printed, 1 color, one front print. No setup fee",
+    youAdd: "Artwork, tee color and sizes",
+    how: "order",
+    start: "tees-12-1c",
+  },
+  {
+    // "$100 off twenty-four t-shirts", 1 color.
     id: "tees-24-1color",
     title: "24 Tees, 1-Color Front",
     price: teeDealTotal(teeOne),
-    // The app's regular estimate, same spec: $166.72 tees + $108.00 print
-    // + $25.00 for one screen.
-    regularPrice: 299.72,
+    regularPrice: teeOne.regularPrice,
     item: "Gildan Basic Tee in a light color: white, off-white, Ash, Natural or Sand",
     quantity: `Exactly 24, ${teeSizes}`,
-    print: "Screen printed, 1 color, one front print",
+    print: "Screen printed, 1 color, one front print. No setup fee",
     youAdd: "Artwork, tee color and sizes",
     how: "order",
     start: "tees-24-1c",
   },
   {
+    // "$100 off twenty-four t-shirts", 2 colors (or 1 on a dark tee).
     id: "tees-24-2color",
     title: "24 Tees, 2-Color Front",
     price: teeDealTotal(teeTwo),
-    // The app's regular estimate, same spec on a dark tee (1 ink plus the
-    // underbase): $170.24 tees + $159.60 print + $50.00 for two screens.
-    regularPrice: 379.84,
+    regularPrice: teeTwo.regularPrice,
     item: "Gildan Basic Tee, any color",
     quantity: `Exactly 24, ${teeSizes}`,
-    print: "Screen printed, up to 2 colors, one front print. Dark tees take 1-color art (the white underbase is the 2nd color)",
+    print: "Screen printed, up to 2 colors, one front print. Dark tees take 1-color art (the white underbase is the 2nd color). No setup fee",
     youAdd: "Artwork, tee color and sizes",
     how: "order",
     start: "tees-24-2c",

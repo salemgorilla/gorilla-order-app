@@ -218,11 +218,15 @@ import {
   type HoodieSpecialSides,
 } from "../lib/hoodie-special";
 import {
+  TEE_DEAL_GARMENT,
   TEE_DEAL_QUANTITY,
-  applyTeeDeal,
+  TEE_DEAL_SIZES,
+  TEE_DEAL_STYLE,
+  quoteTeeDeal,
   teeDealFor,
   teeDealNote,
   teeDealProblem,
+  teeDealTotal,
   type TeeDeal,
 } from "../lib/tee-deal";
 import {
@@ -231,6 +235,7 @@ import {
   stickerDealProblem,
 } from "../lib/sticker-deal";
 import { DealActive } from "../components/DealActive";
+import { isLightGarment } from "../lib/light-garments";
 import { THANKSGIVING_TAG } from "../lib/season";
 import SignsBuilder from "../features/signs/SignsBuilder";
 import SpecialOrderEscape from "../components/SpecialOrderEscape";
@@ -559,7 +564,7 @@ export default function Home() {
     // not promise an estimate that updates — see lib/rush.ts.
     priced: !isApparelRequest && !isPaperSelected,
     // The special's price is flat, rush date or not: no 25% to promise.
-    flatPrice: isHoodieSpecial,
+    flatPrice: isHoodieSpecial || Boolean(teeDeal),
   });
 
   const signsQuote = largeFormatQuotes[signsFamily];
@@ -724,7 +729,7 @@ export default function Home() {
     const effectiveQuantity =
       // The special has no rough count: its sizes ARE the order, so an
       // empty grid is zero hoodies, never the regular builder's 24.
-      isHoodieSpecial || sizeQuantityTotal > 0
+      isHoodieSpecial || teeDeal || sizeQuantityTotal > 0
         ? sizeQuantityTotal
         : apparelQuoteState.quantity;
 
@@ -798,7 +803,7 @@ export default function Home() {
   /** Why the quote is not on its tee deal yet, said in the deal strip. */
   const teeDealLiveProblem = teeDeal
     ? teeDealProblem(teeDeal, {
-        quantity: apparelQuote.quantity,
+        sizeBreakdown: sizeBreakdownFromButtons,
         catalogStyle: chosenSsProduct?.catalogStyle,
         garmentColor: apparelQuote.garmentColor,
         printLocations: apparelQuote.printLocations,
@@ -812,6 +817,16 @@ export default function Home() {
     order.deal === STICKER_DEAL.id ? stickerDealProblem(order.items) : null;
 
   const apparelPricing = useMemo(() => {
+    // A Black Friday tee deal (lib/tee-deal.ts): one fixed price for exactly
+    // 24, whatever is picked. The deal strip says what still has to change
+    // before it can be sent; the figure itself never moves.
+    if (teeDeal) {
+      return quoteTeeDeal(teeDeal, {
+        colorName: apparelQuote.garmentColor,
+        sizeBreakdown: sizeBreakdownFromButtons,
+      });
+    }
+
     // The special's flat price, and nothing of the matrix: no garment
     // markup, no screens, no underbase, no rush, no added garments.
     if (isHoodieSpecial) {
@@ -886,17 +901,12 @@ export default function Home() {
       apparelPrint
     );
 
-    // A Black Friday tee deal (lib/tee-deal.ts): the same regular quote,
-    // 25% off and no screens, before rush. Only once the quote fits the
-    // deal: until then the regular price shows beside the strip's note, so
-    // nobody sees a deal price on a quote the deal does not cover.
-    return withApparelRush(teeDeal && !teeDealLiveProblem ? applyTeeDeal(base) : base, {
+    return withApparelRush(base, {
       needBy: order.production.needBy,
       lane: turnaroundLane,
     });
   }, [
     teeDeal,
-    teeDealLiveProblem,
     apparelEstimateBasis,
     order.production.needBy,
     turnaroundLane,
@@ -1700,7 +1710,7 @@ export default function Home() {
     setApparelQuoteState((current) => ({
       ...current,
       promo: deal.id,
-      quantity: TEE_DEAL_QUANTITY,
+      quantity: 0,
       printLocations: ["Front"],
       inkColors: ink,
       inkColorsByLocation: {},
@@ -1709,6 +1719,30 @@ export default function Home() {
     }));
     goToStep("details", "apparel");
   }
+
+  /**
+   * On a tee deal the blank is the Basic Tee, and the 1-color deal a light
+   * one. The catalogue loads after the deal starts and picks its own first
+   * garment, so this puts the deal's back once it has.
+   */
+  useEffect(() => {
+    if (!teeDeal || ssProducts.length === 0) return;
+    const basic = ssProducts.find((p) => p.catalogStyle === TEE_DEAL_STYLE);
+    if (!basic) return;
+    if (selectedSsProduct?.catalogStyle !== TEE_DEAL_STYLE) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one snap to the deal's blank after the catalogue loads
+      handleSsProductSelect(basic);
+      return;
+    }
+    if (teeDeal.maxScreens < 2 && !isLightGarment(apparelQuote.garmentColor)) {
+      const white = basic.colors.find((c) => c.colorName === "White" && c.isAvailable);
+      if (!white) return;
+      setSelectedSsColorName(white.colorName);
+      setApparelQuoteState((current) => ({ ...current, garmentColor: white.colorName }));
+    }
+    // handleSsProductSelect is a plain function of this component.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teeDeal?.id, ssProducts, selectedSsProduct?.catalogStyle]);
 
   function leaveTeeDeal() {
     setApparelQuoteState((current) => ({ ...current, promo: "" }));
@@ -4958,7 +4992,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   <DealActive
                     testId="tee-deal-active"
                     name={teeDeal.name}
-                    terms={`Exactly ${TEE_DEAL_QUANTITY} tees, one ${teeDeal.maxInks === 1 ? "1-color" : "1- or 2-color"} print on the front. The regular price less 25%, and no screen fee. On a dark tee the white underbase counts as a color${teeDeal.maxInks === 1 ? "" : ", so dark tees take 1-color art"}.`}
+                    terms={`$${teeDealTotal(teeDeal).toFixed(2)} for exactly ${TEE_DEAL_QUANTITY} ${TEE_DEAL_GARMENT}s, sizes ${TEE_DEAL_SIZES[0]} to ${TEE_DEAL_SIZES[TEE_DEAL_SIZES.length - 1]}, one ${teeDeal.maxInks === 1 ? "1-color" : "1- or 2-color"} print on the front. ${teeDeal.maxInks === 1 ? "Light tees only." : "Dark tees take 1-color art (the white underbase is the 2nd color)."} Printing and screens included. You add your artwork, color and sizes.`}
                     problem={teeDealLiveProblem}
                     onLeave={leaveTeeDeal}
                   />

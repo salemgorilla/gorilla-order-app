@@ -1504,11 +1504,13 @@ export function buildPrintavoQuotePlan(input: {
         // A flat-rate offer (lib/hoodie-special.ts): the row is one price per
         // piece with printing and screens inside it, and there are no
         // printing or setup rows. Said here so nobody adds them back.
-        // A tee deal (lib/tee-deal.ts) is a REGULAR estimate taken down 25%
-        // with no setup row: the S&S block above stays, and this says why
-        // the rows are lower than the matrix.
+        // A tee deal (lib/tee-deal.ts) is a flat price, like the hoodie
+        // special, on an S&S blank: the S&S block above stays.
         ...(teeDeal
-          ? [`*** ${teeDealNote(teeDeal)} ***`]
+          ? [
+              `*** ${str(product.promoName)}: flat $${num(pricing.unitPrice).toFixed(2)} each, printing and setup included ***`,
+              `*** ${teeDealNote(teeDeal)} ***`,
+            ]
           : str(product.promoName)
           ? [
               `*** ${str(product.promoName)}: flat $${num(

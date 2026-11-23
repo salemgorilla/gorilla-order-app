@@ -656,7 +656,10 @@ export function buildQuoteEmail(input: {
 
       estimateLines.push(line(label, value));
     }
-  } else if (apparel && str(pricing.promo) === HOODIE_SPECIAL.id) {
+  } else if (
+    apparel &&
+    (str(pricing.promo) === HOODIE_SPECIAL.id || Boolean(teeDealFor(pricing.promo)))
+  ) {
     // A flat-rate offer (lib/hoodie-special.ts): one price per piece with
     // printing and screens inside it. "Printing $0.00" here would read as a
     // missing charge rather than an included one.

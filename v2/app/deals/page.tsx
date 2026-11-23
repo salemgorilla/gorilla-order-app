@@ -24,6 +24,10 @@ export default function DealsPage() {
         <p className="mt-3 max-w-2xl text-lede text-[var(--ink-muted)]">
           Printed on Canal Street, at a better price for a little while.
         </p>
+        {/* Gabe, 2026-11-23: say up top that these are all fixed. */}
+        <p className="mt-4 max-w-2xl border-l-4 border-[var(--gorilla-green)] pl-4 text-body font-bold text-[var(--ink-black)]">
+          Every deal is a set quantity at a set price. Just add your art and sizes.
+        </p>
         <DealsList />
       </div>
     </main>

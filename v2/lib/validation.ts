@@ -603,6 +603,7 @@ export function getApparelFieldErrors(
     /** The tee deals (lib/tee-deal.ts): the S&S style and added garments. */
     catalogStyle?: string;
     extraLineCount?: number;
+    sizeBreakdown?: string;
   },
   order: {
     customer: { customerName: string; email: string };
@@ -705,7 +706,7 @@ export function getApparelFieldErrors(
   const teeDeal = teeDealFor(apparelQuote.promo);
   if (teeDeal) {
     const problem = teeDealProblem(teeDeal, {
-      quantity: apparelQuote.quantity,
+      sizeBreakdown: apparelQuote.sizeBreakdown || "",
       catalogStyle: apparelQuote.catalogStyle,
       garmentColor: apparelQuote.garmentColor || "",
       printLocations: apparelQuote.printLocations,
@@ -714,7 +715,7 @@ export function getApparelFieldErrors(
       extraLines: apparelQuote.extraLineCount,
     });
     if (problem) {
-      if (/tees\. You have/.test(problem)) errors.quantity = problem;
+      if (/sizes|tees\./i.test(problem) && /add up|cover sizes/.test(problem)) errors.quantity = problem;
       else if (/added garment/.test(problem)) errors.garmentLines = problem;
       else errors.printLocations = problem;
     }

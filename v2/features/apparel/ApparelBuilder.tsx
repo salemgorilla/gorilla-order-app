@@ -7,7 +7,7 @@ import SpecialOrderEscape from "../../components/SpecialOrderEscape";
 import SizeBreakdownGrid from "./SizeBreakdownGrid";
 import { apparelCatalog, type ApparelQuote } from "../../lib/apparel";
 import { POPULAR_COLOR_COUNT } from "../../lib/garment-color-ranking";
-import { isWhiteGarment } from "../../lib/apparel-cart-lines";
+import { isLightGarment } from "../../lib/light-garments";
 import {
   garmentFamily,
   placementsFor,
@@ -750,7 +750,7 @@ export default function ApparelBuilder({
                 Underbase
               </p>
               <p className="mt-1 text-value font-bold text-[var(--ink-black)]">
-                {isWhiteGarment(apparelQuote.garmentColor)
+                {isLightGarment(apparelQuote.garmentColor)
                   ? "+0"
                   : "+1 white"}
               </p>
@@ -767,8 +767,9 @@ export default function ApparelBuilder({
           </div>
 
           <p className="mt-3 text-spec font-bold leading-5 text-[var(--ink-muted)]">
-            This is an estimate. If the shirt color is not white, the
-            app adds one extra color for a white underbase.
+            This is an estimate. On a dark shirt color the app adds one
+            extra color for a white underbase. White and light colors
+            print without one.
           </p>
         </div>
       )}

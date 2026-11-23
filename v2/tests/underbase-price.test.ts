@@ -17,7 +17,7 @@ import { strict as assert } from "node:assert";
 import { describe, test } from "node:test";
 
 import { quoteApparelCart, type ApparelCartLine } from "../lib/apparel-cart";
-import { apparelPrintSpec } from "../lib/apparel-cart-lines";
+import { apparelPrintSpec, isWhiteGarment } from "../lib/apparel-cart-lines";
 import { apparelPricingConfig } from "../lib/apparel-pricing-config";
 import { quoteHoodieSpecial } from "../lib/hoodie-special";
 import { designColorCount, screenPrintMinimum } from "../lib/print-minimums";
@@ -95,6 +95,24 @@ describe("a light shirt does not change", () => {
     assert.equal(cart.total.toFixed(2), "394.60");
     assert.equal(cart.setupTotal.toFixed(2), "25.00");
     assert.equal(screenPrintMinimum(designColorCount(spec)), 12);
+  });
+
+  test("Solid White Blend is white too: no underbase, 1-colour minimum", () => {
+    // The Premium Soft Tee has no colour named plain "White".
+    const spec = apparelPrintSpec(quoteFor("Solid White Blend"), []);
+    const cart = quoteApparelCart([tees("Solid White Blend")], spec);
+    assert.equal(spec.hasUnderbase, false);
+    assert.equal(cart.total.toFixed(2), "394.60");
+    assert.equal(screenPrintMinimum(designColorCount(spec)), 12);
+  });
+
+  test("which names read as white", () => {
+    for (const name of ["White", "Solid White Blend", "white", "White/Black"]) {
+      assert.equal(isWhiteGarment(name), true, name);
+    }
+    for (const name of ["Solid Black Blend", "Black/White", "Athletic Heather", "Whitewater Blue", ""]) {
+      assert.equal(isWhiteGarment(name), false, name);
+    }
   });
 
   test("white tees plus black hoodies still prices the run with it", () => {

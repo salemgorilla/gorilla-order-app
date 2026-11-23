@@ -356,6 +356,25 @@ export function describeQuoteSizeBasis(lines: PricedLine[]): {
 }
 
 /**
+ * Is this garment colour white, so prints without a white underbase?
+ *
+ * By name, because the catalogue names white differently per style: the
+ * Basic Tee's is "White", the Premium Soft Tee's is "Solid White Blend"
+ * (lib/garment-color-ranking.ts already ranks the two as one colour). Until
+ * 23 Nov only the literal "White" counted, so a Solid White Blend tee was
+ * charged an underbase it does not need. A two-tone name ("Black/White") is
+ * read by its first colour, the body.
+ *
+ * Every other colour, light ones included, still gets the underbase. That
+ * errs high, which is the safe direction on a hand-confirmed flow; which
+ * light colours print without one is the shop's call to make.
+ */
+export function isWhiteGarment(colorName: string): boolean {
+  const body = (colorName || "").split("/")[0];
+  return /\bwhite\b/i.test(body);
+}
+
+/**
  * Does any garment in the quote need a white underbase?
  *
  * The print spec is shared across the quote, and the engine applies one
@@ -369,9 +388,9 @@ export function anyGarmentNeedsUnderbase(
   primaryColorName: string,
   lines: ExtraGarmentLine[]
 ): boolean {
-  if (primaryColorName !== "White") return true;
+  if (!isWhiteGarment(primaryColorName)) return true;
 
-  return lines.some((line) => line.colorName && line.colorName !== "White");
+  return lines.some((line) => line.colorName && !isWhiteGarment(line.colorName));
 }
 
 /**

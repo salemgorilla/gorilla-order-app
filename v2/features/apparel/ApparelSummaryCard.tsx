@@ -184,9 +184,7 @@ export default function ApparelSummaryCard({
             <span>Auto Count</span>
             <span className="text-right font-bold text-[var(--ink-black)]">
               {artworkAnalysis.estimatedColorCount}
-              {apparelQuote.garmentColor === "White"
-                ? ""
-                : " + underbase"}
+              {underbase ? " + underbase" : ""}
             </span>
           </div>
         )}

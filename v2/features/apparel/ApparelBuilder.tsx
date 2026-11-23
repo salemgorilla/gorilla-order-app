@@ -7,6 +7,7 @@ import SpecialOrderEscape from "../../components/SpecialOrderEscape";
 import SizeBreakdownGrid from "./SizeBreakdownGrid";
 import { apparelCatalog, type ApparelQuote } from "../../lib/apparel";
 import { POPULAR_COLOR_COUNT } from "../../lib/garment-color-ranking";
+import { isWhiteGarment } from "../../lib/apparel-cart-lines";
 import {
   garmentFamily,
   placementsFor,
@@ -749,7 +750,7 @@ export default function ApparelBuilder({
                 Underbase
               </p>
               <p className="mt-1 text-value font-bold text-[var(--ink-black)]">
-                {apparelQuote.garmentColor === "White"
+                {isWhiteGarment(apparelQuote.garmentColor)
                   ? "+0"
                   : "+1 white"}
               </p>

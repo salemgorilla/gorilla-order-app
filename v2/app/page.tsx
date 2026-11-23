@@ -225,6 +225,7 @@ import {
 } from "../lib/tee-deal";
 import {
   STICKER_DEAL,
+  STICKER_DEAL_UNIT,
   stickerDealProblem,
 } from "../lib/sticker-deal";
 import { DealActive } from "../components/DealActive";
@@ -883,13 +884,16 @@ export default function Home() {
     );
 
     // A Black Friday tee deal (lib/tee-deal.ts): the same regular quote,
-    // 25% off and no screens, before rush.
-    return withApparelRush(teeDeal ? applyTeeDeal(base) : base, {
+    // 25% off and no screens, before rush. Only once the quote fits the
+    // deal: until then the regular price shows beside the strip's note, so
+    // nobody sees a deal price on a quote the deal does not cover.
+    return withApparelRush(teeDeal && !teeDealLiveProblem ? applyTeeDeal(base) : base, {
       needBy: order.production.needBy,
       lane: turnaroundLane,
     });
   }, [
     teeDeal,
+    teeDealLiveProblem,
     apparelEstimateBasis,
     order.production.needBy,
     turnaroundLane,
@@ -4051,6 +4055,10 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
    * quantity would make design 1 look dearer every time another was added.
    */
   function getItemUnitPrice(item: (typeof order.items)[number]) {
+    // On the sticker deal the per-sticker figure is the deal's, setup included.
+    if (order.deal === STICKER_DEAL.id && !stickerDealLiveProblem) {
+      return STICKER_DEAL_UNIT;
+    }
     const index = order.items.findIndex((entry) => entry.id === item.id);
     const share = index === 0 ? STICKER_SETUP_FEE : STICKER_SETUP_FEE_ADDITIONAL;
 

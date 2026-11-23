@@ -110,11 +110,11 @@ describe("a light shirt does not change", () => {
     assert.equal(screenPrintMinimum(designColorCount(spec)), 12);
   });
 
-  test("white, off-white, Ash and Natural price like white", () => {
+  test("white, off-white, Ash, Natural and Sand price like white", () => {
     // Gabe, 23 Nov: "the only ones that aren't dark and would be considered
     // light is ash. White, natural," and "If there's an off-white, that
-    // would be considered light."
-    for (const name of ["Ash", "Natural", "Heather Natural", "Heather Soft Cream", "Heather French Vanilla"]) {
+    // would be considered light." and "Sand is light".
+    for (const name of ["Ash", "Natural", "Heather Natural", "Heather Soft Cream", "Heather French Vanilla", "Sand"]) {
       const spec = apparelPrintSpec(quoteFor(name), []);
       const cart = quoteApparelCart([tees(name)], spec);
       assert.equal(spec.hasUnderbase, false, name);
@@ -128,14 +128,14 @@ describe("a light shirt does not change", () => {
       "White", "Solid White Blend", "PFD White", "white", "White/Black",
       "Off White", "Off-White", "Ivory", "Cream", "Heather Soft Cream",
       "Heather French Vanilla", "Ash", "ash ", "Ash Grey", "Natural",
-      "Heather Natural", "Heather Prism Natural",
+      "Heather Natural", "Heather Prism Natural", "Sand", "Heather Sand Dune",
     ]) {
       assert.equal(isLightGarment(name), true, name);
     }
     for (const name of [
       "Solid Black Blend", "Black/White", "Black", "Navy", "Heather Navy",
       "Sport Grey", "Athletic Heather", "Heather Gray", "Ice Grey", "Heather Cement",
-      "Light Pink", "Light Blue", "Heather Mint", "Sand", "Heather Oatmeal",
+      "Light Pink", "Light Blue", "Heather Mint", "Heather Oatmeal",
       "Cornsilk", "Charcoal", "Dark Grey Heather", "Heather Red", "Royal",
       "Neon Yellow", "Safety Green", "Whitewater Blue", "Solid Asphalt Blend",
       "Custom / Not Sure", "",
@@ -152,7 +152,8 @@ describe("a light shirt does not change", () => {
     const names = [...new Set([...Object.values(fixture.styles).flat(), ...apparelCatalog.garmentColors])];
     assert.deepEqual(names.filter(isLightGarment).sort(), [
       "Ash", "Heather French Vanilla", "Heather Natural", "Heather Prism Natural",
-      "Heather Soft Cream", "Natural", "PFD White", "Solid White Blend", "White",
+      "Heather Sand Dune", "Heather Soft Cream", "Natural", "PFD White", "Sand",
+      "Solid White Blend", "White",
     ]);
     for (const name of OFF_WHITE_NAMES) assert.ok(names.includes(name), name);
   });

@@ -3,8 +3,9 @@
  *
  * Gabe, 2026-11-23: "I think the only ones that aren't dark and would be
  * considered light is ash. White, natural," and "If there's an off-white,
- * that would be considered light." (Earlier the same day: "Make Sport Grey
- * dark".) So light means white, off-white, Ash and Natural. Every other
+ * that would be considered light." and "Sand is light". (Earlier the same
+ * day: "Make Sport Grey dark".) So light means white, off-white, Ash,
+ * Natural and Sand. Every other
  * colour is dark and gets the underbase, which counts as a colour (Gabe,
  * 2026-11-21, "Under base counts as a colors").
  *
@@ -19,9 +20,10 @@
  *   off-white  Off White, Ivory, Cream (Heather Soft Cream)
  *   natural    Natural, Heather Natural, Heather Prism Natural
  *   ash        Ash (also "Ash Grey" on styles that name it so)
+ *   sand       Sand, Heather Sand Dune
  * plus the one off-white whose name says neither: Heather French Vanilla.
  */
-const LIGHT_WORDS = /\b(white|off[- ]?white|ivory|cream|natural|ash)\b/;
+const LIGHT_WORDS = /\b(white|off[- ]?white|ivory|cream|natural|ash|sand)\b/;
 
 /** Off-whites whose names carry none of the words above. */
 export const OFF_WHITE_NAMES: readonly string[] = ["Heather French Vanilla"];

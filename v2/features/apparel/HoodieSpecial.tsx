@@ -454,14 +454,20 @@ const STARBURST_CLIP = `polygon(${Array.from(
  * hover, the 2px focus ring.
  */
 export function HoodieSpecialAd({ onStart }: { onStart: () => void }) {
-  const lastDay = formatLastDay();
+  // Gabe, 2026-11-23: "Less info, have it say '50 hoodies, as low as $27
+  // each!'". The lower of the special's two prices, so it stays true.
+  const fromPrice = Math.min(
+    HOODIE_SPECIAL.frontPrice,
+    HOODIE_SPECIAL.frontAndBackPrice
+  );
+  const headline = `${HOODIE_SPECIAL.minPieces} hoodies, as low as $${fromPrice} each!`;
 
   return (
     <button
       type="button"
       data-testid="hoodie-special-ad"
       onClick={onStart}
-      aria-label={`${HOODIE_SPECIAL.name}: ${HOODIE_SPECIAL.minPieces} printed hoodies, $${HOODIE_SPECIAL.frontPrice} each front print, $${HOODIE_SPECIAL.frontAndBackPrice} each front and back, order by ${lastDay}. Start your hoodie order.`}
+      aria-label={`${headline} Start the ${HOODIE_SPECIAL.name}.`}
       className="group relative mx-auto mt-8 block aspect-square w-[18rem] shrink-0 cursor-pointer -rotate-6 transition-transform duration-[120ms] ease-linear hover:rotate-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--gorilla-green)] active:translate-x-[2px] active:translate-y-[2px] sm:w-[20rem] xl:absolute xl:right-0 xl:top-0 xl:mt-0"
     >
       {/* The hard offset: the same burst in ink black, 6px down-right. */}
@@ -480,40 +486,15 @@ export function HoodieSpecialAd({ onStart }: { onStart: () => void }) {
         aria-hidden="true"
         className="relative flex h-full flex-col items-center justify-center px-12 text-center text-white"
       >
-        <span className="spec text-spec font-bold uppercase tracking-eyebrow">
-          Limited time
+        <span className="text-display font-bold leading-[0.9] tracking-display">
+          {HOODIE_SPECIAL.minPieces} hoodies,
         </span>
-        <span className="mt-2 text-head font-bold leading-[0.95] tracking-display">
-          {HOODIE_SPECIAL.minPieces} printed
-          <br />
-          hoodies
-        </span>
-        <span className="mt-3 flex items-end gap-4">
-          <span className="flex flex-col items-center">
-            <span
-              data-testid="hoodie-special-ad-price"
-              className="text-head font-bold leading-none"
-            >
-              ${HOODIE_SPECIAL.frontPrice}
-            </span>
-            <span className="spec mt-1 text-spec font-medium uppercase">
-              front
-            </span>
-          </span>
-          <span className="flex flex-col items-center">
-            <span
-              data-testid="hoodie-special-ad-price"
-              className="text-head font-bold leading-none"
-            >
-              ${HOODIE_SPECIAL.frontAndBackPrice}
-            </span>
-            <span className="spec mt-1 text-spec font-medium uppercase">
-              front + back
-            </span>
-          </span>
-        </span>
-        <span className="spec mt-3 text-spec font-bold uppercase tracking-eyebrow underline decoration-2 underline-offset-4">
-          Order by {lastDay.replace("December", "Dec")} →
+        <span className="mt-3 text-value font-bold">as low as</span>
+        <span
+          data-testid="hoodie-special-ad-price"
+          className="mt-1 text-display font-bold leading-[0.9] tracking-display"
+        >
+          ${fromPrice} each!
         </span>
       </span>
     </button>

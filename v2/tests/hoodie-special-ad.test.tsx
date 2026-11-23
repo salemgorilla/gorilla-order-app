@@ -25,7 +25,7 @@ const MONDAY = "2026-11-23";
 describe("hoodie special landing ad", () => {
   const html = renderToStaticMarkup(<HoodieSpecialAd onStart={() => {}} />);
 
-  test("advertises the two prices the quote charges", () => {
+  test(""as low as" is the lowest price the quote charges", () => {
     const front = quoteHoodieSpecial({
       quantity: 50,
       colorName: "Black",
@@ -38,18 +38,24 @@ describe("hoodie special landing ad", () => {
       printLocations: ["Front", "Back"],
       sizeBreakdown: "",
     });
-    assert.ok(html.includes(`$${front.unitPrice}`), "front price shown");
-    assert.ok(html.includes(`$${both.unitPrice}`), "front and back price shown");
+    // "As low as" must be the cheaper of the two prices the quote charges.
+    assert.ok(html.includes(`$${Math.min(front.unitPrice, both.unitPrice)}`));
     assert.equal(front.unitPrice, 27);
     assert.equal(both.unitPrice, 33);
   });
 
-  test("names the minimum and the last day, on screen and to a screen reader", () => {
-    assert.ok(html.includes(`${HOODIE_SPECIAL.minPieces} printed`));
-    assert.ok(html.includes("Order by Dec 1"));
+  test("says Gabe's line, with the lowest price the quote charges", () => {
+    // Static markup splits text nodes with comments; compare the text.
+    const text = html
+      .replace(/<!-- -->/g, "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ");
+    assert.ok(text.includes(`${HOODIE_SPECIAL.minPieces} hoodies,`), text);
+    assert.ok(text.includes("as low as"), text);
+    assert.ok(text.includes("$27 each!"), text);
     assert.ok(
       html.includes(
-        `aria-label="${HOODIE_SPECIAL.name}: ${HOODIE_SPECIAL.minPieces} printed hoodies, $27 each front print, $33 each front and back, order by December 1. Start your hoodie order."`
+        `aria-label="${HOODIE_SPECIAL.minPieces} hoodies, as low as $27 each! Start the ${HOODIE_SPECIAL.name}."`
       )
     );
   });

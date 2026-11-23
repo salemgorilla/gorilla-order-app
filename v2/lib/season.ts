@@ -242,6 +242,11 @@ export function checkCalendar(): void {
     for (const name of [d.header, d.corner, ...(d.drift?.shapes ?? [])]) {
       if (name !== undefined && !DECOR[name]) throw new Error(`${where}: no decor called "${name}"`);
     }
+    // The cursor's drawing lives in lib/theme-cursors.ts (kept out of this
+    // file so the page doesn't carry it); tests/theme-cursor.test.ts checks
+    // every name here has one.
+    if (d.cursor !== undefined && !/^[a-z][a-z-]*$/.test(d.cursor)) throw new Error(`${where}: cursor name`);
+    if (d.cursor !== undefined && t.kind !== "holiday") throw new Error(`${where}: only holidays get a cursor`);
     if (d.drift) {
       const { shapes, count } = d.drift;
       if (shapes.length < 1 || shapes.length > 3) throw new Error(`${where}: drift takes 1 to 3 shapes`);

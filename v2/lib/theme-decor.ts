@@ -194,6 +194,15 @@ const BAT_HEADER = svg(
   `<g transform="translate(2 4) scale(2.5)"><path fill="#140e17" d="${BAT_D}"/></g>`
 );
 
+/* ---- Small shapes for the holiday cursors' click bursts (24 x 24) ---- */
+
+const COIN = svg(
+  "0 0 24 24",
+  `<circle cx="12" cy="12" r="9" fill="#e2b94b" stroke="#8a6a12" stroke-width="1.4"/>` +
+    `<circle cx="12" cy="12" r="5.6" fill="none" stroke="#8a6a12" stroke-width="0.9"/>`
+);
+const EGG_SMALL = svg("-12 -12 24 24", `<g transform="scale(0.85)">${egg(0, 0, 10, "#a9dcc8", "#ffffff")}</g>`);
+
 /** Every drawing a theme may name. */
 export const DECOR: Readonly<Record<string, string>> = {
   holly: HOLLY,
@@ -231,6 +240,8 @@ export const DECOR: Readonly<Record<string, string>> = {
   bat: bat("#140e17"),
   "bat-purple": bat("#5a2c85"),
   "bat-header": BAT_HEADER,
+  coin: COIN,
+  "egg-small": EGG_SMALL,
 };
 
 /** A drawing as a CSS url() value. */

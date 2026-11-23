@@ -79,6 +79,14 @@ export interface ThemeEntry {
     corner?: string;
     /** Drifting behind the page. One to three shapes, taken in turn. */
     drift?: { shapes: string[]; count: number; direction: "down" | "up" };
+    /**
+     * An animated character that follows the mouse (lib/theme-cursors.ts):
+     * santa, turkey, cupid, witch, cat, leprechaun, bunny, bouquet,
+     * spatula, rocket or bottle. Mouse only; phones and tablets keep their
+     * normal touch, and buttons, links, swatches and fields keep the
+     * normal pointer.
+     */
+    cursor?: string;
   };
 }
 
@@ -104,6 +112,7 @@ export const THEME_CALENDAR: readonly ThemeEntry[] = [
     },
     stripe: { colors: ["#22305a", "#e2b94b", "#f5f4f8", "#e2b94b"], angle: 90, band: "1rem" },
     decor: {
+      cursor: "bottle",
       header: "sparkle",
       corner: "sparkle",
       drift: { shapes: ["confetti", "confetti-blue", "sparkle-small"], count: 12, direction: "down" },
@@ -130,6 +139,7 @@ export const THEME_CALENDAR: readonly ThemeEntry[] = [
     },
     stripe: { colors: ["#a81f4b", "#fbf1f3", "#f29bb8", "#fbf1f3"], angle: -45, band: "0.75rem" },
     decor: {
+      cursor: "cupid",
       header: "heart",
       corner: "hearts",
       drift: { shapes: ["heart", "heart-pink"], count: 10, direction: "up" },
@@ -155,6 +165,7 @@ export const THEME_CALENDAR: readonly ThemeEntry[] = [
     },
     stripe: { colors: ["#16703a", "#eff6ec", "#d9a82b", "#eff6ec"], angle: 90, band: "1.5rem" },
     decor: {
+      cursor: "leprechaun",
       header: "shamrock",
       corner: "shamrocks",
       drift: { shapes: ["shamrock", "shamrock-light"], count: 10, direction: "down" },
@@ -180,6 +191,7 @@ export const THEME_CALENDAR: readonly ThemeEntry[] = [
     },
     stripe: { colors: ["#c9b3ee", "#f6e7a1", "#a9dcc8", "#f5c2d3"], angle: 90, band: "1.5rem" },
     decor: {
+      cursor: "bunny",
       header: "egg",
       corner: "eggs",
       drift: { shapes: ["blossom", "blossom-yellow"], count: 8, direction: "down" },
@@ -205,6 +217,7 @@ export const THEME_CALENDAR: readonly ThemeEntry[] = [
     },
     stripe: { colors: ["#963a55", "#fbf3f2", "#f1a8bb", "#fbf3f2"], angle: 90, band: "1rem" },
     decor: {
+      cursor: "bouquet",
       header: "tulip",
       corner: "tulip",
       drift: { shapes: ["blossom", "blossom-rose"], count: 8, direction: "down" },
@@ -229,7 +242,7 @@ export const THEME_CALENDAR: readonly ThemeEntry[] = [
       "badge-fill": "#7a4a22", // saddle brown
     },
     stripe: { colors: ["#284a72", "#f1f3f6", "#7a4a22", "#f1f3f6"], angle: -45, band: "0.75rem" },
-    decor: { header: "necktie" },
+    decor: { header: "necktie", cursor: "spatula" },
   },
   {
     id: "july-4",
@@ -252,6 +265,7 @@ export const THEME_CALENDAR: readonly ThemeEntry[] = [
     },
     stripe: { colors: ["#b22234", "#f6f6f8", "#1f3a6e", "#f6f6f8"], angle: 90, band: "1rem" },
     decor: {
+      cursor: "rocket",
       header: "star-header",
       corner: "firework",
       drift: { shapes: ["star", "star-blue", "star-gold"], count: 10, direction: "down" },
@@ -280,6 +294,7 @@ export const THEME_CALENDAR: readonly ThemeEntry[] = [
     },
     stripe: { colors: ["#5a2c85", "#f08b2c", "#1a1320", "#f08b2c"], angle: 90, band: "1.5rem" },
     decor: {
+      cursor: "cat",
       header: "moon",
       corner: "pumpkin",
       drift: { shapes: ["leaf", "leaf-gold", "leaf-red"], count: 8, direction: "down" },
@@ -306,6 +321,7 @@ export const THEME_CALENDAR: readonly ThemeEntry[] = [
     },
     stripe: { colors: ["#140e17", "#ff9a3c"], angle: -45, band: "0.75rem" },
     decor: {
+      cursor: "witch",
       header: "bat-header",
       corner: "jack-o-lantern",
       drift: { shapes: ["bat", "bat-purple"], count: 10, direction: "up" },
@@ -333,6 +349,7 @@ export const THEME_CALENDAR: readonly ThemeEntry[] = [
     },
     stripe: { colors: ["#9a4b00", "#e2a72e", "#8a1f2d", "#5c4632"], angle: 90, band: "2rem" },
     decor: {
+      cursor: "turkey",
       // Gabe, 2026-11-23: yes to "a small pumpkin or acorn by the logo".
       header: "pumpkin",
       corner: "leaf-corner",
@@ -361,6 +378,7 @@ export const THEME_CALENDAR: readonly ThemeEntry[] = [
     },
     stripe: { colors: ["#a11a2e", "#fbf7ef", "#1d5c34", "#fbf7ef"], angle: -45, band: "0.75rem" },
     decor: {
+      cursor: "santa",
       header: "bells",
       corner: "holly",
       drift: { shapes: ["snowflake"], count: 12, direction: "down" },

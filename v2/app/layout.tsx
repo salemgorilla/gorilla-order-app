@@ -4,6 +4,15 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { seasonThemeScript, themeStylesheet } from "../lib/season";
 import { DecorDrift } from "../components/SeasonDecor";
+import { ThemeCursor } from "../components/ThemeCursor";
+import { THEME_CALENDAR } from "../lib/theme-calendar";
+
+// Which holiday brings which mouse character (decor.cursor). A few bytes;
+// the drawings themselves load only on a computer with a mouse, and only
+// while one of these holidays is on.
+const THEME_CURSORS: Record<string, string> = Object.fromEntries(
+  THEME_CALENDAR.flatMap((t) => (t.on && t.decor?.cursor ? [[t.id, t.decor.cursor]] : []))
+);
 
 // Order Desk type system: Space Grotesk for display + UI, JetBrains Mono for
 // spec furniture only (ticket numbers, timestamps, statuses, size grids).
@@ -53,6 +62,9 @@ export default function RootLayout({
             theme has some. */}
         <DecorDrift />
         {children}
+        {/* The holiday mouse character, drawn above everything on a layer
+            that takes no clicks. */}
+        <ThemeCursor cursors={THEME_CURSORS} />
         {/**
          * SHIPS DARK.
          *

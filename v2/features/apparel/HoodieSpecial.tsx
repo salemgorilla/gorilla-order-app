@@ -486,13 +486,18 @@ export function HoodieSpecialAd({ onStart }: { onStart: () => void }) {
         aria-hidden="true"
         className="relative flex h-full flex-col items-center justify-center px-12 text-center text-white"
       >
-        <span className="text-display font-bold leading-[0.9] tracking-display">
-          {HOODIE_SPECIAL.minPieces} hoodies,
+        {/* Each line is sized to fit the burst's inner circle on a phone
+            (18rem) and at 20rem, without wrapping mid-phrase. */}
+        <span className="text-price font-bold tracking-display">
+          {HOODIE_SPECIAL.minPieces}
+        </span>
+        <span className="text-head font-bold leading-none tracking-display">
+          hoodies,
         </span>
         <span className="mt-3 text-value font-bold">as low as</span>
         <span
           data-testid="hoodie-special-ad-price"
-          className="mt-1 text-display font-bold leading-[0.9] tracking-display"
+          className="mt-1 whitespace-nowrap text-section font-bold tracking-display"
         >
           ${fromPrice} each!
         </span>

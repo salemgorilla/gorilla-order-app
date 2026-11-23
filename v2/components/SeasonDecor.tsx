@@ -273,7 +273,11 @@ export function ThanksgivingBanner() {
     <p className="fall-banner spec text-spec font-bold uppercase tracking-eyebrow">
       <span>Happy Thanksgiving from Gorilla</span>
       {/* The placeholder deal tag; its words live in lib/season.ts. */}
-      {THANKSGIVING_TAG && <span className="fall-tag">{THANKSGIVING_TAG}</span>}
+      {THANKSGIVING_TAG && (
+        <a href="/deals" className="fall-tag">
+          {THANKSGIVING_TAG}
+        </a>
+      )}
     </p>
   );
 }

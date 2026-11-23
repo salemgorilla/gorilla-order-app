@@ -1566,6 +1566,28 @@ export default function Home() {
     setReorderPrefilled(true);
   }, []);
 
+  /**
+   * `?start=` from the deals page (lib/deals.ts): open the builder already on
+   * the deal. Read once on mount, like the reorder link above. Only two
+   * values do anything; anything else leaves the page as it opens normally.
+   */
+  const startApplied = useRef(false);
+  useEffect(() => {
+    if (startApplied.current) return;
+    startApplied.current = true;
+    const start = new URLSearchParams(window.location.search).get("start");
+    if (start === "hoodie-special" && hoodieSpecialOpen) {
+      startHoodieSpecialFromAd();
+    } else if (start === "apparel") {
+      const apparel = productCategories.find((product) => product.id === "apparel");
+      if (!apparel || apparel.status !== "active") return;
+      selectProduct(apparel);
+      goToStep("details", "apparel");
+    }
+    // Mount only: these handlers are stable in effect for the first render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function addDesign() {
     setOrder(
       recalculateOrder({

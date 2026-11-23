@@ -284,6 +284,9 @@ html[data-theme="thanksgiving"] .fall-banner {
   color: var(--ink-black);
   box-shadow: 2px 2px 0 var(--ink-black);
 }
+.fall-tag:hover {
+  background: var(--paper);
+}
 html[data-theme="thanksgiving"] .quote-desk {
   background-image:
     repeating-linear-gradient(0deg, var(--plaid-a) 0 6px, transparent 6px 18px),

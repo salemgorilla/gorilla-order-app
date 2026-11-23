@@ -21,7 +21,7 @@ import { readFileSync } from "node:fs";
 
 import { apparelPrintSpec } from "../lib/apparel-cart-lines";
 import { apparelCatalog } from "../lib/apparel";
-import { isLightGarment, LIGHT_GARMENT_COLORS } from "../lib/light-garments";
+import { isLightGarment, OFF_WHITE_NAMES } from "../lib/light-garments";
 import { apparelPricingConfig } from "../lib/apparel-pricing-config";
 import { quoteHoodieSpecial } from "../lib/hoodie-special";
 import { designColorCount, screenPrintMinimum } from "../lib/print-minimums";
@@ -110,8 +110,11 @@ describe("a light shirt does not change", () => {
     assert.equal(screenPrintMinimum(designColorCount(spec)), 12);
   });
 
-  test("light colours price like white (Gabe, 23 Nov: \"It should price like white\")", () => {
-    for (const name of ["Ash", "Natural", "Athletic Heather", "Heather Natural"]) {
+  test("white, off-white, Ash and Natural price like white", () => {
+    // Gabe, 23 Nov: "the only ones that aren't dark and would be considered
+    // light is ash. White, natural," and "If there's an off-white, that
+    // would be considered light."
+    for (const name of ["Ash", "Natural", "Heather Natural", "Heather Soft Cream", "Heather French Vanilla"]) {
       const spec = apparelPrintSpec(quoteFor(name), []);
       const cart = quoteApparelCart([tees(name)], spec);
       assert.equal(spec.hasUnderbase, false, name);
@@ -122,32 +125,36 @@ describe("a light shirt does not change", () => {
 
   test("which names read as light, and which as dark", () => {
     for (const name of [
-      "White", "Solid White Blend", "white", "White/Black", "Ash", "ash ",
-      "Natural", "Heather Gray", "Heather Grey", "Light Pink", "Heather Mint",
+      "White", "Solid White Blend", "PFD White", "white", "White/Black",
+      "Off White", "Off-White", "Ivory", "Cream", "Heather Soft Cream",
+      "Heather French Vanilla", "Ash", "ash ", "Ash Grey", "Natural",
+      "Heather Natural", "Heather Prism Natural",
     ]) {
       assert.equal(isLightGarment(name), true, name);
     }
     for (const name of [
-      "Solid Black Blend", "Black/White", "Black", "Navy", "Heather Navy", "Sport Grey",
-      "Charcoal", "Dark Grey Heather", "Heather Red", "Royal", "Forest",
-      "Neon Yellow", "Safety Green", "Whitewater Blue", "Custom / Not Sure", "",
+      "Solid Black Blend", "Black/White", "Black", "Navy", "Heather Navy",
+      "Sport Grey", "Athletic Heather", "Heather Gray", "Ice Grey", "Heather Cement",
+      "Light Pink", "Light Blue", "Heather Mint", "Sand", "Heather Oatmeal",
+      "Cornsilk", "Charcoal", "Dark Grey Heather", "Heather Red", "Royal",
+      "Neon Yellow", "Safety Green", "Whitewater Blue", "Solid Asphalt Blend",
+      "Custom / Not Sure", "",
     ]) {
       assert.equal(isLightGarment(name), false, name);
     }
   });
 
-  test("every light name is a real colour name the app can see", () => {
-    // Guards a typo silently leaving a light colour charged an underbase.
+  test("exactly these catalogue colours are light today", () => {
+    // Pins the live S&S names so a change to the rule shows up as a diff.
     const fixture = JSON.parse(
       readFileSync(new URL("./fixtures/ss-color-names-2026-11-21.json", import.meta.url), "utf8")
     ) as { styles: Record<string, string[]> };
-    const known = new Set([
-      ...Object.values(fixture.styles).flat(),
-      ...apparelCatalog.garmentColors,
+    const names = [...new Set([...Object.values(fixture.styles).flat(), ...apparelCatalog.garmentColors])];
+    assert.deepEqual(names.filter(isLightGarment).sort(), [
+      "Ash", "Heather French Vanilla", "Heather Natural", "Heather Prism Natural",
+      "Heather Soft Cream", "Natural", "PFD White", "Solid White Blend", "White",
     ]);
-    for (const name of LIGHT_GARMENT_COLORS) {
-      assert.ok(known.has(name), `${name} is not in the catalogue or fallback list`);
-    }
+    for (const name of OFF_WHITE_NAMES) assert.ok(names.includes(name), name);
   });
 
   test("white tees plus black hoodies still prices the run with it", () => {

@@ -39,3 +39,17 @@ export const apparelCatalogItems: ApparelCatalogItem[] = [
 //   Youth Soft Tee    Youth        style "10628" Bella+Canvas 3001YCVC
 
 export const apparelCatalogStyles = apparelCatalogItems.map((item) => item.style);
+
+/**
+ * Garments offered ONLY on a Black Friday deal (lib/tee-deal.ts), never in
+ * the regular builder. The catalogue route labels them like any other; the
+ * order page loads one only while its deal is open.
+ */
+export const dealCatalogItems: ApparelCatalogItem[] = [
+  {
+    label: "Heavy Cotton Tee",
+    category: "T-Shirts",
+    style: "16",
+    notes: "Gildan 5000 Heavy Cotton — the 24-tee Black Friday deals only.",
+  },
+];

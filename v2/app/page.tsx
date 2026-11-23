@@ -219,9 +219,7 @@ import {
 } from "../lib/hoodie-special";
 import {
   TEE_DEAL_FRONTS,
-  TEE_DEAL_GARMENT,
   TEE_DEAL_SIZES,
-  TEE_DEAL_STYLE,
   quoteTeeDeal,
   teeDealFor,
   teeDealNote,
@@ -582,13 +580,27 @@ export default function Home() {
   const isSignsSubmitted =
     submittedProductId === "signs" || submittedProductId === "banners";
 
+  /**
+   * The garments the builder offers. On a tee deal, the deal's one blank
+   * (the 24-tee deals' Gildan 5000 is loaded only for them); everywhere
+   * else, the regular catalogue and nothing a deal brought in.
+   */
+  const teeDealStyle = teeDeal?.style ?? null;
+  const visibleSsProducts = useMemo(
+    () =>
+      teeDealStyle
+        ? ssProducts.filter((product) => product.catalogStyle === teeDealStyle)
+        : ssProducts.filter((product) => apparelCatalogStyles.includes(product.catalogStyle)),
+    [teeDealStyle, ssProducts]
+  );
+
   const selectedSsProduct = useMemo(() => {
     return (
-      ssProducts.find((product) => product.id === selectedSsProductId) ||
-      ssProducts[0] ||
+      visibleSsProducts.find((product) => product.id === selectedSsProductId) ||
+      visibleSsProducts[0] ||
       null
     );
-  }, [selectedSsProductId, ssProducts]);
+  }, [selectedSsProductId, visibleSsProducts]);
 
   const selectedSsColor = useMemo(() => {
     return (
@@ -750,22 +762,22 @@ export default function Home() {
   }, [sizeQuantities]);
 
   const apparelCategories = useMemo(() => {
-    const categories = ssProducts
+    const categories = visibleSsProducts
       .map((product) => product.customerCategory)
       .filter(Boolean);
 
     return ["All", ...Array.from(new Set(categories))];
-  }, [ssProducts]);
+  }, [visibleSsProducts]);
 
   const filteredSsProducts = useMemo(() => {
     if (selectedApparelCategory === "All") {
-      return ssProducts;
+      return visibleSsProducts;
     }
 
-    return ssProducts.filter(
+    return visibleSsProducts.filter(
       (product) => product.customerCategory === selectedApparelCategory
     );
-  }, [selectedApparelCategory, ssProducts]);
+  }, [selectedApparelCategory, visibleSsProducts]);
 
   // One quote, however many designs are in it. The $15 setup is per design,
   // so quoteSignsCart is a sum rather than a second pricing engine — see
@@ -1288,6 +1300,35 @@ export default function Home() {
     });
   }
 
+  /**
+   * A deal's blank that the regular catalogue does not carry (the 24-tee
+   * deals' Gildan 5000) is fetched on its own once the catalogue has loaded,
+   * and only while that deal is open.
+   */
+  const dealStyleFetched = useRef<string | null>(null);
+  useEffect(() => {
+    if (!teeDealStyle || ssCatalogStatus !== "loaded") return;
+    if (ssProducts.some((p) => p.catalogStyle === teeDealStyle)) return;
+    if (dealStyleFetched.current === teeDealStyle) return;
+    dealStyleFetched.current = teeDealStyle;
+    fetch(`/api/ss-catalog?style=${encodeURIComponent(teeDealStyle)}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: SsCatalogResponse | null) => {
+        const added = data?.products ?? [];
+        if (added.length === 0) {
+          dealStyleFetched.current = null;
+          return;
+        }
+        setSsProducts((current) => [
+          ...current.filter((p) => !added.some((a) => a.id === p.id)),
+          ...added,
+        ]);
+      })
+      .catch(() => {
+        dealStyleFetched.current = null;
+      });
+  }, [teeDealStyle, ssCatalogStatus, ssProducts]);
+
   function handleSsProductSelect(product: SsCatalogProduct) {
     const firstColor =
       product.colors.find((color) => color.isAvailable) || product.colors[0];
@@ -1316,8 +1357,8 @@ export default function Home() {
 
     const firstProduct =
       category === "All"
-        ? ssProducts[0]
-        : ssProducts.find((product) => product.customerCategory === category);
+        ? visibleSsProducts[0]
+        : visibleSsProducts.find((product) => product.customerCategory === category);
 
     if (firstProduct) {
       handleSsProductSelect(firstProduct);
@@ -1734,9 +1775,9 @@ export default function Home() {
       return;
     }
     if (ssProducts.length === 0) return;
-    const basic = ssProducts.find((p) => p.catalogStyle === TEE_DEAL_STYLE);
+    const basic = ssProducts.find((p) => p.catalogStyle === teeDeal.style);
     if (!basic) return;
-    if (selectedSsProduct?.catalogStyle !== TEE_DEAL_STYLE) {
+    if (selectedSsProductId !== basic.id) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- one snap to the deal's blank after the catalogue loads
       handleSsProductSelect(basic);
       return;
@@ -1753,10 +1794,20 @@ export default function Home() {
     }
     // handleSsProductSelect is a plain function of this component.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teeDeal?.id, ssProducts, selectedSsProduct?.catalogStyle]);
+  }, [teeDeal?.id, ssProducts, selectedSsProductId]);
 
   function leaveTeeDeal() {
     setApparelQuoteState((current) => ({ ...current, promo: "" }));
+    // A deal-only blank (the 24-tee deals' Gildan 5000) is not in the
+    // regular builder, so leaving the deal hands the customer the Basic Tee
+    // rather than a garment the builder no longer lists.
+    const current = ssProducts.find((p) => p.id === selectedSsProductId);
+    if (current && !apparelCatalogStyles.includes(current.catalogStyle)) {
+      const regular =
+        ssProducts.find((p) => p.catalogStyle === apparelCatalogStyles[0]) ??
+        ssProducts.find((p) => apparelCatalogStyles.includes(p.catalogStyle));
+      if (regular) handleSsProductSelect(regular);
+    }
   }
 
   function addDesign() {
@@ -5011,7 +5062,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   <DealActive
                     testId="tee-deal-active"
                     name={teeDeal.name}
-                    terms={`$${teeDealTotal(teeDeal).toFixed(2)} (regular $${teeDeal.regularPrice.toFixed(2)}) for exactly ${teeDeal.quantity} ${TEE_DEAL_GARMENT}s, sizes ${TEE_DEAL_SIZES[0]} to ${TEE_DEAL_SIZES[TEE_DEAL_SIZES.length - 1]}, one ${teeDeal.maxInks === 1 ? "1-color" : "1- or 2-color"} print on the front. ${teeDeal.maxInks === 1 ? "Light tees only." : "Dark tees take 1-color art (the white underbase is the 2nd color)."} Printing included, no setup fee. You add your artwork, color and sizes.`}
+                    terms={`$${teeDealTotal(teeDeal).toFixed(2)} (regular $${teeDeal.regularPrice.toFixed(2)}) for exactly ${teeDeal.quantity} ${teeDeal.garment}s (${teeDeal.blank}), sizes ${TEE_DEAL_SIZES[0]} to ${TEE_DEAL_SIZES[TEE_DEAL_SIZES.length - 1]}, one ${teeDeal.maxInks === 1 ? "1-color" : "1- or 2-color"} print on the front. ${teeDeal.maxInks === 1 ? "Light tees only." : "Dark tees take 1-color art (the white underbase is the 2nd color)."} Printing included, no setup fee. You add your artwork, color and sizes.`}
                     problem={teeDealLiveProblem}
                     onLeave={leaveTeeDeal}
                   />

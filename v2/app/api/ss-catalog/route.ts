@@ -15,6 +15,7 @@ import { fetchSsActivewearCatalog } from "../../../lib/ss-activewear";
 import { apparelPricingConfig } from "../../../lib/apparel-pricing-config";
 import {
   apparelCatalogItems,
+  dealCatalogItems,
   apparelCatalogStyles,
 } from "../../../lib/apparel-catalog";
 
@@ -83,7 +84,7 @@ export async function GET(request: Request) {
     // Merge Gorilla's customer-facing labels/categories onto the raw S&S
     // products, matching on the style code each product was fetched under.
     const products = catalog.products.map((product) => {
-      const catalogItem = apparelCatalogItems.find(
+      const catalogItem = [...apparelCatalogItems, ...dealCatalogItems].find(
         (item) => item.style === product.catalogStyle
       );
 

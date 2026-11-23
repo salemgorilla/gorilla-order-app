@@ -46,7 +46,7 @@ export default function Header() {
             pickup notice uses. */}
         <div className="spec relative border border-[var(--rule)] bg-[var(--paper)] px-4 py-2 text-spec text-[var(--ink-muted)]">
           {/* Christmas only (SeasonDecor): holly tucked on the corner. */}
-          <Holly className="absolute -right-5 -top-5 h-9 w-12 rotate-12" />
+          <Holly className="absolute -right-7 -top-7 h-12 w-16 rotate-12" />
           <p className="font-bold uppercase tracking-eyebrow text-[var(--ink-black)]">
             Quote desk
           </p>

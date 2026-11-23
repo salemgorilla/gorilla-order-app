@@ -35,9 +35,9 @@ export function Holly({ className = "" }: { className?: string }) {
         strokeWidth="1"
         d="M30 23 C26 29 22 35 18 40 M34 23 C38 29 42 35 46 40"
       />
-      <circle className="fill-[var(--decor-berry)]" cx="28" cy="18" r="5" />
-      <circle className="fill-[var(--decor-berry)]" cx="36" cy="18" r="5" />
-      <circle className="fill-[var(--decor-berry)]" cx="32" cy="11" r="5" />
+      <circle className="fill-[var(--decor-berry)] stroke-[var(--decor-berry-edge)]" strokeWidth="1.3" cx="28" cy="18" r="5" />
+      <circle className="fill-[var(--decor-berry)] stroke-[var(--decor-berry-edge)]" strokeWidth="1.3" cx="36" cy="18" r="5" />
+      <circle className="fill-[var(--decor-berry)] stroke-[var(--decor-berry-edge)]" strokeWidth="1.3" cx="32" cy="11" r="5" />
       <circle className="fill-[var(--decor-shine)]" cx="26.5" cy="16.5" r="1.4" />
       <circle className="fill-[var(--decor-shine)]" cx="34.5" cy="16.5" r="1.4" />
       <circle className="fill-[var(--decor-shine)]" cx="30.5" cy="9.5" r="1.4" />
@@ -92,18 +92,18 @@ function Flake() {
  * scatter of snow instead of a falling one.
  */
 const FLAKES: Array<{ x: number; y: number; size: number; dur: number; delay: number; drift: number }> = [
-  { x: 3, y: 12, size: 14, dur: 16, delay: 0, drift: 30 },
-  { x: 11, y: 58, size: 10, dur: 21, delay: -7, drift: -20 },
-  { x: 19, y: 30, size: 18, dur: 18, delay: -3, drift: 40 },
-  { x: 28, y: 80, size: 11, dur: 24, delay: -12, drift: 25 },
-  { x: 37, y: 6, size: 13, dur: 19, delay: -15, drift: -35 },
-  { x: 46, y: 44, size: 9, dur: 22, delay: -5, drift: 20 },
-  { x: 55, y: 70, size: 16, dur: 17, delay: -10, drift: -25 },
-  { x: 64, y: 20, size: 12, dur: 23, delay: -2, drift: 30 },
-  { x: 73, y: 52, size: 17, dur: 20, delay: -14, drift: -40 },
-  { x: 82, y: 88, size: 10, dur: 25, delay: -8, drift: 20 },
-  { x: 90, y: 36, size: 15, dur: 18, delay: -11, drift: -30 },
-  { x: 97, y: 64, size: 11, dur: 21, delay: -4, drift: 25 },
+  { x: 3, y: 12, size: 20, dur: 16, delay: 0, drift: 30 },
+  { x: 11, y: 58, size: 14, dur: 21, delay: -7, drift: -20 },
+  { x: 19, y: 30, size: 25, dur: 18, delay: -3, drift: 40 },
+  { x: 28, y: 80, size: 15, dur: 24, delay: -12, drift: 25 },
+  { x: 37, y: 6, size: 18, dur: 19, delay: -15, drift: -35 },
+  { x: 46, y: 44, size: 13, dur: 22, delay: -5, drift: 20 },
+  { x: 55, y: 70, size: 22, dur: 17, delay: -10, drift: -25 },
+  { x: 64, y: 20, size: 17, dur: 23, delay: -2, drift: 30 },
+  { x: 73, y: 52, size: 24, dur: 20, delay: -14, drift: -40 },
+  { x: 82, y: 88, size: 14, dur: 25, delay: -8, drift: 20 },
+  { x: 90, y: 36, size: 21, dur: 18, delay: -11, drift: -30 },
+  { x: 97, y: 64, size: 15, dur: 21, delay: -4, drift: 25 },
 ];
 
 /**

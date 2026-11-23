@@ -122,6 +122,7 @@ html[data-theme="christmas"] {
   --decor-leaf-dark: #154628;
   --decor-vein: #5f8f6c;
   --decor-berry: #b3172f;
+  --decor-berry-edge: #fbf7ef; /* lifts the berries off the red badge */
   --decor-shine: #f3c6cc;
   --decor-gold: #d6ac3a;
   --decor-gold-dark: #8c6a12;

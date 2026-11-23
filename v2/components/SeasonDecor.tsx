@@ -66,3 +66,17 @@ export function DecorDrift() {
     </div>
   );
 }
+
+/**
+ * A slim greeting above the header, Thanksgiving only (Gabe, 2026-11-23).
+ * Hidden by globals.css under every other theme. Real text, so it is read
+ * out like any other line when it shows. The way to the deals page is the
+ * black burst on the hoodie badge (features/apparel/HoodieSpecial.tsx).
+ */
+export function ThanksgivingBanner() {
+  return (
+    <p className="fall-banner spec text-spec font-bold uppercase tracking-eyebrow">
+      <span>Happy Thanksgiving from Gorilla</span>
+    </p>
+  );
+}

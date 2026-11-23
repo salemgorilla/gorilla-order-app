@@ -226,4 +226,9 @@ export type Order = {
    * code up again on submit and bills what the code is really worth.
    */
   discount?: Discount | null;
+  /**
+   * A Black Friday sticker deal the customer chose ("stickers-50-25", from
+   * lib/sticker-deal.ts), or null. The server decides whether it fits.
+   */
+  deal?: string | null;
 };

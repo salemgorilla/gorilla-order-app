@@ -72,6 +72,18 @@ type Props = {
    * error after.
    */
   minimumNotice?: string | null;
+  /**
+   * A Black Friday tee deal (lib/tee-deal.ts): one fixed price for a fixed
+   * count. The rough count, the per-size prices and the special-order
+   * escape describe nothing about it, so they give way, and only the
+   * deal's sizes, front placements and ink counts are offered.
+   */
+  fixedDeal?: {
+    quantity: number;
+    sizes: readonly string[];
+    placements: readonly string[];
+    inks: readonly string[];
+  } | null;
 };
 
 export default function ApparelBuilder({
@@ -104,6 +116,7 @@ export default function ApparelBuilder({
   onSetRoughQuantity,
   sizesEntered,
   minimumNotice,
+  fixedDeal,
 }: Props) {
   // Which of the chart's placements this garment takes (a hoodie's hood and
   // pocket rule some out) — lib/print-placements.ts.
@@ -111,7 +124,13 @@ export default function ApparelBuilder({
     catalogStyle: selectedSsProduct?.catalogStyle,
     garmentType: apparelQuote.garmentType,
   });
-  const offeredPlacements: PrintPlacement[] = placementsFor(family);
+  const offeredPlacements: PrintPlacement[] = placementsFor(family).filter(
+    (placement) => !fixedDeal || fixedDeal.placements.includes(placement.id)
+  );
+  const inkOptions = fixedDeal
+    ? apparelCatalog.inkColors.filter((option) => fixedDeal.inks.includes(option))
+    : apparelCatalog.inkColors;
+  const sizeTotal = Object.values(sizeQuantities).reduce((sum, n) => sum + (n || 0), 0);
 
   // The colour list arrives most-ordered first (lib/garment-color-ranking.ts),
   // so the first POPULAR_COLOR_COUNT are the likely picks. The rest wait
@@ -436,7 +455,7 @@ export default function ApparelBuilder({
               </div>
             )}
 
-            {selectedSsColor && (
+            {selectedSsColor && !fixedDeal && (
               <div>
                 <p className="mb-3 text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
                   Garment Prices by Size
@@ -522,7 +541,35 @@ export default function ApparelBuilder({
           submitted three times hunting for a number she could negotiate
           against; this is where that number gets its count. The size grid
           below REPLACES this the moment it holds anything — grid wins, no
-          reconciliation error, see the apparelQuote memo in page.tsx. */}
+          reconciliation error, see the apparelQuote memo in page.tsx.
+          On a deal the count is fixed, so the box says so instead. */}
+      {fixedDeal ? (
+        <div
+          data-testid="deal-fixed-quantity"
+          className={` bg-[var(--shirt-blank)] p-5 ${
+            fieldErrors?.quantity
+              ? "border-2 border-[var(--rush-red)]"
+              : "border border-[var(--rule)]"
+          }`}
+          data-invalid={fieldErrors?.quantity ? "true" : undefined}
+        >
+          <p className="text-fine font-semibold text-[var(--ink-black)]">
+            Quantity: exactly {fixedDeal.quantity}
+          </p>
+          <p className="mt-2 text-fine font-medium leading-5 text-[var(--ink-muted)]">
+            Set by the deal. Enter your sizes below so they add up to{" "}
+            {fixedDeal.quantity}. You have {sizeTotal}.
+          </p>
+          {fieldErrors?.quantity && (
+            <p
+              id="apparel-quantity-error"
+              className="mt-2 text-fine font-bold text-[var(--rush-red)]"
+            >
+              {fieldErrors.quantity}
+            </p>
+          )}
+        </div>
+      ) : (
       <div
         className={` bg-[var(--shirt-blank)] p-5 ${
           fieldErrors?.quantity
@@ -576,6 +623,7 @@ export default function ApparelBuilder({
           </p>
         )}
       </div>
+      )}
 
       {/* The SAME control every added garment gets — see
           SizeBreakdownGrid for why it is one component and not two.
@@ -589,8 +637,16 @@ export default function ApparelBuilder({
           both now use. */}
       <SizeBreakdownGrid
         title="Size Breakdown"
-        description="Optional for the estimate — enter your sizes and the price becomes exact. We confirm sizes before printing either way."
-        sizes={sizeOptionsForBreakdown.map((sizeName) => ({
+        description={
+          fixedDeal
+            ? `Required. Sizes ${fixedDeal.sizes[0]} to ${
+                fixedDeal.sizes[fixedDeal.sizes.length - 1]
+              }, adding up to exactly ${fixedDeal.quantity}.`
+            : "Optional for the estimate — enter your sizes and the price becomes exact. We confirm sizes before printing either way."
+        }
+        sizes={sizeOptionsForBreakdown
+          .filter((sizeName) => !fixedDeal || fixedDeal.sizes.includes(sizeName))
+          .map((sizeName) => ({
           sizeName,
           isAvailable:
             selectedSsColor?.sizes.find((size) => size.sizeName === sizeName)
@@ -608,9 +664,9 @@ export default function ApparelBuilder({
             Print Locations
           </p>
           <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
-            One per side, plus a sleeve or collar print if you like. Sizes are
-            the usual print sizes for this garment; we confirm yours on the
-            proof.
+            {fixedDeal
+              ? "The deal is one print on the front. Pick where it goes; we confirm the size on the proof."
+              : "One per side, plus a sleeve or collar print if you like. Sizes are the usual print sizes for this garment; we confirm yours on the proof."}
           </p>
         </div>
 
@@ -687,7 +743,7 @@ export default function ApparelBuilder({
           <OptionSelector
             key={location}
             title={`Ink Colors — ${location}`}
-            options={apparelCatalog.inkColors}
+            options={inkOptions}
             selected={
               apparelQuote.inkColorsByLocation?.[location] ||
               apparelQuote.inkColors
@@ -700,7 +756,7 @@ export default function ApparelBuilder({
       ) : (
         <OptionSelector
           title="Ink Colors"
-          options={apparelCatalog.inkColors}
+          options={inkOptions}
           selected={apparelQuote.inkColors}
           onSelect={(inkColors) => onSelectInkColors(inkColors)}
         />
@@ -718,6 +774,7 @@ export default function ApparelBuilder({
           why it is one component and why it is never a heuristic on the
           notes field. Apparel's consequence line differs from the other
           flows': it has no payment link to withhold, only a number. */}
+      {!fixedDeal && (
       <SpecialOrderEscape
         idPrefix="apparel-special-order"
         checked={Boolean(apparelQuote.specialOrder)}
@@ -728,6 +785,7 @@ export default function ApparelBuilder({
         error={fieldErrors?.specialOrderNotes}
         onChange={onUpdateSpecialOrder}
       />
+      )}
 
       {artworkAnalysis?.estimatedColorCount && (
         <div className=" border border-[var(--rule)] bg-[var(--shirt-blank)] p-4">

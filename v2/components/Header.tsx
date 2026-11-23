@@ -1,8 +1,11 @@
 import { SHOP } from "../lib/shop";
-import { DecorCorner, DecorHeader } from "./SeasonDecor";
+import { DecorCorner, DecorHeader, ThanksgivingBanner } from "./SeasonDecor";
 
 export default function Header() {
   return (
+    <>
+    {/* Thanksgiving only (SeasonDecor): a slim greeting above the header. */}
+    <ThanksgivingBanner />
     <header className="site-header border-b-4 border-[var(--ink-black)] bg-[var(--shirt-blank)] py-6">
       {/* `site-header` carries the seasonal stripe along the top edge
           (lib/theme-calendar.ts). Outside a season it does nothing. */}
@@ -44,7 +47,7 @@ export default function Header() {
             the mono register the rest of the app reserves for real values.
             The address is the shop's, from lib/shop.ts, the same string the
             pickup notice uses. */}
-        <div className="spec relative border border-[var(--rule)] bg-[var(--paper)] px-4 py-2 text-spec text-[var(--ink-muted)]">
+        <div className="quote-desk spec relative border border-[var(--rule)] bg-[var(--paper)] px-4 py-2 text-spec text-[var(--ink-muted)]">
           {/* Theme decor (SeasonDecor): Christmas holly and the like. */}
           <DecorCorner className="absolute -right-7 -top-7 h-12 w-16 rotate-12" />
           <p className="font-bold uppercase tracking-eyebrow text-[var(--ink-black)]">
@@ -56,5 +59,6 @@ export default function Header() {
         </div>
       </div>
     </header>
+    </>
   );
 }

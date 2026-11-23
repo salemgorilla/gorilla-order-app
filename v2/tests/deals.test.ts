@@ -1,0 +1,60 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+
+import { DEALS, DEAL_STARTS, dealHref, liveDeals } from "../lib/deals";
+import { readFileSync } from "node:fs";
+
+describe("the deals list", () => {
+  it("has unique ids", () => {
+    assert.equal(new Set(DEALS.map((d) => d.id)).size, DEALS.length);
+  });
+  it("hides a deal after its last day, on that day still shows it", () => {
+    const hoodie = DEALS.find((d) => d.id === "hoodie-special");
+    assert.ok(hoodie?.endsOn);
+    assert.ok(liveDeals(hoodie.endsOn).some((d) => d.id === "hoodie-special"));
+    assert.ok(!liveDeals("2099-01-01").some((d) => d.id === "hoodie-special"));
+  });
+  it("links only into the app or to the shop's own email", () => {
+    for (const deal of DEALS) {
+      if (deal.how === "soon") continue;
+      const href = dealHref(deal);
+      assert.ok(
+        href.startsWith("/?start="),
+        `${deal.id}: ${href}`
+      );
+    }
+  });
+  it("starts in-app deals only at a place the order page understands", () => {
+    for (const deal of DEALS) {
+      if (deal.how === "order") {
+        assert.ok(deal.start && DEAL_STARTS.includes(deal.start), deal.id);
+      }
+    }
+  });
+  it("every start value is one the order page handles", () => {
+    const page = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
+    assert.match(page, /start === "hoodie-special"/);
+    assert.match(page, /start === "stickers-deal"/);
+    assert.match(page, /teeDealFor\(start\)/);
+  });
+  it("every orderable deal has its one fixed price, and the regular price is higher", () => {
+    for (const deal of DEALS) {
+      if (deal.id === "hoodie-special") continue;
+      if (deal.how === "order") assert.ok(deal.price !== null, deal.id);
+      if (deal.price !== null && deal.regularPrice !== null) {
+        assert.ok(deal.regularPrice > deal.price, deal.id);
+      }
+    }
+  });
+  it("the tee and sticker cards read their prices from the pricing code", () => {
+    const byId = Object.fromEntries(DEALS.map((d) => [d.id, d]));
+    assert.equal(byId["stickers-50"].price, 25);
+    assert.equal(byId["tees-24-1color"].price, 206.16);
+    assert.equal(byId["tees-24-2color"].price, 247.44);
+    assert.equal(byId["beanies-12"].price, 109.8);
+    assert.equal(byId["beanies-12"].regularPrice, 146.4);
+    assert.equal(byId["hats-12"].price, 159.72);
+    assert.equal(byId["hats-12"].regularPrice, 213);
+    assert.equal(byId["polos-6"], undefined);
+  });
+});

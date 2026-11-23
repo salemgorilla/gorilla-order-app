@@ -202,6 +202,8 @@ import {
 import ApparelSummaryCard from "../features/apparel/ApparelSummaryCard";
 import {
   HoodieSpecialAd,
+  HOODIE_AD_PLACEMENT,
+  DealsBurst,
   HoodieSpecialBuilder,
   HoodieSpecialEntry,
 } from "../features/apparel/HoodieSpecial";
@@ -215,6 +217,27 @@ import {
   quoteHoodieSpecial,
   type HoodieSpecialSides,
 } from "../lib/hoodie-special";
+import {
+  TEE_DEAL_FRONTS,
+  TEE_DEAL_GARMENT,
+  TEE_DEAL_QUANTITY,
+  TEE_DEAL_SIZES,
+  TEE_DEAL_STYLE,
+  quoteTeeDeal,
+  teeDealFor,
+  teeDealNote,
+  teeDealProblem,
+  teeDealTotal,
+  type TeeDeal,
+} from "../lib/tee-deal";
+import {
+  STICKER_DEAL,
+  STICKER_DEAL_UNIT,
+  stickerDealProblem,
+} from "../lib/sticker-deal";
+import { DealActive } from "../components/DealActive";
+import { isLightGarment } from "../lib/light-garments";
+import { THANKSGIVING_TAG } from "../lib/season";
 import SignsBuilder from "../features/signs/SignsBuilder";
 import SpecialOrderEscape from "../components/SpecialOrderEscape";
 import SignsDelivery from "../features/signs/SignsDelivery";
@@ -470,6 +493,15 @@ export default function Home() {
     apparelQuoteState.promo === HOODIE_SPECIAL.id;
   /** Offered through the special's last day, on Salem's clock. */
   const hoodieSpecialOpen = isHoodieSpecialOpen();
+  /**
+   * A Black Friday tee deal (lib/tee-deal.ts), chosen from the deals page.
+   * The regular builder, priced 25% off with no screen fee; null on every
+   * regular quote, which then prices exactly as it always has.
+   */
+  const teeDeal =
+    isApparelSelected && !apparelIsRequestFlow
+      ? teeDealFor(apparelQuoteState.promo)
+      : null;
   const isApparelSubmitted = submittedProductId === "apparel";
   const isBannersSelected = selectedProductId === "banners";
   /**
@@ -533,7 +565,7 @@ export default function Home() {
     // not promise an estimate that updates — see lib/rush.ts.
     priced: !isApparelRequest && !isPaperSelected,
     // The special's price is flat, rush date or not: no 25% to promise.
-    flatPrice: isHoodieSpecial,
+    flatPrice: isHoodieSpecial || Boolean(teeDeal),
   });
 
   const signsQuote = largeFormatQuotes[signsFamily];
@@ -698,7 +730,9 @@ export default function Home() {
     const effectiveQuantity =
       // The special has no rough count: its sizes ARE the order, so an
       // empty grid is zero hoodies, never the regular builder's 24.
-      isHoodieSpecial || sizeQuantityTotal > 0
+      teeDeal
+        ? TEE_DEAL_QUANTITY
+        : isHoodieSpecial || sizeQuantityTotal > 0
         ? sizeQuantityTotal
         : apparelQuoteState.quantity;
 
@@ -707,7 +741,7 @@ export default function Home() {
         // not see a new reference every render.
         apparelQuoteState
       : { ...apparelQuoteState, quantity: effectiveQuantity };
-  }, [apparelQuoteState, isApparelRequest, isHoodieSpecial, sizeQuantityTotal]);
+  }, [apparelQuoteState, isApparelRequest, isHoodieSpecial, teeDeal, sizeQuantityTotal]);
 
   const sizeBreakdownFromButtons = useMemo(() => {
     return Object.entries(sizeQuantities)
@@ -769,7 +803,33 @@ export default function Home() {
   );
   const apparelNeedsUnderbase = apparelPrint.hasUnderbase;
 
+  /** Why the quote is not on its tee deal yet, said in the deal strip. */
+  const teeDealLiveProblem = teeDeal
+    ? teeDealProblem(teeDeal, {
+        sizeBreakdown: sizeBreakdownFromButtons,
+        catalogStyle: chosenSsProduct?.catalogStyle,
+        garmentColor: apparelQuote.garmentColor,
+        printLocations: apparelQuote.printLocations,
+        inkColors: apparelQuote.inkColors,
+        inkColorsByLocation: apparelQuote.inkColorsByLocation,
+        extraLines: extraGarmentLines.length,
+      })
+    : null;
+  /** The same for the sticker deal: the cart prices at list until it fits. */
+  const stickerDealLiveProblem =
+    order.deal === STICKER_DEAL.id ? stickerDealProblem(order.items) : null;
+
   const apparelPricing = useMemo(() => {
+    // A Black Friday tee deal (lib/tee-deal.ts): one fixed price for exactly
+    // 24, whatever is picked. The deal strip says what still has to change
+    // before it can be sent; the figure itself never moves.
+    if (teeDeal) {
+      return quoteTeeDeal(teeDeal, {
+        colorName: apparelQuote.garmentColor,
+        sizeBreakdown: sizeBreakdownFromButtons,
+      });
+    }
+
     // The special's flat price, and nothing of the matrix: no garment
     // markup, no screens, no underbase, no rush, no added garments.
     if (isHoodieSpecial) {
@@ -849,6 +909,7 @@ export default function Home() {
       lane: turnaroundLane,
     });
   }, [
+    teeDeal,
     apparelEstimateBasis,
     order.production.needBy,
     turnaroundLane,
@@ -876,14 +937,14 @@ export default function Home() {
   const apparelMinimumNotice = useMemo(
     () =>
       // The special has its own floor, said in its own builder.
-      !apparelQuote.specialOrder && !isHoodieSpecial && apparelPricing.quantity > 0
+      !apparelQuote.specialOrder && !isHoodieSpecial && !teeDeal && apparelPricing.quantity > 0
         ? screenPrintMinimumMessage(
             apparelPricing.quantity,
             designColorCount(apparelPrint),
             { underbase: apparelPrint.hasUnderbase }
           )
         : null,
-    [apparelQuote, apparelPricing.quantity, apparelPrint, isHoodieSpecial]
+    [apparelQuote, apparelPricing.quantity, apparelPrint, isHoodieSpecial, teeDeal]
   );
 
   /**
@@ -1442,7 +1503,24 @@ export default function Home() {
 
   function recalculateOrder(nextOrder: typeof order) {
     const discount = nextOrder.discount ?? null;
-    const priced = nextOrder.items.map((item) => priceStickerItem(item, discount));
+    const pricedAtList = nextOrder.items.map((item) => priceStickerItem(item, discount));
+
+    /**
+     * The Black Friday sticker deal (lib/sticker-deal.ts), when the customer
+     * chose it AND the cart fits it: $25 for the stickers, setup included,
+     * no minimum, no code. When it does not fit, the cart prices at list as
+     * usual and the deal strip says why; the server makes the same call.
+     */
+    const onDeal =
+      nextOrder.deal === STICKER_DEAL.id &&
+      !stickerDealProblem(pricedAtList.map((entry) => entry.item));
+    const priced = onDeal
+      ? pricedAtList.map((entry) => ({
+          ...entry,
+          materialPrice: STICKER_DEAL.price,
+          listPrice: STICKER_DEAL.price,
+        }))
+      : pricedAtList;
 
     // The same call the SERVER makes in repriceStickers. Adding these up was
     // written out in both places; the browser showing one total while the
@@ -1458,7 +1536,8 @@ export default function Home() {
       })),
       destZip: nextOrder.production.shipZip,
       listPrices: priced.map((entry) => entry.listPrice),
-      discount,
+      discount: onDeal ? null : discount,
+      deal: onDeal,
     });
 
     return {
@@ -1475,6 +1554,9 @@ export default function Home() {
    * set one.
    */
   async function applyDiscountCode(code: string): Promise<string | null> {
+    if (order.deal === STICKER_DEAL.id) {
+      return "Codes don't apply to the Black Friday sticker deal. Switch to a regular quote to use one.";
+    }
     try {
       const response = await fetch("/api/discount-code", {
         method: "POST",
@@ -1565,6 +1647,118 @@ export default function Home() {
     );
     setReorderPrefilled(true);
   }, []);
+
+  /**
+   * `?start=` from the deals page (lib/deals.ts): open the builder already on
+   * the deal. Read once on mount, like the reorder link above. Only two
+   * values do anything; anything else leaves the page as it opens normally.
+   */
+  const startApplied = useRef(false);
+  useEffect(() => {
+    if (startApplied.current) return;
+    startApplied.current = true;
+    const start = new URLSearchParams(window.location.search).get("start");
+    if (start === "hoodie-special" && hoodieSpecialOpen) {
+      startHoodieSpecialFromAd();
+    } else if (start === "stickers-deal") {
+      startStickerDeal();
+    } else if (teeDealFor(start)) {
+      startTeeDeal(teeDealFor(start) as TeeDeal);
+    } else if (start === "apparel") {
+      const apparel = productCategories.find((product) => product.id === "apparel");
+      if (!apparel || apparel.status !== "active") return;
+      selectProduct(apparel);
+      goToStep("details", "apparel");
+    }
+    // Mount only: these handlers are stable in effect for the first render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** The deals page's "50 stickers for $25": one design, 50 at 3" x 3". */
+  function startStickerDeal() {
+    const stickers = productCategories.find((product) => product.id === "stickers");
+    if (stickers) selectProduct(stickers);
+    setOrder((prev) =>
+      recalculateOrder({
+        ...prev,
+        deal: STICKER_DEAL.id,
+        discount: null,
+        items: [
+          createStickerItem({
+            quantity: STICKER_DEAL.quantity,
+            widthInches: STICKER_DEAL.maxInches,
+            heightInches: STICKER_DEAL.maxInches,
+            shape: "Die Cut",
+            material: STICKER_DEAL.material,
+            ...(stickers ? { type: stickers.title } : {}),
+          }),
+        ],
+      })
+    );
+    goToStep("details", "stickers");
+  }
+
+  function leaveStickerDeal() {
+    setOrder((prev) => recalculateOrder({ ...prev, deal: null }));
+  }
+
+  /** The deals page's tee deals: the regular builder, 24 tees, one front. */
+  function startTeeDeal(deal: TeeDeal) {
+    const apparel = productCategories.find((product) => product.id === "apparel");
+    if (!apparel || apparel.status !== "active") return;
+    selectProduct(apparel);
+    setSizeQuantities({});
+    setExtraGarmentLines([]);
+    const ink = deal.maxInks === 1 ? "1 color" : "2 colors";
+    setApparelQuoteState((current) => ({
+      ...current,
+      promo: deal.id,
+      quantity: 0,
+      printLocations: ["Front"],
+      inkColors: ink,
+      inkColorsByLocation: {},
+      sizeBreakdown: "",
+      specialOrder: false,
+    }));
+    goToStep("details", "apparel");
+  }
+
+  /**
+   * On a tee deal the blank is the Basic Tee, and the 1-color deal a light
+   * one. The catalogue loads after the deal starts and picks its own first
+   * garment, so this puts the deal's back once it has.
+   */
+  const teeDealColorSet = useRef<string | null>(null);
+  useEffect(() => {
+    if (!teeDeal) {
+      teeDealColorSet.current = null;
+      return;
+    }
+    if (ssProducts.length === 0) return;
+    const basic = ssProducts.find((p) => p.catalogStyle === TEE_DEAL_STYLE);
+    if (!basic) return;
+    if (selectedSsProduct?.catalogStyle !== TEE_DEAL_STYLE) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one snap to the deal's blank after the catalogue loads
+      handleSsProductSelect(basic);
+      return;
+    }
+    // Start on White once per deal: a light tee fits either deal's art.
+    // After that only the 1-color deal keeps the tee light.
+    const firstLook = teeDealColorSet.current !== teeDeal.id;
+    teeDealColorSet.current = teeDeal.id;
+    if ((firstLook || teeDeal.maxScreens < 2) && !isLightGarment(apparelQuote.garmentColor)) {
+      const white = basic.colors.find((c) => c.colorName === "White" && c.isAvailable);
+      if (!white) return;
+      setSelectedSsColorName(white.colorName);
+      setApparelQuoteState((current) => ({ ...current, garmentColor: white.colorName }));
+    }
+    // handleSsProductSelect is a plain function of this component.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teeDeal?.id, ssProducts, selectedSsProduct?.catalogStyle]);
+
+  function leaveTeeDeal() {
+    setApparelQuoteState((current) => ({ ...current, promo: "" }));
+  }
 
   function addDesign() {
     setOrder(
@@ -2361,6 +2555,8 @@ export default function Home() {
         totalQuantity: apparelPricing.quantity,
         hasUnderbase: apparelNeedsUnderbase,
         promoArtworkColorCount: artworkAnalysis?.estimatedColorCount ?? null,
+        catalogStyle: chosenSsProduct?.catalogStyle,
+        extraLineCount: extraGarmentLines.length,
       },
       order,
       sizeQuantityTotal,
@@ -2380,6 +2576,8 @@ export default function Home() {
         totalQuantity: apparelPricing.quantity,
         hasUnderbase: apparelNeedsUnderbase,
         promoArtworkColorCount: artworkAnalysis?.estimatedColorCount ?? null,
+        catalogStyle: chosenSsProduct?.catalogStyle,
+        extraLineCount: extraGarmentLines.length,
       },
       order,
       sizeQuantityTotal,
@@ -2551,6 +2749,8 @@ export default function Home() {
           // and the Printavo note name it; absent on a regular quote.
           ...(isHoodieSpecial
             ? { promo: HOODIE_SPECIAL.id, promoName: HOODIE_SPECIAL.name }
+            : teeDeal
+            ? { promo: teeDeal.id, promoName: teeDeal.name }
             : {}),
           // chosenSs*, not selectedSs*: a request-mode payload must say
           // "Not selected" — as it always did while the catalog was dark —
@@ -2608,6 +2808,13 @@ export default function Home() {
               quoteRequired: false,
               promo: HOODIE_SPECIAL.id,
               note: hoodieSpecialNote(apparelQuote.printLocations),
+            }
+          : teeDeal
+          ? {
+              ...apparelPricing,
+              quoteRequired: false,
+              promo: teeDeal.id,
+              note: teeDealNote(teeDeal),
             }
           : {
               ...apparelPricing,
@@ -3897,6 +4104,10 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
    * quantity would make design 1 look dearer every time another was added.
    */
   function getItemUnitPrice(item: (typeof order.items)[number]) {
+    // On the sticker deal the per-sticker figure is the deal's, setup included.
+    if (order.deal === STICKER_DEAL.id && !stickerDealLiveProblem) {
+      return STICKER_DEAL_UNIT;
+    }
     const index = order.items.findIndex((entry) => entry.id === item.id);
     const share = index === 0 ? STICKER_SETUP_FEE : STICKER_SETUP_FEE_ADDITIONAL;
 
@@ -4217,7 +4428,15 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       apparelEach={apparelEach}
       underbase={apparelNeedsUnderbase && !isHoodieSpecial}
       flatRate={
-        isHoodieSpecial
+        teeDeal
+          ? {
+              name: teeDeal.name,
+              unitPrice: teeDeal.unitPrice,
+              sides: "one front print",
+              unit: "tees",
+              note: `Fixed price for exactly ${TEE_DEAL_QUANTITY} tees. Color and sizes don\u2019t change it.`,
+            }
+          : isHoodieSpecial
           ? {
               name: HOODIE_SPECIAL.name,
               unitPrice: hoodieSpecialUnitPrice(apparelQuote.printLocations),
@@ -4411,7 +4630,12 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               empty space right of the headline at xl, under the headline
               below that. Gone after the special's last day. */}
           {showHoodieSpecialAd && (
-            <HoodieSpecialAd onStart={startHoodieSpecialFromAd} />
+            <div className={`relative ${HOODIE_AD_PLACEMENT}`}>
+              <HoodieSpecialAd onStart={startHoodieSpecialFromAd} placed />
+              {/* Thanksgiving only: the small black Black Friday burst on
+                  its bottom right, which opens the deals page. */}
+              <DealsBurst label={THANKSGIVING_TAG} />
+            </div>
           )}
 
           {/* Deadpan and true. The pricing block the browser shows is the
@@ -4784,6 +5008,15 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     onLeave={leaveHoodieSpecial}
                   />
                 )}
+                {teeDeal && (
+                  <DealActive
+                    testId="tee-deal-active"
+                    name={teeDeal.name}
+                    terms={`$${teeDealTotal(teeDeal).toFixed(2)} for exactly ${TEE_DEAL_QUANTITY} ${TEE_DEAL_GARMENT}s, sizes ${TEE_DEAL_SIZES[0]} to ${TEE_DEAL_SIZES[TEE_DEAL_SIZES.length - 1]}, one ${teeDeal.maxInks === 1 ? "1-color" : "1- or 2-color"} print on the front. ${teeDeal.maxInks === 1 ? "Light tees only." : "Dark tees take 1-color art (the white underbase is the 2nd color)."} Printing and screens included. You add your artwork, color and sizes.`}
+                    problem={teeDealLiveProblem}
+                    onLeave={leaveTeeDeal}
+                  />
+                )}
                 {isHoodieSpecial ? (
                   <HoodieSpecialBuilder
                     garmentColor={apparelQuote.garmentColor}
@@ -4894,7 +5127,18 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   }
                   sizesEntered={sizeQuantityTotal > 0}
                   minimumNotice={apparelMinimumNotice}
+                  fixedDeal={
+                    teeDeal
+                      ? {
+                          quantity: TEE_DEAL_QUANTITY,
+                          sizes: TEE_DEAL_SIZES,
+                          placements: TEE_DEAL_FRONTS,
+                          inks: teeDeal.maxInks === 1 ? ["1 color"] : ["1 color", "2 colors"],
+                        }
+                      : null
+                  }
                 />
+                  {!teeDeal && (
                   <ApparelCartLines
                     lines={extraGarmentLines}
                     products={ssProducts}
@@ -4955,11 +5199,21 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                       )
                     }
                   />
+                  )}
                 </>
                 )}
                 </>
               ) : (
                 <div className="space-y-6">
+                  {order.deal === STICKER_DEAL.id && (
+                    <DealActive
+                      testId="sticker-deal-active"
+                      name={STICKER_DEAL.name}
+                      terms={`${STICKER_DEAL.quantity} stickers, one design, any shape up to ${STICKER_DEAL.maxInches}" x ${STICKER_DEAL.maxInches}", on ${STICKER_DEAL.material}. $${STICKER_DEAL.price.toFixed(2)} with setup included. Shipping and tax as usual.`}
+                      problem={stickerDealLiveProblem}
+                      onLeave={leaveStickerDeal}
+                    />
+                  )}
                   {order.items.map((item, index) => (
                     <DesignCard
                       key={item.id}
@@ -4988,6 +5242,15 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                         shipZip={order.production.shipZip ?? ""}
                         shipZipError={showFieldErrors ? fieldErrors.shipZip : undefined}
                         onShipZipChange={(shipZip) => updateProduction({ shipZip })}
+                        deal={
+                          order.deal === STICKER_DEAL.id
+                            ? {
+                                quantity: STICKER_DEAL.quantity,
+                                maxInches: STICKER_DEAL.maxInches,
+                                material: STICKER_DEAL.material,
+                              }
+                            : null
+                        }
                         onUpdate={(updates) => updateItem(updates, item.id)}
                         onSelectMaterial={(material) =>
                           updateItem(
@@ -5006,6 +5269,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                       is the whole reason the cart exists, and finding out at
                       review that a design added $12.50 is the kind of surprise
                       that loses an order. */}
+                  {order.deal !== STICKER_DEAL.id && (
                   <button
                     type="button"
                     onClick={addDesign}
@@ -5023,6 +5287,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                       +${STICKER_SETUP_FEE_ADDITIONAL.toFixed(2)} setup
                     </span>
                   </button>
+                  )}
                 </div>
               )}
 

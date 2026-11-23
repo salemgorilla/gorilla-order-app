@@ -333,6 +333,8 @@ export const THEME_CALENDAR: readonly ThemeEntry[] = [
     },
     stripe: { colors: ["#9a4b00", "#e2a72e", "#8a1f2d", "#5c4632"], angle: 90, band: "2rem" },
     decor: {
+      // Gabe, 2026-11-23: yes to "a small pumpkin or acorn by the logo".
+      header: "pumpkin",
       corner: "leaf-corner",
       drift: { shapes: ["leaf", "leaf-gold", "leaf-red"], count: 8, direction: "down" },
     },

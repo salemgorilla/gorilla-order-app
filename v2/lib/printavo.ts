@@ -11,6 +11,7 @@ import {
 } from "./signs-pricing";
 import { DEPOSIT_FRACTION } from "./auto-bill";
 import { HOODIE_SPECIAL, hoodieSpecialInkRule } from "./hoodie-special";
+import { teeDealFor, teeDealNote } from "./tee-deal";
 import { getTrackUrl } from "./order-status";
 import {
   SKU,
@@ -1264,6 +1265,8 @@ export function buildPrintavoQuotePlan(input: {
   const needsHandPricing =
     productNeedsHandPricing || addOns.some((a) => Boolean(a.quoteRequired));
   const isSpecialOrder = Boolean(product.specialOrder);
+  // A Black Friday tee deal (lib/tee-deal.ts), or null on every other quote.
+  const teeDeal = teeDealFor(product.promo);
 
   /**
    * The nickname is what the shop scans in the Printavo list, so a counter
@@ -1487,7 +1490,7 @@ export function buildPrintavoQuotePlan(input: {
         // blank for anyone who sees them. The internal note is shop-only.
         // A flat-rate offer names its own blank and where it comes from:
         // the 50 Hoodie Special's is ordered from Cutter & Buck, not S&S.
-        str(product.promo)
+        str(product.promo) === HOODIE_SPECIAL.id
           ? `Blank: ${str(supplier.supplierProductName, "N/A")}, order from ${str(
               supplier.source,
               "N/A"
@@ -1501,7 +1504,14 @@ export function buildPrintavoQuotePlan(input: {
         // A flat-rate offer (lib/hoodie-special.ts): the row is one price per
         // piece with printing and screens inside it, and there are no
         // printing or setup rows. Said here so nobody adds them back.
-        ...(str(product.promoName)
+        // A tee deal (lib/tee-deal.ts) is a flat price, like the hoodie
+        // special, on an S&S blank: the S&S block above stays.
+        ...(teeDeal
+          ? [
+              `*** ${str(product.promoName)}: flat $${num(pricing.unitPrice).toFixed(2)} each, printing and setup included ***`,
+              `*** ${teeDealNote(teeDeal)} ***`,
+            ]
+          : str(product.promoName)
           ? [
               `*** ${str(product.promoName)}: flat $${num(
                 pricing.unitPrice

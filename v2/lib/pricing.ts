@@ -627,7 +627,20 @@ export function quoteStickerCart(input: {
   listPrices?: readonly number[];
   /** The validated code, if any. The engine never validates; the server does. */
   discount?: Discount | null;
+  /**
+   * The Black Friday sticker deal (lib/sticker-deal.ts) applies: setup is
+   * included and there is no order minimum. The caller has already put the
+   * deal's flat price in materialPrices and checked the order fits it; no
+   * discount code rides on a deal, so `discount` is ignored here.
+   */
+  deal?: boolean;
 }): StickerCartQuote {
+  if (input.deal) {
+    // One composition, not a second engine: the regular arithmetic below
+    // with setup and minimum zeroed and no code, so shipping is weighed and
+    // tiered exactly as for any sticker order.
+    return quoteStickerCartDeal(input);
+  }
   const stickerPrice =
     Math.round(input.materialPrices.reduce((sum, price) => sum + price, 0) * 100) /
     100;
@@ -686,5 +699,38 @@ export function quoteStickerCart(input: {
     setupListPrice,
     minimumListPrice,
     total: Math.round((goods + shippingPrice) * 100) / 100,
+  };
+}
+
+/**
+ * quoteStickerCart for the Black Friday sticker deal: the stickers at the
+ * deal's flat price, no setup, no minimum, no code, shipping as usual.
+ */
+function quoteStickerCartDeal(input: {
+  materialPrices: readonly number[];
+  deliveryMethod: string;
+  items?: ReadonlyArray<{ quantity: number; widthInches: number; heightInches: number }>;
+  destZip?: string;
+}): StickerCartQuote {
+  const stickerPrice =
+    Math.round(input.materialPrices.reduce((sum, price) => sum + price, 0) * 100) / 100;
+  const shipping = quoteStickerShipping({
+    deliveryMethod: input.deliveryMethod,
+    goodsSubtotal: stickerPrice,
+    items: input.items,
+    destZip: input.destZip,
+  });
+  return {
+    stickerPrice,
+    setupPrice: 0,
+    minimumPrice: 0,
+    shippingPrice: shipping.price,
+    shippingNote: shipping.note,
+    discountPrice: 0,
+    discountCode: "",
+    stickerListPrice: stickerPrice,
+    setupListPrice: 0,
+    minimumListPrice: 0,
+    total: Math.round((stickerPrice + shipping.price) * 100) / 100,
   };
 }

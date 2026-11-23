@@ -50,6 +50,10 @@ type Props = {
     name: string;
     unitPrice: number;
     sides: string;
+    /** "hoodies" unless said: the 50 Hoodie Special came first. */
+    unit?: string;
+    /** The closing line. Defaults to the hoodie special's. */
+    note?: string;
   };
   /**
    * The run prints a white underbase (apparelPrintSpec). The price already
@@ -223,7 +227,7 @@ export default function ApparelSummaryCard({
           <div className="mt-4 space-y-2 text-fine font-medium text-[var(--ink-muted)]">
             <div className="flex justify-between gap-4">
               <span>
-                {runQuantity} hoodies × ${flatRate.unitPrice.toFixed(2)}{" "}
+                {runQuantity} {flatRate.unit ?? "hoodies"} × ${flatRate.unitPrice.toFixed(2)}{" "}
                 ({flatRate.sides})
               </span>
               <span className="text-right font-bold text-[var(--ink-black)]">
@@ -239,7 +243,7 @@ export default function ApparelSummaryCard({
             </div>
 
             <p className="mt-3 border-t border-[var(--rule-faint)] pt-3 text-fine font-bold leading-5 text-[var(--gorilla-green)]">
-              Flat rate. Size, color and ink count don&rsquo;t change it.
+              {flatRate.note ?? "Flat rate. Size, color and ink count don\u2019t change it."}
             </p>
           </div>
         </div>

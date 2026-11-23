@@ -327,3 +327,38 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Thanksgiving touches the theme calendar has no slot for (Gabe,
+   2026-11-23): a slim greeting above the header, the Black Friday burst on
+   the hoodie badge, and plaid behind the quote desk. Hidden under every
+   other theme. */
+.fall-banner {
+  display: none;
+}
+html[data-theme="thanksgiving"] .fall-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem 0.75rem;
+  padding: 0.5rem 1rem;
+  text-align: center;
+  background: var(--badge-fill);
+  color: var(--paper);
+}
+/* The Black Friday burst on the hoodie badge: Thanksgiving only. */
+.deals-burst {
+  display: none;
+}
+html[data-theme="thanksgiving"] .deals-burst {
+  display: block;
+}
+/* Faint warm checks over paper: pumpkin and cranberry at 7-10%. Where the
+   bands cross the darkest square is still light enough for --ink-muted. */
+html[data-theme="thanksgiving"] .quote-desk {
+  background-image:
+    repeating-linear-gradient(0deg, rgba(196, 98, 26, 0.1) 0 6px, transparent 6px 18px),
+    repeating-linear-gradient(90deg, rgba(196, 98, 26, 0.1) 0 6px, transparent 6px 18px),
+    repeating-linear-gradient(0deg, transparent 0 11px, rgba(138, 31, 45, 0.07) 11px 13px, transparent 13px 18px),
+    repeating-linear-gradient(90deg, transparent 0 11px, rgba(138, 31, 45, 0.07) 11px 13px, transparent 13px 18px);
+}

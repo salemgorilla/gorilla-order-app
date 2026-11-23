@@ -30,6 +30,15 @@ export const DEFAULT_THEME = "default";
 
 export const SHOP_TIME_ZONE = "America/New_York";
 
+/**
+ * The words on the small black burst on the hoodie badge, Thanksgiving only
+ * (Gabe, 2026-11-23: "let's just have it say Black Friday deals", then "a
+ * small black circle like the big hoody deal link, but over to the bottom
+ * right of the other"). Set it to "" to hide the burst. It links to the
+ * deals page (/deals, listed in lib/deals.ts) and carries no price.
+ */
+export const THANKSGIVING_TAG = "Black Friday Deals";
+
 /* ---------------------------- Day rules ---------------------------- */
 
 /**

@@ -5242,6 +5242,15 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                         shipZip={order.production.shipZip ?? ""}
                         shipZipError={showFieldErrors ? fieldErrors.shipZip : undefined}
                         onShipZipChange={(shipZip) => updateProduction({ shipZip })}
+                        deal={
+                          order.deal === STICKER_DEAL.id
+                            ? {
+                                quantity: STICKER_DEAL.quantity,
+                                maxInches: STICKER_DEAL.maxInches,
+                                material: STICKER_DEAL.material,
+                              }
+                            : null
+                        }
                         onUpdate={(updates) => updateItem(updates, item.id)}
                         onSelectMaterial={(material) =>
                           updateItem(
@@ -5260,6 +5269,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                       is the whole reason the cart exists, and finding out at
                       review that a design added $12.50 is the kind of surprise
                       that loses an order. */}
+                  {order.deal !== STICKER_DEAL.id && (
                   <button
                     type="button"
                     onClick={addDesign}
@@ -5277,6 +5287,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                       +${STICKER_SETUP_FEE_ADDITIONAL.toFixed(2)} setup
                     </span>
                   </button>
+                  )}
                 </div>
               )}
 

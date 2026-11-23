@@ -217,7 +217,20 @@ describe("Christmas decor stays out of the way", () => {
   });
   it("never takes a click", () => {
     const src = readFileSync(new URL("../components/SeasonDecor.tsx", import.meta.url), "utf8");
-    assert.equal((src.match(/pointer-events-none/g) ?? []).length, 3);
-    assert.equal((src.match(/aria-hidden="true"/g) ?? []).length, 3);
+    assert.equal((src.match(/pointer-events-none/g) ?? []).length, 4);
+    assert.equal((src.match(/aria-hidden="true"/g) ?? []).length, 4);
+  });
+});
+
+describe("Thanksgiving leaves stay out of the way", () => {
+  it("are hidden by default and shown only under the Thanksgiving theme, behind the page", () => {
+    assert.match(css, /\.fall-leaves\s*\{\s*display:\s*none;/);
+    assert.match(css, /html\[data-theme="thanksgiving"\] \.fall-leaves\s*\{[^}]*display:\s*block;[^}]*z-index:\s*-1;/);
+  });
+  it("only fall and sway for visitors who have not asked for less motion", () => {
+    const start = css.indexOf(".fall-leaf {");
+    const motion = css.indexOf("@media (prefers-reduced-motion: no-preference)", start);
+    assert.ok(start >= 0 && motion > start);
+    assert.doesNotMatch(css.slice(start, motion), /animation-name/);
   });
 });

@@ -136,3 +136,97 @@ export function Snowfall() {
     </div>
   );
 }
+
+/* ---------------------------------------------------------------------------
+ * Thanksgiving leaves (Gabe, 2026-11-23: "Can we add like fall colored leaves
+ * drifting and falling down?"). Same approach as the snow: inline SVG on a
+ * fixed layer behind the page, no pointer events, aria-hidden, shown only
+ * under html[data-theme="thanksgiving"], still for reduced-motion visitors.
+ * ------------------------------------------------------------------------- */
+
+/** Two leaf shapes, drawn on a 24x24 grid with the stem at the bottom. */
+const LEAF_SHAPES = {
+  // A five-lobed maple leaf.
+  maple:
+    "M12 2 L13.6 6.2 L16.8 4.8 L16 8.8 L20.6 8.2 L18.4 11.6 L21.4 13 L16.8 14.6 L17.6 17 L13 15.8 L12.6 19.6 L11.4 19.6 L11 15.8 L6.4 17 L7.2 14.6 L2.6 13 L5.6 11.6 L3.4 8.2 L8 8.8 L7.2 4.8 L10.4 6.2 Z",
+  // A plain oval leaf with a point.
+  oval: "M12 2 C17 6 18 12 12 19.6 C6 12 7 6 12 2 Z",
+} as const;
+
+const LEAF_FILLS = [
+  "fill-[var(--leaf-pumpkin)]",
+  "fill-[var(--leaf-cranberry)]",
+  "fill-[var(--leaf-gold)]",
+  "fill-[var(--leaf-brown)]",
+] as const;
+
+function Leaf({ shape, fill }: { shape: keyof typeof LEAF_SHAPES; fill: number }) {
+  return (
+    <svg viewBox="0 0 24 24" className="h-full w-full">
+      <path className={LEAF_FILLS[fill]} d={LEAF_SHAPES[shape]} />
+      {/* Stem and centre vein. */}
+      <path
+        className="fill-none stroke-[var(--leaf-vein)]"
+        strokeWidth="0.9"
+        strokeLinecap="round"
+        d="M12 6 L12 22"
+      />
+    </svg>
+  );
+}
+
+/** Fixed positions, as with the snow: x/y are the resting place for
+ *  reduced-motion visitors. Ten leaves. */
+const LEAVES: Array<{
+  x: number;
+  y: number;
+  size: number;
+  dur: number;
+  delay: number;
+  shape: keyof typeof LEAF_SHAPES;
+  fill: number;
+}> = [
+  { x: 4, y: 18, size: 26, dur: 17, delay: 0, shape: "maple", fill: 0 },
+  { x: 14, y: 66, size: 20, dur: 21, delay: -9, shape: "oval", fill: 2 },
+  { x: 24, y: 34, size: 28, dur: 19, delay: -4, shape: "maple", fill: 1 },
+  { x: 35, y: 84, size: 22, dur: 23, delay: -13, shape: "oval", fill: 3 },
+  { x: 47, y: 10, size: 24, dur: 18, delay: -7, shape: "maple", fill: 2 },
+  { x: 58, y: 52, size: 20, dur: 22, delay: -16, shape: "oval", fill: 0 },
+  { x: 68, y: 26, size: 30, dur: 20, delay: -2, shape: "maple", fill: 3 },
+  { x: 78, y: 74, size: 22, dur: 24, delay: -11, shape: "oval", fill: 1 },
+  { x: 88, y: 42, size: 26, dur: 19, delay: -6, shape: "maple", fill: 0 },
+  { x: 96, y: 88, size: 20, dur: 21, delay: -14, shape: "oval", fill: 2 },
+];
+
+/** Leaves drifting down behind the page. The outer span falls; the inner
+ *  one sways side to side and tumbles, so the drift looks like a leaf rather
+ *  than a stone. Transform-only animation. */
+export function LeafFall() {
+  return (
+    <div aria-hidden="true" className="fall-leaves pointer-events-none">
+      {LEAVES.map((l, i) => (
+        <span
+          key={i}
+          className="fall-leaf"
+          style={
+            {
+              left: `${l.x}%`,
+              "--leaf-y": `${l.y}vh`,
+              width: `${l.size}px`,
+              height: `${l.size}px`,
+              animationDuration: `${l.dur}s`,
+              animationDelay: `${l.delay}s`,
+            } as React.CSSProperties
+          }
+        >
+          <span
+            className="fall-leaf-sway"
+            style={{ animationDuration: `${(l.dur / 4).toFixed(2)}s`, animationDelay: `${l.delay}s` }}
+          >
+            <Leaf shape={l.shape} fill={l.fill} />
+          </span>
+        </span>
+      ))}
+    </div>
+  );
+}

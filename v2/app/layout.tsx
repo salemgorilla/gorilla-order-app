@@ -3,7 +3,7 @@ import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { seasonThemeScript } from "../lib/season";
-import { Snowfall } from "../components/SeasonDecor";
+import { LeafFall, Snowfall } from "../components/SeasonDecor";
 
 // Order Desk type system: Space Grotesk for display + UI, JetBrains Mono for
 // spec furniture only (ticket numbers, timestamps, statuses, size grids).
@@ -48,6 +48,8 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         {/* Christmas snowfall: hidden outside the Christmas theme. */}
         <Snowfall />
+        {/* Thanksgiving leaves: hidden outside the Thanksgiving theme. */}
+        <LeafFall />
         {children}
         {/**
          * SHIPS DARK.

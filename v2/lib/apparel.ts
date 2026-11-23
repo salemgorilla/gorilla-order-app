@@ -62,6 +62,12 @@ export const defaultApparelQuote = {
    */
   specialOrder: false,
   specialOrderNotes: "",
+  /**
+   * A flat-rate offer the customer chose from the apparel section — today
+   * only "hoodie-50", the 50 Hoodie Special (lib/hoodie-special.ts). Empty
+   * on every regular quote, which then prices exactly as it always has.
+   */
+  promo: "",
 };
 
 export type ApparelQuote = typeof defaultApparelQuote;

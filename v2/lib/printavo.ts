@@ -1490,6 +1490,16 @@ export function buildPrintavoQuotePlan(input: {
         )} / sample ${str(supplier.sampleSize, "N/A")} @ $${num(
           supplier.markedUpGarmentPrice
         ).toFixed(2)}`,
+        // A flat-rate offer (lib/hoodie-special.ts): the row is one price per
+        // piece with printing and screens inside it, and there are no
+        // printing or setup rows. Said here so nobody adds them back.
+        ...(str(product.promoName)
+          ? [
+              `*** ${str(product.promoName)}: flat $${num(
+                pricing.unitPrice
+              ).toFixed(2)} each, printing and setup included ***`,
+            ]
+          : []),
         // The whole point of a special order — what they actually asked for.
         ...(isSpecialOrder
           ? [

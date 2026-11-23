@@ -74,6 +74,32 @@ to the cent. Nothing in #149 touched any of that. It did not prove the RATE
 — that is a business figure, and #149 changed it, so the row above it is
 owed and the merge rule points at the next sticker order.
 
+## 50 Hoodie Special button in apparel, 2026-11-23 — built, draft PR, not live
+
+Gabe, 2026-11-23: "a button in the apparel section, for the 50 hoody special.
+It should be a flat fee, nothing will change the end price ... as long as it's
+2 colors or under, there should be 2 pricing outcomes."
+
+- **Offer:** `lib/hoodie-special.ts` — $27 front, $33 front and back, XS-5XL
+  one price, up to 2 inks per side, setup included, 50 pieces or more, the
+  8 colours on his special art (named as S&S names them on the Gildan 18500).
+  All numbers in that one object.
+- **Button:** a card at the top of the apparel step; while the special is on,
+  `features/apparel/HoodieSpecial.tsx` replaces the catalogue (colour, front
+  or front-and-back, placement, ink capped at 2 per side, size grid required).
+  "Switch to a regular quote" leaves it; only the size grid is reset.
+- **Price:** `quoteHoodieSpecial()` returns the normal `ApparelCartQuote` shape
+  with one garment line at the flat unit and zero printing, setup, underbase
+  and rush, so Printavo gets ONE row (printing/setup rows are only written
+  above zero) and the summary, review, email and copy text need no new shape.
+- **Shop sees it:** "*** PROMO ***" line and "Flat rate" in the shop email; the
+  Printavo row note and nickname name the special. Still `#Apparel`, still no
+  payment link (`isStickerOrder` false, pinned in tests).
+- **Ends:** the card disappears after Dec 1 on Salem's clock (not UTC); a quote
+  left open past midnight is refused with a line telling them to switch back.
+- **Regular apparel untouched:** minimums, colour order, placements and the
+  matrix only change behaviour when `promo === "hoodie-50"`.
+
 ## The order page adapts to what customers order, 2026-11-21 — built, draft PR, not live
 
 Gabe, 2026-11-21: "Build both" — (1) the app re-sorts itself from what

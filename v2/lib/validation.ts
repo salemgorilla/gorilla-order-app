@@ -9,6 +9,7 @@ import { orderProblemsByStep, type FieldProblem } from "./steps";
 import { Order, StickerItem } from "../types/order";
 import { validatePaperSpec, type PaperSpec } from "./paper";
 import { designColorCount, screenPrintMinimumMessage } from "./print-minimums";
+import { HOODIE_SPECIAL, hoodieSpecialFieldErrors } from "./hoodie-special";
 
 /**
  * The email rule, once, for all three flows.
@@ -580,6 +581,14 @@ export function getApparelFieldErrors(
      * to the words it has always used.
      */
     garmentLabel?: string;
+    /**
+     * A flat-rate offer the customer chose — "hoodie-50" is the 50 Hoodie
+     * Special (lib/hoodie-special.ts). Its own rules replace the matrix's
+     * count, minimum and placement rules; contact, date and artwork are
+     * checked exactly as for any apparel quote.
+     */
+    promo?: string;
+    garmentColor?: string;
   },
   order: {
     customer: { customerName: string; email: string };
@@ -643,6 +652,22 @@ export function getApparelFieldErrors(
 
   if (!order.artwork.file) {
     errors.artwork = "Upload your artwork before submitting.";
+  }
+
+  if (apparelQuote.promo === HOODIE_SPECIAL.id) {
+    return {
+      ...errors,
+      ...hoodieSpecialFieldErrors({
+        quantity: apparelQuote.quantity,
+        sizeQuantityTotal,
+        colorName: apparelQuote.garmentColor || "",
+        printLocations: apparelQuote.printLocations,
+        inkColors: apparelQuote.inkColors || "",
+        inkColorsByLocation: apparelQuote.inkColorsByLocation,
+        // NOT `today`: that is the UTC date, and the offer ends on Salem's
+        // clock — at 8 PM on Dec 1 in Salem it is already Dec 2 in UTC.
+      }),
+    };
   }
 
   if (apparelQuote.printLocations.length === 0) {

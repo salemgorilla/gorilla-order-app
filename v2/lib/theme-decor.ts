@@ -237,5 +237,15 @@ export const DECOR: Readonly<Record<string, string>> = {
 export function decorUrl(name: string): string {
   const art = DECOR[name];
   if (!art) throw new Error(`theme-decor: no drawing called "${name}"`);
-  return `url("data:image/svg+xml,${encodeURIComponent(art)}")`;
+  // Light escaping (the usual data-URI trick): single-quote the attributes
+  // and escape only what a URL or CSS string can't hold. About a third of
+  // the size of encodeURIComponent, and every browser reads it.
+  const body = art
+    .replace(/"/g, "'")
+    .replace(/%/g, "%25")
+    .replace(/#/g, "%23")
+    .replace(/</g, "%3C")
+    .replace(/>/g, "%3E")
+    .replace(/\s+/g, " ");
+  return `url("data:image/svg+xml,${body}")`;
 }

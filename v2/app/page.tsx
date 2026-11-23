@@ -700,14 +700,18 @@ export default function Home() {
      * replacing a guess.
      */
     const effectiveQuantity =
-      sizeQuantityTotal > 0 ? sizeQuantityTotal : apparelQuoteState.quantity;
+      // The special has no rough count: its sizes ARE the order, so an
+      // empty grid is zero hoodies, never the regular builder's 24.
+      isHoodieSpecial || sizeQuantityTotal > 0
+        ? sizeQuantityTotal
+        : apparelQuoteState.quantity;
 
     return apparelQuoteState.quantity === effectiveQuantity
       ? // Same object when nothing changed, so memo consumers downstream do
         // not see a new reference every render.
         apparelQuoteState
       : { ...apparelQuoteState, quantity: effectiveQuantity };
-  }, [apparelQuoteState, isApparelRequest, sizeQuantityTotal]);
+  }, [apparelQuoteState, isApparelRequest, isHoodieSpecial, sizeQuantityTotal]);
 
   const sizeBreakdownFromButtons = useMemo(() => {
     return Object.entries(sizeQuantities)
@@ -1042,7 +1046,11 @@ export default function Home() {
         detail: apparelQuote.specialOrder
           ? "Special order — we'll quote it"
           : isHoodieSpecial
-          ? `$${apparelPricing.unitPrice.toFixed(2)} each · flat rate`
+          ? apparelPricing.quantity > 0
+            ? `$${apparelPricing.unitPrice.toFixed(2)} each · flat rate`
+            : `$${hoodieSpecialUnitPrice(apparelQuote.printLocations).toFixed(
+                2
+              )} each, flat · enter your sizes`
           : `$${apparelPricing.unitPrice.toFixed(2)} each`,
       };
     }
@@ -1724,10 +1732,19 @@ export default function Home() {
    * kept, so stepping in and out costs them nothing but their sizes.
    */
   function startHoodieSpecial() {
-    sendAnalyticsEvent({ name: "product_selected", flow: "apparel" });
     setSizeQuantities({});
     setApparelQuoteState((current) => {
-      const ink = clampHoodieSpecialInk(current.inkColors);
+      // The busiest ink the customer had picked anywhere, clamped to the
+      // special's two — a 3-colour front becomes 2, never silently 1.
+      const busiest = Math.max(
+        ...[
+          current.inkColors,
+          ...current.printLocations.map(
+            (location) => current.inkColorsByLocation[location] || ""
+          ),
+        ].map((value) => Number(/^(\d+)/.exec(value)?.[1] ?? 1))
+      );
+      const ink = busiest <= 1 ? "1 color" : "2 colors";
       const colorName = HOODIE_SPECIAL.colors.some(
         (color) => color.name === current.garmentColor
       )

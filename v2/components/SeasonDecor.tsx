@@ -230,3 +230,46 @@ export function LeafFall() {
     </div>
   );
 }
+
+/** A small pumpkin with a stem and a curl of vine, for beside the wordmark
+ *  in the Thanksgiving theme. */
+export function Pumpkin({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      viewBox="0 0 48 44"
+      className={`fall-decor pointer-events-none ${className}`}
+    >
+      {/* Body: three overlapping lobes, darkest at the back. */}
+      <ellipse className="fill-[var(--pumpkin-dark)]" cx="14" cy="28" rx="11" ry="13" />
+      <ellipse className="fill-[var(--pumpkin-dark)]" cx="34" cy="28" rx="11" ry="13" />
+      <ellipse className="fill-[var(--leaf-pumpkin)]" cx="24" cy="28" rx="12" ry="14" />
+      {/* Ribs. */}
+      <path
+        className="fill-none stroke-[var(--pumpkin-dark)]"
+        strokeWidth="1.2"
+        d="M19 16 C16 24 16 33 19 41 M29 16 C32 24 32 33 29 41"
+      />
+      {/* Stem, leaf and vine curl. */}
+      <path className="fill-[var(--leaf-brown)]" d="M22 16 L22.5 7 C23 5 26 5 26.5 7 L26 16 Z" />
+      <path className="fill-[var(--pumpkin-leaf)]" d="M26 9 C31 4 38 6 39 10 C34 13 29 13 26 9 Z" />
+      <path
+        className="fill-none stroke-[var(--pumpkin-leaf)]"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        d="M22 9 C18 5 14 8 16 11 C18 13 20 10 18 9"
+      />
+    </svg>
+  );
+}
+
+/** A slim greeting above the header, Thanksgiving theme only. Real text, so
+ *  it is read out like any other line when it shows. */
+export function ThanksgivingBanner() {
+  return (
+    <p className="fall-banner spec text-spec font-bold uppercase tracking-eyebrow">
+      Happy Thanksgiving from Gorilla
+    </p>
+  );
+}

@@ -1,8 +1,11 @@
 import { SHOP } from "../lib/shop";
-import { Bells, Holly } from "./SeasonDecor";
+import { Bells, Holly, Pumpkin, ThanksgivingBanner } from "./SeasonDecor";
 
 export default function Header() {
   return (
+    <>
+    {/* Thanksgiving only (SeasonDecor): a slim greeting above the header. */}
+    <ThanksgivingBanner />
     <header className="site-header border-b-4 border-[var(--ink-black)] bg-[var(--shirt-blank)] py-6">
       {/* `site-header` carries the seasonal stripe along the top edge
           (globals.css, lib/season.ts). Outside a season it does nothing. */}
@@ -37,6 +40,8 @@ export default function Header() {
           </a>
           {/* Christmas only (SeasonDecor). */}
           <Bells className="h-[1.3em] w-[1.7em] -mt-1" />
+          {/* Thanksgiving only (SeasonDecor). */}
+          <Pumpkin className="h-[1.3em] w-[1.45em] -mt-1" />
         </p>
 
         {/* Spec furniture, not a label. "Quote Builder" named the tool; this
@@ -44,7 +49,7 @@ export default function Header() {
             the mono register the rest of the app reserves for real values.
             The address is the shop's, from lib/shop.ts, the same string the
             pickup notice uses. */}
-        <div className="spec relative border border-[var(--rule)] bg-[var(--paper)] px-4 py-2 text-spec text-[var(--ink-muted)]">
+        <div className="quote-desk spec relative border border-[var(--rule)] bg-[var(--paper)] px-4 py-2 text-spec text-[var(--ink-muted)]">
           {/* Christmas only (SeasonDecor): holly tucked on the corner. */}
           <Holly className="absolute -right-7 -top-7 h-12 w-16 rotate-12" />
           <p className="font-bold uppercase tracking-eyebrow text-[var(--ink-black)]">
@@ -56,5 +61,6 @@ export default function Header() {
         </div>
       </div>
     </header>
+    </>
   );
 }

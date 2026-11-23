@@ -102,6 +102,13 @@ html[data-theme="thanksgiving"] {
   --leaf-gold: #d99a1e;
   --leaf-brown: #7a4a26;
   --leaf-vein: #5c3a1e;
+  --pumpkin-dark: #9a4b00;
+  --pumpkin-leaf: #4f6b2a;
+  /* Quote desk plaid: faint warm checks over paper. Where all four bands
+     cross it reaches #e6c6bc, where walnut text still reads at 5.5:1 and
+     near-black at 11:1, both above the 4.5:1 floor. */
+  --plaid-a: rgba(196, 98, 26, 0.10);
+  --plaid-b: rgba(138, 31, 45, 0.07);
   --season-band: repeating-linear-gradient(
     90deg,
     #9a4b00 0 2rem,
@@ -248,6 +255,30 @@ html[data-theme="thanksgiving"] main {
   to {
     transform: translateX(28px) rotate(40deg);
   }
+}
+
+/* Thanksgiving touches beyond the leaves: a pumpkin by the wordmark, a slim
+   greeting above the header, plaid behind the quote desk. Hidden otherwise. */
+.fall-decor,
+.fall-banner {
+  display: none;
+}
+html[data-theme="thanksgiving"] .fall-decor {
+  display: block;
+}
+html[data-theme="thanksgiving"] .fall-banner {
+  display: block;
+  padding: 0.5rem 1rem;
+  text-align: center;
+  background: var(--badge-fill);
+  color: var(--paper);
+}
+html[data-theme="thanksgiving"] .quote-desk {
+  background-image:
+    repeating-linear-gradient(0deg, var(--plaid-a) 0 6px, transparent 6px 18px),
+    repeating-linear-gradient(90deg, var(--plaid-a) 0 6px, transparent 6px 18px),
+    repeating-linear-gradient(0deg, transparent 0 11px, var(--plaid-b) 11px 13px, transparent 13px 18px),
+    repeating-linear-gradient(90deg, transparent 0 11px, var(--plaid-b) 11px 13px, transparent 13px 18px);
 }
 
 /* The header's seasonal stripe, painted along its top edge. Unlayered, so

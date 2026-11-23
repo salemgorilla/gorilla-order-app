@@ -1180,15 +1180,27 @@ export default function Home() {
         // catalog product and hand them a colour nobody chose. (Invisible
         // while the catalog was dark; the day the key worked, every request
         // quote became a "Basic Tee".)
+        //
+        // Never over the 50 Hoodie Special: its garment and colour are its
+        // own (Cutter & Buck, not S&S). The landing-page ad starts the
+        // special in the same click that selects apparel, so this fetch
+        // lands AFTER it, and without the guard it renamed the special's
+        // hoodie a tee and swapped its colour for one the quote endpoint
+        // refuses. The catalogue selection above still happens, so leaving
+        // the special finds the regular builder as it always did.
         if (!apparelIsRequestFlow && (firstProduct || firstColor)) {
-          setApparelQuoteState((current) => ({
-            ...current,
-            garmentType:
-              firstProduct?.customerLabel ||
-              firstProduct?.displayName ||
-              current.garmentType,
-            garmentColor: firstColor?.colorName || current.garmentColor,
-          }));
+          setApparelQuoteState((current) =>
+            current.promo === HOODIE_SPECIAL.id
+              ? current
+              : {
+                  ...current,
+                  garmentType:
+                    firstProduct?.customerLabel ||
+                    firstProduct?.displayName ||
+                    current.garmentType,
+                  garmentColor: firstColor?.colorName || current.garmentColor,
+                }
+          );
         }
       } catch (error) {
         console.error(error);

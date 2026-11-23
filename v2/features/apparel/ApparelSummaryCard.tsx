@@ -51,6 +51,13 @@ type Props = {
     unitPrice: number;
     sides: string;
   };
+  /**
+   * The run prints a white underbase (apparelPrintSpec). The price already
+   * charges it as one more colour and screen; this says so beside the ink,
+   * so "1 color" over $50 of screens is not a puzzle. Never set for a
+   * flat-rate offer, whose price covers it.
+   */
+  underbase?: boolean;
 };
 
 /**
@@ -74,6 +81,7 @@ export default function ApparelSummaryCard({
   apparelEach = [],
   garmentLines = [],
   flatRate,
+  underbase = false,
 }: Props) {
   // See shouldListGarments: not simply "more than one line" — a quote
   // whose only priced garment is an ADDED one has to list it, or the card
@@ -146,7 +154,9 @@ export default function ApparelSummaryCard({
         </div>
         <div className="flex justify-between gap-4">
           <span>Ink</span>
-          <span className="text-right font-bold text-[var(--ink-black)]">{describeInkColors(apparelQuote)}</span>
+          <span className="text-right font-bold text-[var(--ink-black)]">{describeInkColors(apparelQuote)}
+            {underbase && !flatRate ? " + white underbase" : ""}
+          </span>
         </div>
 
         {!apparelQuote.specialOrder && (
@@ -174,9 +184,7 @@ export default function ApparelSummaryCard({
             <span>Auto Count</span>
             <span className="text-right font-bold text-[var(--ink-black)]">
               {artworkAnalysis.estimatedColorCount}
-              {apparelQuote.garmentColor === "White"
-                ? ""
-                : " + underbase"}
+              {underbase ? " + underbase" : ""}
             </span>
           </div>
         )}

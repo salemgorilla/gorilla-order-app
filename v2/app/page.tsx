@@ -4195,6 +4195,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       artworkAnalysis={artworkAnalysis}
       garmentLines={apparelPricing.lines}
       apparelEach={apparelEach}
+      underbase={apparelNeedsUnderbase && !isHoodieSpecial}
       flatRate={
         isHoodieSpecial
           ? {

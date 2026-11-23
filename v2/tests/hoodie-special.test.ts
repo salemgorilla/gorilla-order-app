@@ -182,6 +182,9 @@ describe("the regular apparel rules are untouched", () => {
         hasUnderbase: true,
         promo: HOODIE_SPECIAL.id,
         garmentColor: "Black",
+        // Pinned: the special ends Dec 1, and CI also runs the suite with
+        // the clock moved forward (npm run test:future).
+        promoToday: "2026-11-23",
       },
       order,
       50,

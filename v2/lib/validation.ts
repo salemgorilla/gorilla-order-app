@@ -589,6 +589,12 @@ export function getApparelFieldErrors(
      */
     promo?: string;
     garmentColor?: string;
+    /**
+     * Salem's date for the offer's cut-off, when a caller pins it (tests).
+     * Left out, the special reads the shop's own clock — not `today` below,
+     * which is the UTC date and turns over at 7 PM in Salem.
+     */
+    promoToday?: string;
   },
   order: {
     customer: { customerName: string; email: string };
@@ -666,6 +672,7 @@ export function getApparelFieldErrors(
         inkColorsByLocation: apparelQuote.inkColorsByLocation,
         // NOT `today`: that is the UTC date, and the offer ends on Salem's
         // clock — at 8 PM on Dec 1 in Salem it is already Dec 2 in UTC.
+        today: apparelQuote.promoToday,
       }),
     };
   }

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
-import { seasonThemeScript } from "../lib/season";
-import { Snowfall } from "../components/SeasonDecor";
+import { seasonThemeScript, themeStylesheet } from "../lib/season";
+import { DecorDrift } from "../components/SeasonDecor";
 
 // Order Desk type system: Space Grotesk for display + UI, JetBrains Mono for
 // spec furniture only (ticket numbers, timestamps, statuses, size grids).
@@ -40,14 +40,18 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        {/* Seasonal colours (lib/season.ts). Inline and first so the right
-            inks are on before the first paint; the page is static, so this
-            is what makes 1 December switch to Christmas with no deploy. */}
+        {/* The theme calendar (lib/theme-calendar.ts). The script is inline
+            and first so the right inks are on before the first paint; the
+            page is static, so this is what makes each holiday arrive with
+            no deploy. The style holds every theme's colours and decor,
+            written at build time; only today's theme matches. */}
         <script dangerouslySetInnerHTML={{ __html: seasonThemeScript() }} />
+        <style id="theme-calendar" dangerouslySetInnerHTML={{ __html: themeStylesheet() }} />
       </head>
       <body className="min-h-full flex flex-col">
-        {/* Christmas snowfall: hidden outside the Christmas theme. */}
-        <Snowfall />
+        {/* Drifting decor (snow, leaves, hearts…): hidden unless today's
+            theme has some. */}
+        <DecorDrift />
         {children}
         {/**
          * SHIPS DARK.

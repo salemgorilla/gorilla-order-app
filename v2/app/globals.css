@@ -59,8 +59,80 @@
   --offset: 3px;             /* hard offset shadow, zero blur                   */
   --motion: 120ms;           /* linear, functional only                         */
 
+  /* ---- Seasonal slots ----
+     Two jobs a season recolours that the house palette fills with an
+     existing ink. Outside a season they ARE those inks, so nothing changes. */
+  --badge-fill: var(--gorilla-green); /* the hoodie special's starburst     */
+  --badge-ink: var(--paper);          /* the type on it                     */
+  --season-band: none;                /* stripe under the header; off       */
+
   --background: var(--shirt-blank);
   --foreground: var(--ink-black);
+}
+
+/* ============================================================
+   SEASONS — recolour only. Chosen by date on the shop's clock in
+   lib/season.ts, which sets html[data-theme] before first paint.
+   Preview any of them with ?theme=thanksgiving, ?theme=christmas,
+   or ?theme=default.
+
+   Only inks are overridden. --rush-red is NOT: it means late, wrong
+   or blocked on every screen, and a holiday is no reason for an
+   alarm to change colour. --cut-line is functional and untouched.
+   Every pair tests/token-contrast.test.ts holds for the house inks
+   is held for each season too.
+   ============================================================ */
+
+/* Thanksgiving, 1-30 November: pumpkin, cranberry, harvest gold and
+   warm brown on cream. */
+html[data-theme="thanksgiving"] {
+  --ink-black: #22160d;      /* warm near-black brown                           */
+  --ink-muted: #5c4632;      /* walnut                                          */
+  --shirt-blank: #f8eedd;    /* cream                                           */
+  --rule: #8f7660;           /* 4.26:1 paper, 3.71:1 cream                      */
+  --rule-faint: #e3d3bb;
+  --gorilla-green: #9a4b00;  /* pumpkin — the accent; 6.21:1 with white type    */
+  --gorilla-green-dark: #733700;
+  --green-bright: #e2a72e;   /* harvest gold, ink-on-black only                 */
+  --surface-ok: #f6e6d2;
+  --badge-fill: #8a1f2d;     /* cranberry                                       */
+  --season-band: repeating-linear-gradient(
+    90deg,
+    #9a4b00 0 2rem,
+    #e2a72e 2rem 4rem,
+    #8a1f2d 4rem 6rem,
+    #5c4632 6rem 8rem
+  );
+}
+
+/* Christmas, 1-31 December: evergreen, cranberry red and gold on warm
+   white. House colours come back on 1 January. */
+html[data-theme="christmas"] {
+  --ink-muted: #5a5448;
+  --shirt-blank: #fbf7ef;    /* warm white                                      */
+  --rule: #8a8270;           /* 3.81:1 paper, 3.57:1 warm white                 */
+  --rule-faint: #e4ddcd;
+  --gorilla-green: #1d5c34;  /* evergreen; 7.98:1 with white type               */
+  --gorilla-green-dark: #123f22;
+  --green-bright: #d6ac3a;   /* gold, ink-on-black only                         */
+  --surface-ok: #e6f0e7;
+  --badge-fill: #a11a2e;     /* cranberry red                                   */
+  --season-band: repeating-linear-gradient(
+    -45deg,
+    #a11a2e 0 0.75rem,
+    #fbf7ef 0.75rem 1.5rem,
+    #1d5c34 1.5rem 2.25rem,
+    #fbf7ef 2.25rem 3rem
+  );
+}
+
+/* The header's seasonal stripe, painted along its top edge. Unlayered, so
+   it outranks the header's py-6 utility; outside a season nothing matches. */
+html[data-theme] .site-header {
+  background-image: var(--season-band);
+  background-repeat: no-repeat;
+  background-size: 100% 6px;
+  padding-top: calc(1.5rem + 6px);
 }
 
 @theme inline {

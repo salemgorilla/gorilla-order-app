@@ -2,7 +2,9 @@ import { SHOP } from "../lib/shop";
 
 export default function Header() {
   return (
-    <header className="border-b-4 border-[var(--ink-black)] bg-[var(--shirt-blank)] py-6">
+    <header className="site-header border-b-4 border-[var(--ink-black)] bg-[var(--shirt-blank)] py-6">
+      {/* `site-header` carries the seasonal stripe along the top edge
+          (globals.css, lib/season.ts). Outside a season it does nothing. */}
       {/* Wraps rather than overflows: padding steps down on mobile.
           The wordmark sits at --text-wordmark, not --text-display. It used to
           share the headline's step, so the logo and the page's one <h1> were

@@ -478,13 +478,13 @@ export function HoodieSpecialAd({ onStart }: { onStart: () => void }) {
       />
       <span
         aria-hidden="true"
-        className="absolute inset-0 bg-[var(--gorilla-green)] transition-colors duration-[120ms] ease-linear group-hover:bg-[var(--ink-black)]"
+        className="absolute inset-0 bg-[var(--badge-fill)] transition-colors duration-[120ms] ease-linear group-hover:bg-[var(--ink-black)]"
         style={{ clipPath: STARBURST_CLIP }}
       />
 
       <span
         aria-hidden="true"
-        className="relative flex h-full flex-col items-center justify-center px-12 text-center text-white"
+        className="relative flex h-full flex-col items-center justify-center px-12 text-center text-[var(--badge-ink)]"
       >
         {/* Each line is sized to fit the burst's inner circle on a phone
             (18rem) and at 20rem, without wrapping mid-phrase. */}

@@ -49,7 +49,7 @@ export default function DealsList() {
               <li className="spec">Order by {formatDay(deal.endsOn)}</li>
             )}
           </ul>
-          <p className="mt-4 text-fine font-medium text-[var(--ink-muted)]">{HOW[deal.how].note}</p>
+          <p className="mt-4 text-fine font-medium text-[var(--ink-muted)]">{deal.note ?? HOW[deal.how].note}</p>
           {deal.how !== "soon" && (
           <a
             href={dealHref(deal, SHOP.email)}

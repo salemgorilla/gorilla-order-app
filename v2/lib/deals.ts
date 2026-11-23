@@ -20,6 +20,19 @@
 
 export type DealHow = "order" | "estimate" | "ask" | "soon";
 
+/**
+ * Every `?start=` value the order page acts on (app/page.tsx). A deal can
+ * only start at one of these.
+ */
+export const DEAL_STARTS = [
+  "hoodie-special",
+  "stickers-deal",
+  "tees-24-1c",
+  "tees-24-2c",
+  "apparel",
+] as const;
+export type DealStart = (typeof DEAL_STARTS)[number];
+
 export interface Deal {
   id: string;
   title: string;
@@ -31,7 +44,9 @@ export interface Deal {
   endsOn?: string;
   how: DealHow;
   /** For "order" and "estimate": where in the app it starts. */
-  start?: "hoodie-special" | "apparel" | "stickers";
+  start?: DealStart;
+  /** Replaces the page's usual line under the deal, when it needs saying. */
+  note?: string;
   /** For "ask": the email subject line. */
   subject?: string;
 }
@@ -54,25 +69,31 @@ export const DEALS: readonly Deal[] = [
     id: "stickers-50",
     title: "50 Stickers for $25",
     price: "$25 for 50",
-    details: ["Any size up to 3 inches", "One design"],
-    how: "ask",
-    subject: "Black Friday deal: 50 stickers for $25",
+    details: ["Any shape up to 3 inches", "One design, Gloss White Vinyl", "Setup included"],
+    how: "order",
+    start: "stickers-deal",
   },
   {
     id: "tees-24-1color",
     title: "24 Tees, 1-Color Front",
     price: "25% off, no screen fee",
     details: ["24 T-shirts", "1-color print on the front"],
-    how: "estimate",
-    start: "apparel",
+    how: "order",
+    start: "tees-24-1c",
+    note: "Priced for you at 25% off as you build it. We confirm every tee quote before we invoice.",
   },
   {
     id: "tees-24-2color",
     title: "24 Tees, 2-Color Front",
     price: "25% off, no screen fee",
-    details: ["24 T-shirts", "2-color print on the front"],
-    how: "estimate",
-    start: "apparel",
+    details: [
+      "24 T-shirts",
+      "2-color print on the front",
+      "Dark tees: 1-color art, as the white underbase is the 2nd color",
+    ],
+    how: "order",
+    start: "tees-24-2c",
+    note: "Priced for you at 25% off as you build it. We confirm every tee quote before we invoice.",
   },
   {
     // Gabe, 2026-11-23: details to come. Fill in price/details and change
@@ -95,5 +116,5 @@ export function dealHref(deal: Deal, shopEmail: string): string {
   if (deal.how === "ask") {
     return `mailto:${shopEmail}?subject=${encodeURIComponent(deal.subject || deal.title)}`;
   }
-  return `/?start=${deal.start ?? "stickers"}`;
+  return `/?start=${deal.start ?? "apparel"}`;
 }

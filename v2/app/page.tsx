@@ -215,6 +215,19 @@ import {
   quoteHoodieSpecial,
   type HoodieSpecialSides,
 } from "../lib/hoodie-special";
+import {
+  TEE_DEAL_QUANTITY,
+  applyTeeDeal,
+  teeDealFor,
+  teeDealNote,
+  teeDealProblem,
+  type TeeDeal,
+} from "../lib/tee-deal";
+import {
+  STICKER_DEAL,
+  stickerDealProblem,
+} from "../lib/sticker-deal";
+import { DealActive } from "../components/DealActive";
 import SignsBuilder from "../features/signs/SignsBuilder";
 import SpecialOrderEscape from "../components/SpecialOrderEscape";
 import SignsDelivery from "../features/signs/SignsDelivery";
@@ -470,6 +483,15 @@ export default function Home() {
     apparelQuoteState.promo === HOODIE_SPECIAL.id;
   /** Offered through the special's last day, on Salem's clock. */
   const hoodieSpecialOpen = isHoodieSpecialOpen();
+  /**
+   * A Black Friday tee deal (lib/tee-deal.ts), chosen from the deals page.
+   * The regular builder, priced 25% off with no screen fee; null on every
+   * regular quote, which then prices exactly as it always has.
+   */
+  const teeDeal =
+    isApparelSelected && !apparelIsRequestFlow
+      ? teeDealFor(apparelQuoteState.promo)
+      : null;
   const isApparelSubmitted = submittedProductId === "apparel";
   const isBannersSelected = selectedProductId === "banners";
   /**
@@ -769,6 +791,22 @@ export default function Home() {
   );
   const apparelNeedsUnderbase = apparelPrint.hasUnderbase;
 
+  /** Why the quote is not on its tee deal yet, said in the deal strip. */
+  const teeDealLiveProblem = teeDeal
+    ? teeDealProblem(teeDeal, {
+        quantity: apparelQuote.quantity,
+        catalogStyle: chosenSsProduct?.catalogStyle,
+        garmentColor: apparelQuote.garmentColor,
+        printLocations: apparelQuote.printLocations,
+        inkColors: apparelQuote.inkColors,
+        inkColorsByLocation: apparelQuote.inkColorsByLocation,
+        extraLines: extraGarmentLines.length,
+      })
+    : null;
+  /** The same for the sticker deal: the cart prices at list until it fits. */
+  const stickerDealLiveProblem =
+    order.deal === STICKER_DEAL.id ? stickerDealProblem(order.items) : null;
+
   const apparelPricing = useMemo(() => {
     // The special's flat price, and nothing of the matrix: no garment
     // markup, no screens, no underbase, no rush, no added garments.
@@ -844,11 +882,14 @@ export default function Home() {
       apparelPrint
     );
 
-    return withApparelRush(base, {
+    // A Black Friday tee deal (lib/tee-deal.ts): the same regular quote,
+    // 25% off and no screens, before rush.
+    return withApparelRush(teeDeal ? applyTeeDeal(base) : base, {
       needBy: order.production.needBy,
       lane: turnaroundLane,
     });
   }, [
+    teeDeal,
     apparelEstimateBasis,
     order.production.needBy,
     turnaroundLane,
@@ -1442,7 +1483,24 @@ export default function Home() {
 
   function recalculateOrder(nextOrder: typeof order) {
     const discount = nextOrder.discount ?? null;
-    const priced = nextOrder.items.map((item) => priceStickerItem(item, discount));
+    const pricedAtList = nextOrder.items.map((item) => priceStickerItem(item, discount));
+
+    /**
+     * The Black Friday sticker deal (lib/sticker-deal.ts), when the customer
+     * chose it AND the cart fits it: $25 for the stickers, setup included,
+     * no minimum, no code. When it does not fit, the cart prices at list as
+     * usual and the deal strip says why; the server makes the same call.
+     */
+    const onDeal =
+      nextOrder.deal === STICKER_DEAL.id &&
+      !stickerDealProblem(pricedAtList.map((entry) => entry.item));
+    const priced = onDeal
+      ? pricedAtList.map((entry) => ({
+          ...entry,
+          materialPrice: STICKER_DEAL.price,
+          listPrice: STICKER_DEAL.price,
+        }))
+      : pricedAtList;
 
     // The same call the SERVER makes in repriceStickers. Adding these up was
     // written out in both places; the browser showing one total while the
@@ -1458,7 +1516,8 @@ export default function Home() {
       })),
       destZip: nextOrder.production.shipZip,
       listPrices: priced.map((entry) => entry.listPrice),
-      discount,
+      discount: onDeal ? null : discount,
+      deal: onDeal,
     });
 
     return {
@@ -1475,6 +1534,9 @@ export default function Home() {
    * set one.
    */
   async function applyDiscountCode(code: string): Promise<string | null> {
+    if (order.deal === STICKER_DEAL.id) {
+      return "Codes don't apply to the Black Friday sticker deal. Switch to a regular quote to use one.";
+    }
     try {
       const response = await fetch("/api/discount-code", {
         method: "POST",
@@ -1578,6 +1640,10 @@ export default function Home() {
     const start = new URLSearchParams(window.location.search).get("start");
     if (start === "hoodie-special" && hoodieSpecialOpen) {
       startHoodieSpecialFromAd();
+    } else if (start === "stickers-deal") {
+      startStickerDeal();
+    } else if (teeDealFor(start)) {
+      startTeeDeal(teeDealFor(start) as TeeDeal);
     } else if (start === "apparel") {
       const apparel = productCategories.find((product) => product.id === "apparel");
       if (!apparel || apparel.status !== "active") return;
@@ -1587,6 +1653,59 @@ export default function Home() {
     // Mount only: these handlers are stable in effect for the first render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** The deals page's "50 stickers for $25": one design, 50 at 3" x 3". */
+  function startStickerDeal() {
+    const stickers = productCategories.find((product) => product.id === "stickers");
+    if (stickers) selectProduct(stickers);
+    setOrder((prev) =>
+      recalculateOrder({
+        ...prev,
+        deal: STICKER_DEAL.id,
+        discount: null,
+        items: [
+          createStickerItem({
+            quantity: STICKER_DEAL.quantity,
+            widthInches: STICKER_DEAL.maxInches,
+            heightInches: STICKER_DEAL.maxInches,
+            shape: "Die Cut",
+            material: STICKER_DEAL.material,
+            ...(stickers ? { type: stickers.title } : {}),
+          }),
+        ],
+      })
+    );
+    goToStep("details", "stickers");
+  }
+
+  function leaveStickerDeal() {
+    setOrder((prev) => recalculateOrder({ ...prev, deal: null }));
+  }
+
+  /** The deals page's tee deals: the regular builder, 24 tees, one front. */
+  function startTeeDeal(deal: TeeDeal) {
+    const apparel = productCategories.find((product) => product.id === "apparel");
+    if (!apparel || apparel.status !== "active") return;
+    selectProduct(apparel);
+    setSizeQuantities({});
+    setExtraGarmentLines([]);
+    const ink = deal.maxInks === 1 ? "1 color" : "2 colors";
+    setApparelQuoteState((current) => ({
+      ...current,
+      promo: deal.id,
+      quantity: TEE_DEAL_QUANTITY,
+      printLocations: ["Front"],
+      inkColors: ink,
+      inkColorsByLocation: {},
+      sizeBreakdown: "",
+      specialOrder: false,
+    }));
+    goToStep("details", "apparel");
+  }
+
+  function leaveTeeDeal() {
+    setApparelQuoteState((current) => ({ ...current, promo: "" }));
+  }
 
   function addDesign() {
     setOrder(
@@ -2383,6 +2502,8 @@ export default function Home() {
         totalQuantity: apparelPricing.quantity,
         hasUnderbase: apparelNeedsUnderbase,
         promoArtworkColorCount: artworkAnalysis?.estimatedColorCount ?? null,
+        catalogStyle: chosenSsProduct?.catalogStyle,
+        extraLineCount: extraGarmentLines.length,
       },
       order,
       sizeQuantityTotal,
@@ -2402,6 +2523,8 @@ export default function Home() {
         totalQuantity: apparelPricing.quantity,
         hasUnderbase: apparelNeedsUnderbase,
         promoArtworkColorCount: artworkAnalysis?.estimatedColorCount ?? null,
+        catalogStyle: chosenSsProduct?.catalogStyle,
+        extraLineCount: extraGarmentLines.length,
       },
       order,
       sizeQuantityTotal,
@@ -2573,6 +2696,8 @@ export default function Home() {
           // and the Printavo note name it; absent on a regular quote.
           ...(isHoodieSpecial
             ? { promo: HOODIE_SPECIAL.id, promoName: HOODIE_SPECIAL.name }
+            : teeDeal
+            ? { promo: teeDeal.id, promoName: teeDeal.name }
             : {}),
           // chosenSs*, not selectedSs*: a request-mode payload must say
           // "Not selected" — as it always did while the catalog was dark —
@@ -2630,6 +2755,13 @@ export default function Home() {
               quoteRequired: false,
               promo: HOODIE_SPECIAL.id,
               note: hoodieSpecialNote(apparelQuote.printLocations),
+            }
+          : teeDeal
+          ? {
+              ...apparelPricing,
+              quoteRequired: false,
+              promo: teeDeal.id,
+              note: teeDealNote(teeDeal),
             }
           : {
               ...apparelPricing,
@@ -4806,6 +4938,15 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     onLeave={leaveHoodieSpecial}
                   />
                 )}
+                {teeDeal && (
+                  <DealActive
+                    testId="tee-deal-active"
+                    name={teeDeal.name}
+                    terms={`Exactly ${TEE_DEAL_QUANTITY} tees, one ${teeDeal.maxInks === 1 ? "1-color" : "1- or 2-color"} print on the front. The regular price less 25%, and no screen fee. On a dark tee the white underbase counts as a color${teeDeal.maxInks === 1 ? "" : ", so dark tees take 1-color art"}.`}
+                    problem={teeDealLiveProblem}
+                    onLeave={leaveTeeDeal}
+                  />
+                )}
                 {isHoodieSpecial ? (
                   <HoodieSpecialBuilder
                     garmentColor={apparelQuote.garmentColor}
@@ -4982,6 +5123,15 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 </>
               ) : (
                 <div className="space-y-6">
+                  {order.deal === STICKER_DEAL.id && (
+                    <DealActive
+                      testId="sticker-deal-active"
+                      name={STICKER_DEAL.name}
+                      terms={`${STICKER_DEAL.quantity} stickers, one design, any shape up to ${STICKER_DEAL.maxInches}" x ${STICKER_DEAL.maxInches}", on ${STICKER_DEAL.material}. $${STICKER_DEAL.price.toFixed(2)} with setup included. Shipping and tax as usual.`}
+                      problem={stickerDealLiveProblem}
+                      onLeave={leaveStickerDeal}
+                    />
+                  )}
                   {order.items.map((item, index) => (
                     <DesignCard
                       key={item.id}

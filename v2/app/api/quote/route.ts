@@ -30,6 +30,8 @@ import {
   HOODIE_SPECIAL,
   hoodieSpecialSubmissionProblem,
 } from "../../../lib/hoodie-special";
+import { teeDealSubmissionProblem } from "../../../lib/tee-deal";
+import { isStickerDeal, stickerDealProblem } from "../../../lib/sticker-deal";
 import { isPaperProduct } from "../../../lib/order-flow";
 import {
   paperQuoteOrder,
@@ -407,6 +409,48 @@ export async function POST(request: Request) {
         (order as Record<string, unknown>).pricing as Record<string, unknown> | undefined
       );
 
+      if (problem) {
+        return NextResponse.json(
+          { success: false, message: problem },
+          { status: 400 }
+        );
+      }
+    }
+
+    /**
+     * THE STICKER DEAL IS THE SERVER'S CALL (lib/sticker-deal.ts). An order
+     * that claims "50 stickers for $25" but does not fit it (more designs,
+     * another count, over 3", another stock) is refused here, before the
+     * duplicate check and anything that writes, rather than billed at either
+     * price: a payment link goes out with no one looking. repriceStickers
+     * makes the same call again further down and bills $25 only on a fit.
+     */
+    {
+      const raw = order as Record<string, unknown>;
+      if (isStickerDeal(raw.deal)) {
+        const dealItems = Array.isArray(raw.items)
+          ? (raw.items as Record<string, unknown>[])
+          : [submittedProduct];
+        const problem = stickerDealProblem(dealItems);
+        if (problem) {
+          return NextResponse.json(
+            { success: false, message: problem },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
+    /**
+     * THE TEE DEALS' RULES (lib/tee-deal.ts): 24 tees, one front print,
+     * never more than 2 screens with the underbase, no screen fee. The form
+     * holds to them; this holds to them for any caller that skipped it.
+     */
+    {
+      const problem = teeDealSubmissionProblem(
+        submittedProduct,
+        (order as Record<string, unknown>).pricing as Record<string, unknown> | undefined
+      );
       if (problem) {
         return NextResponse.json(
           { success: false, message: problem },

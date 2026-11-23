@@ -10,6 +10,7 @@ import { Order, StickerItem } from "../types/order";
 import { validatePaperSpec, type PaperSpec } from "./paper";
 import { designColorCount, screenPrintMinimumMessage } from "./print-minimums";
 import { HOODIE_SPECIAL, hoodieSpecialFieldErrors } from "./hoodie-special";
+import { teeDealFor, teeDealProblem } from "./tee-deal";
 
 /**
  * The email rule, once, for all three flows.
@@ -599,6 +600,9 @@ export function getApparelFieldErrors(
     promoArtConfirmed?: boolean;
     /** What the artwork reader counted, for the special's 2-colour rule. */
     promoArtworkColorCount?: number | null;
+    /** The tee deals (lib/tee-deal.ts): the S&S style and added garments. */
+    catalogStyle?: string;
+    extraLineCount?: number;
   },
   order: {
     customer: { customerName: string; email: string };
@@ -690,6 +694,30 @@ export function getApparelFieldErrors(
 
   if (apparelQuote.printLocations.length === 0) {
     errors.printLocations = "Choose at least one print location.";
+  }
+
+  /**
+   * A BLACK FRIDAY TEE DEAL (lib/tee-deal.ts): 24 tees, one front print,
+   * never more than 2 screens with the underbase. Said once, under the
+   * question it is about; the regular minimum below still runs and a deal
+   * that fits always meets it.
+   */
+  const teeDeal = teeDealFor(apparelQuote.promo);
+  if (teeDeal) {
+    const problem = teeDealProblem(teeDeal, {
+      quantity: apparelQuote.quantity,
+      catalogStyle: apparelQuote.catalogStyle,
+      garmentColor: apparelQuote.garmentColor || "",
+      printLocations: apparelQuote.printLocations,
+      inkColors: apparelQuote.inkColors || "",
+      inkColorsByLocation: apparelQuote.inkColorsByLocation,
+      extraLines: apparelQuote.extraLineCount,
+    });
+    if (problem) {
+      if (/tees\. You have/.test(problem)) errors.quantity = problem;
+      else if (/added garment/.test(problem)) errors.garmentLines = problem;
+      else errors.printLocations = problem;
+    }
   }
 
   /**

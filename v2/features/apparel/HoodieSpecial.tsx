@@ -468,7 +468,7 @@ export function HoodieSpecialAd({ onStart }: { onStart: () => void }) {
       data-testid="hoodie-special-ad"
       onClick={onStart}
       aria-label={`${headline} Start the ${HOODIE_SPECIAL.name}.`}
-      className="group relative mx-auto mt-8 block aspect-square w-[18rem] shrink-0 cursor-pointer -rotate-6 transition-transform duration-[120ms] ease-linear hover:rotate-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--gorilla-green)] active:translate-x-[2px] active:translate-y-[2px] sm:w-[20rem] xl:absolute xl:right-0 xl:top-0 xl:mt-0"
+      className="group relative mx-auto mt-8 block aspect-square w-[18rem] shrink-0 cursor-pointer -rotate-6 motion-safe:animate-jiggle hover:animate-none focus-visible:animate-none transition-transform duration-[120ms] ease-linear hover:rotate-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--gorilla-green)] active:translate-x-[2px] active:translate-y-[2px] sm:w-[20rem] xl:absolute xl:right-0 xl:top-0 xl:mt-0"
     >
       {/* The hard offset: the same burst in ink black, 6px down-right. */}
       <span

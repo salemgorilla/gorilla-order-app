@@ -25,7 +25,7 @@ const MONDAY = "2026-11-23";
 describe("hoodie special landing ad", () => {
   const html = renderToStaticMarkup(<HoodieSpecialAd onStart={() => {}} />);
 
-  test(""as low as" is the lowest price the quote charges", () => {
+  test("the 'as low as' price is the lowest the quote charges", () => {
     const front = quoteHoodieSpecial({
       quantity: 50,
       colorName: "Black",

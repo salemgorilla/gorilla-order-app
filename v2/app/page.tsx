@@ -200,6 +200,20 @@ import {
   type PaperSpec,
 } from "../lib/paper";
 import ApparelSummaryCard from "../features/apparel/ApparelSummaryCard";
+import {
+  HoodieSpecialBuilder,
+  HoodieSpecialEntry,
+} from "../features/apparel/HoodieSpecial";
+import {
+  HOODIE_SPECIAL,
+  clampHoodieSpecialInk,
+  hoodieSpecialNote,
+  hoodieSpecialSides,
+  hoodieSpecialUnitPrice,
+  isHoodieSpecialOpen,
+  quoteHoodieSpecial,
+  type HoodieSpecialSides,
+} from "../lib/hoodie-special";
 import SignsBuilder from "../features/signs/SignsBuilder";
 import SpecialOrderEscape from "../components/SpecialOrderEscape";
 import SignsDelivery from "../features/signs/SignsDelivery";
@@ -444,6 +458,17 @@ export default function Home() {
     productCategories.find((product) => product.id === "apparel")?.status ===
     "request";
   const isApparelRequest = isApparelSelected && apparelIsRequestFlow;
+  /**
+   * The 50 Hoodie Special is on (lib/hoodie-special.ts). Its own builder
+   * replaces the catalogue and its own flat price replaces the matrix; every
+   * other apparel surface reads the same quote shape it always has.
+   */
+  const isHoodieSpecial =
+    isApparelSelected &&
+    !apparelIsRequestFlow &&
+    apparelQuoteState.promo === HOODIE_SPECIAL.id;
+  /** Offered through the special's last day, on Salem's clock. */
+  const hoodieSpecialOpen = isHoodieSpecialOpen();
   const isApparelSubmitted = submittedProductId === "apparel";
   const isBannersSelected = selectedProductId === "banners";
   /**
@@ -583,10 +608,23 @@ export default function Home() {
     chosenSsColor?.backImage || null
   );
   const selectedGarmentIsOutOfStock = chosenSsColor?.outOfStock || false;
-  const selectedGarmentLabel =
-    chosenSsProduct?.customerLabel ||
-    chosenSsProduct?.displayName ||
-    apparelQuoteState.garmentType;
+  const selectedGarmentLabel = isHoodieSpecial
+    ? // Read as "50 × Hoodie Special (Stockholm Pullover Hoodie)" in the
+      // estimate bar and as "WEB QUOTE GS-… - 50 Hoodie Special (…)" in the
+      // Printavo list, where the shop has to spot it.
+      `Hoodie Special (${HOODIE_SPECIAL.garmentLabel})`
+    : chosenSsProduct?.customerLabel ||
+      chosenSsProduct?.displayName ||
+      apparelQuoteState.garmentType;
+
+  /**
+   * The special's catalogue colour, for the review cards. Always null: its
+   * only blank is Cutter & Buck's (Gabe, 2026-11-23), which S&S does not
+   * sell, so there is no catalogue photo. The preview draws the special's
+   * own swatch, and the review cards name the colour from the quote. Never
+   * the regular builder's selection, which may be a tee.
+   */
+  const hoodieSpecialPhoto: SsCatalogColor | null = null;
 
   const sizeOptionsForBreakdown = useMemo(() => {
     const sizes =
@@ -655,14 +693,18 @@ export default function Home() {
      * replacing a guess.
      */
     const effectiveQuantity =
-      sizeQuantityTotal > 0 ? sizeQuantityTotal : apparelQuoteState.quantity;
+      // The special has no rough count: its sizes ARE the order, so an
+      // empty grid is zero hoodies, never the regular builder's 24.
+      isHoodieSpecial || sizeQuantityTotal > 0
+        ? sizeQuantityTotal
+        : apparelQuoteState.quantity;
 
     return apparelQuoteState.quantity === effectiveQuantity
       ? // Same object when nothing changed, so memo consumers downstream do
         // not see a new reference every render.
         apparelQuoteState
       : { ...apparelQuoteState, quantity: effectiveQuantity };
-  }, [apparelQuoteState, isApparelRequest, sizeQuantityTotal]);
+  }, [apparelQuoteState, isApparelRequest, isHoodieSpecial, sizeQuantityTotal]);
 
   const sizeBreakdownFromButtons = useMemo(() => {
     return Object.entries(sizeQuantities)
@@ -729,6 +771,17 @@ export default function Home() {
     apparelNeedsUnderbase && Boolean(artworkAnalysis?.estimatedColorCount);
 
   const apparelPricing = useMemo(() => {
+    // The special's flat price, and nothing of the matrix: no garment
+    // markup, no screens, no underbase, no rush, no added garments.
+    if (isHoodieSpecial) {
+      return quoteHoodieSpecial({
+        quantity: sizeQuantityTotal,
+        colorName: apparelQuote.garmentColor,
+        printLocations: apparelQuote.printLocations,
+        sizeBreakdown: sizeBreakdownFromButtons,
+      });
+    }
+
     /**
      * The garment component of the estimate, replacing the old model that
      * billed EVERY shirt at the sample size's price — a figure that ran
@@ -821,6 +874,8 @@ export default function Home() {
     extraGarmentLines,
     ssProducts,
     apparelHasUnderbase,
+    isHoodieSpecial,
+    sizeQuantityTotal,
   ]);
 
   /**
@@ -832,14 +887,15 @@ export default function Home() {
    */
   const apparelMinimumNotice = useMemo(
     () =>
-      !apparelQuote.specialOrder && apparelPricing.quantity > 0
+      // The special has its own floor, said in its own builder.
+      !apparelQuote.specialOrder && !isHoodieSpecial && apparelPricing.quantity > 0
         ? screenPrintMinimumMessage(
             apparelPricing.quantity,
             designColorCount({ ...apparelQuote, hasUnderbase: apparelNeedsUnderbase }),
             { underbase: apparelNeedsUnderbase }
           )
         : null,
-    [apparelQuote, apparelPricing.quantity, apparelNeedsUnderbase]
+    [apparelQuote, apparelPricing.quantity, apparelNeedsUnderbase, isHoodieSpecial]
   );
 
   /**
@@ -982,6 +1038,12 @@ export default function Home() {
         priceable: !apparelQuote.specialOrder,
         detail: apparelQuote.specialOrder
           ? "Special order — we'll quote it"
+          : isHoodieSpecial
+          ? apparelPricing.quantity > 0
+            ? `$${apparelPricing.unitPrice.toFixed(2)} each · flat rate`
+            : `$${hoodieSpecialUnitPrice(apparelQuote.printLocations).toFixed(
+                2
+              )} each, flat · enter your sizes`
           : `$${apparelPricing.unitPrice.toFixed(2)} each`,
       };
     }
@@ -1032,6 +1094,7 @@ export default function Home() {
     apparelQuote,
     apparelPricing,
     selectedGarmentLabel,
+    isHoodieSpecial,
     order.items,
     order.pricing,
   ]);
@@ -1652,6 +1715,124 @@ export default function Home() {
     return "5+ colors / Full color / Not sure";
   }
 
+  /**
+   * The 50 Hoodie Special's controls (lib/hoodie-special.ts).
+   *
+   * Starting it resets the size grid: the regular grid's rows come from the
+   * catalogue colour, the special's are its own XS-5XL,
+   * and counts carried across would total invisibly. Leaving resets it for
+   * the same reason the other way. Everything else the customer chose is
+   * kept, so stepping in and out costs them nothing but their sizes.
+   */
+  function startHoodieSpecial() {
+    setSizeQuantities({});
+    setApparelQuoteState((current) => {
+      // The busiest ink the customer had picked anywhere, clamped to the
+      // special's two — a 3-colour front becomes 2, never silently 1.
+      const busiest = Math.max(
+        ...[
+          current.inkColors,
+          ...current.printLocations.map(
+            (location) => current.inkColorsByLocation[location] || ""
+          ),
+        ].map((value) => Number(/^(\d+)/.exec(value)?.[1] ?? 1))
+      );
+      const ink = busiest <= 1 ? "1 color" : "2 colors";
+      const colorName = HOODIE_SPECIAL.colors.some(
+        (color) => color.name === current.garmentColor
+      )
+        ? current.garmentColor
+        : HOODIE_SPECIAL.colors[0].name;
+
+      return {
+        ...current,
+        promo: HOODIE_SPECIAL.id,
+        garmentType: HOODIE_SPECIAL.garmentLabel,
+        garmentColor: colorName,
+        printLocations: ["Front"],
+        inkColors: ink,
+        inkColorsByLocation: { Front: ink },
+        sizeBreakdown: "",
+        // The special is a priced offer; the "not on the menu" escape is
+        // the regular flow's, and its notes would otherwise mark the quote
+        // as a hand quote.
+        specialOrder: false,
+        promoArtConfirmed: false,
+      };
+    });
+  }
+
+  function leaveHoodieSpecial() {
+    setSizeQuantities({});
+    setApparelQuoteState((current) => ({
+      ...current,
+      promo: "",
+      // Back to the catalogue's own garment: the regular builder names
+      // whatever product is selected there.
+      garmentType:
+        selectedSsProduct?.customerLabel ||
+        selectedSsProduct?.displayName ||
+        current.garmentType,
+      garmentColor: selectedSsColor?.colorName || current.garmentColor,
+      printLocations: keepOfferedPlacements(
+        current.printLocations,
+        garmentFamily({ catalogStyle: selectedSsProduct?.catalogStyle })
+      ),
+      sizeBreakdown: "",
+    }));
+  }
+
+  function selectHoodieSpecialSides(sides: HoodieSpecialSides) {
+    setApparelQuoteState((current) => {
+      const front =
+        current.printLocations.find((location) =>
+          HOODIE_SPECIAL.frontPlacements.includes(location)
+        ) || HOODIE_SPECIAL.frontPlacements[0];
+      const back =
+        current.printLocations.find((location) =>
+          HOODIE_SPECIAL.backPlacements.includes(location)
+        ) || HOODIE_SPECIAL.backPlacements[0];
+      const printLocations = sides === "frontAndBack" ? [front, back] : [front];
+
+      return {
+        ...current,
+        printLocations,
+        inkColorsByLocation: Object.fromEntries(
+          printLocations.map((location) => [
+            location,
+            clampHoodieSpecialInk(
+              current.inkColorsByLocation[location] || current.inkColors
+            ),
+          ])
+        ),
+      };
+    });
+  }
+
+  function selectHoodieSpecialPlacement(side: "front" | "back", id: string) {
+    recordUsagePick("apparel", { field: "placement", value: id });
+    setApparelQuoteState((current) => {
+      const onSide =
+        side === "front"
+          ? HOODIE_SPECIAL.frontPlacements
+          : HOODIE_SPECIAL.backPlacements;
+      const previous = current.printLocations.find((location) =>
+        onSide.includes(location)
+      );
+      const ink = clampHoodieSpecialInk(
+        (previous && current.inkColorsByLocation[previous]) || current.inkColors
+      );
+      const printLocations = current.printLocations.map((location) =>
+        location === previous ? id : location
+      );
+      const inkColorsByLocation = { ...current.inkColorsByLocation };
+      if (previous) delete inkColorsByLocation[previous];
+      inkColorsByLocation[id] = ink;
+
+      return { ...current, printLocations, inkColorsByLocation };
+    });
+  }
+
   function togglePrintLocation(location: string) {
     if (!apparelQuote.printLocations.includes(location)) {
       recordUsagePick("apparel", { field: "placement", value: location });
@@ -1792,12 +1973,29 @@ export default function Home() {
     setArtworkAnalysis(analysis);
 
     if (isApparelSelected) {
-      setApparelQuoteState((prev) => ({
-        ...prev,
-        inkColors: formatInkColorOption(
+      setApparelQuoteState((prev) => {
+        const suggested = formatInkColorOption(
           getEstimatedInkColorCount(analysis, prev.garmentColor)
-        ),
-      }));
+        );
+
+        // On the special the menu stops at two a side, so the read only
+        // pre-selects within it; a busier file gets the builder's notice
+        // instead of a third colour the special does not sell.
+        return prev.promo === HOODIE_SPECIAL.id
+          ? {
+              ...prev,
+              // New art: the customer's word was about the old file.
+              promoArtConfirmed: false,
+              inkColors: clampHoodieSpecialInk(suggested),
+              inkColorsByLocation: Object.fromEntries(
+                prev.printLocations.map((location) => [
+                  location,
+                  clampHoodieSpecialInk(suggested),
+                ])
+              ),
+            }
+          : { ...prev, inkColors: suggested };
+      });
     }
 
     // Functional form, not a spread of `order`.
@@ -2162,6 +2360,7 @@ export default function Home() {
         // design, and a quote is one design (lib/print-minimums.ts).
         totalQuantity: apparelPricing.quantity,
         hasUnderbase: apparelNeedsUnderbase,
+        promoArtworkColorCount: artworkAnalysis?.estimatedColorCount ?? null,
       },
       order,
       sizeQuantityTotal,
@@ -2180,6 +2379,7 @@ export default function Home() {
         // design, and a quote is one design (lib/print-minimums.ts).
         totalQuantity: apparelPricing.quantity,
         hasUnderbase: apparelNeedsUnderbase,
+        promoArtworkColorCount: artworkAnalysis?.estimatedColorCount ?? null,
       },
       order,
       sizeQuantityTotal,
@@ -2347,6 +2547,11 @@ export default function Home() {
           sizeBreakdown: apparelQuote.sizeBreakdown,
           specialOrder: apparelQuote.specialOrder,
           specialOrderNotes: apparelQuote.specialOrderNotes,
+          // The flat-rate offer, when the customer chose it. The shop email
+          // and the Printavo note name it; absent on a regular quote.
+          ...(isHoodieSpecial
+            ? { promo: HOODIE_SPECIAL.id, promoName: HOODIE_SPECIAL.name }
+            : {}),
           // chosenSs*, not selectedSs*: a request-mode payload must say
           // "Not selected" — as it always did while the catalog was dark —
           // rather than name the pinned default product, colour and SKU the
@@ -2363,6 +2568,28 @@ export default function Home() {
             image: selectedGarmentImage,
             outOfStock: selectedGarmentIsOutOfStock,
           },
+          // The special's blank REPLACES the block above — which describes
+          // whatever the regular builder had selected, possibly a tee. No
+          // sample size, SKU or garment price: the special is one price for
+          // every size, and the shop orders the run from the sizes.
+          ...(isHoodieSpecial
+            ? {
+                supplier: {
+                  // Cutter & Buck direct: the special's only blank, and
+                  // not an S&S product (Gabe, 2026-11-23).
+                  source: HOODIE_SPECIAL.supplier,
+                  productName: selectedGarmentLabel,
+                  supplierProductName: HOODIE_SPECIAL.supplierProductName,
+                  catalogStyle: HOODIE_SPECIAL.catalogStyle,
+                  colorName: apparelQuote.garmentColor,
+                  sampleSize: "Not applicable (flat rate)",
+                  sku: "Not applicable (flat rate)",
+                  markedUpGarmentPrice: 0,
+                  image: null,
+                  outOfStock: false,
+                },
+              }
+            : {}),
         },
         artwork: {
           fileName: order.artwork.file?.name || null,
@@ -2374,6 +2601,13 @@ export default function Home() {
               total: 0,
               quoteRequired: true,
               note: "Special order — priced by hand by Gorilla Salem.",
+            }
+          : isHoodieSpecial
+          ? {
+              ...apparelPricing,
+              quoteRequired: false,
+              promo: HOODIE_SPECIAL.id,
+              note: hoodieSpecialNote(apparelQuote.printLocations),
             }
           : {
               ...apparelPricing,
@@ -3470,6 +3704,11 @@ ${
             // screens over a garment the catalogue could not price, and
             // copying it out gave the customer a number the shop never saw.
             "Special order — priced by hand by Gorilla Salem. We reply with your price."
+          : isHoodieSpecial
+          ? `${HOODIE_SPECIAL.name}: ${apparelPricing.quantity} x $${apparelPricing.unitPrice.toFixed(
+              2
+            )} = $${apparelPricing.total.toFixed(2)}
+Printing and setup: included in the flat rate.`
           : `Estimated Apparel Total: $${apparelPricing.total.toFixed(2)}
 Estimated Each: $${apparelPricing.unitPrice.toFixed(2)}
 Garments: $${apparelPricing.garmentTotal.toFixed(2)}
@@ -3725,8 +3964,13 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         signsFeeTotal={signsPricing.feeTotal}
         apparelQuote={apparelQuote}
         selectedGarmentLabel={selectedGarmentLabel}
-        selectedSsColor={selectedSsColor}
-        catalogStyle={chosenSsProduct?.catalogStyle}
+        // The special names its own blank; the regular selection may be a tee.
+        selectedSsColor={isHoodieSpecial ? hoodieSpecialPhoto : selectedSsColor}
+        catalogStyle={
+          isHoodieSpecial
+            ? HOODIE_SPECIAL.catalogStyle
+            : chosenSsProduct?.catalogStyle
+        }
         garmentLines={apparelPricing.lines}
         apparelEach={apparelEach}
         apparelPricing={apparelPricing}
@@ -3815,6 +4059,26 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         </p>
       )}
     </div>
+  ) : isHoodieSpecial ? (
+    // The special's own blank, drawn in the special's swatch colour (the
+    // Cutter & Buck hoodie has no S&S photo). Never the regular builder's
+    // selection, which may be a tee.
+    <ApparelPreview
+      artworkPreview={artworkPreview}
+      garmentType={selectedGarmentLabel}
+      garmentColor={apparelQuote.garmentColor}
+      garmentImage={null}
+      garmentBackImage={null}
+      garmentColorHex={
+        HOODIE_SPECIAL.colors.find(
+          (color) => color.name === apparelQuote.garmentColor
+        )?.hex
+      }
+      catalogStyle={HOODIE_SPECIAL.catalogStyle}
+      printLocations={apparelQuote.printLocations}
+      inkColors={describeInkColors(apparelQuote)}
+      quantity={apparelQuote.quantity}
+    />
   ) : isApparelSelected ? (
     <ApparelPreview
       artworkPreview={artworkPreview}
@@ -3946,6 +4210,18 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       artworkAnalysis={artworkAnalysis}
       garmentLines={apparelPricing.lines}
       apparelEach={apparelEach}
+      flatRate={
+        isHoodieSpecial
+          ? {
+              name: HOODIE_SPECIAL.name,
+              unitPrice: hoodieSpecialUnitPrice(apparelQuote.printLocations),
+              sides:
+                hoodieSpecialSides(apparelQuote.printLocations) === "frontAndBack"
+                  ? "front and back"
+                  : "front print",
+            }
+          : undefined
+      }
     />
   ) : (
     <OrderSummary order={order} />
@@ -4459,6 +4735,52 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 />
               ) : isApparelSelected ? (
                 <>
+                {(hoodieSpecialOpen || isHoodieSpecial) && (
+                  <HoodieSpecialEntry
+                    active={isHoodieSpecial}
+                    onStart={startHoodieSpecial}
+                    onLeave={leaveHoodieSpecial}
+                  />
+                )}
+                {isHoodieSpecial ? (
+                  <HoodieSpecialBuilder
+                    garmentColor={apparelQuote.garmentColor}
+                    printLocations={apparelQuote.printLocations}
+                    inkColors={apparelQuote.inkColors}
+                    inkColorsByLocation={apparelQuote.inkColorsByLocation}
+                    sizeQuantities={sizeQuantities}
+                    sizeTotal={sizeQuantityTotal}
+                    artworkColorCount={artworkAnalysis?.estimatedColorCount ?? null}
+                    artConfirmed={Boolean(apparelQuote.promoArtConfirmed)}
+                    onConfirmArt={(promoArtConfirmed) =>
+                      updateApparelQuote({ promoArtConfirmed })
+                    }
+                    fieldErrors={fieldErrors}
+                    onSelectColor={(garmentColor) => {
+                      recordUsagePick("apparel", {
+                        field: "color",
+                        style: HOODIE_SPECIAL.catalogStyle,
+                        color: garmentColor,
+                      });
+                      updateApparelQuote({ garmentColor });
+                    }}
+                    onSelectSides={selectHoodieSpecialSides}
+                    onSelectPlacement={selectHoodieSpecialPlacement}
+                    onSelectInk={(location, inkColors) =>
+                      updateApparelQuote({
+                        inkColorsByLocation: {
+                          ...apparelQuote.inkColorsByLocation,
+                          [location]: clampHoodieSpecialInk(inkColors),
+                        },
+                      })
+                    }
+                    onStepSize={updateSizeQuantity}
+                    onSetSize={setSizeQuantity}
+                    onResetSizes={resetSizeBreakdown}
+                    onLeave={leaveHoodieSpecial}
+                  />
+                ) : (
+                <>
                 <ApparelBuilder
                   apparelQuote={apparelQuote}
                   artworkAnalysis={artworkAnalysis}
@@ -4591,6 +4913,8 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                       )
                     }
                   />
+                </>
+                )}
                 </>
               ) : (
                 <div className="space-y-6">
@@ -4962,8 +5286,13 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               signsTotal={signsPriceable ? signsPricing.total : null}
               signsFeeTotal={signsPricing.feeTotal}
               selectedGarmentLabel={selectedGarmentLabel}
-              selectedSsColor={selectedSsColor}
-              catalogStyle={chosenSsProduct?.catalogStyle}
+              // The special names its own blank; the regular selection may be a tee.
+              selectedSsColor={isHoodieSpecial ? hoodieSpecialPhoto : selectedSsColor}
+              catalogStyle={
+                isHoodieSpecial
+                  ? HOODIE_SPECIAL.catalogStyle
+                  : chosenSsProduct?.catalogStyle
+              }
               isReady={currentValidationErrors.length === 0}
             />
 

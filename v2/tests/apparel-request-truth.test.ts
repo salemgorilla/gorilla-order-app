@@ -71,7 +71,9 @@ describe("the pinned catalog defaults cannot speak for a request customer", () =
   test("the garment label falls through to the customer's words", () => {
     assert.match(
       page,
-      /const selectedGarmentLabel =\s*\n?\s*chosenSsProduct\?\.customerLabel \|\|\s*\n?\s*chosenSsProduct\?\.displayName \|\|\s*\n?\s*apparelQuoteState\.garmentType;/
+      // The 50 Hoodie Special (lib/hoodie-special.ts) names its own blank
+      // ahead of this chain; outside it the chain is unchanged.
+      /const selectedGarmentLabel = isHoodieSpecial\s*\n?[\s\S]{0,400}?:\s*chosenSsProduct\?\.customerLabel \|\|\s*\n?\s*chosenSsProduct\?\.displayName \|\|\s*\n?\s*apparelQuoteState\.garmentType;/
     );
   });
 

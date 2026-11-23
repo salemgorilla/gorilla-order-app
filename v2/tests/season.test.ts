@@ -217,8 +217,8 @@ describe("Christmas decor stays out of the way", () => {
   });
   it("never takes a click", () => {
     const src = readFileSync(new URL("../components/SeasonDecor.tsx", import.meta.url), "utf8");
-    assert.equal((src.match(/pointer-events-none/g) ?? []).length, 4);
-    assert.equal((src.match(/aria-hidden="true"/g) ?? []).length, 4);
+    assert.equal((src.match(/pointer-events-none/g) ?? []).length, 5);
+    assert.equal((src.match(/aria-hidden="true"/g) ?? []).length, 5);
   });
 });
 

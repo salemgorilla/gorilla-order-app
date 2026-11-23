@@ -59,8 +59,140 @@
   --offset: 3px;             /* hard offset shadow, zero blur                   */
   --motion: 120ms;           /* linear, functional only                         */
 
+  /* ---- Seasonal slots ----
+     Two jobs a season recolours that the house palette fills with an
+     existing ink. Outside a season they ARE those inks, so nothing changes. */
+  --badge-fill: var(--gorilla-green); /* the hoodie special's starburst     */
+  --badge-ink: var(--paper);          /* the type on it                     */
+  --season-band: none;                /* stripe under the header; off       */
+
   --background: var(--shirt-blank);
   --foreground: var(--ink-black);
+}
+
+/* ============================================================
+   SEASONS — recolour only. Chosen by date on the shop's clock in
+   lib/season.ts, which sets html[data-theme] before first paint.
+   Preview any of them with ?theme=thanksgiving, ?theme=christmas,
+   or ?theme=default.
+
+   Only inks are overridden. --rush-red is NOT: it means late, wrong
+   or blocked on every screen, and a holiday is no reason for an
+   alarm to change colour. --cut-line is functional and untouched.
+   Every pair tests/token-contrast.test.ts holds for the house inks
+   is held for each season too.
+   ============================================================ */
+
+/* Thanksgiving, 1-30 November: pumpkin, cranberry, harvest gold and
+   warm brown on cream. */
+html[data-theme="thanksgiving"] {
+  --ink-black: #22160d;      /* warm near-black brown                           */
+  --ink-muted: #5c4632;      /* walnut                                          */
+  --shirt-blank: #f8eedd;    /* cream                                           */
+  --rule: #8f7660;           /* 4.26:1 paper, 3.71:1 cream                      */
+  --rule-faint: #e3d3bb;
+  --gorilla-green: #9a4b00;  /* pumpkin — the accent; 6.21:1 with white type    */
+  --gorilla-green-dark: #733700;
+  --green-bright: #e2a72e;   /* harvest gold, ink-on-black only                 */
+  --surface-ok: #f6e6d2;
+  --badge-fill: #8a1f2d;     /* cranberry                                       */
+  --season-band: repeating-linear-gradient(
+    90deg,
+    #9a4b00 0 2rem,
+    #e2a72e 2rem 4rem,
+    #8a1f2d 4rem 6rem,
+    #5c4632 6rem 8rem
+  );
+}
+
+/* Christmas, 1-31 December: evergreen, cranberry red and gold on warm
+   white. House colours come back on 1 January. */
+html[data-theme="christmas"] {
+  --ink-muted: #5a5448;
+  --shirt-blank: #fbf7ef;    /* warm white                                      */
+  --rule: #8a8270;           /* 3.81:1 paper, 3.57:1 warm white                 */
+  --rule-faint: #e4ddcd;
+  --gorilla-green: #1d5c34;  /* evergreen; 7.98:1 with white type               */
+  --gorilla-green-dark: #123f22;
+  --green-bright: #d6ac3a;   /* gold, ink-on-black only                         */
+  --surface-ok: #e6f0e7;
+  --badge-fill: #a11a2e;     /* cranberry red                                   */
+  /* Decor (components/SeasonDecor.tsx): holly, bells, snowflakes. */
+  --decor-leaf: #1d5c34;
+  --decor-leaf-dark: #154628;
+  --decor-vein: #5f8f6c;
+  --decor-berry: #b3172f;
+  --decor-berry-edge: #fbf7ef; /* lifts the berries off the red badge */
+  --decor-shine: #f3c6cc;
+  --decor-gold: #d6ac3a;
+  --decor-gold-dark: #8c6a12;
+  --decor-snow: #9fb4bd;     /* pale winter blue-grey: visible on warm white,   */
+                             /* never near the text it drifts behind           */
+  --season-band: repeating-linear-gradient(
+    -45deg,
+    #a11a2e 0 0.75rem,
+    #fbf7ef 0.75rem 1.5rem,
+    #1d5c34 1.5rem 2.25rem,
+    #fbf7ef 2.25rem 3rem
+  );
+}
+
+/* Christmas decor (components/SeasonDecor.tsx). In the markup all year and
+   display:none outside the Christmas theme. Decorative only: aria-hidden,
+   no pointer events, nothing in the layout flow. */
+.xmas-decor,
+.xmas-snow {
+  display: none;
+}
+html[data-theme="christmas"] .xmas-decor {
+  display: block;
+}
+html[data-theme="christmas"] .xmas-snow {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: -1;          /* behind every panel; shows only on the ground */
+  overflow: hidden;
+}
+/* Pages paint the same --shirt-blank on <main> as the body already does;
+   let the body's show through instead, so the snow layer behind it is
+   visible on the ground. Same colour, so nothing else changes. */
+html[data-theme="christmas"] main {
+  background-color: transparent;
+}
+.xmas-flake {
+  position: absolute;
+  top: var(--flake-y);  /* reduced motion: a still scatter of snow */
+  opacity: 0.85;
+}
+/* Falling only for visitors who have not asked for less motion. Kept out of
+   the reduced-motion case entirely, because the global reduce rule would
+   otherwise run an infinite animation at 0.01ms. */
+@media (prefers-reduced-motion: no-preference) {
+  .xmas-flake {
+    top: -24px;
+    animation-name: snowfall;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    will-change: transform;
+  }
+}
+@keyframes snowfall {
+  from {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  to {
+    transform: translate3d(var(--flake-drift), calc(100vh + 48px), 0) rotate(180deg);
+  }
+}
+
+/* The header's seasonal stripe, painted along its top edge. Unlayered, so
+   it outranks the header's py-6 utility; outside a season nothing matches. */
+html[data-theme] .site-header {
+  background-image: var(--season-band);
+  background-repeat: no-repeat;
+  background-size: 100% 6px;
+  padding-top: calc(1.5rem + 6px);
 }
 
 @theme inline {

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
+import { seasonThemeScript } from "../lib/season";
+import { Snowfall } from "../components/SeasonDecor";
 
 // Order Desk type system: Space Grotesk for display + UI, JetBrains Mono for
 // spec furniture only (ticket numbers, timestamps, statuses, size grids).
@@ -32,8 +34,20 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      // The season script below sets data-theme on <html> before React
+      // hydrates, so the server's markup and the browser's differ by that
+      // one attribute on purpose.
+      suppressHydrationWarning
     >
+      <head>
+        {/* Seasonal colours (lib/season.ts). Inline and first so the right
+            inks are on before the first paint; the page is static, so this
+            is what makes 1 December switch to Christmas with no deploy. */}
+        <script dangerouslySetInnerHTML={{ __html: seasonThemeScript() }} />
+      </head>
       <body className="min-h-full flex flex-col">
+        {/* Christmas snowfall: hidden outside the Christmas theme. */}
+        <Snowfall />
         {children}
         {/**
          * SHIPS DARK.

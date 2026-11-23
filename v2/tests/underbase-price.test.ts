@@ -111,7 +111,7 @@ describe("a light shirt does not change", () => {
   });
 
   test("light colours price like white (Gabe, 23 Nov: \"It should price like white\")", () => {
-    for (const name of ["Ash", "Natural", "Athletic Heather", "Heather Natural", "Sport Grey"]) {
+    for (const name of ["Ash", "Natural", "Athletic Heather", "Heather Natural"]) {
       const spec = apparelPrintSpec(quoteFor(name), []);
       const cart = quoteApparelCart([tees(name)], spec);
       assert.equal(spec.hasUnderbase, false, name);
@@ -128,7 +128,7 @@ describe("a light shirt does not change", () => {
       assert.equal(isLightGarment(name), true, name);
     }
     for (const name of [
-      "Solid Black Blend", "Black/White", "Black", "Navy", "Heather Navy",
+      "Solid Black Blend", "Black/White", "Black", "Navy", "Heather Navy", "Sport Grey",
       "Charcoal", "Dark Grey Heather", "Heather Red", "Royal", "Forest",
       "Neon Yellow", "Safety Green", "Whitewater Blue", "Custom / Not Sure", "",
     ]) {
@@ -155,6 +155,16 @@ describe("a light shirt does not change", () => {
       { id: "g1", productId: "hoodie", colorName: "Black", quantity: 12 },
     ]);
     assert.equal(spec.hasUnderbase, true);
+  });
+});
+
+describe("Sport Grey prices as dark (Gabe, 23 Nov: \"Make Sport Grey dark\")", () => {
+  test("24 Sport Grey tees, 1-colour front: underbase, $471.20, 24 minimum", () => {
+    const spec = apparelPrintSpec(quoteFor("Sport Grey"), []);
+    const cart = quoteApparelCart([tees("Sport Grey")], spec);
+    assert.equal(spec.hasUnderbase, true);
+    assert.equal(cart.total.toFixed(2), "471.20");
+    assert.equal(screenPrintMinimum(designColorCount(spec)), 24);
   });
 });
 

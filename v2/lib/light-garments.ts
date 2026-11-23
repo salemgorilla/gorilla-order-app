@@ -28,7 +28,7 @@ export const LIGHT_GARMENT_COLORS: readonly string[] = [
   // Light greys
   "Ash",
   "Ice Grey",
-  "Sport Grey",
+  // Not "Sport Grey": Gabe, 23 Nov, "Make Sport Grey dark".
   "Athletic Heather",
   "Heather Gray",
   "Heather Cement",

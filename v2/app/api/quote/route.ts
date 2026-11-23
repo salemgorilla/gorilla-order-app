@@ -442,8 +442,8 @@ export async function POST(request: Request) {
     }
 
     /**
-     * THE TEE DEALS' RULES (lib/tee-deal.ts): 24 tees, one front print,
-     * never more than 2 screens with the underbase, no screen fee. The form
+     * THE TEE DEALS' RULES (lib/tee-deal.ts): a set count, one front print,
+     * never more than 2 screens with the underbase, no setup fee. The form
      * holds to them; this holds to them for any caller that skipped it.
      */
     {

@@ -51,8 +51,12 @@ describe("the deals list", () => {
   it("the tee and sticker cards read their prices from the pricing code", () => {
     const byId = Object.fromEntries(DEALS.map((d) => [d.id, d]));
     assert.equal(byId["stickers-50"].price, 25);
-    assert.equal(byId["tees-24-1color"].price, 206.16);
-    assert.equal(byId["tees-24-2color"].price, 247.44);
+    assert.equal(byId["tees-12-1color"].price, 130.32);
+    assert.equal(byId["tees-12-1color"].regularPrice, 180.4);
+    assert.equal(byId["tees-24-1color"].price, 199.68);
+    assert.equal(byId["tees-24-1color"].regularPrice, 299.8);
+    assert.equal(byId["tees-24-2color"].price, 279.84);
+    assert.equal(byId["tees-24-2color"].regularPrice, 380);
     assert.equal(byId["beanies-12"].price, 109.8);
     assert.equal(byId["beanies-12"].regularPrice, 146.4);
     assert.equal(byId["hats-12"].price, 159.72);

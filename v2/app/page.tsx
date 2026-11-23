@@ -609,8 +609,8 @@ export default function Home() {
   );
   const selectedGarmentIsOutOfStock = chosenSsColor?.outOfStock || false;
   const selectedGarmentLabel = isHoodieSpecial
-    ? // Read as "50 × Hoodie Special (Classic Hoodie)" in the estimate bar
-      // and as "WEB QUOTE GS-… - 50 Hoodie Special (Classic Hoodie)" in the
+    ? // Read as "50 × Hoodie Special (Stockholm Pullover Hoodie)" in the
+      // estimate bar and as "WEB QUOTE GS-… - 50 Hoodie Special (…)" in the
       // Printavo list, where the shop has to spot it.
       `Hoodie Special (${HOODIE_SPECIAL.garmentLabel})`
     : chosenSsProduct?.customerLabel ||
@@ -618,20 +618,13 @@ export default function Home() {
       apparelQuoteState.garmentType;
 
   /**
-   * The special's blank in the live catalogue, in the chosen colour — for
-   * the mockup photo and the supplier block the shop orders from. Never for
-   * price. Null while the catalogue is dark or S&S names the colour
-   * differently; the preview then draws the swatch colour instead.
+   * The special's catalogue colour, for the review cards. Always null: its
+   * only blank is Cutter & Buck's (Gabe, 2026-11-23), which S&S does not
+   * sell, so there is no catalogue photo. The preview draws the special's
+   * own swatch, and the review cards name the colour from the quote. Never
+   * the regular builder's selection, which may be a tee.
    */
-  const hoodieSpecialProduct = isHoodieSpecial
-    ? ssProducts.find(
-        (product) => product.catalogStyle === HOODIE_SPECIAL.catalogStyle
-      ) ?? null
-    : null;
-  const hoodieSpecialPhoto =
-    hoodieSpecialProduct?.colors.find(
-      (color) => color.colorName === apparelQuoteState.garmentColor
-    ) ?? null;
+  const hoodieSpecialPhoto: SsCatalogColor | null = null;
 
   const sizeOptionsForBreakdown = useMemo(() => {
     const sizes =
@@ -1726,7 +1719,7 @@ export default function Home() {
    * The 50 Hoodie Special's controls (lib/hoodie-special.ts).
    *
    * Starting it resets the size grid: the regular grid's rows come from the
-   * catalogue colour (Gildan has no XS), the special's are its own XS-5XL,
+   * catalogue colour, the special's are its own XS-5XL,
    * and counts carried across would total invisibly. Leaving resets it for
    * the same reason the other way. Everything else the customer chose is
    * kept, so stepping in and out costs them nothing but their sizes.
@@ -1764,6 +1757,7 @@ export default function Home() {
         // the regular flow's, and its notes would otherwise mark the quote
         // as a hand quote.
         specialOrder: false,
+        promoArtConfirmed: false,
       };
     });
   }
@@ -1990,6 +1984,8 @@ export default function Home() {
         return prev.promo === HOODIE_SPECIAL.id
           ? {
               ...prev,
+              // New art: the customer's word was about the old file.
+              promoArtConfirmed: false,
               inkColors: clampHoodieSpecialInk(suggested),
               inkColorsByLocation: Object.fromEntries(
                 prev.printLocations.map((location) => [
@@ -2364,6 +2360,7 @@ export default function Home() {
         // design, and a quote is one design (lib/print-minimums.ts).
         totalQuantity: apparelPricing.quantity,
         hasUnderbase: apparelNeedsUnderbase,
+        promoArtworkColorCount: artworkAnalysis?.estimatedColorCount ?? null,
       },
       order,
       sizeQuantityTotal,
@@ -2382,6 +2379,7 @@ export default function Home() {
         // design, and a quote is one design (lib/print-minimums.ts).
         totalQuantity: apparelPricing.quantity,
         hasUnderbase: apparelNeedsUnderbase,
+        promoArtworkColorCount: artworkAnalysis?.estimatedColorCount ?? null,
       },
       order,
       sizeQuantityTotal,
@@ -2577,18 +2575,18 @@ export default function Home() {
           ...(isHoodieSpecial
             ? {
                 supplier: {
-                  source: "S&S Activewear",
+                  // Cutter & Buck direct: the special's only blank, and
+                  // not an S&S product (Gabe, 2026-11-23).
+                  source: HOODIE_SPECIAL.supplier,
                   productName: selectedGarmentLabel,
-                  supplierProductName:
-                    hoodieSpecialProduct?.displayName ||
-                    "Gildan 18500 Heavy Blend Hoodie",
+                  supplierProductName: HOODIE_SPECIAL.supplierProductName,
                   catalogStyle: HOODIE_SPECIAL.catalogStyle,
                   colorName: apparelQuote.garmentColor,
                   sampleSize: "Not applicable (flat rate)",
                   sku: "Not applicable (flat rate)",
                   markedUpGarmentPrice: 0,
-                  image: hoodieSpecialPhoto?.frontImage || null,
-                  outOfStock: Boolean(hoodieSpecialPhoto?.outOfStock),
+                  image: null,
+                  outOfStock: false,
                 },
               }
             : {}),
@@ -4062,15 +4060,15 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       )}
     </div>
   ) : isHoodieSpecial ? (
-    // The special's own blank: the catalogue's photo of the Classic Hoodie
-    // in the chosen colour when S&S has it, the special's swatch otherwise.
-    // Never the regular builder's selection, which may be a tee.
+    // The special's own blank, drawn in the special's swatch colour (the
+    // Cutter & Buck hoodie has no S&S photo). Never the regular builder's
+    // selection, which may be a tee.
     <ApparelPreview
       artworkPreview={artworkPreview}
       garmentType={selectedGarmentLabel}
       garmentColor={apparelQuote.garmentColor}
-      garmentImage={sameOriginGarmentPhotoUrl(hoodieSpecialPhoto?.frontImage || null)}
-      garmentBackImage={sameOriginGarmentPhotoUrl(hoodieSpecialPhoto?.backImage || null)}
+      garmentImage={null}
+      garmentBackImage={null}
       garmentColorHex={
         HOODIE_SPECIAL.colors.find(
           (color) => color.name === apparelQuote.garmentColor
@@ -4753,6 +4751,10 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     sizeQuantities={sizeQuantities}
                     sizeTotal={sizeQuantityTotal}
                     artworkColorCount={artworkAnalysis?.estimatedColorCount ?? null}
+                    artConfirmed={Boolean(apparelQuote.promoArtConfirmed)}
+                    onConfirmArt={(promoArtConfirmed) =>
+                      updateApparelQuote({ promoArtConfirmed })
+                    }
                     fieldErrors={fieldErrors}
                     onSelectColor={(garmentColor) => {
                       recordUsagePick("apparel", {

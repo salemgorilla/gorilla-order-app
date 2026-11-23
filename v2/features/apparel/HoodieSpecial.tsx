@@ -103,6 +103,9 @@ type BuilderProps = {
   sizeTotal: number;
   /** Ink colours the artwork reader counted, when it has read the file. */
   artworkColorCount: number | null;
+  /** The customer's tick that their art prints in 2 colors per side. */
+  artConfirmed: boolean;
+  onConfirmArt: (confirmed: boolean) => void;
   fieldErrors?: FieldErrors;
   onSelectColor: (colorName: string) => void;
   onSelectSides: (sides: HoodieSpecialSides) => void;
@@ -122,6 +125,8 @@ export function HoodieSpecialBuilder({
   sizeQuantities,
   sizeTotal,
   artworkColorCount,
+  artConfirmed,
+  onConfirmArt,
   fieldErrors,
   onSelectColor,
   onSelectSides,
@@ -193,8 +198,9 @@ export function HoodieSpecialBuilder({
       <div className="border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
         <p className="eyebrow">Hoodie color</p>
         <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
-          {HOODIE_SPECIAL.garmentLabel} (Gildan 18500 pullover). Every color is
-          the same price.
+          The special is printed on one hoodie only: the Clique{" "}
+          {HOODIE_SPECIAL.garmentLabel} from {HOODIE_SPECIAL.supplier}. Every
+          color is the same price.
         </p>
 
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -315,9 +321,11 @@ export function HoodieSpecialBuilder({
 
       {/* The cap is the special's, and the menu above already holds to it.
           This is for the art: if the file reads as busier than two colours,
-          say so now rather than on the proof. A reader, not a gate — the
-          count is an estimate (gradients and edges read as extra colours),
-          so the shop confirms it. */}
+          the quote does not go through until the customer ticks that it
+          prints in two a side, or leaves for a regular quote. The count is
+          an estimate (a background or soft edges read as extra colours), so
+          it asks rather than refuses (Gabe, 2026-11-23: no breaking the
+          2-colour rule). */}
       <p className="-mt-2 text-fine font-medium leading-5 text-[var(--ink-muted)]">
         Need 3 or more colors on a side?{" "}
         <button
@@ -336,10 +344,28 @@ export function HoodieSpecialBuilder({
           data-testid="hoodie-special-art-warning"
           className="border border-[var(--rule)] border-l-4 border-l-[var(--rush-red)] bg-[var(--surface-warn)] p-4 text-fine font-medium leading-6 text-[var(--ink-black)]"
         >
-          Your artwork looks like it has about {artworkColorCount} colors. The
-          special covers up to {HOODIE_SPECIAL.maxInksPerSide} per side, so
-          we&rsquo;ll check the art with you before printing. If it really
-          needs more, a regular quote prices it.
+          <p>
+            Your artwork looks like it has about {artworkColorCount} colors.
+            The special prints {HOODIE_SPECIAL.maxInksPerSide} colors per side
+            at most, with no exceptions. If your art needs more, use a regular
+            quote.
+          </p>
+          <label className="mt-3 flex min-h-[44px] cursor-pointer items-center gap-3 font-bold">
+            <input
+              type="checkbox"
+              data-testid="hoodie-special-art-confirm"
+              checked={artConfirmed}
+              onChange={(event) => onConfirmArt(event.target.checked)}
+              className="h-5 w-5 shrink-0 accent-[var(--ink-black)]"
+            />
+            My art prints in {HOODIE_SPECIAL.maxInksPerSide} colors or fewer on
+            each side (a background color doesn&rsquo;t count).
+          </label>
+          {fieldErrors?.artwork && !artConfirmed && (
+            <p className="mt-2 font-bold text-[var(--rush-red)]">
+              {fieldErrors.artwork}
+            </p>
+          )}
         </div>
       )}
 

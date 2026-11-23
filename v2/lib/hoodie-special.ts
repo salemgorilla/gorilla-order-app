@@ -13,6 +13,16 @@ import type { ApparelCartQuote } from "./apparel-cart";
  * each front print, $33 each front and back, one price XS to 5XL, up to 2
  * ink colours per side, setup included, order by December 1st.
  *
+ * Gabe, 2026-11-23, two more rules, both hard:
+ * - "use cutter and buck blank" / "Cutter and Buck is the only option for
+ *   the 50 hoodie." ONE blank, no picker: the Clique Stockholm Pullover
+ *   Hoodie, Cutter & Buck style MQK00107, the hoodie he already buys from
+ *   them (his 14 Oct order, MQK00107BL). It is bought from Cutter & Buck
+ *   direct, NOT from S&S, so the S&S catalogue is never asked about it.
+ * - "there's the limit of two colors printing, so there's no breaking that
+ *   rule." Two inks per printed side, one front print and at most one back
+ *   print, checked here, in the form, and again by the quote endpoint.
+ *
  * ── WHY THIS IS NOT THE MATRIX ─────────────────────────────────────────────
  * The regular apparel engine (lib/apparel-cart.ts) prices garments from S&S,
  * printing from the matrix, screens at $25 a colour, plus underbase and rush.
@@ -55,26 +65,29 @@ export const HOODIE_SPECIAL = {
    */
   lastDay: "2026-12-01",
   /**
-   * The blank the special is quoted on: the app's Classic Hoodie (Gildan
-   * 18500, S&S style 395). Used for the garment photo, the placement sizes
-   * and the shop's supplier block — never for price.
+   * THE ONLY BLANK. Cutter & Buck's style number, used for the placement
+   * sizes and the shop's supplier block, never for price, and never sent
+   * to S&S (Cutter & Buck sells it direct). Gabe, 2026-11-23: "Cutter and
+   * Buck is the only option for the 50 hoodie."
    */
-  catalogStyle: "395",
-  garmentLabel: "Classic Hoodie",
+  catalogStyle: "MQK00107",
+  supplier: "Cutter & Buck",
+  supplierProductName: "Clique Stockholm Pullover Hoodie (Cutter & Buck MQK00107)",
+  garmentLabel: "Stockholm Pullover Hoodie",
   /**
-   * The eight colours on the special's art, named as S&S names them on the
-   * Gildan 18500 so the shop orders the right blank. Black, Navy and Sport
-   * Grey first (Gabe, 2026-11-21: most-ordered first). Hex values are
-   * garment colours for the swatch, not UI tokens.
+   * The eight colours on the special's art, under the Stockholm's own
+   * colour names, so the shop orders the right blank. Most-ordered first
+   * (Gabe, 2026-11-21). Hex values are garment colours for the swatch,
+   * not UI tokens.
    */
   colors: [
     { name: "Black", hex: "#111111" },
-    { name: "Navy", hex: "#0c1c47" },
-    { name: "Sport Grey", hex: "#9a9fa3" },
-    { name: "Charcoal", hex: "#4a4a4f" },
+    { name: "Dark Navy", hex: "#0c1c47" },
+    { name: "Grey Melange", hex: "#9a9fa3" },
+    { name: "Anthracite Melange", hex: "#4a4a4f" },
     { name: "Ash", hex: "#d9d9d9" },
     { name: "White", hex: "#f4f4f2" },
-    { name: "Royal", hex: "#1f4fa0" },
+    { name: "Royal Blue", hex: "#1f4fa0" },
     { name: "Red", hex: "#c62f2f" },
   ],
   /** One price across every size. */
@@ -210,9 +223,19 @@ export function hoodieSpecialNote(printLocations: string[]): string {
 
   return `${HOODIE_SPECIAL.name}: flat $${unit.toFixed(
     2
-  )} per hoodie (${sides}), any size XS-5XL, up to ${
-    HOODIE_SPECIAL.maxInksPerSide
-  } ink colors per side, setup included. Final pricing reviewed by Gorilla Salem.`;
+  )} per hoodie (${sides}), any size XS-5XL, on the ${
+    HOODIE_SPECIAL.supplier
+  } ${HOODIE_SPECIAL.garmentLabel} only, setup included. ${hoodieSpecialInkRule()} Final pricing reviewed by Gorilla Salem.`;
+}
+
+/**
+ * The hard rule, as the shop reads it. The white underbase a dark hoodie
+ * takes is part of the print, not one of the customer's two inks: the
+ * special is sold as "up to 2 ink colors per side" on all eight colours,
+ * seven of which are dark.
+ */
+export function hoodieSpecialInkRule(): string {
+  return `HARD LIMIT: ${HOODIE_SPECIAL.maxInksPerSide} ink colors per side, no exceptions (underbase on dark hoodies included).`;
 }
 
 /**
@@ -227,9 +250,13 @@ export function hoodieSpecialFieldErrors(input: {
   printLocations: string[];
   inkColors: string;
   inkColorsByLocation?: Record<string, string>;
+  /** What the artwork reader counted, when it has read the file. */
+  artworkColorCount?: number | null;
+  /** The customer's own tick: "my art prints in 2 colors or fewer a side". */
+  artConfirmed?: boolean;
   today?: string;
-}): { quantity?: string; printLocations?: string } {
-  const errors: { quantity?: string; printLocations?: string } = {};
+}): { quantity?: string; printLocations?: string; artwork?: string } {
+  const errors: { quantity?: string; printLocations?: string; artwork?: string } = {};
 
   if (!isHoodieSpecialOpen(input.today)) {
     errors.quantity = `The ${HOODIE_SPECIAL.name} ended ${formatLastDay()}. Switch back to the regular hoodie quote to carry on.`;
@@ -247,12 +274,17 @@ export function hoodieSpecialFieldErrors(input: {
   const front = input.printLocations.filter((location) =>
     HOODIE_SPECIAL.frontPlacements.includes(location)
   );
+  const back = input.printLocations.filter((location) =>
+    HOODIE_SPECIAL.backPlacements.includes(location)
+  );
   const others = input.printLocations.filter(
     (location) =>
       !HOODIE_SPECIAL.frontPlacements.includes(location) &&
       !HOODIE_SPECIAL.backPlacements.includes(location)
   );
-  if (front.length !== 1 || others.length > 0) {
+  // One front print and at most one back print: two prints on one side
+  // would be four inks on that side.
+  if (front.length !== 1 || back.length > 1 || others.length > 0) {
     errors.printLocations = "Choose where the front print goes.";
   } else if (
     !HOODIE_SPECIAL.colors.some((color) => color.name === input.colorName)
@@ -273,6 +305,18 @@ export function hoodieSpecialFieldErrors(input: {
     errors.printLocations = `The special covers up to ${HOODIE_SPECIAL.maxInksPerSide} ink colors per side.`;
   }
 
+  // The reader's count is an estimate (a background or soft edges read as
+  // extra colours), so it cannot refuse the art by itself. It can refuse to
+  // let a busy file through unexamined: the customer says, with their own
+  // tick, that it prints in two a side, or takes a regular quote.
+  if (
+    typeof input.artworkColorCount === "number" &&
+    input.artworkColorCount > HOODIE_SPECIAL.maxInksPerSide &&
+    !input.artConfirmed
+  ) {
+    errors.artwork = `Your art reads as about ${input.artworkColorCount} colors. The special prints ${HOODIE_SPECIAL.maxInksPerSide} colors per side at most. Confirm your art is ${HOODIE_SPECIAL.maxInksPerSide} colors per side, or use a regular quote.`;
+  }
+
   return errors;
 }
 
@@ -284,4 +328,59 @@ export function formatLastDay(): string {
     day: "numeric",
     timeZone: "UTC",
   });
+}
+
+/**
+ * The quote endpoint's own check of a submitted special (app/api/quote).
+ * The browser enforces all of this; a request that did not come through the
+ * form still cannot carry a third ink, a second print on one side, another
+ * colour, or a price other than the flat one. Returns the reason, or null.
+ */
+export function hoodieSpecialSubmissionProblem(
+  product: Record<string, unknown>,
+  pricing: Record<string, unknown> | undefined
+): string | null {
+  const printLocations = Array.isArray(product.printLocations)
+    ? product.printLocations.map(String)
+    : [];
+  const front = printLocations.filter((l) => HOODIE_SPECIAL.frontPlacements.includes(l));
+  const back = printLocations.filter((l) => HOODIE_SPECIAL.backPlacements.includes(l));
+  if (
+    front.length !== 1 ||
+    back.length > 1 ||
+    front.length + back.length !== printLocations.length
+  ) {
+    return `The ${HOODIE_SPECIAL.name} prints one front and at most one back.`;
+  }
+
+  // "2 colors" or "Front 2 colors · Back 1 color": every count must be 1 or 2.
+  const inkText = String(product.inkColors ?? "");
+  const counts = [...inkText.matchAll(/(\d+)\s*colou?rs?/gi)].map((m) => Number(m[1]));
+  if (
+    counts.length === 0 ||
+    /full|not sure|\+/i.test(inkText) ||
+    counts.some((n) => n < 1 || n > HOODIE_SPECIAL.maxInksPerSide)
+  ) {
+    return `The ${HOODIE_SPECIAL.name} covers up to ${HOODIE_SPECIAL.maxInksPerSide} ink colors per side.`;
+  }
+
+  if (!HOODIE_SPECIAL.colors.some((c) => c.name === String(product.garmentColor ?? ""))) {
+    return `The ${HOODIE_SPECIAL.name} comes in its own eight hoodie colors only.`;
+  }
+
+  const quantity = Number(product.quantity);
+  if (!(quantity >= HOODIE_SPECIAL.minPieces)) {
+    return `The ${HOODIE_SPECIAL.name} starts at ${HOODIE_SPECIAL.minPieces} hoodies.`;
+  }
+
+  const unit = hoodieSpecialUnitPrice(printLocations);
+  if (
+    !pricing ||
+    Number(pricing.unitPrice) !== unit ||
+    Math.abs(Number(pricing.total) - unit * quantity) > 0.005
+  ) {
+    return `The ${HOODIE_SPECIAL.name} price did not match the flat rate. Please refresh and try again.`;
+  }
+
+  return null;
 }

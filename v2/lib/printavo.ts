@@ -10,6 +10,7 @@ import {
   type SignsPricingLine,
 } from "./signs-pricing";
 import { DEPOSIT_FRACTION } from "./auto-bill";
+import { HOODIE_SPECIAL, hoodieSpecialInkRule } from "./hoodie-special";
 import { getTrackUrl } from "./order-status";
 import {
   SKU,
@@ -1484,12 +1485,19 @@ export function buildPrintavoQuotePlan(input: {
         // email dropped them (Gabe, 31 Aug) because it is the surface the
         // shop replies to customers from, and these four facts price the
         // blank for anyone who sees them. The internal note is shop-only.
-        `S&S style: ${str(supplier.catalogStyle, "N/A")} / SKU ${str(
-          supplier.sku,
-          "N/A"
-        )} / sample ${str(supplier.sampleSize, "N/A")} @ $${num(
-          supplier.markedUpGarmentPrice
-        ).toFixed(2)}`,
+        // A flat-rate offer names its own blank and where it comes from:
+        // the 50 Hoodie Special's is ordered from Cutter & Buck, not S&S.
+        str(product.promo)
+          ? `Blank: ${str(supplier.supplierProductName, "N/A")}, order from ${str(
+              supplier.source,
+              "N/A"
+            )}`
+          : `S&S style: ${str(supplier.catalogStyle, "N/A")} / SKU ${str(
+              supplier.sku,
+              "N/A"
+            )} / sample ${str(supplier.sampleSize, "N/A")} @ $${num(
+              supplier.markedUpGarmentPrice
+            ).toFixed(2)}`,
         // A flat-rate offer (lib/hoodie-special.ts): the row is one price per
         // piece with printing and screens inside it, and there are no
         // printing or setup rows. Said here so nobody adds them back.
@@ -1498,6 +1506,9 @@ export function buildPrintavoQuotePlan(input: {
               `*** ${str(product.promoName)}: flat $${num(
                 pricing.unitPrice
               ).toFixed(2)} each, printing and setup included ***`,
+              ...(str(product.promo) === HOODIE_SPECIAL.id
+                ? [`*** ${hoodieSpecialInkRule()} ***`]
+                : []),
             ]
           : []),
         // The whole point of a special order — what they actually asked for.

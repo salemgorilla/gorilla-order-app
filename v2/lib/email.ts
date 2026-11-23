@@ -31,6 +31,7 @@ import { looksLikeEmailAddress } from "./email-address";
 import { isApparelProduct, isPaperProduct, isSignsProduct } from "./order-flow";
 import { describePaperSpec, paperProductById, paperSpecFromProduct } from "./paper";
 import { needByLabel } from "./need-by";
+import { HOODIE_SPECIAL, hoodieSpecialInkRule } from "./hoodie-special";
 
 export type QuoteEmailResult = {
   sent: boolean;
@@ -414,6 +415,15 @@ export function buildQuoteEmail(input: {
       // $27 hoodie is not mistaken for a mispriced regular quote.
       ...(str(product.promoName)
         ? [line("*** PROMO ***", str(product.promoName))]
+        : []),
+      ...(str(product.promo) === HOODIE_SPECIAL.id
+        ? [
+            line(
+              "Blank",
+              `${HOODIE_SPECIAL.supplierProductName}, order from ${HOODIE_SPECIAL.supplier}`
+            ),
+            line("*** INK LIMIT ***", hoodieSpecialInkRule()),
+          ]
         : []),
       ...(product.specialOrder
         ? [

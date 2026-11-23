@@ -82,8 +82,18 @@ It should be a flat fee, nothing will change the end price ... as long as it's
 
 - **Offer:** `lib/hoodie-special.ts` — $27 front, $33 front and back, XS-5XL
   one price, up to 2 inks per side, setup included, 50 pieces or more, the
-  8 colours on his special art (named as S&S names them on the Gildan 18500).
-  All numbers in that one object.
+  8 colours on his special art. All numbers in that one object.
+- **One blank, hard rule (Gabe, Nov 23):** Cutter & Buck's Clique Stockholm
+  Pullover Hoodie, MQK00107, colours under its own names (Black, Dark Navy,
+  Grey Melange, Anthracite Melange, Ash, White, Royal Blue, Red). No garment
+  picker. Bought from Cutter & Buck direct, so it is not in the S&S catalogue
+  and the preview draws a swatch, not a photo.
+- **2 inks per side, hard rule (Gabe, Nov 23):** menus stop at 2, one front
+  and at most one back, art that reads busier needs the customer's tick that
+  it prints in 2, and `app/api/quote` refuses a special that breaks any rule
+  or whose price isn't the flat rate. Underbase on dark hoodies is part of
+  the print, not one of the 2. The shop email and Printavo row say
+  "HARD LIMIT: 2 ink colors per side".
 - **Button:** a card at the top of the apparel step; while the special is on,
   `features/apparel/HoodieSpecial.tsx` replaces the catalogue (colour, front
   or front-and-back, placement, ink capped at 2 per side, size grid required).

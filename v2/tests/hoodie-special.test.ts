@@ -7,6 +7,10 @@
  * 50-piece floor, the Dec 1 cut-off on Salem's clock, and what reaches the
  * shop: one Printavo row at the flat price, no printing or setup rows, and
  * never a sticker order.
+ *
+ * Gabe, 2026-11-23, later the same day: "Cutter and Buck is the only option
+ * for the 50 hoodie" and "there's the limit of two colors printing, so
+ * there's no breaking that rule." Pinned below too.
  */
 import { strict as assert } from "node:assert";
 import { describe, test } from "node:test";
@@ -16,6 +20,7 @@ import {
   clampHoodieSpecialInk,
   hoodieSpecialFieldErrors,
   hoodieSpecialNote,
+  hoodieSpecialSubmissionProblem,
   isHoodieSpecialOpen,
   quoteHoodieSpecial,
   shopTodayIso,
@@ -70,7 +75,7 @@ describe("two prices, and nothing else moves them", () => {
   test("no printing, setup, underbase or rush is ever added", () => {
     const quote = quoteHoodieSpecial({
       quantity: 64,
-      colorName: "Navy",
+      colorName: "Dark Navy",
       printLocations: ["Left Chest", "Upper Back"],
       sizeBreakdown: "M-32, L-32",
     });
@@ -131,6 +136,39 @@ describe("the special's rules", () => {
 
   test("a colour outside the eight is refused", () => {
     assert.ok(hoodieSpecialFieldErrors({ ...base, colorName: "Maroon" }).printLocations);
+    // Gildan's names are not the Stockholm's.
+    assert.ok(hoodieSpecialFieldErrors({ ...base, colorName: "Sport Grey" }).printLocations);
+  });
+
+  test("two prints on one side are refused: that would be 4 inks on it", () => {
+    assert.ok(
+      hoodieSpecialFieldErrors({
+        ...base,
+        printLocations: ["Front", "Back", "Upper Back"],
+        inkColorsByLocation: { Front: "2 colors", Back: "2 colors", "Upper Back": "2 colors" },
+      }).printLocations
+    );
+    assert.ok(
+      hoodieSpecialFieldErrors({
+        ...base,
+        printLocations: ["Front", "Left Chest"],
+        inkColorsByLocation: { Front: "2 colors", "Left Chest": "2 colors" },
+      }).printLocations
+    );
+    assert.ok(
+      hoodieSpecialFieldErrors({
+        ...base,
+        printLocations: ["Front", "Sleeve"],
+        inkColorsByLocation: { Front: "1 color", Sleeve: "1 color" },
+      }).printLocations
+    );
+  });
+
+  test("art that reads busier than 2 needs the customer's own tick", () => {
+    const busy = { ...base, artworkColorCount: 4 };
+    assert.match(hoodieSpecialFieldErrors(busy).artwork ?? "", /about 4 colors/);
+    assert.equal(hoodieSpecialFieldErrors({ ...busy, artConfirmed: true }).artwork, undefined);
+    assert.equal(hoodieSpecialFieldErrors({ ...base, artworkColorCount: 2 }).artwork, undefined);
   });
 
   test("it runs through December 1 on Salem's clock, then closes", () => {
@@ -194,11 +232,64 @@ describe("the regular apparel rules are untouched", () => {
   });
 });
 
+describe("one blank only: Cutter & Buck", () => {
+  test("the special is the Clique Stockholm Pullover Hoodie, MQK00107", () => {
+    assert.equal(HOODIE_SPECIAL.supplier, "Cutter & Buck");
+    assert.equal(HOODIE_SPECIAL.catalogStyle, "MQK00107");
+    assert.match(HOODIE_SPECIAL.supplierProductName, /Stockholm Pullover Hoodie/);
+    assert.equal(HOODIE_SPECIAL.colors.length, 8);
+  });
+});
+
+describe("the quote endpoint holds the rules too", () => {
+  const product = (overrides: Record<string, unknown> = {}) => ({
+    promo: HOODIE_SPECIAL.id,
+    quantity: 50,
+    garmentColor: "Black",
+    printLocations: ["Front", "Back"],
+    inkColors: "Front 2 colors · Back 1 color",
+    ...overrides,
+  });
+  const pricing = (unitPrice = 33, total = 1650) => ({ unitPrice, total });
+
+  test("a clean special passes", () => {
+    assert.equal(hoodieSpecialSubmissionProblem(product(), pricing()), null);
+  });
+
+  test("a third ink is refused however it arrives", () => {
+    for (const inkColors of [
+      "3 colors",
+      "Front 2 colors · Back 3 colors",
+      "5+ colors / Full color / Not sure",
+      "",
+    ]) {
+      assert.match(
+        hoodieSpecialSubmissionProblem(product({ inkColors }), pricing()) ?? "",
+        /up to 2 ink colors/,
+        inkColors
+      );
+    }
+  });
+
+  test("a second print on a side, another colour, too few, or another price is refused", () => {
+    assert.ok(
+      hoodieSpecialSubmissionProblem(
+        product({ printLocations: ["Front", "Back", "Upper Back"] }),
+        pricing()
+      )
+    );
+    assert.ok(hoodieSpecialSubmissionProblem(product({ garmentColor: "Maroon" }), pricing()));
+    assert.ok(hoodieSpecialSubmissionProblem(product({ quantity: 49 }), pricing(33, 1617)));
+    assert.ok(hoodieSpecialSubmissionProblem(product(), pricing(27, 1350)));
+    assert.ok(hoodieSpecialSubmissionProblem(product(), undefined));
+  });
+});
+
 describe("what reaches the shop", () => {
   const order = (printLocations: string[]) => {
     const pricing = quoteHoodieSpecial({
       quantity: 50,
-      colorName: "Sport Grey",
+      colorName: "Grey Melange",
       printLocations,
       sizeBreakdown: MIXED,
     });
@@ -210,7 +301,7 @@ describe("what reaches the shop", () => {
         type: "T-Shirts & Apparel",
         garmentType: HOODIE_SPECIAL.garmentLabel,
         quantity: 50,
-        garmentColor: "Sport Grey",
+        garmentColor: "Grey Melange",
         printLocations,
         inkColors: "2 colors",
         sizeBreakdown: MIXED,
@@ -219,10 +310,11 @@ describe("what reaches the shop", () => {
         promo: HOODIE_SPECIAL.id,
         promoName: HOODIE_SPECIAL.name,
         supplier: {
-          source: "S&S Activewear",
-          productName: "Hoodie Special (Classic Hoodie)",
+          source: HOODIE_SPECIAL.supplier,
+          productName: `Hoodie Special (${HOODIE_SPECIAL.garmentLabel})`,
+          supplierProductName: HOODIE_SPECIAL.supplierProductName,
           catalogStyle: HOODIE_SPECIAL.catalogStyle,
-          colorName: "Sport Grey",
+          colorName: "Grey Melange",
           sampleSize: "Not applicable (flat rate)",
           sku: "Not applicable (flat rate)",
           markedUpGarmentPrice: 0,
@@ -265,7 +357,13 @@ describe("what reaches the shop", () => {
       0
     );
     assert.match(plan.lineItems[0].description, /50 Hoodie Special: flat \$33\.00 each/);
-    assert.match(plan.nickname, /GS-20261123-TEST1 - 50 Hoodie Special \(Classic Hoodie\)/);
+    assert.match(plan.lineItems[0].description, /HARD LIMIT: 2 ink colors per side/);
+    assert.match(plan.customerNote, /Blank: Clique Stockholm Pullover Hoodie .*order from Cutter & Buck/);
+    assert.doesNotMatch(plan.customerNote, /S&S style/);
+    assert.match(
+      plan.nickname,
+      /GS-20261123-TEST1 - 50 Hoodie Special \(Stockholm Pullover Hoodie\)/
+    );
   });
 
   test("the shop email names the promo and the flat rate", () => {
@@ -280,5 +378,7 @@ describe("what reaches the shop", () => {
     assert.match(body, /Flat rate: 50 x \$27\.00 = \$1,?350\.00/);
     assert.match(body, /Printing \/ Setup: Included in the flat rate/);
     assert.doesNotMatch(body, /Setup \/ Screens: \$0\.00/);
+    assert.match(body, /INK LIMIT \*\*\*: HARD LIMIT: 2 ink colors per side/);
+    assert.match(body, /order from Cutter & Buck/);
   });
 });

@@ -68,6 +68,11 @@ export const defaultApparelQuote = {
    * on every regular quote, which then prices exactly as it always has.
    */
   promo: "",
+  /**
+   * The special's art tick: the customer says their art prints in 2 colors
+   * or fewer per side. Only asked when the artwork reader counts more.
+   */
+  promoArtConfirmed: false,
 };
 
 export type ApparelQuote = typeof defaultApparelQuote;

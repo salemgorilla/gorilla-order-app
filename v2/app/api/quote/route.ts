@@ -26,6 +26,10 @@ import {
   shopPaymentNote,
 } from "../../../lib/auto-bill";
 import { getEmailError } from "../../../lib/validation";
+import {
+  HOODIE_SPECIAL,
+  hoodieSpecialSubmissionProblem,
+} from "../../../lib/hoodie-special";
 import { isPaperProduct } from "../../../lib/order-flow";
 import {
   paperQuoteOrder,
@@ -388,6 +392,28 @@ export async function POST(request: Request) {
      */
     const submittedProduct =
       ((order as Record<string, unknown>).product as Record<string, unknown> | undefined) ?? {};
+
+    /**
+     * THE 50 HOODIE SPECIAL'S RULES ARE HARD (lib/hoodie-special.ts).
+     *
+     * Gabe, 2026-11-23: "there's the limit of two colors printing, so
+     * there's no breaking that rule." The form holds to it; this holds to
+     * it for any caller that skipped the form: one front, at most one back,
+     * 2 inks a side, the special's colours, 50 or more, the flat price.
+     */
+    if (String(submittedProduct.promo ?? "") === HOODIE_SPECIAL.id) {
+      const problem = hoodieSpecialSubmissionProblem(
+        submittedProduct,
+        (order as Record<string, unknown>).pricing as Record<string, unknown> | undefined
+      );
+
+      if (problem) {
+        return NextResponse.json(
+          { success: false, message: problem },
+          { status: 400 }
+        );
+      }
+    }
 
     if (isPaperProduct(submittedProduct)) {
       const spec = paperSpecFromProduct(submittedProduct);

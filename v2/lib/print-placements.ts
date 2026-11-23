@@ -122,6 +122,9 @@ const STYLE_FAMILY: Record<string, GarmentFamily> = {
   "135": "longSleeve",
   "372": "crewneck",
   "395": "hoodie",
+  // Cutter & Buck's Clique Stockholm Pullover Hoodie: the 50 Hoodie
+  // Special's only blank (lib/hoodie-special.ts). Not an S&S style.
+  MQK00107: "hoodie",
 };
 
 export function garmentFamily(input: {

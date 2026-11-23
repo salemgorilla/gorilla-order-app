@@ -595,6 +595,10 @@ export function getApparelFieldErrors(
      * which is the UTC date and turns over at 7 PM in Salem.
      */
     promoToday?: string;
+    /** The special's art tick (lib/hoodie-special.ts). */
+    promoArtConfirmed?: boolean;
+    /** What the artwork reader counted, for the special's 2-colour rule. */
+    promoArtworkColorCount?: number | null;
   },
   order: {
     customer: { customerName: string; email: string };
@@ -661,19 +665,26 @@ export function getApparelFieldErrors(
   }
 
   if (apparelQuote.promo === HOODIE_SPECIAL.id) {
+    const special = hoodieSpecialFieldErrors({
+      quantity: apparelQuote.quantity,
+      sizeQuantityTotal,
+      colorName: apparelQuote.garmentColor || "",
+      printLocations: apparelQuote.printLocations,
+      inkColors: apparelQuote.inkColors || "",
+      inkColorsByLocation: apparelQuote.inkColorsByLocation,
+      // NOT `today`: that is the UTC date, and the offer ends on Salem's
+      // clock — at 8 PM on Dec 1 in Salem it is already Dec 2 in UTC.
+      today: apparelQuote.promoToday,
+      artworkColorCount: apparelQuote.promoArtworkColorCount,
+      artConfirmed: apparelQuote.promoArtConfirmed,
+    });
     return {
       ...errors,
-      ...hoodieSpecialFieldErrors({
-        quantity: apparelQuote.quantity,
-        sizeQuantityTotal,
-        colorName: apparelQuote.garmentColor || "",
-        printLocations: apparelQuote.printLocations,
-        inkColors: apparelQuote.inkColors || "",
-        inkColorsByLocation: apparelQuote.inkColorsByLocation,
-        // NOT `today`: that is the UTC date, and the offer ends on Salem's
-        // clock — at 8 PM on Dec 1 in Salem it is already Dec 2 in UTC.
-        today: apparelQuote.promoToday,
-      }),
+      ...special,
+      // A missing file is the first thing to fix; the colour check reads it.
+      ...(errors.artwork || special.artwork
+        ? { artwork: errors.artwork || special.artwork }
+        : {}),
     };
   }
 

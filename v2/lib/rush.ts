@@ -119,7 +119,7 @@ export function rushFeeFor(goodsSubtotal: number): number {
 export function rushOffer(
   lane: TurnaroundLane,
   today: string = todayIso(),
-  options: { priced?: boolean } = {}
+  options: { priced?: boolean; flatPrice?: boolean } = {}
 ): string | null {
   if (!laneOffersRush(lane)) return null;
 
@@ -127,6 +127,13 @@ export function rushOffer(
   const rush = formatNeedByDate(earliestRushNeedBy(lane, today));
   const percent = Math.round(rushRules.rate * 100);
   const priced = options.priced ?? true;
+
+  // A flat-rate offer (the 50 Hoodie Special, lib/hoodie-special.ts) charges
+  // no rush fee: quoteHoodieSpecial() always returns rushFee 0. Naming the
+  // 25% here told a customer about a charge the quote never adds.
+  if (options.flatPrice) {
+    return `Need it sooner than ${standard}? We can go as early as ${rush}, and the flat price stays the same. We confirm the date with you.`;
+  }
 
   const tail = priced
     ? "pick the date and the estimate updates"

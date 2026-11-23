@@ -410,3 +410,98 @@ export function HoodieSpecialBuilder({
     </>
   );
 }
+
+/**
+ * The starburst's outline: 28 spikes, the inner points at 86% of the outer
+ * radius, as a clip-path polygon. Computed once; a shape, not a colour.
+ */
+const STARBURST_POINTS = 28;
+const STARBURST_CLIP = `polygon(${Array.from(
+  { length: STARBURST_POINTS * 2 },
+  (_, i) => {
+    const radius = i % 2 === 0 ? 50 : 43;
+    const angle = (Math.PI * i) / STARBURST_POINTS - Math.PI / 2;
+    const x = 50 + radius * Math.cos(angle);
+    const y = 50 + radius * Math.sin(angle);
+    return `${x.toFixed(2)}% ${y.toFixed(2)}%`;
+  }
+).join(", ")})`;
+
+/**
+ * The landing-page ad for the special (Gabe, 2026-11-23: "add a advertisement
+ * for the hoodie special on the landing page once you press the link to get
+ * to the order", then: "The ad for the special could occupy the space to the
+ * right of the page. Make the ad inside a spiked circle that's typical for
+ * eye catching announcements").
+ *
+ * A starburst badge. On wide screens the page pins it in the empty space to
+ * the right of the hero headline; on narrower ones it sits under the
+ * headline. The page shows it only while the special is open
+ * (isHoodieSpecialOpen(), the same Salem-clock rule that hides the apparel
+ * step's button after the last day).
+ *
+ * The whole badge is the button. It does what a customer would otherwise do
+ * in three moves: pick T-Shirts & Apparel, continue, press the special's
+ * button. The page owns that; this is only the ad.
+ *
+ * Every figure is read from HOODIE_SPECIAL, so the ad cannot advertise a
+ * price, minimum or date the quote does not charge. No hoodie photo: the
+ * special's only blank is Cutter & Buck's, which S&S does not carry.
+ *
+ * Off-system on purpose in one way: the house is square and flat, and an
+ * announcement burst is neither. It keeps the system's other rules: brand
+ * green, a hard offset in ink black rather than a blur, ink inversion on
+ * hover, the 2px focus ring.
+ */
+export function HoodieSpecialAd({ onStart }: { onStart: () => void }) {
+  // Gabe, 2026-11-23: "Less info, have it say '50 hoodies, as low as $27
+  // each!'". The lower of the special's two prices, so it stays true.
+  const fromPrice = Math.min(
+    HOODIE_SPECIAL.frontPrice,
+    HOODIE_SPECIAL.frontAndBackPrice
+  );
+  const headline = `${HOODIE_SPECIAL.minPieces} hoodies, as low as $${fromPrice} each!`;
+
+  return (
+    <button
+      type="button"
+      data-testid="hoodie-special-ad"
+      onClick={onStart}
+      aria-label={`${headline} Start the ${HOODIE_SPECIAL.name}.`}
+      className="group relative mx-auto mt-8 block aspect-square w-[18rem] shrink-0 cursor-pointer -rotate-6 motion-safe:animate-jiggle hover:animate-none focus-visible:animate-none transition-transform duration-[120ms] ease-linear hover:rotate-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--gorilla-green)] active:translate-x-[2px] active:translate-y-[2px] sm:w-[20rem] xl:absolute xl:right-0 xl:top-0 xl:mt-0"
+    >
+      {/* The hard offset: the same burst in ink black, 6px down-right. */}
+      <span
+        aria-hidden="true"
+        className="absolute inset-0 translate-x-[6px] translate-y-[6px] bg-[var(--ink-black)]"
+        style={{ clipPath: STARBURST_CLIP }}
+      />
+      <span
+        aria-hidden="true"
+        className="absolute inset-0 bg-[var(--gorilla-green)] transition-colors duration-[120ms] ease-linear group-hover:bg-[var(--ink-black)]"
+        style={{ clipPath: STARBURST_CLIP }}
+      />
+
+      <span
+        aria-hidden="true"
+        className="relative flex h-full flex-col items-center justify-center px-12 text-center text-white"
+      >
+        {/* Each line is sized to fit the burst's inner circle on a phone
+            (18rem) and at 20rem, without wrapping mid-phrase. */}
+        <span className="text-price font-bold tracking-display">
+          {HOODIE_SPECIAL.minPieces}
+        </span>
+        <span className="text-head font-bold leading-none tracking-display">
+          hoodies,
+        </span>
+        <span className="mt-3 text-value font-bold">as low as</span>
+        <span
+          data-testid="hoodie-special-ad-price"
+          className="mt-1 whitespace-nowrap text-section font-bold tracking-display"
+        >
+          ${fromPrice} each!
+        </span>
+      </span>
+    </button>
+  );
+}

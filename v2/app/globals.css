@@ -141,6 +141,38 @@
 
   --tracking-eyebrow: 0.18em;
   --tracking-display: -0.03em;
+
+  /* The one attention-getter in the app: the 50 Hoodie Special's badge
+     (Gabe, 2026-11-23: "Can it blink or have an animation to call
+     attention? Even a little jiggle jiggle would do wonders"). A short
+     wiggle, then three seconds still, so it reads as a nudge rather than a
+     loop. Used with motion-safe: only, so reduced-motion visitors get a
+     still badge (the global reduce rule would otherwise spin an infinite
+     animation at 0.01ms). */
+  --animate-jiggle: jiggle 4s ease-in-out infinite;
+
+  @keyframes jiggle {
+    0%,
+    72%,
+    100% {
+      transform: rotate(0deg) scale(1);
+    }
+    76% {
+      transform: rotate(-6deg) scale(1.06);
+    }
+    80% {
+      transform: rotate(6deg) scale(1.06);
+    }
+    84% {
+      transform: rotate(-4deg) scale(1.04);
+    }
+    88% {
+      transform: rotate(4deg) scale(1.03);
+    }
+    92% {
+      transform: rotate(-2deg) scale(1.01);
+    }
+  }
 }
 
 body {

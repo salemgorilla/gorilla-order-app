@@ -53,10 +53,10 @@ describe("the deals list", () => {
     assert.equal(byId["stickers-50"].price, 25);
     assert.equal(byId["tees-12-1color"].price, 130.32);
     assert.equal(byId["tees-12-1color"].regularPrice, 180.4);
-    assert.equal(byId["tees-24-1color"].price, 199.68);
-    assert.equal(byId["tees-24-1color"].regularPrice, 299.8);
-    assert.equal(byId["tees-24-2color"].price, 279.84);
-    assert.equal(byId["tees-24-2color"].regularPrice, 380);
+    assert.equal(byId["tees-24-1color"].price, 187.68);
+    assert.equal(byId["tees-24-1color"].regularPrice, 287.8);
+    assert.equal(byId["tees-24-2color"].price, 264.24);
+    assert.equal(byId["tees-24-2color"].regularPrice, 364.4);
     assert.equal(byId["beanies-12"].price, 109.8);
     assert.equal(byId["beanies-12"].regularPrice, 146.4);
     assert.equal(byId["hats-12"].price, 159.72);

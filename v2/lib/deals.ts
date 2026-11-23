@@ -102,12 +102,14 @@ export const DEALS: readonly Deal[] = [
     start: "tees-12-1c",
   },
   {
-    // "$100 off twenty-four t-shirts", 1 color.
+    // "$100 off twenty-four t-shirts", 1 color, on "any color tee shirt
+    // from the Gildan 500[0] series" (light ones: 1-color art needs no
+    // underbase only on a light tee).
     id: "tees-24-1color",
     title: "24 Tees, 1-Color Front",
     price: teeDealTotal(teeOne),
     regularPrice: teeOne.regularPrice,
-    item: "Gildan Basic Tee in a light color: white, off-white, Ash, Natural or Sand",
+    item: "Gildan 5000 Heavy Cotton tee in a light color: white, off-white, Ash, Natural or Sand",
     quantity: `Exactly 24, ${teeSizes}`,
     print: "Screen printed, 1 color, one front print. No setup fee",
     youAdd: "Artwork, tee color and sizes",
@@ -115,12 +117,13 @@ export const DEALS: readonly Deal[] = [
     start: "tees-24-1c",
   },
   {
-    // "$100 off twenty-four t-shirts", 2 colors (or 1 on a dark tee).
+    // "$100 off twenty-four t-shirts", 2 colors (or 1 on a dark tee), any
+    // Gildan 5000 color.
     id: "tees-24-2color",
     title: "24 Tees, 2-Color Front",
     price: teeDealTotal(teeTwo),
     regularPrice: teeTwo.regularPrice,
-    item: "Gildan Basic Tee, any color",
+    item: "Gildan 5000 Heavy Cotton tee, any color",
     quantity: `Exactly 24, ${teeSizes}`,
     print: "Screen printed, up to 2 colors, one front print. Dark tees take 1-color art (the white underbase is the 2nd color). No setup fee",
     youAdd: "Artwork, tee color and sizes",

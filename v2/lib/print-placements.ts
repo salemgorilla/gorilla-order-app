@@ -117,6 +117,8 @@ export function getPrintPlacement(id: string): PrintPlacement | undefined {
  */
 const STYLE_FAMILY: Record<string, GarmentFamily> = {
   "39": "tee",
+  // Gildan 5000 Heavy Cotton: the 24-tee Black Friday deals' blank.
+  "16": "tee",
   "7584": "tee",
   "10628": "tee",
   "135": "longSleeve",

@@ -3,33 +3,43 @@ import { getInkColorCount } from "./apparel-pricing";
 import { isLightGarment } from "./light-garments";
 
 /**
- * BLACK FRIDAY TEE DEALS: a set number of Basic Tees, one front print, ONE
- * FIXED PRICE.
+ * BLACK FRIDAY TEE DEALS: a set number of tees, one front print, ONE FIXED
+ * PRICE.
  *
  * Gabe, 2026-11-23: "Let's do fifty dollars off twelve t-shirts and a hundred
  * dollars off twenty-four t-shirts. And that's off the full price." Then:
- * "also mention that there's no setup." Earlier the same day: "everything
- * will be canned pricing ... so it'll always be the same price", "They can't
- * add more, they can't add less", and "2 color is strictly 2 color. No 3
- * color no underbase after 1 color images."
+ * "also mention that there's no setup." Later: "Let's offer the 24 deal to
+ * any color tee shirt from the Gildan 500[0] series." Earlier the same day:
+ * "everything will be canned pricing ... so it'll always be the same price",
+ * "They can't add more, they can't add less", and "2 color is strictly 2
+ * color. No 3 color no underbase after 1 color images."
  *
- * So each deal is a flat price for exactly its count. The customer adds
- * artwork, a colour and their sizes; nothing they pick moves the total, and
- * no setup or screen fee is charged on top.
+ * So each deal is a flat price for exactly its count on one blank. The
+ * customer adds artwork, a colour and their sizes; nothing they pick moves
+ * the total, and no setup or screen fee is charged on top.
  *
  * ── HOW THE PRICES WERE SET (2026-11-23) ─────────────────────────────────
- * `regularPrice` is the app's own full estimate for the same order, read
- * from labs.gorillasalem.com that evening: Basic Tee (Gildan, style 39), one
+ * `regularPrice` is the app's own full estimate for the same order: one
  * front print, before sizes (its usual mix, about 15% 2XL/3XL), screens
- * included. The deal is that less Gabe's dollars off, per tee rounded DOWN to
- * the cent so the saving is never short of what the card promises:
+ * included, from the live S&S price. The deal is that less Gabe's dollars
+ * off, per tee rounded DOWN to the cent so the saving is never short of what
+ * the card promises.
  *
- *   12 tees, 1 color, white  $83.40 + $72.00 + $25.00 = $180.40, less $50
- *                            = $130.40 -> $10.86 a tee, $130.32
- *   24 tees, 1 color, white  $166.80 + $108.00 + $25.00 = $299.80, less $100
- *                            = $199.80 -> $8.32 a tee, $199.68
- *   24 tees, 2 screens on    $170.40 + $159.60 + $50.00 = $380.00, less $100
- *   a black tee              = $280.00 -> $11.66 a tee, $279.84
+ *   12 Basic Tees (Gildan 2000), 1 color, white
+ *     $83.40 + $72.00 + $25.00 = $180.40, less $50 = $130.40 -> $10.86, $130.32
+ *
+ * The 24-tee deals are on the Gildan 5000 Heavy Cotton (S&S style 16), any
+ * colour. Its S to XL cost the same in every colour; 2XL and 3XL cost less
+ * in White and Natural than in the rest, so the blended estimate moves a few
+ * cents a shirt with colour. Each deal takes its CHEAPEST colour's regular
+ * price, so every colour saves at least the $100 the card promises:
+ *
+ *   24 tees, 1 color, White   $154.80 + $108.00 + $25.00 = $287.80
+ *                             (Ash or Sand $292.60), less $100 = $187.80
+ *                             -> $7.82 a tee, $187.68
+ *   24 tees, 2 screens, White $154.80 + $159.60 + $50.00 = $364.40
+ *                             (any dark colour, 1 color + underbase, $369.20),
+ *                             less $100 = $264.40 -> $11.01 a tee, $264.24
  *
  * A dark tee needs the white underbase, which counts as a colour (Gabe,
  * 2026-11-21), so 1-colour art on a dark tee is two screens: that is the
@@ -39,18 +49,21 @@ import { isLightGarment } from "./light-garments";
  * Change a price here and nowhere else; tests/tee-deal.test.ts pins them.
  * Apparel is a quote the shop confirms before invoicing (AGENTS.md).
  */
-/** Gildan Basic Tee (S&S style 39): the deals' only blank. */
-export const TEE_DEAL_STYLE = "39";
-export const TEE_DEAL_GARMENT = "Basic Tee";
 /** Sizes the flat price covers. */
 export const TEE_DEAL_SIZES = ["S", "M", "L", "XL", "2XL", "3XL"] as const;
 /** One front print. The chart's front placements (lib/print-placements.ts). */
 export const TEE_DEAL_FRONTS = ["Left Chest", "Center Chest", "Front", "Oversize Front"];
 
+/** Gildan 2000 Ultra Cotton, the app's Basic Tee (S&S style 39). */
+const BASIC_TEE = { style: "39", garment: "Basic Tee", blank: "Gildan 2000" } as const;
+/** Gildan 5000 Heavy Cotton (S&S style 16), offered only on the 24-tee deals. */
+const HEAVY_COTTON_TEE = { style: "16", garment: "Heavy Cotton Tee", blank: "Gildan 5000" } as const;
+
 export const TEE_DEALS = [
   {
     id: "tees-12-1c",
     name: "12 Tees, 1-Color Front",
+    ...BASIC_TEE,
     /** Exactly this many. */
     quantity: 12,
     /** Per tee. quantity x this is the whole price. */
@@ -67,9 +80,10 @@ export const TEE_DEALS = [
   {
     id: "tees-24-1c",
     name: "24 Tees, 1-Color Front",
+    ...HEAVY_COTTON_TEE,
     quantity: 24,
-    unitPrice: 8.32,
-    regularPrice: 299.8,
+    unitPrice: 7.82,
+    regularPrice: 287.8,
     dollarsOff: 100,
     maxInks: 1,
     maxScreens: 1,
@@ -77,14 +91,16 @@ export const TEE_DEALS = [
   {
     id: "tees-24-2c",
     name: "24 Tees, 2-Color Front",
+    ...HEAVY_COTTON_TEE,
     quantity: 24,
-    unitPrice: 11.66,
-    regularPrice: 380,
+    unitPrice: 11.01,
+    regularPrice: 364.4,
     dollarsOff: 100,
     maxInks: 2,
     maxScreens: 2,
   },
 ] as const;
+
 
 export type TeeDealId = (typeof TEE_DEALS)[number]["id"];
 export type TeeDeal = (typeof TEE_DEALS)[number];
@@ -116,9 +132,9 @@ export function quoteTeeDeal(
     lines: [
       {
         id: "line-1",
-        garmentLabel: `${deal.name} - ${TEE_DEAL_GARMENT}`,
+        garmentLabel: `${deal.name} - ${deal.garment}`,
         colorName: input.colorName,
-        catalogStyle: TEE_DEAL_STYLE,
+        catalogStyle: deal.style,
         garmentUnitPrice: deal.unitPrice,
         garmentTotal: total,
         quantity,
@@ -176,8 +192,8 @@ export function teeDealProblem(
     extraLines?: number;
   }
 ): string | null {
-  if (input.catalogStyle !== TEE_DEAL_STYLE) {
-    return `The deal is on the ${TEE_DEAL_GARMENT}. Pick the ${TEE_DEAL_GARMENT}, or use a regular quote.`;
+  if (input.catalogStyle !== deal.style) {
+    return `The deal is on the ${deal.garment}. Pick the ${deal.garment}, or use a regular quote.`;
   }
   if ((input.extraLines ?? 0) > 0) {
     return "The deal is one tee style. Remove the added garment, or use a regular quote.";
@@ -220,7 +236,7 @@ export function teeDealProblem(
 
 /** The line the shop reads beside the figure. */
 export function teeDealNote(deal: TeeDeal): string {
-  return `Black Friday deal, ${deal.name}: exactly ${deal.quantity} ${TEE_DEAL_GARMENT}s (Gildan, style ${TEE_DEAL_STYLE}), sizes ${TEE_DEAL_SIZES[0]}-${
+  return `Black Friday deal, ${deal.name}: exactly ${deal.quantity} ${deal.garment}s (${deal.blank}, S&S style ${deal.style}), sizes ${TEE_DEAL_SIZES[0]}-${
     TEE_DEAL_SIZES[TEE_DEAL_SIZES.length - 1]
   }, one front print, flat $${deal.unitPrice.toFixed(2)} a tee ($${teeDealTotal(deal).toFixed(
     2

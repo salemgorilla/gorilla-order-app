@@ -1,6 +1,6 @@
 /**
- * BLACK FRIDAY TEE DEALS (lib/tee-deal.ts): exactly 12 or 24 Basic Tees, one
- * front print, one fixed price: $50 or $100 off the full price, no setup fee.
+ * BLACK FRIDAY TEE DEALS (lib/tee-deal.ts): exactly 12 Basic Tees or 24 Gildan
+ * 5000s in any color, one front print, one fixed price: $50 or $100 off the full price, no setup fee.
  *
  * Gabe, 2026-11-23: "everything will be canned pricing ... so it'll always be
  * the same price", "They can't add more, they can't add less", and "2 color
@@ -12,7 +12,6 @@ import { describe, test } from "node:test";
 import { buildPrintavoQuotePlan } from "../lib/printavo";
 import {
   TEE_DEALS,
-  TEE_DEAL_STYLE,
   quoteTeeDeal,
   teeDealFor,
   teeDealProblem,
@@ -25,7 +24,7 @@ const oneColor = teeDealFor("tees-24-1c")!;
 const twoColor = teeDealFor("tees-24-2c")!;
 
 const spec = (extra: Partial<Parameters<typeof teeDealProblem>[1]> = {}) => ({
-  catalogStyle: TEE_DEAL_STYLE,
+  catalogStyle: "16",
   garmentColor: "White",
   printLocations: ["Front"],
   inkColors: "1 color",
@@ -38,8 +37,10 @@ describe("the deals' numbers", () => {
     assert.deepEqual(TEE_DEALS.map((d) => d.id), ["tees-12-1c", "tees-24-1c", "tees-24-2c"]);
     assert.deepEqual(TEE_DEALS.map((d) => d.quantity), [12, 24, 24]);
     assert.equal(teeDealTotal(twelve), 130.32);
-    assert.equal(teeDealTotal(oneColor), 199.68);
-    assert.equal(teeDealTotal(twoColor), 279.84);
+    assert.equal(teeDealTotal(oneColor), 187.68);
+    assert.equal(teeDealTotal(twoColor), 264.24);
+    assert.equal(oneColor.regularPrice, 287.8);
+    assert.equal(twoColor.regularPrice, 364.4);
     for (const deal of TEE_DEALS) {
       const off = deal.regularPrice - teeDealTotal(deal);
       // Rounded down per tee: never short of the promise, never far over.
@@ -51,10 +52,20 @@ describe("the deals' numbers", () => {
     assert.equal(twoColor.dollarsOff, 100);
   });
 
-  test("the 12-tee deal is 1 color on a light tee", () => {
-    assert.equal(teeDealProblem(twelve, spec({ sizeBreakdown: "M-6, L-6" })), null);
-    assert.match(teeDealProblem(twelve, spec({ sizeBreakdown: "M-6, L-6", garmentColor: "Black" }))!, /light tees/);
-    assert.match(teeDealProblem(twelve, spec({ sizeBreakdown: "M-12, L-12" }))!, /exactly 12/);
+  test("the 12-tee deal is 1 color on a light Basic Tee", () => {
+    const basic = { catalogStyle: "39" };
+    assert.equal(teeDealProblem(twelve, spec({ ...basic, sizeBreakdown: "M-6, L-6" })), null);
+    assert.match(teeDealProblem(twelve, spec({ ...basic, sizeBreakdown: "M-6, L-6", garmentColor: "Black" }))!, /light tees/);
+    assert.match(teeDealProblem(twelve, spec({ ...basic, sizeBreakdown: "M-12, L-12" }))!, /exactly 12/);
+    assert.match(teeDealProblem(twelve, spec({ sizeBreakdown: "M-6, L-6" }))!, /Basic Tee/);
+  });
+
+  test("the 24-tee deals are on the Gildan 5000 (S&S style 16), the 12 on the Basic Tee", () => {
+    assert.deepEqual(TEE_DEALS.map((d) => d.style), ["39", "16", "16"]);
+    assert.equal(oneColor.garment, "Heavy Cotton Tee");
+    assert.equal(twoColor.blank, "Gildan 5000");
+    assert.equal(quoteTeeDeal(twoColor, { colorName: "Navy", sizeBreakdown: "M-24" }).lines[0].catalogStyle, "16");
+    assert.match(teeDealProblem(oneColor, spec({ catalogStyle: "39" }))!, /Heavy Cotton Tee/);
   });
 
   test("the quote is one row, 24 x the flat price, nothing else", () => {
@@ -101,7 +112,7 @@ describe("what fits each deal", () => {
     assert.match(teeDealProblem(oneColor, spec({ sizeBreakdown: "M-20, 4XL-4" }))!, /4XL/);
   });
 
-  test("one front print on the Basic Tee, one garment", () => {
+  test("one front print on the deal's tee, one garment", () => {
     assert.ok(teeDealProblem(oneColor, spec({ printLocations: ["Back"] })));
     assert.ok(teeDealProblem(oneColor, spec({ printLocations: ["Front", "Back"] })));
     assert.equal(teeDealProblem(oneColor, spec({ printLocations: ["Left Chest"] })), null);
@@ -123,10 +134,10 @@ describe("the quote endpoint's check", () => {
     printLocations: ["Front"],
     inkColors: "2 colors",
     sizeBreakdown: "M-12, L-12",
-    supplier: { catalogStyle: TEE_DEAL_STYLE },
+    supplier: { catalogStyle: "16" },
     ...extra,
   });
-  const pricing = { promo: "tees-24-2c", unitPrice: 11.66, total: 279.84, setupTotal: 0 };
+  const pricing = { promo: "tees-24-2c", unitPrice: 11.01, total: 264.24, setupTotal: 0 };
 
   test("passes a deal quote that fits", () => {
     assert.equal(teeDealSubmissionProblem(product(), pricing), null);
@@ -140,6 +151,7 @@ describe("the quote endpoint's check", () => {
     assert.ok(teeDealSubmissionProblem(product({ quantity: 25 }), pricing));
     assert.ok(teeDealSubmissionProblem(product({ sizeBreakdown: "M-24, L-1" }), pricing));
     assert.ok(teeDealSubmissionProblem(product({ supplier: { catalogStyle: "7584" } }), pricing));
+    assert.ok(teeDealSubmissionProblem(product({ supplier: { catalogStyle: "39" } }), pricing));
     assert.ok(teeDealSubmissionProblem(product(), { ...pricing, total: 200 }));
     assert.ok(teeDealSubmissionProblem(product(), { ...pricing, unitPrice: 9 }));
     assert.ok(teeDealSubmissionProblem(product(), undefined));
@@ -158,7 +170,7 @@ describe("Printavo", () => {
         production: { deliveryMethod: "Pickup", needBy: "2026-12-20" },
         product: {
           type: "T-Shirts & Apparel",
-          garmentType: "Basic Tee",
+          garmentType: "Heavy Cotton Tee",
           garmentColor: "White",
           quantity: 24,
           printLocations: ["Front"],
@@ -166,14 +178,14 @@ describe("Printavo", () => {
           sizeBreakdown: "M-12, L-12",
           promo: deal.id,
           promoName: deal.name,
-          supplier: { catalogStyle: TEE_DEAL_STYLE, source: "S&S Activewear" },
+          supplier: { catalogStyle: "16", source: "S&S Activewear" },
         },
         pricing: { ...q, promo: deal.id, quoteRequired: false },
       },
     });
     const goods = plan.lineItems.reduce((s, l) => s + l.price * Math.max(1, l.quantity), 0);
     const fees = plan.feeLineItems.reduce((s, f) => s + f.price, 0);
-    assert.equal(Math.round((goods + fees) * 100) / 100, 279.84);
-    assert.match(JSON.stringify(plan), /24 Tees, 2-Color Front: flat \$11\.66 each/);
+    assert.equal(Math.round((goods + fees) * 100) / 100, 264.24);
+    assert.match(JSON.stringify(plan), /24 Tees, 2-Color Front: flat \$11\.01 each/);
   });
 });

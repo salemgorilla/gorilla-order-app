@@ -201,6 +201,7 @@ import {
 } from "../lib/paper";
 import ApparelSummaryCard from "../features/apparel/ApparelSummaryCard";
 import {
+  HoodieSpecialAd,
   HoodieSpecialBuilder,
   HoodieSpecialEntry,
 } from "../features/apparel/HoodieSpecial";
@@ -531,6 +532,8 @@ export default function Home() {
     // The apparel request flow prices nothing on screen, so its offer must
     // not promise an estimate that updates — see lib/rush.ts.
     priced: !isApparelRequest && !isPaperSelected,
+    // The special's price is flat, rush date or not: no 25% to promise.
+    flatPrice: isHoodieSpecial,
   });
 
   const signsQuote = largeFormatQuotes[signsFamily];
@@ -2746,7 +2749,12 @@ export default function Home() {
    *
    * Never validates. Steps are orientation, not permission — see StepNav.
    */
-  function goToStep(id: StepId) {
+  /**
+   * `flow` defaults to the flow this render has selected. The landing-page
+   * ad picks apparel and moves on in the same click, before that render
+   * exists, so it passes the flow it just chose.
+   */
+  function goToStep(id: StepId, flow: AnalyticsFlow = analyticsFlow) {
     setCurrentStepId(id);
     setVisitedStepIds((seen) => (seen.includes(id) ? seen : [...seen, id]));
     setStepScrollToken((token) => token + 1);
@@ -2755,14 +2763,14 @@ export default function Home() {
     // customer who reaches Review and returns to Details is the shape worth
     // seeing, and de-duplicating here would hide it. Never throws; see
     // lib/analytics.ts.
-    sendAnalyticsEvent({ name: "step_reached", flow: analyticsFlow, step: id });
+    sendAnalyticsEvent({ name: "step_reached", flow, step: id });
 
     // The shop's own funnel. The health check's test identity is dropped
     // as soon as it has been typed: its visits are not customers.
     if (isTestIdentity(order.customer.email, `${order.customer.customerName} ${order.customer.company}`)) {
       suppressUsage();
     } else if (id === "review") {
-      recordUsageStep(analyticsFlow, "quote_viewed");
+      recordUsageStep(flow, "quote_viewed");
     }
 
     // Prefill the contact boxes when the customer arrives at the step that
@@ -4268,6 +4276,29 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     setShowFieldErrors(false);
   }
 
+  /**
+   * The landing-page ad's button: T-Shirts & Apparel, the special started,
+   * and straight on to its builder on the details step. Exactly what a
+   * customer gets by picking apparel, continuing and pressing the special's
+   * own button, so the quote it builds is the same one PR 224 prices.
+   */
+  function startHoodieSpecialFromAd() {
+    const apparel = productCategories.find((product) => product.id === "apparel");
+    if (!apparel || apparel.status !== "active") return;
+    selectProduct(apparel);
+    startHoodieSpecial();
+    goToStep("details", "apparel");
+  }
+
+  /**
+   * The ad shows on step 1 while the special is open on Salem's clock (the
+   * same rule that hides the apparel step's button after its last day),
+   * only while apparel is the live configurator the special lives in, and
+   * not over a reorder the customer came back for.
+   */
+  const showHoodieSpecialAd =
+    hoodieSpecialOpen && !apparelIsRequestFlow && !reorderPrefilled;
+
   const stepHeading = (
     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
@@ -4348,6 +4379,10 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               price is worked out as you go. Change anything you like.
             </p>
           </div>
+        )}
+
+        {currentStepId === "product" && showHoodieSpecialAd && (
+          <HoodieSpecialAd onStart={startHoodieSpecialFromAd} />
         )}
 
         {currentStepId === "product" && (

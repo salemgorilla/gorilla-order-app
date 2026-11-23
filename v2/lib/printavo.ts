@@ -729,7 +729,7 @@ export async function createCheckout(input: {
    * order has to be told that delivery is billed separately (lib/auto-bill.ts
    * says why that is safe). The AMOUNT is Printavo's in both cases.
    */
-  flow?: "stickers" | "signs";
+  flow?: "stickers" | "signs" | "deal";
   /** True when the customer chose shipping rather than pickup. */
   shipped?: boolean;
   /**
@@ -751,7 +751,8 @@ export async function createCheckout(input: {
   }
 
   const signs = input.flow === "signs";
-  const what = signs ? "order" : "sticker quote";
+  const deal = input.flow === "deal";
+  const what = signs || deal ? "order" : "sticker quote";
   const deposit = Boolean(input.deposit);
 
   try {
@@ -767,7 +768,7 @@ export async function createCheckout(input: {
         : `Your Gorilla Salem ${what} — ready to pay`,
       body:
         "Thanks for your order.\n\n" +
-        `Your ${signs ? "signs are" : "stickers are"} priced and ready to pay ` +
+        `Your ${signs ? "signs are" : deal ? "Black Friday deal is" : "stickers are"} priced and ready to pay ` +
         "using the link below. " +
         "Once you pay we'll send a proof before anything goes to print — if " +
         "we can't print your artwork, you get a full refund.\n\n" +

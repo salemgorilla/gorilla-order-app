@@ -20,8 +20,10 @@ import { describeRepricing } from "../../../lib/repricing-note";
 import { repriceSigns } from "../../../lib/signs-repricing";
 import {
   isSpecialOrder,
+  decideDealAutoBill,
   decideSignsAutoBill,
   decideStickersAutoBill,
+  isFixedPriceDealOrder,
   isSignsOrder,
   shopPaymentNote,
 } from "../../../lib/auto-bill";
@@ -1026,6 +1028,16 @@ export async function POST(request: Request) {
       ((pricedOrder.product as Record<string, unknown>) ?? {})
     );
 
+    // The Black Friday tee deals and the 50 Hoodie Special pay in full at
+    // checkout too (Gabe, 2026-11-23): one fixed price each, checked against
+    // the deal's own definition in lib/auto-bill.ts.
+    const isDeal = !isStickers && !isPaper && isFixedPriceDealOrder(pricedOrder);
+    const dealAutoBill = decideDealAutoBill({
+      order: pricedOrder,
+      kioskSession: Boolean(kioskSession),
+      printavoCreated: true,
+    });
+
     const stickersAutoBill = decideStickersAutoBill({
       order: pricedOrder,
       // repriceStickers() never passes a sticker order through, so this is
@@ -1122,6 +1134,7 @@ export async function POST(request: Request) {
         order: pricedOrder,
         signs: signsAutoBill,
         stickers: stickersAutoBill,
+        deal: isDeal ? dealAutoBill : null,
       }),
       // Every design's file plus our proof of each cut, so the shop can
       // compare what was sent against what was approved — design by design.
@@ -1222,6 +1235,14 @@ export async function POST(request: Request) {
       );
     }
 
+    if (isDeal && !(dealAutoBill.bill && printavoReady)) {
+      console.log(
+        `DEAL ORDER ${quoteNumber} — no payment link: ${
+          dealAutoBill.bill ? "the quote never reached Printavo" : dealAutoBill.reason
+        }.`
+      );
+    }
+
     let checkout = null;
 
     /**
@@ -1269,18 +1290,21 @@ export async function POST(request: Request) {
     if (
       printavoReady &&
       !isPaper &&
-      (stickersAutoBill.bill || signsAutoBill.bill)
+      (stickersAutoBill.bill || signsAutoBill.bill || (isDeal && dealAutoBill.bill))
     ) {
+      const dealBills = !stickersAutoBill.bill && !signsAutoBill.bill;
       checkout = await createCheckout({
         quoteId: printavo.quoteId as string,
         publicUrl: printavo.publicUrl || "",
-        flow: signsAutoBill.bill ? "signs" : "stickers",
+        flow: signsAutoBill.bill ? "signs" : dealBills ? "deal" : "stickers",
         // Over the full-payment ceiling the customer is asked for half now
         // and the balance before the job leaves the shop (Gabe, 2026-09-07).
         // Read off whichever gate said yes, so the email, the link and the
         // shop's copy cannot disagree about which it is.
         deposit: signsAutoBill.bill
           ? signsAutoBill.deposit
+          : dealBills
+          ? dealAutoBill.deposit
           : stickersAutoBill.deposit,
         // Shipped signs pay for the goods now and settle delivery before the
         // order leaves the shop. The email has to say so.
@@ -1298,7 +1322,7 @@ export async function POST(request: Request) {
           ) || undefined,
       });
 
-      const label = signsAutoBill.bill ? "SIGNS" : "STICKER";
+      const label = signsAutoBill.bill ? "SIGNS" : dealBills ? "DEAL" : "STICKER";
 
       console.log(
         checkout.ready
@@ -1413,6 +1437,8 @@ export async function POST(request: Request) {
           ? stickersAutoBill.reason
           : isSignsOrder(pricedOrder)
           ? signsAutoBill.reason
+          : isDeal
+          ? dealAutoBill.reason
           : undefined,
         kiosk: Boolean(kioskSession),
       })

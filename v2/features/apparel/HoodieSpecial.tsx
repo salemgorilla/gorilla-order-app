@@ -412,6 +412,44 @@ export function HoodieSpecialBuilder({
   );
 }
 
+/** Where the hoodie badge sits on the landing page. */
+export const HOODIE_AD_PLACEMENT =
+  "mx-auto mt-8 w-[18rem] sm:w-[20rem] xl:absolute xl:right-0 xl:top-0 xl:mt-0";
+
+/**
+ * A small black starburst on the hoodie badge's bottom right that opens the
+ * deals page (Gabe, 2026-11-23: "could we do a small black circle like the
+ * big hoody deal link, but over to the bottom right of the other"). Shown
+ * under the Thanksgiving theme only (globals.css, .deals-burst), like the
+ * banner it replaces as the way in. Its own jiggle runs two seconds after
+ * the hoodie badge's, and holds still for visitors who ask for less motion.
+ */
+export function DealsBurst({ label }: { label: string }) {
+  if (!label) return null;
+  return (
+    <a
+      href="/deals"
+      data-testid="deals-burst"
+      className="deals-burst group absolute -bottom-5 -right-4 z-10 aspect-square w-[7.5rem] rotate-6 motion-safe:animate-jiggle motion-safe:[animation-delay:2s] hover:animate-none focus-visible:animate-none transition-transform duration-[120ms] ease-linear hover:rotate-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--gorilla-green)] active:translate-x-[2px] active:translate-y-[2px] sm:w-[8rem]"
+    >
+      {/* The hard offset, in the season's badge colour, 4px down-right. */}
+      <span
+        aria-hidden="true"
+        className="absolute inset-0 translate-x-[4px] translate-y-[4px] bg-[var(--badge-fill)]"
+        style={{ clipPath: STARBURST_CLIP }}
+      />
+      <span
+        aria-hidden="true"
+        className="absolute inset-0 bg-[var(--ink-black)] transition-colors duration-[120ms] ease-linear group-hover:bg-[var(--gorilla-green)]"
+        style={{ clipPath: STARBURST_CLIP }}
+      />
+      <span className="relative flex h-full flex-col items-center justify-center px-5 text-center text-spec font-bold uppercase leading-tight tracking-eyebrow text-[var(--paper)]">
+        {label}
+      </span>
+    </a>
+  );
+}
+
 /**
  * The starburst's outline: 28 spikes, the inner points at 86% of the outer
  * radius, as a clip-path polygon. Computed once; a shape, not a colour.
@@ -454,7 +492,17 @@ const STARBURST_CLIP = `polygon(${Array.from(
  * green, a hard offset in ink black rather than a blur, ink inversion on
  * hover, the 2px focus ring.
  */
-export function HoodieSpecialAd({ onStart }: { onStart: () => void }) {
+export function HoodieSpecialAd({
+  onStart,
+  placed = false,
+}: {
+  onStart: () => void;
+  /**
+   * The page puts the badge in a wrapper that does the placing (so the
+   * Black Friday burst can sit on its corner). The badge then just fills it.
+   */
+  placed?: boolean;
+}) {
   // Gabe, 2026-11-23: "Less info, have it say '50 hoodies, as low as $27
   // each!'". The lower of the special's two prices, so it stays true.
   const fromPrice = Math.min(
@@ -469,7 +517,9 @@ export function HoodieSpecialAd({ onStart }: { onStart: () => void }) {
       data-testid="hoodie-special-ad"
       onClick={onStart}
       aria-label={`${headline} Start the ${HOODIE_SPECIAL.name}.`}
-      className="group relative mx-auto mt-8 block aspect-square w-[18rem] shrink-0 cursor-pointer -rotate-6 motion-safe:animate-jiggle hover:animate-none focus-visible:animate-none transition-transform duration-[120ms] ease-linear hover:rotate-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--gorilla-green)] active:translate-x-[2px] active:translate-y-[2px] sm:w-[20rem] xl:absolute xl:right-0 xl:top-0 xl:mt-0"
+      className={`group relative block aspect-square shrink-0 cursor-pointer -rotate-6 motion-safe:animate-jiggle hover:animate-none focus-visible:animate-none transition-transform duration-[120ms] ease-linear hover:rotate-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--gorilla-green)] active:translate-x-[2px] active:translate-y-[2px] ${
+        placed ? "w-full" : HOODIE_AD_PLACEMENT
+      }`}
     >
       {/* The hard offset: the same burst in ink black, 6px down-right. */}
       <span

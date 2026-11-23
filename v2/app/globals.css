@@ -329,8 +329,9 @@ body {
 }
 
 /* Thanksgiving touches the theme calendar has no slot for (Gabe,
-   2026-11-23): a slim greeting above the header with the Black Friday tag,
-   and plaid behind the quote desk. Hidden under every other theme. */
+   2026-11-23): a slim greeting above the header, the Black Friday burst on
+   the hoodie badge, and plaid behind the quote desk. Hidden under every
+   other theme. */
 .fall-banner {
   display: none;
 }
@@ -345,15 +346,12 @@ html[data-theme="thanksgiving"] .fall-banner {
   background: var(--badge-fill);
   color: var(--paper);
 }
-/* The deal tag inside the banner: harvest gold, dark type. */
-.fall-tag {
-  padding: 0.125rem 0.5rem;
-  background: var(--green-bright);
-  color: var(--ink-black);
-  box-shadow: 2px 2px 0 var(--ink-black);
+/* The Black Friday burst on the hoodie badge: Thanksgiving only. */
+.deals-burst {
+  display: none;
 }
-.fall-tag:hover {
-  background: var(--paper);
+html[data-theme="thanksgiving"] .deals-burst {
+  display: block;
 }
 /* Faint warm checks over paper: pumpkin and cranberry at 7-10%. Where the
    bands cross the darkest square is still light enough for --ink-muted. */

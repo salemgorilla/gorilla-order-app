@@ -12,8 +12,6 @@
  * still scatter instead of drifting shapes.
  */
 
-import { THANKSGIVING_TAG } from "../lib/season";
-
 /** Beside the GORILLA LABS wordmark (Christmas: bells). */
 export function DecorHeader({ className = "" }: { className?: string }) {
   return <span aria-hidden="true" className={`decor-header pointer-events-none ${className}`} />;
@@ -72,18 +70,13 @@ export function DecorDrift() {
 /**
  * A slim greeting above the header, Thanksgiving only (Gabe, 2026-11-23).
  * Hidden by globals.css under every other theme. Real text, so it is read
- * out like any other line when it shows; the tag links to the deals page.
+ * out like any other line when it shows. The way to the deals page is the
+ * black burst on the hoodie badge (features/apparel/HoodieSpecial.tsx).
  */
 export function ThanksgivingBanner() {
   return (
     <p className="fall-banner spec text-spec font-bold uppercase tracking-eyebrow">
       <span>Happy Thanksgiving from Gorilla</span>
-      {/* The placeholder deal tag; its words live in lib/season.ts. */}
-      {THANKSGIVING_TAG && (
-        <a href="/deals" className="fall-tag">
-          {THANKSGIVING_TAG}
-        </a>
-      )}
     </p>
   );
 }

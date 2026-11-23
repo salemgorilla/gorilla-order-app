@@ -202,6 +202,8 @@ import {
 import ApparelSummaryCard from "../features/apparel/ApparelSummaryCard";
 import {
   HoodieSpecialAd,
+  HOODIE_AD_PLACEMENT,
+  DealsBurst,
   HoodieSpecialBuilder,
   HoodieSpecialEntry,
 } from "../features/apparel/HoodieSpecial";
@@ -229,6 +231,7 @@ import {
   stickerDealProblem,
 } from "../lib/sticker-deal";
 import { DealActive } from "../components/DealActive";
+import { THANKSGIVING_TAG } from "../lib/season";
 import SignsBuilder from "../features/signs/SignsBuilder";
 import SpecialOrderEscape from "../components/SpecialOrderEscape";
 import SignsDelivery from "../features/signs/SignsDelivery";
@@ -4573,7 +4576,12 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               empty space right of the headline at xl, under the headline
               below that. Gone after the special's last day. */}
           {showHoodieSpecialAd && (
-            <HoodieSpecialAd onStart={startHoodieSpecialFromAd} />
+            <div className={`relative ${HOODIE_AD_PLACEMENT}`}>
+              <HoodieSpecialAd onStart={startHoodieSpecialFromAd} placed />
+              {/* Thanksgiving only: the small black Black Friday burst on
+                  its bottom right, which opens the deals page. */}
+              <DealsBurst label={THANKSGIVING_TAG} />
+            </div>
           )}
 
           {/* Deadpan and true. The pricing block the browser shows is the

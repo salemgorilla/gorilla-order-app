@@ -1,5 +1,5 @@
 import { SHOP } from "../lib/shop";
-import { Bells, Holly, Pumpkin, ThanksgivingBanner } from "./SeasonDecor";
+import { DecorCorner, DecorHeader, ThanksgivingBanner } from "./SeasonDecor";
 
 export default function Header() {
   return (
@@ -8,7 +8,7 @@ export default function Header() {
     <ThanksgivingBanner />
     <header className="site-header border-b-4 border-[var(--ink-black)] bg-[var(--shirt-blank)] py-6">
       {/* `site-header` carries the seasonal stripe along the top edge
-          (globals.css, lib/season.ts). Outside a season it does nothing. */}
+          (lib/theme-calendar.ts). Outside a season it does nothing. */}
       {/* Wraps rather than overflows: padding steps down on mobile.
           The wordmark sits at --text-wordmark, not --text-display. It used to
           share the headline's step, so the logo and the page's one <h1> were
@@ -38,10 +38,8 @@ export default function Header() {
                 identity move. */}
             <span className="text-[var(--gorilla-green)]">LABS</span>
           </a>
-          {/* Christmas only (SeasonDecor). */}
-          <Bells className="h-[1.3em] w-[1.7em] -mt-1" />
-          {/* Thanksgiving only (SeasonDecor). */}
-          <Pumpkin className="h-[1.3em] w-[1.45em] -mt-1" />
+          {/* Theme decor (SeasonDecor): Christmas bells and the like. */}
+          <DecorHeader className="h-[1.3em] w-[1.7em] -mt-1" />
         </p>
 
         {/* Spec furniture, not a label. "Quote Builder" named the tool; this
@@ -50,8 +48,8 @@ export default function Header() {
             The address is the shop's, from lib/shop.ts, the same string the
             pickup notice uses. */}
         <div className="quote-desk spec relative border border-[var(--rule)] bg-[var(--paper)] px-4 py-2 text-spec text-[var(--ink-muted)]">
-          {/* Christmas only (SeasonDecor): holly tucked on the corner. */}
-          <Holly className="absolute -right-7 -top-7 h-12 w-16 rotate-12" />
+          {/* Theme decor (SeasonDecor): Christmas holly and the like. */}
+          <DecorCorner className="absolute -right-7 -top-7 h-12 w-16 rotate-12" />
           <p className="font-bold uppercase tracking-eyebrow text-[var(--ink-black)]">
             Quote desk
           </p>

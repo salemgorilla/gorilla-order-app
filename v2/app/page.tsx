@@ -4393,12 +4393,8 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
           </div>
         )}
 
-        {currentStepId === "product" && showHoodieSpecialAd && (
-          <HoodieSpecialAd onStart={startHoodieSpecialFromAd} />
-        )}
-
         {currentStepId === "product" && (
-        <div className="mb-10">
+        <div className="relative mb-10">
           {/* Same rule as .eyebrow above it in the cascade: this is a hand-
               rolled eyebrow and was the one bit of alarm ink on an otherwise
               monochrome hero. A location is not a warning. */}
@@ -4415,9 +4411,22 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               that could have headed any quote tool in the category. Both
               halves are facts about this app: the estimate updates as the
               form is filled, and the shop is on Canal Street. */}
-          <h1 className="mt-3 max-w-4xl text-hero font-bold tracking-display text-[var(--ink-black)]">
+          <h1
+            className={`mt-3 max-w-4xl text-hero font-bold tracking-display text-[var(--ink-black)] ${
+              // Room for the hoodie special's badge, pinned top-right at xl.
+              showHoodieSpecialAd ? "xl:max-w-[calc(100%-22rem)]" : ""
+            }`}
+          >
             Priced as you build it. Printed on Canal&nbsp;Street.
           </h1>
+
+          {/* The 50 Hoodie Special's starburst (Gabe, 2026-11-23: "could
+              occupy the space to the right of the page"). Pinned in the
+              empty space right of the headline at xl, under the headline
+              below that. Gone after the special's last day. */}
+          {showHoodieSpecialAd && (
+            <HoodieSpecialAd onStart={startHoodieSpecialFromAd} />
+          )}
 
           {/* Deadpan and true. The pricing block the browser shows is the
               one buildPrintavoQuotePlan invoices from (tests/quote-invoice-

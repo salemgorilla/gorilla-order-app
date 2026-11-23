@@ -412,107 +412,110 @@ export function HoodieSpecialBuilder({
 }
 
 /**
+ * The starburst's outline: 28 spikes, the inner points at 86% of the outer
+ * radius, as a clip-path polygon. Computed once; a shape, not a colour.
+ */
+const STARBURST_POINTS = 28;
+const STARBURST_CLIP = `polygon(${Array.from(
+  { length: STARBURST_POINTS * 2 },
+  (_, i) => {
+    const radius = i % 2 === 0 ? 50 : 43;
+    const angle = (Math.PI * i) / STARBURST_POINTS - Math.PI / 2;
+    const x = 50 + radius * Math.cos(angle);
+    const y = 50 + radius * Math.sin(angle);
+    return `${x.toFixed(2)}% ${y.toFixed(2)}%`;
+  }
+).join(", ")})`;
+
+/**
  * The landing-page ad for the special (Gabe, 2026-11-23: "add a advertisement
  * for the hoodie special on the landing page once you press the link to get
- * to the order").
+ * to the order", then: "The ad for the special could occupy the space to the
+ * right of the page. Make the ad inside a spiked circle that's typical for
+ * eye catching announcements").
  *
- * Shown on step 1, above the hero, only while the special is open (the page
- * gates it on isHoodieSpecialOpen(), the same Salem-clock rule that hides the
- * apparel step's button after the last day). Its button does what a customer
- * would otherwise do in three moves: pick T-Shirts & Apparel, continue, press
- * the special's button. The page owns that; this is only the ad.
+ * A starburst badge. On wide screens the page pins it in the empty space to
+ * the right of the hero headline; on narrower ones it sits under the
+ * headline. The page shows it only while the special is open
+ * (isHoodieSpecialOpen(), the same Salem-clock rule that hides the apparel
+ * step's button after the last day).
+ *
+ * The whole badge is the button. It does what a customer would otherwise do
+ * in three moves: pick T-Shirts & Apparel, continue, press the special's
+ * button. The page owns that; this is only the ad.
  *
  * Every figure is read from HOODIE_SPECIAL, so the ad cannot advertise a
- * price, minimum or date the quote does not charge. There is no hoodie photo:
- * the special's only blank is Cutter & Buck's, which S&S does not carry, so
- * the visual is the special's own eight colours instead.
+ * price, minimum or date the quote does not charge. No hoodie photo: the
+ * special's only blank is Cutter & Buck's, which S&S does not carry.
+ *
+ * Off-system on purpose in one way: the house is square and flat, and an
+ * announcement burst is neither. It keeps the system's other rules: brand
+ * green, a hard offset in ink black rather than a blur, ink inversion on
+ * hover, the 2px focus ring.
  */
 export function HoodieSpecialAd({ onStart }: { onStart: () => void }) {
+  const lastDay = formatLastDay();
+
   return (
-    <aside
-      aria-labelledby="hoodie-special-ad-title"
+    <button
+      type="button"
       data-testid="hoodie-special-ad"
-      className="mb-8 border-2 border-[var(--ink-black)] bg-[var(--ink-black)] text-white shadow-[3px_3px_0_var(--gorilla-green)]"
+      onClick={onStart}
+      aria-label={`${HOODIE_SPECIAL.name}: ${HOODIE_SPECIAL.minPieces} printed hoodies, $${HOODIE_SPECIAL.frontPrice} each front print, $${HOODIE_SPECIAL.frontAndBackPrice} each front and back, order by ${lastDay}. Start your hoodie order.`}
+      className="group relative mx-auto mt-8 block aspect-square w-[18rem] shrink-0 cursor-pointer -rotate-6 transition-transform duration-[120ms] ease-linear hover:rotate-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--gorilla-green)] active:translate-x-[2px] active:translate-y-[2px] sm:w-[20rem] xl:absolute xl:right-0 xl:top-0 xl:mt-0"
     >
-      <div className="grid gap-6 p-5 sm:p-8 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-end lg:gap-10">
-        <div>
-          <p className="spec text-spec font-bold uppercase tracking-eyebrow text-[var(--green-bright)]">
-            Limited time · order by {formatLastDay()}
-          </p>
-          <h2
-            id="hoodie-special-ad-title"
-            className="mt-3 text-section font-bold tracking-display"
-          >
-            {HOODIE_SPECIAL.minPieces} printed hoodies
-          </h2>
-          <p className="mt-2 max-w-xl text-fine font-medium leading-6 text-white/80">
-            The {HOODIE_SPECIAL.name} on the {HOODIE_SPECIAL.supplier} Clique{" "}
-            {HOODIE_SPECIAL.garmentLabel}. One price XS to 5XL, up to{" "}
-            {HOODIE_SPECIAL.maxInksPerSide} ink colors per side, setup included.
-          </p>
+      {/* The hard offset: the same burst in ink black, 6px down-right. */}
+      <span
+        aria-hidden="true"
+        className="absolute inset-0 translate-x-[6px] translate-y-[6px] bg-[var(--ink-black)]"
+        style={{ clipPath: STARBURST_CLIP }}
+      />
+      <span
+        aria-hidden="true"
+        className="absolute inset-0 bg-[var(--gorilla-green)] transition-colors duration-[120ms] ease-linear group-hover:bg-[var(--ink-black)]"
+        style={{ clipPath: STARBURST_CLIP }}
+      />
 
-          <dl className="mt-6 flex flex-wrap gap-x-10 gap-y-4">
-            {[
-              { price: HOODIE_SPECIAL.frontPrice, label: "each, front print" },
-              {
-                price: HOODIE_SPECIAL.frontAndBackPrice,
-                label: "each, front and back",
-              },
-            ].map(({ price, label }) => (
-              <div key={label} className="flex flex-col-reverse">
-                <dt className="spec mt-2 text-spec font-medium uppercase tracking-eyebrow text-white/80">
-                  {label}
-                </dt>
-                <dd
-                  data-testid="hoodie-special-ad-price"
-                  className="text-display font-bold leading-none tracking-display text-[var(--green-bright)]"
-                >
-                  ${price}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-
-        <div className="flex flex-col gap-4">
-          <div>
-            <p className="spec text-spec font-medium uppercase tracking-eyebrow text-white/80">
-              {HOODIE_SPECIAL.colors.length} colors
-            </p>
-            <ul
-              aria-label={`Hoodie colors: ${HOODIE_SPECIAL.colors
-                .map((color) => color.name)
-                .join(", ")}`}
-              className="mt-2 flex flex-wrap gap-2"
+      <span
+        aria-hidden="true"
+        className="relative flex h-full flex-col items-center justify-center px-12 text-center text-white"
+      >
+        <span className="spec text-spec font-bold uppercase tracking-eyebrow">
+          Limited time
+        </span>
+        <span className="mt-2 text-head font-bold leading-[0.95] tracking-display">
+          {HOODIE_SPECIAL.minPieces} printed
+          <br />
+          hoodies
+        </span>
+        <span className="mt-3 flex items-end gap-4">
+          <span className="flex flex-col items-center">
+            <span
+              data-testid="hoodie-special-ad-price"
+              className="text-head font-bold leading-none"
             >
-              {HOODIE_SPECIAL.colors.map((color) => (
-                <li
-                  key={color.name}
-                  title={color.name}
-                  // A garment colour, not a UI token (DESIGN-SYSTEM §3).
-                  // The white ring keeps Black and Anthracite visible on
-                  // the black panel.
-                  className="h-8 w-8 border border-white/50"
-                  style={{ backgroundColor: color.hex }}
-                />
-              ))}
-            </ul>
-          </div>
-
-          <button
-            type="button"
-            data-testid="hoodie-special-ad-start"
-            onClick={onStart}
-            className="min-h-[52px] w-full cursor-pointer border-2 border-[var(--gorilla-green)] bg-[var(--gorilla-green)] px-6 text-body font-bold text-white transition-colors duration-[120ms] ease-linear hover:border-white hover:bg-white hover:text-[var(--ink-black)] active:translate-x-[2px] active:translate-y-[2px]"
-          >
-            Order the hoodie special →
-          </button>
-          <p className="text-fine font-medium text-white/80">
-            {HOODIE_SPECIAL.minPieces} hoodies minimum. Mix sizes and add your
-            art on the next screens.
-          </p>
-        </div>
-      </div>
-    </aside>
+              ${HOODIE_SPECIAL.frontPrice}
+            </span>
+            <span className="spec mt-1 text-spec font-medium uppercase">
+              front
+            </span>
+          </span>
+          <span className="flex flex-col items-center">
+            <span
+              data-testid="hoodie-special-ad-price"
+              className="text-head font-bold leading-none"
+            >
+              ${HOODIE_SPECIAL.frontAndBackPrice}
+            </span>
+            <span className="spec mt-1 text-spec font-medium uppercase">
+              front + back
+            </span>
+          </span>
+        </span>
+        <span className="spec mt-3 text-spec font-bold uppercase tracking-eyebrow underline decoration-2 underline-offset-4">
+          Order by {lastDay.replace("December", "Dec")} →
+        </span>
+      </span>
+    </button>
   );
 }

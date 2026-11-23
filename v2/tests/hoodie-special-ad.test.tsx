@@ -44,24 +44,23 @@ describe("hoodie special landing ad", () => {
     assert.equal(both.unitPrice, 33);
   });
 
-  test("names the minimum, the last day, the ink cap and the blank", () => {
-    assert.ok(html.includes(`${HOODIE_SPECIAL.minPieces} printed hoodies`));
-    assert.ok(html.includes("order by December 1"));
+  test("names the minimum and the last day, on screen and to a screen reader", () => {
+    assert.ok(html.includes(`${HOODIE_SPECIAL.minPieces} printed`));
+    assert.ok(html.includes("Order by Dec 1"));
     assert.ok(
-      html.includes(`up to ${HOODIE_SPECIAL.maxInksPerSide} ink colors per side`)
+      html.includes(
+        `aria-label="${HOODIE_SPECIAL.name}: ${HOODIE_SPECIAL.minPieces} printed hoodies, $27 each front print, $33 each front and back, order by December 1. Start your hoodie order."`
+      )
     );
-    assert.ok(html.includes("Cutter &amp; Buck"));
   });
 
-  test("shows the special's own eight colours, and no photo", () => {
-    for (const color of HOODIE_SPECIAL.colors) {
-      assert.ok(html.includes(`title="${color.name}"`), color.name);
-    }
+  test("is a spiked starburst, with no photo", () => {
+    assert.ok(html.includes("clip-path:polygon("), "starburst outline");
     assert.ok(!/<img/i.test(html), "no photo: S&S does not carry MQK00107");
   });
 
-  test("has the button that starts the special", () => {
-    assert.ok(html.includes('data-testid="hoodie-special-ad-start"'));
+  test("the whole badge is the button that starts the special", () => {
+    assert.ok(/^<button[^>]*data-testid="hoodie-special-ad"/.test(html));
   });
 
   test("is gated by the same last-day rule as the apparel button", () => {

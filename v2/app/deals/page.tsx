@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import Header from "../../components/Header";
 import DealsList from "../../components/DealsList";
+import { DEAL_PAYMENT_TERMS } from "../../lib/deal-payment";
 
 export const metadata: Metadata = {
   title: "Deals — Gorilla Labs | Gorilla Salem",
@@ -26,7 +27,8 @@ export default function DealsPage() {
         </p>
         {/* Gabe, 2026-11-23: say up top that these are all fixed. */}
         <p className="mt-4 max-w-2xl border-l-4 border-[var(--gorilla-green)] pl-4 text-body font-bold text-[var(--ink-black)]">
-          Every deal is a set quantity at a set price. Just add your art and sizes.
+          Every deal is a set quantity at a set price. Just add your art and sizes.{" "}
+          {DEAL_PAYMENT_TERMS}
         </p>
         <DealsList />
       </div>

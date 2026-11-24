@@ -8,6 +8,7 @@ import { apparelPricingConfig } from "../../lib/apparel-pricing-config";
 import type { ArtworkAnalysis } from "../../lib/artwork";
 import { shouldListGarments } from "../../lib/apparel-cart-lines";
 import ApparelMoney from "./ApparelMoney";
+import { DEAL_PAYMENT_TERMS } from "../../lib/deal-payment";
 import type { ApparelLineEach } from "../../lib/apparel-per-line";
 
 type Props = {
@@ -350,9 +351,9 @@ export default function ApparelSummaryCard({
 
       <div className="mt-5 bg-[var(--surface-warn)] p-4">
         <p className="text-fine font-medium leading-6 text-[var(--ink-muted)]">
-          Apparel pricing is an estimate. Gorilla Salem will review
-          garment availability, artwork, print method, and timeline
-          before confirming the final price.
+          {flatRate
+            ? `A fixed deal price. ${DEAL_PAYMENT_TERMS} We send a proof before anything goes to print.`
+            : "Apparel pricing is an estimate. Gorilla Salem will review garment availability, artwork, print method, and timeline before confirming the final price."}
         </p>
       </div>
     </div>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { DEALS, dealHref, dealPrice, liveDeals, type Deal } from "../lib/deals";
 import { shopTodayIso } from "../lib/hoodie-special";
+import { DEAL_PAYMENT_ROW } from "../lib/deal-payment";
 
 /**
  * The deal cards, every one in the same layout so they scan alike (Gabe,
@@ -57,6 +58,7 @@ export default function DealsList() {
             <Row label="Quantity" value={deal.quantity} />
             <Row label="Print" value={deal.print} />
             <Row label="You add" value={deal.youAdd} />
+            <Row label="Payment" value={DEAL_PAYMENT_ROW} />
             {deal.endsOn && <Row label="Order by" value={formatDay(deal.endsOn)} />}
           </dl>
 

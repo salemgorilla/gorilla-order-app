@@ -10,6 +10,7 @@ import {
   hoodieSpecialSides,
   type HoodieSpecialSides,
 } from "../../lib/hoodie-special";
+import { DEAL_PAYMENT_TERMS } from "../../lib/deal-payment";
 import { getPrintPlacement } from "../../lib/print-placements";
 import type { FieldErrors } from "../../lib/validation";
 import { DecorCorner } from "../../components/SeasonDecor";
@@ -54,7 +55,7 @@ export function HoodieSpecialEntry({
             {HOODIE_SPECIAL.name}
           </p>
           <p className="mt-1 text-fine font-medium leading-5 text-[var(--ink-black)]">
-            {terms}. Order by {formatLastDay()}.
+            {terms}. Order by {formatLastDay()}. {DEAL_PAYMENT_TERMS}
           </p>
         </div>
 
@@ -79,7 +80,7 @@ export function HoodieSpecialEntry({
         </p>
         <p className="mt-1 text-fine font-medium leading-5 text-[var(--ink-muted)]">
           {terms}. {HOODIE_SPECIAL.minPieces} hoodies or more, order by{" "}
-          {formatLastDay()}.
+          {formatLastDay()}. {DEAL_PAYMENT_TERMS}
         </p>
       </div>
 

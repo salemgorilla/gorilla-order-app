@@ -64,3 +64,29 @@ describe("the deals list", () => {
     assert.equal(byId["polos-6"], undefined);
   });
 });
+
+describe("every deal is paid in full up front (Gabe, 2026-11-24)", () => {
+  it("every deal start that takes an order has a pay-in-full gate", async () => {
+    const { DEAL_STARTS, DEALS } = await import("../lib/deals");
+    const { PAY_IN_FULL_STARTS } = await import("../lib/deal-payment");
+    for (const start of DEAL_STARTS) {
+      assert.ok(start in PAY_IN_FULL_STARTS, `${start} has no pay-in-full gate`);
+    }
+    for (const deal of DEALS) {
+      if (deal.how === "order") {
+        assert.ok(deal.start && deal.start in PAY_IN_FULL_STARTS, `${deal.id} opens without paying in full`);
+      }
+    }
+  });
+
+  it("the cards and the checkout say so", async () => {
+    const { readFileSync } = await import("node:fs");
+    const list = readFileSync(new URL("../components/DealsList.tsx", import.meta.url), "utf8");
+    assert.match(list, /label="Payment" value=\{DEAL_PAYMENT_ROW\}/);
+    const page = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
+    // The tee deal strip and the sticker deal strip.
+    assert.equal(page.match(/\$\{DEAL_PAYMENT_TERMS\}`\}/g)?.length, 2);
+    const hoodie = readFileSync(new URL("../features/apparel/HoodieSpecial.tsx", import.meta.url), "utf8");
+    assert.equal(hoodie.match(/\{DEAL_PAYMENT_TERMS\}/g)?.length, 2);
+  });
+});

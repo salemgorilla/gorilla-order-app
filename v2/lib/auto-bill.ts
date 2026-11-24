@@ -406,7 +406,8 @@ export function decideStickersAutoBill(input: {
  *   fits          The deal's own submission check passes again here.
  *   serverTotal   Worked out from the deal, never read from the browser,
  *                 and the payload's total must be that figure.
- *   kiosk, special order, Printavo, total > 0, ceiling: as for stickers.
+ *   kiosk, special order, Printavo, total > 0: as for stickers.
+ *   in full      Never a deposit, at any size (Gabe, 2026-11-24, below).
  *
  * Apparel is not taxed (lib/tax.ts), so Printavo's amount outstanding is the
  * deal price itself.
@@ -489,12 +490,14 @@ export function decideDealAutoBill(input: {
     };
   }
 
-  const charged = ceilingTotal(order, serverTotal);
-  if (charged > FULL_PAYMENT_CEILING) {
-    return { bill: true, deposit: true, reason: overCeiling(charged) };
-  }
-
-  return { bill: true, deposit: false, reason: "fixed deal price, under the ceiling" };
+  /**
+   * NO DEPOSIT ON A DEAL, at any size. Gabe, 2026-11-24: "I want the Black
+   * Friday deals to be pay in full as a policy rule" and "Same with the 50
+   * hoody deal: 100% paid in full, up front." The $4,999.99 ceiling guards
+   * against a total nobody checked; a deal's total is its own fixed price,
+   * re-derived and matched above, so it bills in full whatever it comes to.
+   */
+  return { bill: true, deposit: false, reason: "fixed deal price, paid in full up front" };
 }
 
 /**

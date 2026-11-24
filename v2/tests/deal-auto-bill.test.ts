@@ -69,19 +69,22 @@ describe("a deal that fits pays in full", () => {
     assert.deepEqual(decide(teeOrder()), {
       bill: true,
       deposit: false,
-      reason: "fixed deal price, under the ceiling",
+      reason: "fixed deal price, paid in full up front",
     });
   });
   test("hoodie special", () => {
     assert.equal(decide(hoodieOrder()).bill, true);
     assert.equal(decide(hoodieOrder()).deposit, false);
   });
-  test("a very large hoodie order is a 50% deposit, as for every other flow", () => {
+  test("a deal is never a deposit, however big (Gabe, 2026-11-24: 100% up front)", () => {
     const big = hoodieOrder({ quantity: 200 }, { total: 6600 });
     assert.deepEqual(
       { bill: decide(big).bill, deposit: decide(big).deposit },
-      { bill: true, deposit: true }
+      { bill: true, deposit: false }
     );
+    for (const order of [teeOrder(), teeOrder({ promo: "tees-12-1c", quantity: 12, garmentColor: "White", sizeBreakdown: "M-6, L-6", supplier: { catalogStyle: "39" } }, { promo: "tees-12-1c", unitPrice: 10.86, total: 130.32 }), hoodieOrder()]) {
+      assert.equal(decide(order).deposit, false);
+    }
   });
 });
 

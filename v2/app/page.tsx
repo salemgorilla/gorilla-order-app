@@ -115,6 +115,7 @@ import {
   rushOffer,
 } from "../lib/rush";
 import { apparelCatalogStyles } from "../lib/apparel-catalog";
+import { DEAL_PAYMENT_TERMS } from "../lib/deal-payment";
 import {
   garmentFamily,
   keepOfferedPlacements,
@@ -4205,6 +4206,8 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
   const step = getStep(currentStepId);
   const flowLabel = isPaperSelected || isApparelRequest
     ? "Quoted by hand"
+    : isApparelSelected && (teeDeal || isHoodieSpecial)
+    ? "Pay in full"
     : isApparelSelected
     ? "Manual quote"
     : isSignsSelected
@@ -5062,7 +5065,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   <DealActive
                     testId="tee-deal-active"
                     name={teeDeal.name}
-                    terms={`$${teeDealTotal(teeDeal).toFixed(2)} (regular $${teeDeal.regularPrice.toFixed(2)}) for exactly ${teeDeal.quantity} ${teeDeal.garment}s (${teeDeal.blank}), sizes ${TEE_DEAL_SIZES[0]} to ${TEE_DEAL_SIZES[TEE_DEAL_SIZES.length - 1]}, one ${teeDeal.maxInks === 1 ? "1-color" : "1- or 2-color"} print on the front. ${teeDeal.maxInks === 1 ? "Light tees only." : "Dark tees take 1-color art (the white underbase is the 2nd color)."} Printing included, no setup fee. You add your artwork, color and sizes.`}
+                    terms={`$${teeDealTotal(teeDeal).toFixed(2)} (regular $${teeDeal.regularPrice.toFixed(2)}) for exactly ${teeDeal.quantity} ${teeDeal.garment}s (${teeDeal.blank}), sizes ${TEE_DEAL_SIZES[0]} to ${TEE_DEAL_SIZES[TEE_DEAL_SIZES.length - 1]}, one ${teeDeal.maxInks === 1 ? "1-color" : "1- or 2-color"} print on the front. ${teeDeal.maxInks === 1 ? "Light tees only." : "Dark tees take 1-color art (the white underbase is the 2nd color)."} Printing included, no setup fee. You add your artwork, color and sizes. ${DEAL_PAYMENT_TERMS}`}
                     problem={teeDealLiveProblem}
                     onLeave={leaveTeeDeal}
                   />
@@ -5259,7 +5262,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     <DealActive
                       testId="sticker-deal-active"
                       name={STICKER_DEAL.name}
-                      terms={`${STICKER_DEAL.quantity} stickers, one design, any shape up to ${STICKER_DEAL.maxInches}" x ${STICKER_DEAL.maxInches}", on ${STICKER_DEAL.material}. $${STICKER_DEAL.price.toFixed(2)} with setup included. Shipping and tax as usual.`}
+                      terms={`${STICKER_DEAL.quantity} stickers, one design, any shape up to ${STICKER_DEAL.maxInches}" x ${STICKER_DEAL.maxInches}", on ${STICKER_DEAL.material}. $${STICKER_DEAL.price.toFixed(2)} with setup included. Shipping and tax as usual. ${DEAL_PAYMENT_TERMS}`}
                       problem={stickerDealLiveProblem}
                       onLeave={leaveStickerDeal}
                     />

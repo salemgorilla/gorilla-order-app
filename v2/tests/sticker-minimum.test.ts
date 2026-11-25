@@ -2,7 +2,8 @@
  * THE $45 ORDER MINIMUM, ON THE FLOW THAT BILLS WITH NOBODY WATCHING.
  *
  * Gabe, 2026-09-12: "Let's have a minimum of $45 for stickers." Before this
- * one 3" sticker quoted $15.70 and auto-billed.
+ * one 3" sticker quoted $15.70 and auto-billed. RETAIL, 2026-11-11: the
+ * minimum is now $46.35 ($45 + 3%).
  *
  * The rule is simple; what has to be proved is that it reaches Printavo as
  * the same money it reaches the customer as. The top-up is its OWN row —
@@ -39,7 +40,7 @@ function printavoTotal(plan: ReturnType<typeof buildPrintavoQuotePlan>) {
 }
 
 describe("the minimum is a line, and the lines add up", () => {
-  test("a small order is topped up to exactly $45, and says so", () => {
+  test("a small order is topped up to exactly the minimum ($46.35 retail), and says so", () => {
     const priced = repriceStickers(small());
     const pricing = priced.order.pricing as Record<string, number>;
 
@@ -56,7 +57,7 @@ describe("the minimum is a line, and the lines add up", () => {
     const row = plan.feeLineItems.find((f) => f.itemNumber === SKU.DECAL_MINIMUM);
     assert.ok(row, "no Minimum order row on the invoice");
     assert.equal(row?.taxed, false);
-    assert.match(row?.description ?? "", /Minimum order \(\$45 for stickers\)/);
+    assert.match(row?.description ?? "", /Minimum order \(\$46\.35 for stickers\)/);
     assert.equal(row?.price, (priced.order.pricing as Record<string, number>).minimumPrice);
 
     assert.equal(printavoTotal(plan), (priced.order.pricing as Record<string, number>).total);
@@ -96,8 +97,9 @@ describe("the minimum is a line, and the lines add up", () => {
     const shipped = quoteStickerCart({ materialPrices: [10], deliveryMethod: "Ship" });
 
     assert.equal(pickup.total, STICKER_ORDER_MINIMUM);
-    // $45 of goods is the $8 tier; the minimum is met before shipping.
-    assert.equal(shipped.shippingPrice, 8);
-    assert.equal(shipped.total, STICKER_ORDER_MINIMUM + 8);
+    // $46.35 retail ($45 old book) of goods is the $8.24 ($8 + 3%) tier; the
+    // minimum is met before shipping.
+    assert.equal(shipped.shippingPrice, 8.24);
+    assert.equal(shipped.total, STICKER_ORDER_MINIMUM + 8.24);
   });
 });

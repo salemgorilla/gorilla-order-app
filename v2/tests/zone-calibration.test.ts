@@ -87,7 +87,7 @@ describe("drag arithmetic", () => {
 describe("the snippet prints exactly what the screen shows", () => {
   test("a side block carries verified: true and three-decimal fractions", () => {
     const snippet = formatZoneSnippet("front", chest);
-    assert.match(snippet, /^front: \{/);
+    assert.match(snippet, /^Front: \{/);
     assert.match(snippet, /verified: true,/);
     assert.match(snippet, /centerX: 0\.500,/);
     assert.match(snippet, /top: 0\.280,/);
@@ -108,13 +108,13 @@ describe("the snippet prints exactly what the screen shows", () => {
   test("a style block includes only the sides actually saved", () => {
     const snippet = formatStyleSnippet("39", { front: chest });
     assert.match(snippet, /^"39": \{/);
-    assert.match(snippet, /front: \{/);
-    assert.doesNotMatch(snippet, /back:/);
+    assert.match(snippet, /Front: \{/);
+    assert.doesNotMatch(snippet, /Back:/);
   });
 
   test("both sides saved means both sides printed", () => {
     const snippet = formatStyleSnippet("395", { front: chest, back: chest });
-    assert.match(snippet, /front: \{/);
-    assert.match(snippet, /back: \{/);
+    assert.match(snippet, /Front: \{/);
+    assert.match(snippet, /Back: \{/);
   });
 });

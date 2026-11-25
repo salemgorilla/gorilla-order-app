@@ -61,16 +61,27 @@ import {
 const PER_PIECE = 0.34;
 const PER_SQUARE_INCH = 0.04;
 
-/** $15 first design, $7.50 each after — Gabe, 2026-09-12. */
-const SETUP_FIRST = 15;
-const SETUP_ADDITIONAL = 7.5;
+/**
+ * RETAIL — Gabe, 2026-11-11: "we will increase our retail price by 3% and
+ * discount those who pay via ACH." Every figure below is the old price book's
+ * number, and the rule is stated here in prose rather than copied from
+ * lib/retail.ts: each rate, fee and floor is its old figure plus 3%, rounded
+ * to the cent; the per-sticker unit is plus 3%, to four decimals (what Printavo
+ * can store). Sales tax is on the retail price.
+ */
+const RETAIL = 1.03;
+const cents = (n: number) => Math.round(n * 100 + 1e-7) / 100;
+
+/** $15 first design, $7.50 each after (Gabe, 2026-09-12), each plus 3%. */
+const SETUP_FIRST = cents(15 * RETAIL); // 15.45
+const SETUP_ADDITIONAL = cents(7.5 * RETAIL); // 7.73
 
 /**
  * No order bills under this, goods + setup. On the GOODS, before shipping:
  * a $30 order picked up and the same order shipped both meet it, and the
  * shipping goes on top.
  */
-const ORDER_MINIMUM = 45;
+const ORDER_MINIMUM = cents(45 * RETAIL); // 46.35, the $45 floor plus 3%
 
 /**
  * Two curves, not one. The per-piece term and the per-area term discount
@@ -149,6 +160,11 @@ function applyModifiers(unit: number, material: string, shape: string): number {
   return unit * shapeFactor * (premium * matte);
 }
 
+/** The shop's unit to four decimals, then plus 3% to four decimals. */
+function retailUnit(unit: number): number {
+  return Math.round(Number(unit.toFixed(4)) * RETAIL * 10_000 + 1e-7) / 10_000;
+}
+
 export type OracleOrder = {
   quantity: number;
   widthInches: number;
@@ -173,7 +189,7 @@ function lineFor(order: OracleOrder): number {
     order.shape
   );
 
-  return Math.round(Number(unit.toFixed(4)) * qty * 10_000) / 10_000;
+  return Math.round(retailUnit(unit) * qty * 10_000) / 10_000;
 }
 
 export function oracleTotal(order: OracleOrder): number {
@@ -208,7 +224,7 @@ export function oracleTotal(order: OracleOrder): number {
    * lands on the boundary more often than the others. A cent, on the
    * surface that raises a payable link. The oracle was the wrong one.
    */
-  const line = Math.round(Number(unit.toFixed(4)) * qty * 10_000) / 10_000;
+  const line = Math.round(retailUnit(unit) * qty * 10_000) / 10_000;
 
   return Math.round((line + setup) * 100) / 100;
 }
@@ -387,9 +403,11 @@ const SHAPES = ["Die Cut", "Circle", "Square", "Oval", "Rounded Corners"];
  */
 const ANCHORS: Array<{ what: string; order: OracleOrder; expect: number }> = [
   {
-    what: 'Gabe, 2026-09-11: 100 x 3" "closer to $85"; Printavo #10568 collected $87.81 incl. tax',
+    what:
+      'Gabe, 2026-09-11: 100 x 3" "closer to $85" (Printavo #10568 collected $87.81 incl. tax at that price); ' +
+      'plus the 3% retail uplift of 2026-11-11, 85.00 x 1.03 = $87.55',
     order: { quantity: 100, widthInches: 3, heightInches: 3, material: "Gloss White Vinyl", shape: "Circle" },
-    expect: 85.0,
+    expect: 87.55,
   },
 ];
 

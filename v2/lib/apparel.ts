@@ -1,18 +1,31 @@
 export const apparelCatalog = {
   quantities: [12, 24, 36, 50, 75, 100, 150, 250, 500],
   garmentTypes: ["T-Shirts", "Hoodies", "Crewnecks", "Long Sleeves", "Hats"],
+  // Most-ordered first, the same order as lib/garment-color-ranking.ts.
+  // Only shown when the live S&S catalogue fails to load.
   garmentColors: [
     "Black",
-    "White",
-    "Heather Gray",
     "Navy",
-    "Forest Green",
+    "Heather Gray",
+    "White",
     "Red",
+    "Forest Green",
     "Custom / Not Sure",
   ],
-  // Launching small: front and back only. Anything else (left chest, sleeve,
-  // tags, hats, custom placement) goes through the special-order request.
-  printLocations: ["Front", "Back"],
+  // Gabe's placement chart, 2026-11-21 — the ids, sizes and which garments
+  // offer which live in lib/print-placements.ts. "Front" and "Back" are the
+  // chart's full front and full back. Anything else (tags, hats, custom
+  // placement) still goes through the special-order request.
+  printLocations: [
+    "Left Chest",
+    "Center Chest",
+    "Front",
+    "Oversize Front",
+    "Sleeve",
+    "Collar Back",
+    "Upper Back",
+    "Back",
+  ],
   inkColors: [
     "1 color",
     "2 colors",
@@ -49,6 +62,17 @@ export const defaultApparelQuote = {
    */
   specialOrder: false,
   specialOrderNotes: "",
+  /**
+   * A flat-rate offer the customer chose from the apparel section — today
+   * only "hoodie-50", the 50 Hoodie Special (lib/hoodie-special.ts). Empty
+   * on every regular quote, which then prices exactly as it always has.
+   */
+  promo: "",
+  /**
+   * The special's art tick: the customer says their art prints in 2 colors
+   * or fewer per side. Only asked when the artwork reader counts more.
+   */
+  promoArtConfirmed: false,
 };
 
 export type ApparelQuote = typeof defaultApparelQuote;

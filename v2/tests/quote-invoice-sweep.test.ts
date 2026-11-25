@@ -14,7 +14,8 @@
  *   so the tests agreed with themselves about a payload nothing sends.
  *
  * The result: a rushed two-design signs quote invoiced $655.00 against
- * $818.75 quoted, and no test in the repo could see it. This file closes
+ * $818.75 quoted (old price book; $674.90 against $843.63 at retail since
+ * 2026-11-11), and no test in the repo could see it. This file closes
  * that by construction. Everything below goes through the REAL composition
  * the browser uses — withSignsRush / withApparelRush / buildSignsPayloadParts
  * / repriceStickers — and sweeps the dimensions where a charge can hide:
@@ -70,7 +71,13 @@ function invoiceTaxableBase(plan: Plan): number {
     .filter((fee) => fee.taxed)
     .reduce((sum, fee) => sum + fee.price, 0);
 
-  return Math.round((goods + fees) * 100) / 100;
+  // Half a cent rounds UP, as lib/retail.ts `cents` does. A cart whose goods
+  // come to an exact half cent ($358.555 = 100 x 0.7571 + 250 x 0.4351 +
+  // 100 x 1.7407, a retail unit at four decimals times a count that is not a
+  // hundred) sums in binary to 358.55499999999995, and a bare Math.round
+  // would read it as 358.55 against the app's 358.56. The nudge is far below
+  // a cent, so it cannot hide a real one-cent drift.
+  return Math.round((goods + fees) * 100 + 1e-6) / 100;
 }
 
 const CONTACT = { customerName: "Sweep", email: "sweep@example.com" };

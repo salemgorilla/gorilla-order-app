@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { rateLimited, requestKey } from "../../../lib/rate-limit";
 
 import { MAX_ATTACHED_ARTWORK_BYTES } from "../../../lib/upload-limits";
@@ -20,12 +20,20 @@ import { describeRepricing } from "../../../lib/repricing-note";
 import { repriceSigns } from "../../../lib/signs-repricing";
 import {
   isSpecialOrder,
+  decideDealAutoBill,
   decideSignsAutoBill,
   decideStickersAutoBill,
+  isFixedPriceDealOrder,
   isSignsOrder,
   shopPaymentNote,
 } from "../../../lib/auto-bill";
 import { getEmailError } from "../../../lib/validation";
+import {
+  HOODIE_SPECIAL,
+  hoodieSpecialSubmissionProblem,
+} from "../../../lib/hoodie-special";
+import { teeDealSubmissionProblem } from "../../../lib/tee-deal";
+import { isStickerDeal, stickerDealProblem } from "../../../lib/sticker-deal";
 import { isPaperProduct } from "../../../lib/order-flow";
 import {
   paperQuoteOrder,
@@ -33,6 +41,13 @@ import {
   validatePaperSpec,
 } from "../../../lib/paper";
 import { describeSubmission } from "../../../lib/submission-log";
+import { orderUsageFromPayload } from "../../../lib/order-usage";
+import {
+  isUsageTrackingEnabled,
+  recordOrder,
+  vercelUsageStore,
+} from "../../../lib/order-usage-store";
+import { isTestIdentity } from "../../../lib/usage-beacon";
 import { earliestNeedBy, turnaroundLaneFor } from "../../../lib/turnaround";
 import {
   isNewsletterConfigured,
@@ -381,6 +396,70 @@ export async function POST(request: Request) {
      */
     const submittedProduct =
       ((order as Record<string, unknown>).product as Record<string, unknown> | undefined) ?? {};
+
+    /**
+     * THE 50 HOODIE SPECIAL'S RULES ARE HARD (lib/hoodie-special.ts).
+     *
+     * Gabe, 2026-11-23: "there's the limit of two colors printing, so
+     * there's no breaking that rule." The form holds to it; this holds to
+     * it for any caller that skipped the form: one front, at most one back,
+     * 2 inks a side, the special's colours, 50 or more, the flat price.
+     */
+    if (String(submittedProduct.promo ?? "") === HOODIE_SPECIAL.id) {
+      const problem = hoodieSpecialSubmissionProblem(
+        submittedProduct,
+        (order as Record<string, unknown>).pricing as Record<string, unknown> | undefined
+      );
+
+      if (problem) {
+        return NextResponse.json(
+          { success: false, message: problem },
+          { status: 400 }
+        );
+      }
+    }
+
+    /**
+     * THE STICKER DEAL IS THE SERVER'S CALL (lib/sticker-deal.ts). An order
+     * that claims "50 stickers for $25" but does not fit it (more designs,
+     * another count, over 3", another stock) is refused here, before the
+     * duplicate check and anything that writes, rather than billed at either
+     * price: a payment link goes out with no one looking. repriceStickers
+     * makes the same call again further down and bills $25 only on a fit.
+     */
+    {
+      const raw = order as Record<string, unknown>;
+      if (isStickerDeal(raw.deal)) {
+        const dealItems = Array.isArray(raw.items)
+          ? (raw.items as Record<string, unknown>[])
+          : [submittedProduct];
+        const problem = stickerDealProblem(dealItems);
+        if (problem) {
+          return NextResponse.json(
+            { success: false, message: problem },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
+    /**
+     * THE TEE DEALS' RULES (lib/tee-deal.ts): a set count, one front print,
+     * never more than 2 screens with the underbase, no setup fee. The form
+     * holds to them; this holds to them for any caller that skipped it.
+     */
+    {
+      const problem = teeDealSubmissionProblem(
+        submittedProduct,
+        (order as Record<string, unknown>).pricing as Record<string, unknown> | undefined
+      );
+      if (problem) {
+        return NextResponse.json(
+          { success: false, message: problem },
+          { status: 400 }
+        );
+      }
+    }
 
     if (isPaperProduct(submittedProduct)) {
       const spec = paperSpecFromProduct(submittedProduct);
@@ -949,6 +1028,16 @@ export async function POST(request: Request) {
       ((pricedOrder.product as Record<string, unknown>) ?? {})
     );
 
+    // The Black Friday tee deals and the 50 Hoodie Special pay in full at
+    // checkout too (Gabe, 2026-11-23): one fixed price each, checked against
+    // the deal's own definition in lib/auto-bill.ts.
+    const isDeal = !isStickers && !isPaper && isFixedPriceDealOrder(pricedOrder);
+    const dealAutoBill = decideDealAutoBill({
+      order: pricedOrder,
+      kioskSession: Boolean(kioskSession),
+      printavoCreated: true,
+    });
+
     const stickersAutoBill = decideStickersAutoBill({
       order: pricedOrder,
       // repriceStickers() never passes a sticker order through, so this is
@@ -1045,6 +1134,7 @@ export async function POST(request: Request) {
         order: pricedOrder,
         signs: signsAutoBill,
         stickers: stickersAutoBill,
+        deal: isDeal ? dealAutoBill : null,
       }),
       // Every design's file plus our proof of each cut, so the shop can
       // compare what was sent against what was approved — design by design.
@@ -1145,6 +1235,14 @@ export async function POST(request: Request) {
       );
     }
 
+    if (isDeal && !(dealAutoBill.bill && printavoReady)) {
+      console.log(
+        `DEAL ORDER ${quoteNumber} — no payment link: ${
+          dealAutoBill.bill ? "the quote never reached Printavo" : dealAutoBill.reason
+        }.`
+      );
+    }
+
     let checkout = null;
 
     /**
@@ -1192,18 +1290,21 @@ export async function POST(request: Request) {
     if (
       printavoReady &&
       !isPaper &&
-      (stickersAutoBill.bill || signsAutoBill.bill)
+      (stickersAutoBill.bill || signsAutoBill.bill || (isDeal && dealAutoBill.bill))
     ) {
+      const dealBills = !stickersAutoBill.bill && !signsAutoBill.bill;
       checkout = await createCheckout({
         quoteId: printavo.quoteId as string,
         publicUrl: printavo.publicUrl || "",
-        flow: signsAutoBill.bill ? "signs" : "stickers",
+        flow: signsAutoBill.bill ? "signs" : dealBills ? "deal" : "stickers",
         // Over the full-payment ceiling the customer is asked for half now
         // and the balance before the job leaves the shop (Gabe, 2026-09-07).
         // Read off whichever gate said yes, so the email, the link and the
         // shop's copy cannot disagree about which it is.
         deposit: signsAutoBill.bill
           ? signsAutoBill.deposit
+          : dealBills
+          ? dealAutoBill.deposit
           : stickersAutoBill.deposit,
         // Shipped signs pay for the goods now and settle delivery before the
         // order leaves the shop. The email has to say so.
@@ -1221,7 +1322,7 @@ export async function POST(request: Request) {
           ) || undefined,
       });
 
-      const label = signsAutoBill.bill ? "SIGNS" : "STICKER";
+      const label = signsAutoBill.bill ? "SIGNS" : dealBills ? "DEAL" : "STICKER";
 
       console.log(
         checkout.ready
@@ -1336,6 +1437,8 @@ export async function POST(request: Request) {
           ? stickersAutoBill.reason
           : isSignsOrder(pricedOrder)
           ? signsAutoBill.reason
+          : isDeal
+          ? dealAutoBill.reason
           : undefined,
         kiosk: Boolean(kioskSession),
       })
@@ -1359,6 +1462,38 @@ export async function POST(request: Request) {
         },
         { status: 502 }
       );
+    }
+
+    /**
+     * Count what this quote ordered, for the colour order that learns and
+     * the weekly review (lib/order-usage.ts). Apparel on the priced door
+     * only: a special order's garment fields are form defaults, not a choice.
+     * The scheduled health check's test quote is not a customer and is left
+     * out. AFTER the response, so the customer never waits on it, and it
+     * cannot fail the quote.
+     */
+    if (
+      isUsageTrackingEnabled() &&
+      !isSpecialOrder(pricedOrder) &&
+      !isTestIdentity(customerRecord.email, `${customerRecord.customerName || ""} ${customerRecord.company || ""}`)
+    ) {
+      const usage = orderUsageFromPayload(pricedOrder, quoteNumber);
+      if (usage) {
+        try {
+          after(async () => {
+            try {
+              await recordOrder(vercelUsageStore(), usage);
+            } catch (error) {
+              console.error(
+                `ORDER USAGE NOT RECORDED for ${quoteNumber}:`,
+                error instanceof Error ? error.message : String(error)
+              );
+            }
+          });
+        } catch {
+          // No request scope (a direct call in a test): nothing to count.
+        }
+      }
     }
 
     /**

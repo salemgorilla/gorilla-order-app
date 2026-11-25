@@ -30,6 +30,7 @@
  */
 
 import { GROUND_ADVANTAGE_COMMERCIAL, ZONES_FROM_019 } from "./usps-data";
+import { engineTerms, retail2 } from "./retail";
 
 const VINYL_LB_PER_SQFT = 0.1;
 const WASTE = 1.25;
@@ -98,19 +99,26 @@ export function estimateParcel(
   };
 }
 
-/** The old site's dollar tiers — the fallback, and the price until the tables are filled. */
+/**
+ * The old site's dollar tiers — the fallback, and the price until the tables
+ * are filled. The PRICES are retail (the old price plus 3%, lib/retail.ts).
+ * The `upTo` thresholds are in the OLD price book: tieredShippingPrice
+ * converts the goods back before comparing, so a customer reaches each tier at
+ * the same order size as before and only the price of the tier moved.
+ */
 export const SHIPPING_TIERS: ReadonlyArray<{ upTo: number | null; price: number }> = [
-  { upTo: 75, price: 8 },
-  { upTo: 200, price: 12 },
-  { upTo: 500, price: 18 },
-  { upTo: null, price: 25 },
+  { upTo: 75, price: retail2(8) },
+  { upTo: 200, price: retail2(12) },
+  { upTo: 500, price: retail2(18) },
+  { upTo: null, price: retail2(25) },
 ];
 
 /** The old flat rate, which is the $75–$200 tier. Tests read it. */
-export const DECAL_SHIPPING_PRICE = 12;
+export const DECAL_SHIPPING_PRICE = retail2(12);
 
+/** `goodsSubtotal` is the RETAIL goods figure; the tiers compare it in old-book terms. */
 export function tieredShippingPrice(goodsSubtotal: number): number {
-  const subtotal = Math.max(0, Number(goodsSubtotal) || 0);
+  const subtotal = engineTerms(Math.max(0, Number(goodsSubtotal) || 0));
   const tier = SHIPPING_TIERS.find((t) => t.upTo === null || subtotal <= t.upTo);
   return tier ? tier.price : SHIPPING_TIERS[SHIPPING_TIERS.length - 1].price;
 }
@@ -180,7 +188,7 @@ export function quoteStickerShipping(input: {
   const perBox = parcel && zone ? groundAdvantageRate(parcel.billableLbPerBox, zone, tables) : null;
 
   if (parcel && zone && perBox !== null) {
-    const price = Math.round(perBox * parcel.boxes * 100) / 100;
+    const price = retail2(perBox * parcel.boxes);
     return {
       price,
       method: "ground-advantage",

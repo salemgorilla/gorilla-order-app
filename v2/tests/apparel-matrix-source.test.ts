@@ -14,6 +14,15 @@
  *
  * The CSV is Printavo's own export format: Quantity, 1..7 color, Product
  * Markup %. Compared as numbers, so "4.5" and "4.50" are the same cell.
+ *
+ * RETAIL, 2026-11-11: the committed export is the shop's OLD price book and is
+ * left exactly as Printavo handed it over. Gabe's decision is that every
+ * price the app shows or bills is the old price + 3% ("retail"), so the config
+ * must now equal each cell of the export plus 3%, rounded to the cent (round
+ * half up) — written out below as `retail`, independent of lib/retail.ts so
+ * this file still checks the config against the export rather than against
+ * itself. The markup column is a multiplier of cost, not a price, and is
+ * compared unchanged. A NEW export dropped in is still an old-book export.
  */
 import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
@@ -25,6 +34,9 @@ const CSV_PATH = new URL(
   "./fixtures/printavo-screen-print-matrix-2026-09-06.csv",
   import.meta.url
 );
+
+/** The export's old-book dollar cell as its retail price: +3%, to the cent, half up. */
+const retail = (oldCell: number) => Math.round(oldCell * 1.03 * 100 + 1e-7) / 100;
 
 type CsvRow = { quantity: number; perPieceByColors: number[]; garmentMarkup: number };
 
@@ -61,6 +73,14 @@ describe("the config is the Printavo export, cell for cell", () => {
     );
   });
 
+  test("the retail helper is the +3% rule, to the cent, half up", () => {
+    // Two cells whose hand arithmetic is the whole point: 4.50 x 1.03 = 4.635
+    // (a half cent) goes UP to 4.64, and 5.35 x 1.03 = 5.5105 goes to 5.51.
+    assert.equal(retail(4.5), 4.64);
+    assert.equal(retail(5.35), 5.51);
+    assert.equal(retail(25), 25.75);
+  });
+
   test("every row in the export is in the config, and nothing else is", () => {
     assert.deepEqual(
       [...apparelPricingConfig.tiers].map((t) => t.minQuantity).sort((a, b) => a - b),
@@ -76,8 +96,8 @@ describe("the config is the Printavo export, cell for cell", () => {
       row.perPieceByColors.forEach((cell, index) => {
         assert.equal(
           tier.perPieceByColors[index],
-          cell,
-          `qty ${row.quantity}, ${index + 1} colour: config ${tier.perPieceByColors[index]} vs export ${cell}`
+          retail(cell),
+          `qty ${row.quantity}, ${index + 1} colour: config ${tier.perPieceByColors[index]} vs export ${cell} + 3% = ${retail(cell)}`
         );
       });
       assert.equal(

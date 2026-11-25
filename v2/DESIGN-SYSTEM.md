@@ -103,6 +103,23 @@ blur never. Motion is 120ms linear and functional only.
 
 ---
 
+### Seasons
+
+Gabe, 2026-11-23: fall Thanksgiving colours through November, Christmas
+colours from 1 December. `lib/season.ts` holds the dates (month-day ranges on
+the shop's clock, so they recur every year): **Thanksgiving 1-30 Nov,
+Christmas 1-31 Dec, house inks from 1 Jan.** A tiny inline script in
+`<head>` sets `html[data-theme]` before first paint; the page is static, so
+choosing on the server would freeze the season to the last deploy.
+
+A season **recolours only**: `globals.css` overrides inks under
+`html[data-theme="<id>"]`, plus three seasonal slots (`--badge-fill`,
+`--badge-ink`, `--season-band`) that default to house inks. It never
+touches `--rush-red` (alarm) or `--cut-line` (functional), and
+`tests/season.test.ts` holds every season to the same contrast floors as
+the house palette. Preview with `?theme=thanksgiving`, `?theme=christmas` or
+`?theme=default`.
+
 ## 2. Affordances
 
 `components/ui/Chip.tsx` is the canonical selection control and carries the

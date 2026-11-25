@@ -108,6 +108,7 @@
  */
 import { applyDiscountToUnit, discountFactor, type Discount } from "./discount";
 import { quoteStickerShipping } from "./shipping";
+import { retail2, retail4 } from "./retail";
 
 const MATERIAL_RATE_PER_SQ_IN = 0.04;
 
@@ -237,7 +238,7 @@ export function stickerVolumeKeep(quantity: number): { piece: number; area: numb
  * so the reference order still comes to $85. See the header for what that
  * trade costs at the small and large ends.
  */
-export const STICKER_SETUP_FEE = 15;
+export const STICKER_SETUP_FEE = retail2(15);
 
 /**
  * Setup for each design after the first.
@@ -246,7 +247,7 @@ export const STICKER_SETUP_FEE = 15;
  * to reward bigger carts, and kept at half the first-design fee through the
  * 2026-09-11 re-rate so the cut is the same proportion it always was.
  */
-export const STICKER_SETUP_FEE_ADDITIONAL = 7.5;
+export const STICKER_SETUP_FEE_ADDITIONAL = retail2(7.5);
 
 /**
  * Setup for a whole cart. $15 + $7.50 per extra design.
@@ -509,7 +510,9 @@ export function getStickerUnitMaterialPrice(
     shapeMultiplier(shape) *
     materialMultiplier(material);
 
-  return applyDiscountToUnit(Number(materialPerSticker.toFixed(4)), discount);
+  // RETAIL: the shop's old unit plus 3% (lib/retail.ts), to the four decimals
+  // Printavo can hold, BEFORE a discount code — the code comes off retail.
+  return applyDiscountToUnit(retail4(Number(materialPerSticker.toFixed(4))), discount);
 }
 
 /** Per-sticker price, for display. Derived, never a separate calculation. */
@@ -575,7 +578,7 @@ export function describeStickerSize(size: string, dims?: StickerDimensions) {
  * same order shipped both meet the same $45 minimum; the shipping goes on
  * top of it.
  */
-export const STICKER_ORDER_MINIMUM = 45;
+export const STICKER_ORDER_MINIMUM = retail2(45);
 
 export type StickerCartQuote = {
   stickerPrice: number;
@@ -627,7 +630,20 @@ export function quoteStickerCart(input: {
   listPrices?: readonly number[];
   /** The validated code, if any. The engine never validates; the server does. */
   discount?: Discount | null;
+  /**
+   * The Black Friday sticker deal (lib/sticker-deal.ts) applies: setup is
+   * included and there is no order minimum. The caller has already put the
+   * deal's flat price in materialPrices and checked the order fits it; no
+   * discount code rides on a deal, so `discount` is ignored here.
+   */
+  deal?: boolean;
 }): StickerCartQuote {
+  if (input.deal) {
+    // One composition, not a second engine: the regular arithmetic below
+    // with setup and minimum zeroed and no code, so shipping is weighed and
+    // tiered exactly as for any sticker order.
+    return quoteStickerCartDeal(input);
+  }
   const stickerPrice =
     Math.round(input.materialPrices.reduce((sum, price) => sum + price, 0) * 100) /
     100;
@@ -686,5 +702,38 @@ export function quoteStickerCart(input: {
     setupListPrice,
     minimumListPrice,
     total: Math.round((goods + shippingPrice) * 100) / 100,
+  };
+}
+
+/**
+ * quoteStickerCart for the Black Friday sticker deal: the stickers at the
+ * deal's flat price, no setup, no minimum, no code, shipping as usual.
+ */
+function quoteStickerCartDeal(input: {
+  materialPrices: readonly number[];
+  deliveryMethod: string;
+  items?: ReadonlyArray<{ quantity: number; widthInches: number; heightInches: number }>;
+  destZip?: string;
+}): StickerCartQuote {
+  const stickerPrice =
+    Math.round(input.materialPrices.reduce((sum, price) => sum + price, 0) * 100) / 100;
+  const shipping = quoteStickerShipping({
+    deliveryMethod: input.deliveryMethod,
+    goodsSubtotal: stickerPrice,
+    items: input.items,
+    destZip: input.destZip,
+  });
+  return {
+    stickerPrice,
+    setupPrice: 0,
+    minimumPrice: 0,
+    shippingPrice: shipping.price,
+    shippingNote: shipping.note,
+    discountPrice: 0,
+    discountCode: "",
+    stickerListPrice: stickerPrice,
+    setupListPrice: 0,
+    minimumListPrice: 0,
+    total: Math.round((stickerPrice + shipping.price) * 100) / 100,
   };
 }

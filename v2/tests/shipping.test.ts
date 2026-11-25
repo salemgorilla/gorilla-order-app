@@ -77,15 +77,20 @@ describe("the live tables are empty, and the engine says so by falling back", ()
   });
 
   test("the tiers are the old site's, unchanged, and pickup is free", () => {
+    // RETAIL, 2026-11-11: the tier PRICES are the old $8 / $12 / $18 / $25 + 3%
+    // (8.24 / 12.36 / 18.54 / 25.75); the THRESHOLDS stay $75 / $200 / $500 of
+    // the OLD price book. getShippingPrice takes the RETAIL goods figure and
+    // converts it back before comparing, so the boundary a customer sees is
+    // $75 old = $77.25 retail, and $500 old = $515.00 retail.
     assert.deepEqual(
       SHIPPING_TIERS.map((t) => [t.upTo, t.price]),
-      [[75, 8], [200, 12], [500, 18], [null, 25]]
+      [[75, 8.24], [200, 12.36], [500, 18.54], [null, 25.75]]
     );
-    assert.equal(getShippingPrice("Ship", 50), 8);
-    assert.equal(getShippingPrice("Ship", 75), 8);
-    assert.equal(getShippingPrice("Ship", 75.01), 12);
-    assert.equal(getShippingPrice("Ship", 500), 18);
-    assert.equal(getShippingPrice("Ship", 9999), 25);
+    assert.equal(getShippingPrice("Ship", 51.5), 8.24);
+    assert.equal(getShippingPrice("Ship", 77.25), 8.24);
+    assert.equal(getShippingPrice("Ship", 77.26), 12.36);
+    assert.equal(getShippingPrice("Ship", 515), 18.54);
+    assert.equal(getShippingPrice("Ship", 10298.97), 25.75);
     assert.equal(getShippingPrice("Pickup", 9999), 0);
     assert.equal(quoteStickerShipping({ deliveryMethod: "Pickup", goodsSubtotal: 500 }).method, "none");
   });
@@ -157,7 +162,8 @@ describe("with tables supplied, it rates by zone and weight", () => {
     const q = quoteStickerShipping({ deliveryMethod: "Ship", goodsSubtotal: 85, items: hundredThreeInch, destZip: "02116", tables: FIXTURE });
     assert.equal(q.method, "ground-advantage");
     assert.equal(q.zone, 1);
-    assert.equal(q.price, 5.9);
+    // $5.90 at the carrier's rate, $6.08 retail (+3%, 2026-11-11).
+    assert.equal(q.price, 6.08);
     assert.match(q.note, /USPS Ground Advantage to 02116 \(zone 1\), small box at ~1\.2\d? lb/);
   });
 
@@ -171,7 +177,9 @@ describe("with tables supplied, it rates by zone and weight", () => {
     assert.equal(q.method, "ground-advantage");
     assert.ok(q.parcel && q.parcel.boxes > 1);
     const perBox = groundAdvantageRate(q.parcel!.billableLbPerBox, 1, FIXTURE)!;
-    assert.equal(q.price, Math.round(perBox * q.parcel!.boxes * 100) / 100);
+    // The carrier's rate x boxes is $148.50; the customer pays retail (+3%): $152.96.
+    assert.equal(Math.round(perBox * q.parcel!.boxes * 100) / 100, 148.5);
+    assert.equal(q.price, 152.96);
     assert.match(q.note, new RegExp(`${q.parcel!.boxes} x medium box`));
   });
 
@@ -296,7 +304,7 @@ describe("the ZIP and the basis reach the shop, and the server bills what the br
     const priced = repriceStickers(shipped);
     const plan = buildPrintavoQuotePlan({ quoteNumber: "GS-TEST", order: priced.order, artworkAnalysis: null });
     assert.match(plan.customerNote, /Ship to ZIP: 02116/);
-    assert.match(plan.customerNote, /Shipping: \$12\.00 — Shipping \(tiered on order size\)/);
+    assert.match(plan.customerNote, /Shipping: \$12\.36 — Shipping \(tiered on order size\)/);
     assert.equal(plan.shippingLineItem?.price, DECAL_SHIPPING_PRICE);
   });
 });

@@ -1,3 +1,5 @@
+import { RETAIL_MULTIPLIER } from "./retail";
+import { sortColorsByPopularity } from "./garment-color-ranking";
 import {
   apparelPricingConfig,
   garmentMarkupKey,
@@ -141,7 +143,8 @@ function getMarkedUpPrice(customerPrice: number | undefined, markupRate: number)
     return 0;
   }
 
-  return roundCurrency(customerPrice * (1 + markupRate));
+  // RETAIL: the blank at its markup, plus 3% (lib/retail.ts).
+  return roundCurrency(customerPrice * (1 + markupRate) * RETAIL_MULTIPLIER);
 }
 
 /** The size at every markup the matrix uses, from the UNROUNDED cost. */
@@ -268,7 +271,11 @@ function normalizeProducts(
       color.sizes.sort(sortSizes);
     }
 
+    // Alphabetical first, so every colour the ranking doesn't name keeps its
+    // old place; then the shop's most-ordered colours move to the top
+    // (lib/garment-color-ranking.ts).
     product.colors.sort((a, b) => a.colorName.localeCompare(b.colorName));
+    product.colors = sortColorsByPopularity(product.colors);
   }
 
   return normalizedProducts.sort((a, b) =>

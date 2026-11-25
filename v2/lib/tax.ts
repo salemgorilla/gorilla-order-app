@@ -1,5 +1,6 @@
 import { signsFeeTotal, type SignsPricingLine } from "./signs-pricing";
 import { isApparelProduct, isSignsProduct, namesStickers } from "./order-flow";
+import { achRefund } from "./retail";
 
 /**
  * Sales tax.
@@ -116,6 +117,13 @@ export type QuoteTotals = {
   estimatedTotal: number;
   /** False on apparel, so callers can hide the row rather than print $0.00. */
   taxed: boolean;
+  /**
+   * What a customer who pays by bank transfer (ACH) is refunded afterwards:
+   * the 3% inside the retail pre-tax price (lib/retail.ts). Tax is never part
+   * of it — tax is on the retail price, always (Gabe, 2026-11-11). Zero when
+   * there is nothing priced.
+   */
+  achRefund: number;
 };
 
 /**
@@ -144,6 +152,7 @@ export function getQuoteTotals(input: {
     // point, and a money value should not carry dust it might pass on.
     estimatedTotal: Math.round((input.preTaxTotal + estimatedTax) * 100) / 100,
     taxed,
+    achRefund: achRefund(input.preTaxTotal),
   };
 }
 

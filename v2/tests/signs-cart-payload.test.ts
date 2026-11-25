@@ -11,8 +11,9 @@ import { buildSignsPayloadParts } from "../lib/signs-payload";
  * A multi-design signs quote, all the way to Printavo and the shop email.
  *
  * ── THE ONE THAT COSTS MONEY ──────────────────────────────────────────────
- * Every design's price includes its own $15 setup, and the cart ALSO emits a
- * single collapsed "Setup (3 designs × $15)" row. Send both and the shop
+ * Every design's price includes its own $15 setup ($15.45 at retail since
+ * 2026-11-11, +3%), and the cart ALSO emits a
+ * single collapsed "Setup (3 designs × $15.45)" row. Send both and the shop
  * invoices setup twice. The payload therefore sends each design's SUBTOTAL —
  * product and add-ons, no setup — and the setup row becomes one fee line.
  *
@@ -118,14 +119,15 @@ describe("the Printavo quote adds up to the website total", () => {
   });
 
   test("setup is charged once, not once per design", () => {
-    // The double-charge this whole shape exists to prevent: $45 of setup is
+    // The double-charge this whole shape exists to prevent: $46.35 of setup
+    // ($45 old book) is
     // inside the three design totals AND in the collapsed row.
     const setupFees = plan.feeLineItems.filter((fee) =>
       /setup/i.test(fee.description)
     );
 
     assert.equal(setupFees.length, 1);
-    assert.equal(setupFees[0].price, 45);
+    assert.equal(setupFees[0].price, 46.35);
   });
 
   test("no design after the first is billed as a fee", () => {

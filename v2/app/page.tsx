@@ -10,6 +10,7 @@ import {
 import { SALES_TAX, getSignsTotals, getStickerTotals } from "../lib/tax";
 import { getTrackUrl } from "../lib/order-status";
 import { describeInkColors } from "../lib/apparel-pricing";
+import { designColorCount, screenPrintMinimumMessage } from "../lib/print-minimums";
 import { SHOP } from "../lib/shop";
 import { SKU } from "../lib/sku";
 import { looksLikeEmailAddress } from "../lib/email-address";
@@ -90,7 +91,7 @@ import {
 import { quoteApparelCart, withApparelRush } from "../lib/apparel-cart";
 import { apparelLineEach } from "../lib/apparel-per-line";
 import {
-  anyGarmentNeedsUnderbase,
+  apparelPrintSpec,
   applyExtraLineUpdate,
   describeGarmentLines,
   describeQuoteSizeBasis,
@@ -114,6 +115,12 @@ import {
   rushOffer,
 } from "../lib/rush";
 import { apparelCatalogStyles } from "../lib/apparel-catalog";
+import { DEAL_PAYMENT_TERMS } from "../lib/deal-payment";
+import {
+  garmentFamily,
+  keepOfferedPlacements,
+  togglePlacement,
+} from "../lib/print-placements";
 import { sameOriginGarmentPhotoUrl } from "../lib/garment-photo";
 import {
   getItemFieldErrors,
@@ -154,6 +161,13 @@ import {
   sendAnalyticsEvent,
   type AnalyticsFlow,
 } from "../lib/analytics";
+import {
+  flushUsage,
+  isTestIdentity,
+  recordUsagePick,
+  recordUsageStep,
+  suppressUsage,
+} from "../lib/usage-beacon";
 import { renderStickerProof } from "../lib/sticker-proof";
 import {
   isRemovalFailure,
@@ -187,6 +201,41 @@ import {
   type PaperSpec,
 } from "../lib/paper";
 import ApparelSummaryCard from "../features/apparel/ApparelSummaryCard";
+import {
+  HoodieSpecialAd,
+  HOODIE_AD_PLACEMENT,
+  DealsBurst,
+  HoodieSpecialBuilder,
+  HoodieSpecialEntry,
+} from "../features/apparel/HoodieSpecial";
+import {
+  HOODIE_SPECIAL,
+  clampHoodieSpecialInk,
+  hoodieSpecialNote,
+  hoodieSpecialSides,
+  hoodieSpecialUnitPrice,
+  isHoodieSpecialOpen,
+  quoteHoodieSpecial,
+  type HoodieSpecialSides,
+} from "../lib/hoodie-special";
+import {
+  TEE_DEAL_FRONTS,
+  TEE_DEAL_SIZES,
+  quoteTeeDeal,
+  teeDealFor,
+  teeDealNote,
+  teeDealProblem,
+  teeDealTotal,
+  type TeeDeal,
+} from "../lib/tee-deal";
+import {
+  STICKER_DEAL,
+  STICKER_DEAL_UNIT,
+  stickerDealProblem,
+} from "../lib/sticker-deal";
+import { DealActive } from "../components/DealActive";
+import { isLightGarment } from "../lib/light-garments";
+import { THANKSGIVING_TAG } from "../lib/season";
 import SignsBuilder from "../features/signs/SignsBuilder";
 import SpecialOrderEscape from "../components/SpecialOrderEscape";
 import SignsDelivery from "../features/signs/SignsDelivery";
@@ -431,6 +480,26 @@ export default function Home() {
     productCategories.find((product) => product.id === "apparel")?.status ===
     "request";
   const isApparelRequest = isApparelSelected && apparelIsRequestFlow;
+  /**
+   * The 50 Hoodie Special is on (lib/hoodie-special.ts). Its own builder
+   * replaces the catalogue and its own flat price replaces the matrix; every
+   * other apparel surface reads the same quote shape it always has.
+   */
+  const isHoodieSpecial =
+    isApparelSelected &&
+    !apparelIsRequestFlow &&
+    apparelQuoteState.promo === HOODIE_SPECIAL.id;
+  /** Offered through the special's last day, on Salem's clock. */
+  const hoodieSpecialOpen = isHoodieSpecialOpen();
+  /**
+   * A Black Friday tee deal (lib/tee-deal.ts), chosen from the deals page.
+   * The regular builder at the deal's one fixed price; null on every
+   * regular quote, which then prices exactly as it always has.
+   */
+  const teeDeal =
+    isApparelSelected && !apparelIsRequestFlow
+      ? teeDealFor(apparelQuoteState.promo)
+      : null;
   const isApparelSubmitted = submittedProductId === "apparel";
   const isBannersSelected = selectedProductId === "banners";
   /**
@@ -493,6 +562,8 @@ export default function Home() {
     // The apparel request flow prices nothing on screen, so its offer must
     // not promise an estimate that updates — see lib/rush.ts.
     priced: !isApparelRequest && !isPaperSelected,
+    // The special's price is flat, rush date or not: no 25% to promise.
+    flatPrice: isHoodieSpecial || Boolean(teeDeal),
   });
 
   const signsQuote = largeFormatQuotes[signsFamily];
@@ -510,13 +581,27 @@ export default function Home() {
   const isSignsSubmitted =
     submittedProductId === "signs" || submittedProductId === "banners";
 
+  /**
+   * The garments the builder offers. On a tee deal, the deal's one blank
+   * (the 24-tee deals' Gildan 5000 is loaded only for them); everywhere
+   * else, the regular catalogue and nothing a deal brought in.
+   */
+  const teeDealStyle = teeDeal?.style ?? null;
+  const visibleSsProducts = useMemo(
+    () =>
+      teeDealStyle
+        ? ssProducts.filter((product) => product.catalogStyle === teeDealStyle)
+        : ssProducts.filter((product) => apparelCatalogStyles.includes(product.catalogStyle)),
+    [teeDealStyle, ssProducts]
+  );
+
   const selectedSsProduct = useMemo(() => {
     return (
-      ssProducts.find((product) => product.id === selectedSsProductId) ||
-      ssProducts[0] ||
+      visibleSsProducts.find((product) => product.id === selectedSsProductId) ||
+      visibleSsProducts[0] ||
       null
     );
-  }, [selectedSsProductId, ssProducts]);
+  }, [selectedSsProductId, visibleSsProducts]);
 
   const selectedSsColor = useMemo(() => {
     return (
@@ -565,11 +650,28 @@ export default function Home() {
    * relative optimizer path is meaningless in an email or a Printavo note.
    */
   const selectedGarmentPhotoSrc = sameOriginGarmentPhotoUrl(selectedGarmentImage);
+  /** The back photo, for a back-placement mockup (see ApparelPreview). */
+  const selectedGarmentBackPhotoSrc = sameOriginGarmentPhotoUrl(
+    chosenSsColor?.backImage || null
+  );
   const selectedGarmentIsOutOfStock = chosenSsColor?.outOfStock || false;
-  const selectedGarmentLabel =
-    chosenSsProduct?.customerLabel ||
-    chosenSsProduct?.displayName ||
-    apparelQuoteState.garmentType;
+  const selectedGarmentLabel = isHoodieSpecial
+    ? // Read as "50 × Hoodie Special (Stockholm Pullover Hoodie)" in the
+      // estimate bar and as "WEB QUOTE GS-… - 50 Hoodie Special (…)" in the
+      // Printavo list, where the shop has to spot it.
+      `Hoodie Special (${HOODIE_SPECIAL.garmentLabel})`
+    : chosenSsProduct?.customerLabel ||
+      chosenSsProduct?.displayName ||
+      apparelQuoteState.garmentType;
+
+  /**
+   * The special's catalogue colour, for the review cards. Always null: its
+   * only blank is Cutter & Buck's (Gabe, 2026-11-23), which S&S does not
+   * sell, so there is no catalogue photo. The preview draws the special's
+   * own swatch, and the review cards name the colour from the quote. Never
+   * the regular builder's selection, which may be a tee.
+   */
+  const hoodieSpecialPhoto: SsCatalogColor | null = null;
 
   const sizeOptionsForBreakdown = useMemo(() => {
     const sizes =
@@ -638,14 +740,20 @@ export default function Home() {
      * replacing a guess.
      */
     const effectiveQuantity =
-      sizeQuantityTotal > 0 ? sizeQuantityTotal : apparelQuoteState.quantity;
+      // The special has no rough count: its sizes ARE the order, so an
+      // empty grid is zero hoodies, never the regular builder's 24.
+      teeDeal
+        ? teeDeal.quantity
+        : isHoodieSpecial || sizeQuantityTotal > 0
+        ? sizeQuantityTotal
+        : apparelQuoteState.quantity;
 
     return apparelQuoteState.quantity === effectiveQuantity
       ? // Same object when nothing changed, so memo consumers downstream do
         // not see a new reference every render.
         apparelQuoteState
       : { ...apparelQuoteState, quantity: effectiveQuantity };
-  }, [apparelQuoteState, isApparelRequest, sizeQuantityTotal]);
+  }, [apparelQuoteState, isApparelRequest, isHoodieSpecial, teeDeal, sizeQuantityTotal]);
 
   const sizeBreakdownFromButtons = useMemo(() => {
     return Object.entries(sizeQuantities)
@@ -655,22 +763,22 @@ export default function Home() {
   }, [sizeQuantities]);
 
   const apparelCategories = useMemo(() => {
-    const categories = ssProducts
+    const categories = visibleSsProducts
       .map((product) => product.customerCategory)
       .filter(Boolean);
 
     return ["All", ...Array.from(new Set(categories))];
-  }, [ssProducts]);
+  }, [visibleSsProducts]);
 
   const filteredSsProducts = useMemo(() => {
     if (selectedApparelCategory === "All") {
-      return ssProducts;
+      return visibleSsProducts;
     }
 
-    return ssProducts.filter(
+    return visibleSsProducts.filter(
       (product) => product.customerCategory === selectedApparelCategory
     );
-  }, [selectedApparelCategory, ssProducts]);
+  }, [selectedApparelCategory, visibleSsProducts]);
 
   // One quote, however many designs are in it. The $15 setup is per design,
   // so quoteSignsCart is a sum rather than a second pricing engine — see
@@ -693,7 +801,58 @@ export default function Home() {
   const apparelEstimateBasis: "assumed" | "exact" =
     sizeQuantityTotal > 0 ? "exact" : "assumed";
 
+  /**
+   * The print spec the PRICE, the MINIMUM and the validation all read — one
+   * object, so they cannot disagree about the underbase (see
+   * apparelPrintSpec). The garment decides it from the start; it no longer
+   * waits for artwork to be read (23 Nov: 24 black tees at 1 colour were
+   * priced $394.60 instead of $471.20 until art was uploaded). See
+   * anyGarmentNeedsUnderbase for why a mixed cart errs high rather than low.
+   */
+  const apparelPrint = useMemo(
+    () => apparelPrintSpec(apparelQuote, extraGarmentLines),
+    [apparelQuote, extraGarmentLines]
+  );
+  const apparelNeedsUnderbase = apparelPrint.hasUnderbase;
+
+  /** Why the quote is not on its tee deal yet, said in the deal strip. */
+  const teeDealLiveProblem = teeDeal
+    ? teeDealProblem(teeDeal, {
+        sizeBreakdown: sizeBreakdownFromButtons,
+        catalogStyle: chosenSsProduct?.catalogStyle,
+        garmentColor: apparelQuote.garmentColor,
+        printLocations: apparelQuote.printLocations,
+        inkColors: apparelQuote.inkColors,
+        inkColorsByLocation: apparelQuote.inkColorsByLocation,
+        extraLines: extraGarmentLines.length,
+      })
+    : null;
+  /** The same for the sticker deal: the cart prices at list until it fits. */
+  const stickerDealLiveProblem =
+    order.deal === STICKER_DEAL.id ? stickerDealProblem(order.items) : null;
+
   const apparelPricing = useMemo(() => {
+    // A Black Friday tee deal (lib/tee-deal.ts): one fixed price for exactly
+    // 24, whatever is picked. The deal strip says what still has to change
+    // before it can be sent; the figure itself never moves.
+    if (teeDeal) {
+      return quoteTeeDeal(teeDeal, {
+        colorName: apparelQuote.garmentColor,
+        sizeBreakdown: sizeBreakdownFromButtons,
+      });
+    }
+
+    // The special's flat price, and nothing of the matrix: no garment
+    // markup, no screens, no underbase, no rush, no added garments.
+    if (isHoodieSpecial) {
+      return quoteHoodieSpecial({
+        quantity: sizeQuantityTotal,
+        colorName: apparelQuote.garmentColor,
+        printLocations: apparelQuote.printLocations,
+        sizeBreakdown: sizeBreakdownFromButtons,
+      });
+    }
+
     /**
      * The garment component of the estimate, replacing the old model that
      * billed EVERY shirt at the sample size's price — a figure that ran
@@ -752,19 +911,9 @@ export default function Home() {
         // which keeps the cart-of-one invariant exactly true.
         ...resolveExtraGarmentLines(extraGarmentLines, ssProducts),
       ],
-      {
-        printLocations: apparelQuote.printLocations,
-        inkColors: apparelQuote.inkColors,
-        // Per-placement ink, where the customer set it. Sparse: a location
-        // with no entry falls back to inkColors above, so this changes
-        // nothing for an order that never touches it.
-        inkColorsByLocation: apparelQuote.inkColorsByLocation,
-        // One decision for the whole run — see anyGarmentNeedsUnderbase for
-        // why a mixed cart errs high rather than low.
-        hasUnderbase:
-          anyGarmentNeedsUnderbase(apparelQuote.garmentColor, extraGarmentLines) &&
-          Boolean(artworkAnalysis?.estimatedColorCount),
-      }
+      // The shared spec: locations, ink (per placement where the customer
+      // set it) and the underbase, exactly as the minimum reads them.
+      apparelPrint
     );
 
     return withApparelRush(base, {
@@ -772,6 +921,7 @@ export default function Home() {
       lane: turnaroundLane,
     });
   }, [
+    teeDeal,
     apparelEstimateBasis,
     order.production.needBy,
     turnaroundLane,
@@ -779,15 +929,35 @@ export default function Home() {
     sizeQuantities,
     apparelQuote.quantity,
     apparelQuote.printLocations,
-    apparelQuote.inkColors,
-    apparelQuote.inkColorsByLocation,
     apparelQuote.garmentColor,
-    artworkAnalysis?.estimatedColorCount,
     chosenSsProduct?.catalogStyle,
     sizeBreakdownFromButtons,
     extraGarmentLines,
     ssProducts,
+    apparelPrint,
+    isHoodieSpecial,
+    sizeQuantityTotal,
   ]);
+
+  /**
+   * The colour-based minimum, said while the customer is still choosing —
+   * not only as a red error after they press submit. Gabe, 2026-11-21: 1
+   * colour 12, 2 colours 24, 3 and up 48, per design, underbase counted
+   * (lib/print-minimums).
+   * Null for a special order: that is priced by hand.
+   */
+  const apparelMinimumNotice = useMemo(
+    () =>
+      // The special has its own floor, said in its own builder.
+      !apparelQuote.specialOrder && !isHoodieSpecial && !teeDeal && apparelPricing.quantity > 0
+        ? screenPrintMinimumMessage(
+            apparelPricing.quantity,
+            designColorCount(apparelPrint),
+            { underbase: apparelPrint.hasUnderbase }
+          )
+        : null,
+    [apparelQuote, apparelPricing.quantity, apparelPrint, isHoodieSpecial, teeDeal]
+  );
 
   /**
    * Each garment's OWN per-piece figure.
@@ -929,6 +1099,12 @@ export default function Home() {
         priceable: !apparelQuote.specialOrder,
         detail: apparelQuote.specialOrder
           ? "Special order — we'll quote it"
+          : isHoodieSpecial
+          ? apparelPricing.quantity > 0
+            ? `$${apparelPricing.unitPrice.toFixed(2)} each · flat rate`
+            : `$${hoodieSpecialUnitPrice(apparelQuote.printLocations).toFixed(
+                2
+              )} each, flat · enter your sizes`
           : `$${apparelPricing.unitPrice.toFixed(2)} each`,
       };
     }
@@ -979,6 +1155,7 @@ export default function Home() {
     apparelQuote,
     apparelPricing,
     selectedGarmentLabel,
+    isHoodieSpecial,
     order.items,
     order.pricing,
   ]);
@@ -1061,15 +1238,27 @@ export default function Home() {
         // catalog product and hand them a colour nobody chose. (Invisible
         // while the catalog was dark; the day the key worked, every request
         // quote became a "Basic Tee".)
+        //
+        // Never over the 50 Hoodie Special: its garment and colour are its
+        // own (Cutter & Buck, not S&S). The landing-page ad starts the
+        // special in the same click that selects apparel, so this fetch
+        // lands AFTER it, and without the guard it renamed the special's
+        // hoodie a tee and swapped its colour for one the quote endpoint
+        // refuses. The catalogue selection above still happens, so leaving
+        // the special finds the regular builder as it always did.
         if (!apparelIsRequestFlow && (firstProduct || firstColor)) {
-          setApparelQuoteState((current) => ({
-            ...current,
-            garmentType:
-              firstProduct?.customerLabel ||
-              firstProduct?.displayName ||
-              current.garmentType,
-            garmentColor: firstColor?.colorName || current.garmentColor,
-          }));
+          setApparelQuoteState((current) =>
+            current.promo === HOODIE_SPECIAL.id
+              ? current
+              : {
+                  ...current,
+                  garmentType:
+                    firstProduct?.customerLabel ||
+                    firstProduct?.displayName ||
+                    current.garmentType,
+                  garmentColor: firstColor?.colorName || current.garmentColor,
+                }
+          );
         }
       } catch (error) {
         console.error(error);
@@ -1112,6 +1301,35 @@ export default function Home() {
     });
   }
 
+  /**
+   * A deal's blank that the regular catalogue does not carry (the 24-tee
+   * deals' Gildan 5000) is fetched on its own once the catalogue has loaded,
+   * and only while that deal is open.
+   */
+  const dealStyleFetched = useRef<string | null>(null);
+  useEffect(() => {
+    if (!teeDealStyle || ssCatalogStatus !== "loaded") return;
+    if (ssProducts.some((p) => p.catalogStyle === teeDealStyle)) return;
+    if (dealStyleFetched.current === teeDealStyle) return;
+    dealStyleFetched.current = teeDealStyle;
+    fetch(`/api/ss-catalog?style=${encodeURIComponent(teeDealStyle)}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: SsCatalogResponse | null) => {
+        const added = data?.products ?? [];
+        if (added.length === 0) {
+          dealStyleFetched.current = null;
+          return;
+        }
+        setSsProducts((current) => [
+          ...current.filter((p) => !added.some((a) => a.id === p.id)),
+          ...added,
+        ]);
+      })
+      .catch(() => {
+        dealStyleFetched.current = null;
+      });
+  }, [teeDealStyle, ssCatalogStatus, ssProducts]);
+
   function handleSsProductSelect(product: SsCatalogProduct) {
     const firstColor =
       product.colors.find((color) => color.isAvailable) || product.colors[0];
@@ -1127,6 +1345,11 @@ export default function Home() {
       ...current,
       garmentType: product.customerLabel || product.displayName,
       garmentColor: firstColor?.colorName || current.garmentColor,
+      // A hoodie cannot take an oversize front or a collar-back print.
+      printLocations: keepOfferedPlacements(
+        current.printLocations,
+        garmentFamily({ catalogStyle: product.catalogStyle })
+      ),
     }));
   }
 
@@ -1135,15 +1358,23 @@ export default function Home() {
 
     const firstProduct =
       category === "All"
-        ? ssProducts[0]
-        : ssProducts.find((product) => product.customerCategory === category);
+        ? visibleSsProducts[0]
+        : visibleSsProducts.find((product) => product.customerCategory === category);
 
     if (firstProduct) {
       handleSsProductSelect(firstProduct);
     }
   }
 
+  /** A size with pieces in it: counted once per visit (lib/usage-beacon.ts). */
+  function recordSizeEntered(sizeName: string) {
+    recordUsagePick("apparel", { field: "size", value: sizeName });
+    recordUsageStep("apparel", "garment_chosen");
+    recordUsageStep("apparel", "sizes_entered");
+  }
+
   function updateSizeQuantity(sizeName: string, change: number) {
+    if (change > 0) recordSizeEntered(sizeName);
     setSizeQuantities((current) => {
       const nextQuantity = Math.max(0, (current[sizeName] || 0) + change);
       const next = {
@@ -1170,6 +1401,7 @@ export default function Home() {
   }
 
   function setSizeQuantity(sizeName: string, value: number) {
+    if (Number.isFinite(value) && value >= 1) recordSizeEntered(sizeName);
     setSizeQuantities((current) => {
       const nextQuantity = Number.isFinite(value)
         ? Math.max(0, Math.floor(value))
@@ -1217,6 +1449,17 @@ export default function Home() {
     setSelectedSsColorName(color.colorName);
     setSelectedSsSizeName(firstSize?.sizeName || "");
     pruneSizeQuantitiesToColor(color);
+
+    // A colour the CUSTOMER chose — the one the product's default colour is
+    // not. This is what the learned colour order counts as a click.
+    if (selectedSsProduct?.catalogStyle) {
+      recordUsagePick("apparel", {
+        field: "color",
+        style: selectedSsProduct.catalogStyle,
+        color: color.colorName,
+      });
+    }
+    recordUsageStep("apparel", "garment_chosen");
 
     setApparelQuoteState((current) => ({
       ...current,
@@ -1301,7 +1544,24 @@ export default function Home() {
 
   function recalculateOrder(nextOrder: typeof order) {
     const discount = nextOrder.discount ?? null;
-    const priced = nextOrder.items.map((item) => priceStickerItem(item, discount));
+    const pricedAtList = nextOrder.items.map((item) => priceStickerItem(item, discount));
+
+    /**
+     * The Black Friday sticker deal (lib/sticker-deal.ts), when the customer
+     * chose it AND the cart fits it: $25 for the stickers, setup included,
+     * no minimum, no code. When it does not fit, the cart prices at list as
+     * usual and the deal strip says why; the server makes the same call.
+     */
+    const onDeal =
+      nextOrder.deal === STICKER_DEAL.id &&
+      !stickerDealProblem(pricedAtList.map((entry) => entry.item));
+    const priced = onDeal
+      ? pricedAtList.map((entry) => ({
+          ...entry,
+          materialPrice: STICKER_DEAL.price,
+          listPrice: STICKER_DEAL.price,
+        }))
+      : pricedAtList;
 
     // The same call the SERVER makes in repriceStickers. Adding these up was
     // written out in both places; the browser showing one total while the
@@ -1317,7 +1577,8 @@ export default function Home() {
       })),
       destZip: nextOrder.production.shipZip,
       listPrices: priced.map((entry) => entry.listPrice),
-      discount,
+      discount: onDeal ? null : discount,
+      deal: onDeal,
     });
 
     return {
@@ -1334,6 +1595,9 @@ export default function Home() {
    * set one.
    */
   async function applyDiscountCode(code: string): Promise<string | null> {
+    if (order.deal === STICKER_DEAL.id) {
+      return "Codes don't apply to the Black Friday sticker deal. Switch to a regular quote to use one.";
+    }
     try {
       const response = await fetch("/api/discount-code", {
         method: "POST",
@@ -1424,6 +1688,128 @@ export default function Home() {
     );
     setReorderPrefilled(true);
   }, []);
+
+  /**
+   * `?start=` from the deals page (lib/deals.ts): open the builder already on
+   * the deal. Read once on mount, like the reorder link above. Only two
+   * values do anything; anything else leaves the page as it opens normally.
+   */
+  const startApplied = useRef(false);
+  useEffect(() => {
+    if (startApplied.current) return;
+    startApplied.current = true;
+    const start = new URLSearchParams(window.location.search).get("start");
+    if (start === "hoodie-special" && hoodieSpecialOpen) {
+      startHoodieSpecialFromAd();
+    } else if (start === "stickers-deal") {
+      startStickerDeal();
+    } else if (teeDealFor(start)) {
+      startTeeDeal(teeDealFor(start) as TeeDeal);
+    } else if (start === "apparel") {
+      const apparel = productCategories.find((product) => product.id === "apparel");
+      if (!apparel || apparel.status !== "active") return;
+      selectProduct(apparel);
+      goToStep("details", "apparel");
+    }
+    // Mount only: these handlers are stable in effect for the first render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** The deals page's "50 stickers for $25": one design, 50 at 3" x 3". */
+  function startStickerDeal() {
+    const stickers = productCategories.find((product) => product.id === "stickers");
+    if (stickers) selectProduct(stickers);
+    setOrder((prev) =>
+      recalculateOrder({
+        ...prev,
+        deal: STICKER_DEAL.id,
+        discount: null,
+        items: [
+          createStickerItem({
+            quantity: STICKER_DEAL.quantity,
+            widthInches: STICKER_DEAL.maxInches,
+            heightInches: STICKER_DEAL.maxInches,
+            shape: "Die Cut",
+            material: STICKER_DEAL.material,
+            ...(stickers ? { type: stickers.title } : {}),
+          }),
+        ],
+      })
+    );
+    goToStep("details", "stickers");
+  }
+
+  function leaveStickerDeal() {
+    setOrder((prev) => recalculateOrder({ ...prev, deal: null }));
+  }
+
+  /** The deals page's tee deals: the regular builder, 24 tees, one front. */
+  function startTeeDeal(deal: TeeDeal) {
+    const apparel = productCategories.find((product) => product.id === "apparel");
+    if (!apparel || apparel.status !== "active") return;
+    selectProduct(apparel);
+    setSizeQuantities({});
+    setExtraGarmentLines([]);
+    const ink = deal.maxInks === 1 ? "1 color" : "2 colors";
+    setApparelQuoteState((current) => ({
+      ...current,
+      promo: deal.id,
+      quantity: 0,
+      printLocations: ["Front"],
+      inkColors: ink,
+      inkColorsByLocation: {},
+      sizeBreakdown: "",
+      specialOrder: false,
+    }));
+    goToStep("details", "apparel");
+  }
+
+  /**
+   * On a tee deal the blank is the Basic Tee, and the 1-color deal a light
+   * one. The catalogue loads after the deal starts and picks its own first
+   * garment, so this puts the deal's back once it has.
+   */
+  const teeDealColorSet = useRef<string | null>(null);
+  useEffect(() => {
+    if (!teeDeal) {
+      teeDealColorSet.current = null;
+      return;
+    }
+    if (ssProducts.length === 0) return;
+    const basic = ssProducts.find((p) => p.catalogStyle === teeDeal.style);
+    if (!basic) return;
+    if (selectedSsProductId !== basic.id) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one snap to the deal's blank after the catalogue loads
+      handleSsProductSelect(basic);
+      return;
+    }
+    // Start on White once per deal: a light tee fits either deal's art.
+    // After that only the 1-color deal keeps the tee light.
+    const firstLook = teeDealColorSet.current !== teeDeal.id;
+    teeDealColorSet.current = teeDeal.id;
+    if ((firstLook || teeDeal.maxScreens < 2) && !isLightGarment(apparelQuote.garmentColor)) {
+      const white = basic.colors.find((c) => c.colorName === "White" && c.isAvailable);
+      if (!white) return;
+      setSelectedSsColorName(white.colorName);
+      setApparelQuoteState((current) => ({ ...current, garmentColor: white.colorName }));
+    }
+    // handleSsProductSelect is a plain function of this component.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teeDeal?.id, ssProducts, selectedSsProductId]);
+
+  function leaveTeeDeal() {
+    setApparelQuoteState((current) => ({ ...current, promo: "" }));
+    // A deal-only blank (the 24-tee deals' Gildan 5000) is not in the
+    // regular builder, so leaving the deal hands the customer the Basic Tee
+    // rather than a garment the builder no longer lists.
+    const current = ssProducts.find((p) => p.id === selectedSsProductId);
+    if (current && !apparelCatalogStyles.includes(current.catalogStyle)) {
+      const regular =
+        ssProducts.find((p) => p.catalogStyle === apparelCatalogStyles[0]) ??
+        ssProducts.find((p) => apparelCatalogStyles.includes(p.catalogStyle));
+      if (regular) handleSsProductSelect(regular);
+    }
+  }
 
   function addDesign() {
     setOrder(
@@ -1574,15 +1960,133 @@ export default function Home() {
     return "5+ colors / Full color / Not sure";
   }
 
+  /**
+   * The 50 Hoodie Special's controls (lib/hoodie-special.ts).
+   *
+   * Starting it resets the size grid: the regular grid's rows come from the
+   * catalogue colour, the special's are its own XS-5XL,
+   * and counts carried across would total invisibly. Leaving resets it for
+   * the same reason the other way. Everything else the customer chose is
+   * kept, so stepping in and out costs them nothing but their sizes.
+   */
+  function startHoodieSpecial() {
+    setSizeQuantities({});
+    setApparelQuoteState((current) => {
+      // The busiest ink the customer had picked anywhere, clamped to the
+      // special's two — a 3-colour front becomes 2, never silently 1.
+      const busiest = Math.max(
+        ...[
+          current.inkColors,
+          ...current.printLocations.map(
+            (location) => current.inkColorsByLocation[location] || ""
+          ),
+        ].map((value) => Number(/^(\d+)/.exec(value)?.[1] ?? 1))
+      );
+      const ink = busiest <= 1 ? "1 color" : "2 colors";
+      const colorName = HOODIE_SPECIAL.colors.some(
+        (color) => color.name === current.garmentColor
+      )
+        ? current.garmentColor
+        : HOODIE_SPECIAL.colors[0].name;
+
+      return {
+        ...current,
+        promo: HOODIE_SPECIAL.id,
+        garmentType: HOODIE_SPECIAL.garmentLabel,
+        garmentColor: colorName,
+        printLocations: ["Front"],
+        inkColors: ink,
+        inkColorsByLocation: { Front: ink },
+        sizeBreakdown: "",
+        // The special is a priced offer; the "not on the menu" escape is
+        // the regular flow's, and its notes would otherwise mark the quote
+        // as a hand quote.
+        specialOrder: false,
+        promoArtConfirmed: false,
+      };
+    });
+  }
+
+  function leaveHoodieSpecial() {
+    setSizeQuantities({});
+    setApparelQuoteState((current) => ({
+      ...current,
+      promo: "",
+      // Back to the catalogue's own garment: the regular builder names
+      // whatever product is selected there.
+      garmentType:
+        selectedSsProduct?.customerLabel ||
+        selectedSsProduct?.displayName ||
+        current.garmentType,
+      garmentColor: selectedSsColor?.colorName || current.garmentColor,
+      printLocations: keepOfferedPlacements(
+        current.printLocations,
+        garmentFamily({ catalogStyle: selectedSsProduct?.catalogStyle })
+      ),
+      sizeBreakdown: "",
+    }));
+  }
+
+  function selectHoodieSpecialSides(sides: HoodieSpecialSides) {
+    setApparelQuoteState((current) => {
+      const front =
+        current.printLocations.find((location) =>
+          HOODIE_SPECIAL.frontPlacements.includes(location)
+        ) || HOODIE_SPECIAL.frontPlacements[0];
+      const back =
+        current.printLocations.find((location) =>
+          HOODIE_SPECIAL.backPlacements.includes(location)
+        ) || HOODIE_SPECIAL.backPlacements[0];
+      const printLocations = sides === "frontAndBack" ? [front, back] : [front];
+
+      return {
+        ...current,
+        printLocations,
+        inkColorsByLocation: Object.fromEntries(
+          printLocations.map((location) => [
+            location,
+            clampHoodieSpecialInk(
+              current.inkColorsByLocation[location] || current.inkColors
+            ),
+          ])
+        ),
+      };
+    });
+  }
+
+  function selectHoodieSpecialPlacement(side: "front" | "back", id: string) {
+    recordUsagePick("apparel", { field: "placement", value: id });
+    setApparelQuoteState((current) => {
+      const onSide =
+        side === "front"
+          ? HOODIE_SPECIAL.frontPlacements
+          : HOODIE_SPECIAL.backPlacements;
+      const previous = current.printLocations.find((location) =>
+        onSide.includes(location)
+      );
+      const ink = clampHoodieSpecialInk(
+        (previous && current.inkColorsByLocation[previous]) || current.inkColors
+      );
+      const printLocations = current.printLocations.map((location) =>
+        location === previous ? id : location
+      );
+      const inkColorsByLocation = { ...current.inkColorsByLocation };
+      if (previous) delete inkColorsByLocation[previous];
+      inkColorsByLocation[id] = ink;
+
+      return { ...current, printLocations, inkColorsByLocation };
+    });
+  }
+
   function togglePrintLocation(location: string) {
-    const alreadySelected = apparelQuote.printLocations.includes(location);
-
-    const nextLocations = alreadySelected
-      ? apparelQuote.printLocations.filter((item) => item !== location)
-      : [...apparelQuote.printLocations, location];
-
+    if (!apparelQuote.printLocations.includes(location)) {
+      recordUsagePick("apparel", { field: "placement", value: location });
+      recordUsageStep("apparel", "garment_chosen");
+    }
+    // Placements that overlap on the garment replace each other (a left
+    // chest sits inside a full front) — lib/print-placements.ts.
     updateApparelQuote({
-      printLocations: nextLocations,
+      printLocations: togglePlacement(apparelQuote.printLocations, location),
     });
   }
 
@@ -1664,6 +2168,7 @@ export default function Home() {
   }, []);
 
   async function handleArtworkUpload(file: File, itemId?: string) {
+    recordUsageStep(analyticsFlow, "art_uploaded");
     const isStickers = !isSignsSelected && !isApparelSelected && !isPaperSelected;
     /** Which design this file belongs to. Signs are a cart too now. */
     const targetId =
@@ -1713,12 +2218,29 @@ export default function Home() {
     setArtworkAnalysis(analysis);
 
     if (isApparelSelected) {
-      setApparelQuoteState((prev) => ({
-        ...prev,
-        inkColors: formatInkColorOption(
+      setApparelQuoteState((prev) => {
+        const suggested = formatInkColorOption(
           getEstimatedInkColorCount(analysis, prev.garmentColor)
-        ),
-      }));
+        );
+
+        // On the special the menu stops at two a side, so the read only
+        // pre-selects within it; a busier file gets the builder's notice
+        // instead of a third colour the special does not sell.
+        return prev.promo === HOODIE_SPECIAL.id
+          ? {
+              ...prev,
+              // New art: the customer's word was about the old file.
+              promoArtConfirmed: false,
+              inkColors: clampHoodieSpecialInk(suggested),
+              inkColorsByLocation: Object.fromEntries(
+                prev.printLocations.map((location) => [
+                  location,
+                  clampHoodieSpecialInk(suggested),
+                ])
+              ),
+            }
+          : { ...prev, inkColors: suggested };
+      });
     }
 
     // Functional form, not a spread of `order`.
@@ -2076,7 +2598,17 @@ export default function Home() {
       // The garment's NAME rides along so the count rule can say which
       // garment it means — a quote can carry several now, each with its own
       // count. See the quantity rule in lib/validation.ts.
-      { ...apparelQuote, garmentLabel: selectedGarmentLabel },
+      {
+        ...apparelQuote,
+        garmentLabel: selectedGarmentLabel,
+        // Every garment line's pieces: the colour-based minimum is per
+        // design, and a quote is one design (lib/print-minimums.ts).
+        totalQuantity: apparelPricing.quantity,
+        hasUnderbase: apparelNeedsUnderbase,
+        promoArtworkColorCount: artworkAnalysis?.estimatedColorCount ?? null,
+        catalogStyle: chosenSsProduct?.catalogStyle,
+        extraLineCount: extraGarmentLines.length,
+      },
       order,
       sizeQuantityTotal,
       undefined,
@@ -2087,7 +2619,17 @@ export default function Home() {
   function getApparelValidationErrors() {
     // The sentences live in lib/validation.ts, like the other two flows.
     return getApparelValidationSummary(
-      { ...apparelQuote, garmentLabel: selectedGarmentLabel },
+      {
+        ...apparelQuote,
+        garmentLabel: selectedGarmentLabel,
+        // Every garment line's pieces: the colour-based minimum is per
+        // design, and a quote is one design (lib/print-minimums.ts).
+        totalQuantity: apparelPricing.quantity,
+        hasUnderbase: apparelNeedsUnderbase,
+        promoArtworkColorCount: artworkAnalysis?.estimatedColorCount ?? null,
+        catalogStyle: chosenSsProduct?.catalogStyle,
+        extraLineCount: extraGarmentLines.length,
+      },
       order,
       sizeQuantityTotal,
       undefined,
@@ -2254,6 +2796,13 @@ export default function Home() {
           sizeBreakdown: apparelQuote.sizeBreakdown,
           specialOrder: apparelQuote.specialOrder,
           specialOrderNotes: apparelQuote.specialOrderNotes,
+          // The flat-rate offer, when the customer chose it. The shop email
+          // and the Printavo note name it; absent on a regular quote.
+          ...(isHoodieSpecial
+            ? { promo: HOODIE_SPECIAL.id, promoName: HOODIE_SPECIAL.name }
+            : teeDeal
+            ? { promo: teeDeal.id, promoName: teeDeal.name }
+            : {}),
           // chosenSs*, not selectedSs*: a request-mode payload must say
           // "Not selected" — as it always did while the catalog was dark —
           // rather than name the pinned default product, colour and SKU the
@@ -2270,6 +2819,28 @@ export default function Home() {
             image: selectedGarmentImage,
             outOfStock: selectedGarmentIsOutOfStock,
           },
+          // The special's blank REPLACES the block above — which describes
+          // whatever the regular builder had selected, possibly a tee. No
+          // sample size, SKU or garment price: the special is one price for
+          // every size, and the shop orders the run from the sizes.
+          ...(isHoodieSpecial
+            ? {
+                supplier: {
+                  // Cutter & Buck direct: the special's only blank, and
+                  // not an S&S product (Gabe, 2026-11-23).
+                  source: HOODIE_SPECIAL.supplier,
+                  productName: selectedGarmentLabel,
+                  supplierProductName: HOODIE_SPECIAL.supplierProductName,
+                  catalogStyle: HOODIE_SPECIAL.catalogStyle,
+                  colorName: apparelQuote.garmentColor,
+                  sampleSize: "Not applicable (flat rate)",
+                  sku: "Not applicable (flat rate)",
+                  markedUpGarmentPrice: 0,
+                  image: null,
+                  outOfStock: false,
+                },
+              }
+            : {}),
         },
         artwork: {
           fileName: order.artwork.file?.name || null,
@@ -2281,6 +2852,20 @@ export default function Home() {
               total: 0,
               quoteRequired: true,
               note: "Special order — priced by hand by Gorilla Salem.",
+            }
+          : isHoodieSpecial
+          ? {
+              ...apparelPricing,
+              quoteRequired: false,
+              promo: HOODIE_SPECIAL.id,
+              note: hoodieSpecialNote(apparelQuote.printLocations),
+            }
+          : teeDeal
+          ? {
+              ...apparelPricing,
+              quoteRequired: false,
+              promo: teeDeal.id,
+              note: teeDealNote(teeDeal),
             }
           : {
               ...apparelPricing,
@@ -2419,7 +3004,12 @@ export default function Home() {
    *
    * Never validates. Steps are orientation, not permission — see StepNav.
    */
-  function goToStep(id: StepId) {
+  /**
+   * `flow` defaults to the flow this render has selected. The landing-page
+   * ad picks apparel and moves on in the same click, before that render
+   * exists, so it passes the flow it just chose.
+   */
+  function goToStep(id: StepId, flow: AnalyticsFlow = analyticsFlow) {
     setCurrentStepId(id);
     setVisitedStepIds((seen) => (seen.includes(id) ? seen : [...seen, id]));
     setStepScrollToken((token) => token + 1);
@@ -2428,7 +3018,15 @@ export default function Home() {
     // customer who reaches Review and returns to Details is the shape worth
     // seeing, and de-duplicating here would hide it. Never throws; see
     // lib/analytics.ts.
-    sendAnalyticsEvent({ name: "step_reached", flow: analyticsFlow, step: id });
+    sendAnalyticsEvent({ name: "step_reached", flow, step: id });
+
+    // The shop's own funnel. The health check's test identity is dropped
+    // as soon as it has been typed: its visits are not customers.
+    if (isTestIdentity(order.customer.email, `${order.customer.customerName} ${order.customer.company}`)) {
+      suppressUsage();
+    } else if (id === "review") {
+      recordUsageStep(flow, "quote_viewed");
+    }
 
     // Prefill the contact boxes when the customer arrives at the step that
     // has them, once, and never over anything already typed.
@@ -3047,6 +3645,15 @@ export default function Home() {
             : "priced",
       });
 
+      // Bottom of the shop's funnel, sent now rather than when the tab
+      // closes: a finished visit is the one most worth not losing.
+      if (isTestIdentity(order.customer.email, `${order.customer.customerName} ${order.customer.company}`)) {
+        suppressUsage();
+      } else {
+        recordUsageStep(analyticsFlow, "submitted");
+        flushUsage();
+      }
+
       /**
        * Remember the contact details for next time — contact fields only.
        *
@@ -3135,7 +3742,7 @@ File Size: ${artworkAnalysis?.fileSize || "N/A"}
 Image Dimensions: ${artworkAnalysis?.dimensions || "N/A"}
 Estimated Artwork Colors: ${artworkAnalysis?.estimatedColorCount || "N/A"}
 Underbase White Added: ${
-      isApparelSubmitted && apparelQuote.garmentColor !== "White" ? "Yes (+1)" : "No"
+      isApparelSubmitted && apparelNeedsUnderbase ? "Yes (+1)" : "No"
     }
 Suggested Ink Count: ${
       isApparelSubmitted && estimatedInkCount
@@ -3360,6 +3967,11 @@ ${
             // screens over a garment the catalogue could not price, and
             // copying it out gave the customer a number the shop never saw.
             "Special order — priced by hand by Gorilla Salem. We reply with your price."
+          : isHoodieSpecial
+          ? `${HOODIE_SPECIAL.name}: ${apparelPricing.quantity} x $${apparelPricing.unitPrice.toFixed(
+              2
+            )} = $${apparelPricing.total.toFixed(2)}
+Printing and setup: included in the flat rate.`
           : `Estimated Apparel Total: $${apparelPricing.total.toFixed(2)}
 Estimated Each: $${apparelPricing.unitPrice.toFixed(2)}
 Garments: $${apparelPricing.garmentTotal.toFixed(2)}
@@ -3543,6 +4155,10 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
    * quantity would make design 1 look dearer every time another was added.
    */
   function getItemUnitPrice(item: (typeof order.items)[number]) {
+    // On the sticker deal the per-sticker figure is the deal's, setup included.
+    if (order.deal === STICKER_DEAL.id && !stickerDealLiveProblem) {
+      return STICKER_DEAL_UNIT;
+    }
     const index = order.items.findIndex((entry) => entry.id === item.id);
     const share = index === 0 ? STICKER_SETUP_FEE : STICKER_SETUP_FEE_ADDITIONAL;
 
@@ -3590,6 +4206,8 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
   const step = getStep(currentStepId);
   const flowLabel = isPaperSelected || isApparelRequest
     ? "Quoted by hand"
+    : isApparelSelected && (teeDeal || isHoodieSpecial)
+    ? "Pay in full"
     : isApparelSelected
     ? "Manual quote"
     : isSignsSelected
@@ -3615,8 +4233,13 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         signsFeeTotal={signsPricing.feeTotal}
         apparelQuote={apparelQuote}
         selectedGarmentLabel={selectedGarmentLabel}
-        selectedSsColor={selectedSsColor}
-        catalogStyle={chosenSsProduct?.catalogStyle}
+        // The special names its own blank; the regular selection may be a tee.
+        selectedSsColor={isHoodieSpecial ? hoodieSpecialPhoto : selectedSsColor}
+        catalogStyle={
+          isHoodieSpecial
+            ? HOODIE_SPECIAL.catalogStyle
+            : chosenSsProduct?.catalogStyle
+        }
         garmentLines={apparelPricing.lines}
         apparelEach={apparelEach}
         apparelPricing={apparelPricing}
@@ -3705,12 +4328,33 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         </p>
       )}
     </div>
+  ) : isHoodieSpecial ? (
+    // The special's own blank, drawn in the special's swatch colour (the
+    // Cutter & Buck hoodie has no S&S photo). Never the regular builder's
+    // selection, which may be a tee.
+    <ApparelPreview
+      artworkPreview={artworkPreview}
+      garmentType={selectedGarmentLabel}
+      garmentColor={apparelQuote.garmentColor}
+      garmentImage={null}
+      garmentBackImage={null}
+      garmentColorHex={
+        HOODIE_SPECIAL.colors.find(
+          (color) => color.name === apparelQuote.garmentColor
+        )?.hex
+      }
+      catalogStyle={HOODIE_SPECIAL.catalogStyle}
+      printLocations={apparelQuote.printLocations}
+      inkColors={describeInkColors(apparelQuote)}
+      quantity={apparelQuote.quantity}
+    />
   ) : isApparelSelected ? (
     <ApparelPreview
       artworkPreview={artworkPreview}
       garmentType={selectedGarmentLabel}
       garmentColor={selectedSsColor?.colorName || apparelQuote.garmentColor}
       garmentImage={selectedGarmentPhotoSrc}
+      garmentBackImage={selectedGarmentBackPhotoSrc}
       garmentColorHex={selectedSsColor?.colorHex}
       catalogStyle={selectedSsProduct?.catalogStyle}
       printLocations={apparelQuote.printLocations}
@@ -3835,6 +4479,27 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
       artworkAnalysis={artworkAnalysis}
       garmentLines={apparelPricing.lines}
       apparelEach={apparelEach}
+      underbase={apparelNeedsUnderbase && !isHoodieSpecial}
+      flatRate={
+        teeDeal
+          ? {
+              name: teeDeal.name,
+              unitPrice: teeDeal.unitPrice,
+              sides: "one front print",
+              unit: "tees",
+              note: `Fixed price for exactly ${teeDeal.quantity} tees, no setup fee. Color and sizes don\u2019t change it.`,
+            }
+          : isHoodieSpecial
+          ? {
+              name: HOODIE_SPECIAL.name,
+              unitPrice: hoodieSpecialUnitPrice(apparelQuote.printLocations),
+              sides:
+                hoodieSpecialSides(apparelQuote.printLocations) === "frontAndBack"
+                  ? "front and back"
+                  : "front print",
+            }
+          : undefined
+      }
     />
   ) : (
     <OrderSummary order={order} />
@@ -3852,19 +4517,19 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
 
     // The id, never the title. "Yard signs, rigid signs & more" is copy that
     // changes; `signs` is the thing being counted.
-    sendAnalyticsEvent({
-      name: "product_selected",
-      flow:
-        product.id === "apparel"
-          ? "apparel"
-          : product.id === "banners"
-          ? "banners"
-          : product.id === "signs"
-          ? "signs"
-          : product.id === "paper"
-          ? "paper"
-          : "stickers",
-    });
+    const chosenFlow: AnalyticsFlow =
+      product.id === "apparel"
+        ? "apparel"
+        : product.id === "banners"
+        ? "banners"
+        : product.id === "signs"
+        ? "signs"
+        : product.id === "paper"
+        ? "paper"
+        : "stickers";
+    sendAnalyticsEvent({ name: "product_selected", flow: chosenFlow });
+    // The shop's own funnel (lib/usage-beacon.ts): the top of it.
+    recordUsageStep(chosenFlow, "product_chosen");
 
     // Apparel is a hand-quote request, not the configurator. Pinning
     // specialOrder here routes it down the path that already exists for
@@ -3880,6 +4545,29 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
     // across to a form the customer had not tried to submit yet.
     setShowFieldErrors(false);
   }
+
+  /**
+   * The landing-page ad's button: T-Shirts & Apparel, the special started,
+   * and straight on to its builder on the details step. Exactly what a
+   * customer gets by picking apparel, continuing and pressing the special's
+   * own button, so the quote it builds is the same one PR 224 prices.
+   */
+  function startHoodieSpecialFromAd() {
+    const apparel = productCategories.find((product) => product.id === "apparel");
+    if (!apparel || apparel.status !== "active") return;
+    selectProduct(apparel);
+    startHoodieSpecial();
+    goToStep("details", "apparel");
+  }
+
+  /**
+   * The ad shows on step 1 while the special is open on Salem's clock (the
+   * same rule that hides the apparel step's button after its last day),
+   * only while apparel is the live configurator the special lives in, and
+   * not over a reorder the customer came back for.
+   */
+  const showHoodieSpecialAd =
+    hoodieSpecialOpen && !apparelIsRequestFlow && !reorderPrefilled;
 
   const stepHeading = (
     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -3964,7 +4652,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
         )}
 
         {currentStepId === "product" && (
-        <div className="mb-10">
+        <div className="relative mb-10">
           {/* Same rule as .eyebrow above it in the cascade: this is a hand-
               rolled eyebrow and was the one bit of alarm ink on an otherwise
               monochrome hero. A location is not a warning. */}
@@ -3981,9 +4669,27 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               that could have headed any quote tool in the category. Both
               halves are facts about this app: the estimate updates as the
               form is filled, and the shop is on Canal Street. */}
-          <h1 className="mt-3 max-w-4xl text-hero font-bold tracking-display text-[var(--ink-black)]">
+          <h1
+            className={`mt-3 max-w-4xl text-hero font-bold tracking-display text-[var(--ink-black)] ${
+              // Room for the hoodie special's badge, pinned top-right at xl.
+              showHoodieSpecialAd ? "xl:max-w-[calc(100%-22rem)]" : ""
+            }`}
+          >
             Priced as you build it. Printed on Canal&nbsp;Street.
           </h1>
+
+          {/* The 50 Hoodie Special's starburst (Gabe, 2026-11-23: "could
+              occupy the space to the right of the page"). Pinned in the
+              empty space right of the headline at xl, under the headline
+              below that. Gone after the special's last day. */}
+          {showHoodieSpecialAd && (
+            <div className={`relative ${HOODIE_AD_PLACEMENT}`}>
+              <HoodieSpecialAd onStart={startHoodieSpecialFromAd} placed />
+              {/* Thanksgiving only: the small black Black Friday burst on
+                  its bottom right, which opens the deals page. */}
+              <DealsBurst label={THANKSGIVING_TAG} />
+            </div>
+          )}
 
           {/* Deadpan and true. The pricing block the browser shows is the
               one buildPrintavoQuotePlan invoices from (tests/quote-invoice-
@@ -4348,6 +5054,61 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                 />
               ) : isApparelSelected ? (
                 <>
+                {(hoodieSpecialOpen || isHoodieSpecial) && (
+                  <HoodieSpecialEntry
+                    active={isHoodieSpecial}
+                    onStart={startHoodieSpecial}
+                    onLeave={leaveHoodieSpecial}
+                  />
+                )}
+                {teeDeal && (
+                  <DealActive
+                    testId="tee-deal-active"
+                    name={teeDeal.name}
+                    terms={`$${teeDealTotal(teeDeal).toFixed(2)} (regular $${teeDeal.regularPrice.toFixed(2)}) for exactly ${teeDeal.quantity} ${teeDeal.garment}s (${teeDeal.blank}), sizes ${TEE_DEAL_SIZES[0]} to ${TEE_DEAL_SIZES[TEE_DEAL_SIZES.length - 1]}, one ${teeDeal.maxInks === 1 ? "1-color" : "1- or 2-color"} print on the front. ${teeDeal.maxInks === 1 ? "Light tees only." : "Dark tees take 1-color art (the white underbase is the 2nd color)."} Printing included, no setup fee. You add your artwork, color and sizes. ${DEAL_PAYMENT_TERMS}`}
+                    problem={teeDealLiveProblem}
+                    onLeave={leaveTeeDeal}
+                  />
+                )}
+                {isHoodieSpecial ? (
+                  <HoodieSpecialBuilder
+                    garmentColor={apparelQuote.garmentColor}
+                    printLocations={apparelQuote.printLocations}
+                    inkColors={apparelQuote.inkColors}
+                    inkColorsByLocation={apparelQuote.inkColorsByLocation}
+                    sizeQuantities={sizeQuantities}
+                    sizeTotal={sizeQuantityTotal}
+                    artworkColorCount={artworkAnalysis?.estimatedColorCount ?? null}
+                    artConfirmed={Boolean(apparelQuote.promoArtConfirmed)}
+                    onConfirmArt={(promoArtConfirmed) =>
+                      updateApparelQuote({ promoArtConfirmed })
+                    }
+                    fieldErrors={fieldErrors}
+                    onSelectColor={(garmentColor) => {
+                      recordUsagePick("apparel", {
+                        field: "color",
+                        style: HOODIE_SPECIAL.catalogStyle,
+                        color: garmentColor,
+                      });
+                      updateApparelQuote({ garmentColor });
+                    }}
+                    onSelectSides={selectHoodieSpecialSides}
+                    onSelectPlacement={selectHoodieSpecialPlacement}
+                    onSelectInk={(location, inkColors) =>
+                      updateApparelQuote({
+                        inkColorsByLocation: {
+                          ...apparelQuote.inkColorsByLocation,
+                          [location]: clampHoodieSpecialInk(inkColors),
+                        },
+                      })
+                    }
+                    onStepSize={updateSizeQuantity}
+                    onSetSize={setSizeQuantity}
+                    onResetSizes={resetSizeBreakdown}
+                    onLeave={leaveHoodieSpecial}
+                  />
+                ) : (
+                <>
                 <ApparelBuilder
                   apparelQuote={apparelQuote}
                   artworkAnalysis={artworkAnalysis}
@@ -4363,7 +5124,18 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                   sizeQuantities={sizeQuantities}
                   fieldErrors={fieldErrors}
                   onSelectCategory={handleApparelCategorySelect}
-                  onSelectProduct={handleSsProductSelect}
+                  onSelectProduct={(product: SsCatalogProduct) => {
+                    // The customer's own pick, unlike the first product a
+                    // category opens on (handleApparelCategorySelect).
+                    if (product.catalogStyle) {
+                      recordUsagePick("apparel", {
+                        field: "garment",
+                        style: product.catalogStyle,
+                      });
+                    }
+                    recordUsageStep("apparel", "garment_chosen");
+                    handleSsProductSelect(product);
+                  }}
                   onSelectColor={handleSsColorSelect}
                   onSelectSize={handleSsSizeSelect}
                   onSelectGarmentType={(garmentType) =>
@@ -4407,7 +5179,19 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     }))
                   }
                   sizesEntered={sizeQuantityTotal > 0}
+                  minimumNotice={apparelMinimumNotice}
+                  fixedDeal={
+                    teeDeal
+                      ? {
+                          quantity: teeDeal.quantity,
+                          sizes: TEE_DEAL_SIZES,
+                          placements: TEE_DEAL_FRONTS,
+                          inks: teeDeal.maxInks === 1 ? ["1 color"] : ["1 color", "2 colors"],
+                        }
+                      : null
+                  }
                 />
+                  {!teeDeal && (
                   <ApparelCartLines
                     lines={extraGarmentLines}
                     products={ssProducts}
@@ -4468,9 +5252,21 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                       )
                     }
                   />
+                  )}
+                </>
+                )}
                 </>
               ) : (
                 <div className="space-y-6">
+                  {order.deal === STICKER_DEAL.id && (
+                    <DealActive
+                      testId="sticker-deal-active"
+                      name={STICKER_DEAL.name}
+                      terms={`${STICKER_DEAL.quantity} stickers, one design, any shape up to ${STICKER_DEAL.maxInches}" x ${STICKER_DEAL.maxInches}", on ${STICKER_DEAL.material}. $${STICKER_DEAL.price.toFixed(2)} with setup included. Shipping and tax as usual. ${DEAL_PAYMENT_TERMS}`}
+                      problem={stickerDealLiveProblem}
+                      onLeave={leaveStickerDeal}
+                    />
+                  )}
                   {order.items.map((item, index) => (
                     <DesignCard
                       key={item.id}
@@ -4499,6 +5295,15 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                         shipZip={order.production.shipZip ?? ""}
                         shipZipError={showFieldErrors ? fieldErrors.shipZip : undefined}
                         onShipZipChange={(shipZip) => updateProduction({ shipZip })}
+                        deal={
+                          order.deal === STICKER_DEAL.id
+                            ? {
+                                quantity: STICKER_DEAL.quantity,
+                                maxInches: STICKER_DEAL.maxInches,
+                                material: STICKER_DEAL.material,
+                              }
+                            : null
+                        }
                         onUpdate={(updates) => updateItem(updates, item.id)}
                         onSelectMaterial={(material) =>
                           updateItem(
@@ -4517,6 +5322,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                       is the whole reason the cart exists, and finding out at
                       review that a design added $12.50 is the kind of surprise
                       that loses an order. */}
+                  {order.deal !== STICKER_DEAL.id && (
                   <button
                     type="button"
                     onClick={addDesign}
@@ -4534,6 +5340,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                       +${STICKER_SETUP_FEE_ADDITIONAL.toFixed(2)} setup
                     </span>
                   </button>
+                  )}
                 </div>
               )}
 
@@ -4839,8 +5646,13 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
               signsTotal={signsPriceable ? signsPricing.total : null}
               signsFeeTotal={signsPricing.feeTotal}
               selectedGarmentLabel={selectedGarmentLabel}
-              selectedSsColor={selectedSsColor}
-              catalogStyle={chosenSsProduct?.catalogStyle}
+              // The special names its own blank; the regular selection may be a tee.
+              selectedSsColor={isHoodieSpecial ? hoodieSpecialPhoto : selectedSsColor}
+              catalogStyle={
+                isHoodieSpecial
+                  ? HOODIE_SPECIAL.catalogStyle
+                  : chosenSsProduct?.catalogStyle
+              }
               isReady={currentValidationErrors.length === 0}
             />
 

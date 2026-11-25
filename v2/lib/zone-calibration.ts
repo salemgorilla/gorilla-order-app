@@ -89,7 +89,8 @@ export function formatZoneSnippet(
   zone: CalibrationZone
 ): string {
   return [
-    `${side}: {`,
+    // The table's keys are the placement ids: "Front" and "Back".
+    `${side === "front" ? "Front" : "Back"}: {`,
     `  verified: true,`,
     `  centerX: ${fraction(zone.centerX)},`,
     `  top: ${fraction(zone.top)},`,

@@ -165,6 +165,11 @@ describe("the estimate composes through the real engine", () => {
     // PRINT composition under the matrix: 3 colours plus the underbase is
     // 4 colours; 20 shirts print at the 24 row's 4c cell ($9.70) × 24
     // (never pay more); screens 4 × 1 × $25 = $100.
+    //
+    // RETAIL, 2026-11-11 (+3% on print cells and the screen fee; the $4.10
+    // garment unit is an input and is not scaled): the 4c cell is $9.99, so
+    // 24 × $9.99 = $239.76, and screens 4 × $25.75 = $103.00. Old book:
+    // $232.80 print, $100.00 setup, $414.80 total.
     const pricing = calculateApparelPricing({
       quantity: 20,
       garmentUnitPrice: 4.1,
@@ -176,9 +181,9 @@ describe("the estimate composes through the real engine", () => {
     assert.equal(pricing.garmentTotal.toFixed(2), "82.00");
     assert.equal(pricing.inkColorCount, 4, "the underbase is a colour");
     assert.equal(pricing.printTierQuantity, 24);
-    assert.equal(pricing.printTotal.toFixed(2), "232.80");
-    assert.equal(pricing.setupTotal.toFixed(2), "100.00");
-    assert.equal(pricing.total.toFixed(2), "414.80");
+    assert.equal(pricing.printTotal.toFixed(2), "239.76");
+    assert.equal(pricing.setupTotal.toFixed(2), "103.00");
+    assert.equal(pricing.total.toFixed(2), "424.76");
   });
 });
 

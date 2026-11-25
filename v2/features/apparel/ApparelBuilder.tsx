@@ -1,9 +1,18 @@
 "use client";
 
+import { useState } from "react";
+
 import OptionSelector from "../../components/OptionSelector";
 import SpecialOrderEscape from "../../components/SpecialOrderEscape";
 import SizeBreakdownGrid from "./SizeBreakdownGrid";
 import { apparelCatalog, type ApparelQuote } from "../../lib/apparel";
+import { POPULAR_COLOR_COUNT } from "../../lib/garment-color-ranking";
+import { isLightGarment } from "../../lib/light-garments";
+import {
+  garmentFamily,
+  placementsFor,
+  type PrintPlacement,
+} from "../../lib/print-placements";
 import type { ArtworkAnalysis } from "../../lib/artwork";
 import type { FieldErrors } from "../../lib/validation";
 import type {
@@ -56,6 +65,25 @@ type Props = {
   onSetRoughQuantity: (quantity: number) => void;
   /** True once the size grid holds anything — the rough count is then retired. */
   sizesEntered: boolean;
+  /**
+   * The colour-based minimum when the design is under it, else null —
+   * lib/print-minimums.ts. Shown live in the quantity box and under the ink
+   * question, so a customer sees it before submit rather than only as a red
+   * error after.
+   */
+  minimumNotice?: string | null;
+  /**
+   * A Black Friday tee deal (lib/tee-deal.ts): one fixed price for a fixed
+   * count. The rough count, the per-size prices and the special-order
+   * escape describe nothing about it, so they give way, and only the
+   * deal's sizes, front placements and ink counts are offered.
+   */
+  fixedDeal?: {
+    quantity: number;
+    sizes: readonly string[];
+    placements: readonly string[];
+    inks: readonly string[];
+  } | null;
 };
 
 export default function ApparelBuilder({
@@ -87,7 +115,40 @@ export default function ApparelBuilder({
   onResetSizeBreakdown,
   onSetRoughQuantity,
   sizesEntered,
+  minimumNotice,
+  fixedDeal,
 }: Props) {
+  // Which of the chart's placements this garment takes (a hoodie's hood and
+  // pocket rule some out) — lib/print-placements.ts.
+  const family = garmentFamily({
+    catalogStyle: selectedSsProduct?.catalogStyle,
+    garmentType: apparelQuote.garmentType,
+  });
+  const offeredPlacements: PrintPlacement[] = placementsFor(family).filter(
+    (placement) => !fixedDeal || fixedDeal.placements.includes(placement.id)
+  );
+  const inkOptions = fixedDeal
+    ? apparelCatalog.inkColors.filter((option) => fixedDeal.inks.includes(option))
+    : apparelCatalog.inkColors;
+  const sizeTotal = Object.values(sizeQuantities).reduce((sum, n) => sum + (n || 0), 0);
+
+  // The colour list arrives most-ordered first (lib/garment-color-ranking.ts),
+  // so the first POPULAR_COLOR_COUNT are the likely picks. The rest wait
+  // behind "Show all colors": the Premium Soft Tee alone has 84, and listing
+  // them all pushed sizes, print location and the price below the fold. A
+  // chosen colour from the long tail is always shown, even when collapsed.
+  const [showAllColors, setShowAllColors] = useState(false);
+  const allColors = selectedSsProduct?.colors ?? [];
+  const hasMoreColors = allColors.length > POPULAR_COLOR_COUNT;
+  const visibleColors =
+    showAllColors || !hasMoreColors
+      ? allColors
+      : allColors.filter(
+          (color, index) =>
+            index < POPULAR_COLOR_COUNT ||
+            color.colorName === selectedSsColor?.colorName
+        );
+
   return (
     <>
       {/* No quantity picker. Quantity comes from the size grid below — asking
@@ -280,7 +341,7 @@ export default function ApparelBuilder({
                 </p>
 
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {selectedSsProduct.colors.map((color) => {
+                  {visibleColors.map((color) => {
                     const isSelected =
                       selectedSsColor?.colorName === color.colorName;
 
@@ -377,10 +438,24 @@ export default function ApparelBuilder({
                     );
                   })}
                 </div>
+
+                {hasMoreColors && (
+                  <button
+                    type="button"
+                    data-testid="apparel-show-all-colors"
+                    aria-expanded={showAllColors}
+                    onClick={() => setShowAllColors((open) => !open)}
+                    className="mt-3 min-h-[44px] cursor-pointer border border-[var(--rule)] bg-white/70 px-4 text-fine font-bold text-[var(--ink-black)] transition-colors duration-[120ms] ease-linear hover:border-[var(--ink-black)]"
+                  >
+                    {showAllColors
+                      ? "Show most popular colors"
+                      : `Show all ${allColors.length} colors`}
+                  </button>
+                )}
               </div>
             )}
 
-            {selectedSsColor && (
+            {selectedSsColor && !fixedDeal && (
               <div>
                 <p className="mb-3 text-spec font-bold uppercase tracking-eyebrow text-[var(--ink-muted)]">
                   Garment Prices by Size
@@ -466,7 +541,35 @@ export default function ApparelBuilder({
           submitted three times hunting for a number she could negotiate
           against; this is where that number gets its count. The size grid
           below REPLACES this the moment it holds anything — grid wins, no
-          reconciliation error, see the apparelQuote memo in page.tsx. */}
+          reconciliation error, see the apparelQuote memo in page.tsx.
+          On a deal the count is fixed, so the box says so instead. */}
+      {fixedDeal ? (
+        <div
+          data-testid="deal-fixed-quantity"
+          className={` bg-[var(--shirt-blank)] p-5 ${
+            fieldErrors?.quantity
+              ? "border-2 border-[var(--rush-red)]"
+              : "border border-[var(--rule)]"
+          }`}
+          data-invalid={fieldErrors?.quantity ? "true" : undefined}
+        >
+          <p className="text-fine font-semibold text-[var(--ink-black)]">
+            Quantity: exactly {fixedDeal.quantity}
+          </p>
+          <p className="mt-2 text-fine font-medium leading-5 text-[var(--ink-muted)]">
+            Set by the deal. Enter your sizes below so they add up to{" "}
+            {fixedDeal.quantity}. You have {sizeTotal}.
+          </p>
+          {fieldErrors?.quantity && (
+            <p
+              id="apparel-quantity-error"
+              className="mt-2 text-fine font-bold text-[var(--rush-red)]"
+            >
+              {fieldErrors.quantity}
+            </p>
+          )}
+        </div>
+      ) : (
       <div
         className={` bg-[var(--shirt-blank)] p-5 ${
           fieldErrors?.quantity
@@ -509,7 +612,18 @@ export default function ApparelBuilder({
             {fieldErrors.quantity}
           </p>
         )}
+
+        {!fieldErrors?.quantity && minimumNotice && (
+          <p
+            role="status"
+            data-testid="apparel-minimum-notice"
+            className="mt-2 text-fine font-bold text-[var(--ink-black)]"
+          >
+            {minimumNotice}
+          </p>
+        )}
       </div>
+      )}
 
       {/* The SAME control every added garment gets — see
           SizeBreakdownGrid for why it is one component and not two.
@@ -523,8 +637,16 @@ export default function ApparelBuilder({
           both now use. */}
       <SizeBreakdownGrid
         title="Size Breakdown"
-        description="Optional for the estimate — enter your sizes and the price becomes exact. We confirm sizes before printing either way."
-        sizes={sizeOptionsForBreakdown.map((sizeName) => ({
+        description={
+          fixedDeal
+            ? `Required. Sizes ${fixedDeal.sizes[0]} to ${
+                fixedDeal.sizes[fixedDeal.sizes.length - 1]
+              }, adding up to exactly ${fixedDeal.quantity}.`
+            : "Optional for the estimate — enter your sizes and the price becomes exact. We confirm sizes before printing either way."
+        }
+        sizes={sizeOptionsForBreakdown
+          .filter((sizeName) => !fixedDeal || fixedDeal.sizes.includes(sizeName))
+          .map((sizeName) => ({
           sizeName,
           isAvailable:
             selectedSsColor?.sizes.find((size) => size.sizeName === sizeName)
@@ -542,7 +664,9 @@ export default function ApparelBuilder({
             Print Locations
           </p>
           <p className="mt-1 text-fine font-medium text-[var(--ink-muted)]">
-            Choose all that apply.
+            {fixedDeal
+              ? "The deal is one print on the front. Pick where it goes; we confirm the size on the proof."
+              : "One per side, plus a sleeve or collar print if you like. Sizes are the usual print sizes for this garment; we confirm yours on the proof."}
           </p>
         </div>
 
@@ -561,21 +685,33 @@ export default function ApparelBuilder({
             fieldErrors?.printLocations ? "print-locations-error" : undefined
           }
         >
-          {apparelCatalog.printLocations.map((location) => {
+          {offeredPlacements.map((placement) => {
+            const location = placement.id;
             const isSelected = apparelQuote.printLocations.includes(location);
+            const size = placement.sizes[family];
 
             return (
               <button
                 key={location}
                 type="button"
+                aria-pressed={isSelected}
                 onClick={() => onTogglePrintLocation(location)}
-                className={` border px-4 py-4 text-fine font-bold transition ${
+                className={` border px-4 py-3 text-left text-fine font-bold transition ${
                   isSelected
                     ? "border-[var(--gorilla-green)] bg-[var(--gorilla-green)] text-white"
                     : "border-[var(--rule)] bg-[var(--shirt-blank)] text-[var(--ink-black)] hover:bg-white"
                 }`}
               >
-                {location}
+                <span className="block">{location}</span>
+                {size && (
+                  <span
+                    className={`mt-1 block text-spec font-medium ${
+                      isSelected ? "text-white" : "text-[var(--ink-muted)]"
+                    }`}
+                  >
+                    {size}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -607,7 +743,7 @@ export default function ApparelBuilder({
           <OptionSelector
             key={location}
             title={`Ink Colors — ${location}`}
-            options={apparelCatalog.inkColors}
+            options={inkOptions}
             selected={
               apparelQuote.inkColorsByLocation?.[location] ||
               apparelQuote.inkColors
@@ -620,26 +756,36 @@ export default function ApparelBuilder({
       ) : (
         <OptionSelector
           title="Ink Colors"
-          options={apparelCatalog.inkColors}
+          options={inkOptions}
           selected={apparelQuote.inkColors}
           onSelect={(inkColors) => onSelectInkColors(inkColors)}
         />
+      )}
+
+      {/* The same sentence as the quantity box above, beside the choice
+          that sets it: picking a third colour is what moves 24 to 48. */}
+      {minimumNotice && (
+        <p className="-mt-2 text-fine font-medium leading-5 text-[var(--ink-muted)]">
+          {minimumNotice}
+        </p>
       )}
 
       {/* The same control signs use — see components/SpecialOrderEscape for
           why it is one component and why it is never a heuristic on the
           notes field. Apparel's consequence line differs from the other
           flows': it has no payment link to withhold, only a number. */}
+      {!fixedDeal && (
       <SpecialOrderEscape
         idPrefix="apparel-special-order"
         checked={Boolean(apparelQuote.specialOrder)}
         notes={apparelQuote.specialOrderNotes || ""}
-        examples="Different garment (crewneck, long sleeve, youth, hats), another print location (left chest, sleeve, tag), embroidery, or anything custom."
+        examples="Different garment (crewneck, long sleeve, youth, hats), another print location (inside tag, hood, pocket), embroidery, or anything custom."
         placeholder="e.g. 40 crewnecks, left chest logo + full back, plus 12 embroidered hats"
         consequence="Heads up: special orders don't get an online price. Everything you fill in above still comes through — Gorilla Salem will price it and reply."
         error={fieldErrors?.specialOrderNotes}
         onChange={onUpdateSpecialOrder}
       />
+      )}
 
       {artworkAnalysis?.estimatedColorCount && (
         <div className=" border border-[var(--rule)] bg-[var(--shirt-blank)] p-4">
@@ -662,7 +808,7 @@ export default function ApparelBuilder({
                 Underbase
               </p>
               <p className="mt-1 text-value font-bold text-[var(--ink-black)]">
-                {apparelQuote.garmentColor === "White"
+                {isLightGarment(apparelQuote.garmentColor)
                   ? "+0"
                   : "+1 white"}
               </p>
@@ -679,8 +825,9 @@ export default function ApparelBuilder({
           </div>
 
           <p className="mt-3 text-spec font-bold leading-5 text-[var(--ink-muted)]">
-            This is an estimate. If the shirt color is not white, the
-            app adds one extra color for a white underbase.
+            This is an estimate. On a dark shirt color the app adds one
+            extra color for a white underbase. White and light colors
+            print without one.
           </p>
         </div>
       )}

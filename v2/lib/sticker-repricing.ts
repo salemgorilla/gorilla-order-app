@@ -7,6 +7,13 @@ import {
 } from "./pricing";
 import { isStickerFlow } from "./order-flow";
 import { MAX_STICKER_SIZE_INCHES } from "./units";
+import {
+  STICKER_DEAL,
+  STICKER_DEAL_UNIT,
+  isStickerDeal,
+  stickerDealNote,
+  stickerDealProblem,
+} from "./sticker-deal";
 
 /**
  * Which submissions self-bill, and what they are billed.
@@ -59,6 +66,7 @@ export function repriceStickers(
       mismatch: false,
       unpriceable: false,
       discountRejected: false,
+      dealProblem: null as string | null,
       clientTotal,
       serverTotal: clientTotal,
     };
@@ -71,14 +79,6 @@ export function repriceStickers(
    * at whatever the code is really worth, or at list when the code is not
    * one of ours. `discountRejected` is the flag the shop email reads.
    */
-  const claimed = isDiscountShape(order.discount) ? order.discount : null;
-  const discount = claimed
-    ? options.discountCodes
-      ? findDiscountCode(claimed.code, options.discountCodes)
-      : findDiscountCode(claimed.code)
-    : null;
-  const discountRejected = Boolean(claimed) && !discount;
-
   const product = (order.product || {}) as Record<string, unknown>;
   const production = (order.production || {}) as Record<string, unknown>;
 
@@ -89,6 +89,25 @@ export function repriceStickers(
   const items = Array.isArray(order.items)
     ? (order.items as Record<string, unknown>[])
     : [product];
+
+  /**
+   * THE BLACK FRIDAY STICKER DEAL (lib/sticker-deal.ts). Claimed by the
+   * browser, decided here. An order that claims it without fitting it is
+   * priced at list as usual AND comes back with `dealProblem`, which the
+   * quote route refuses on, so nobody is billed a figure they were not shown.
+   * A deal takes no discount code.
+   */
+  const dealClaimed = isStickerDeal(order.deal);
+  const dealProblem = dealClaimed ? stickerDealProblem(items) : null;
+  const deal = dealClaimed && !dealProblem;
+
+  const claimed = !deal && isDiscountShape(order.discount) ? order.discount : null;
+  const discount = claimed
+    ? options.discountCodes
+      ? findDiscountCode(claimed.code, options.discountCodes)
+      : findDiscountCode(claimed.code)
+    : null;
+  const discountRejected = Boolean(claimed) && !discount;
 
   /**
    * Each design with the price the SERVER put on it.
@@ -108,6 +127,17 @@ export function repriceStickers(
     };
 
     const shape = String(item.shape || "");
+
+    if (deal) {
+      // The deal's flat price, as Printavo will store it: 50 x $0.50.
+      return {
+        ...item,
+        lineExact: STICKER_DEAL.price,
+        lineListExact: STICKER_DEAL.price,
+        linePrice: STICKER_DEAL.price,
+        lineUnitPrice: STICKER_DEAL_UNIT,
+      };
+    }
 
     return {
       ...item,
@@ -209,6 +239,7 @@ export function repriceStickers(
     destZip: String(production.shipZip || ""),
     listPrices: pricedItems.map((item) => item.lineListExact),
     discount,
+    deal,
   });
 
   /**
@@ -267,8 +298,11 @@ export function repriceStickers(
       // The discount as the SERVER found it — null when the code was not
       // ours, so nothing downstream repeats an unearned claim.
       discount,
+      // The deal as the SERVER decided it: kept only when the order fits.
+      deal: deal ? STICKER_DEAL.id : null,
       pricing: {
         ...clientPricing,
+        ...(deal ? { promo: STICKER_DEAL.id, note: stickerDealNote() } : {}),
         stickerPrice,
         setupPrice,
         minimumPrice,
@@ -286,6 +320,7 @@ export function repriceStickers(
     mismatch: Math.abs(serverTotal - clientTotal) > 0.01,
     unpriceable,
     discountRejected,
+    dealProblem,
     clientTotal,
     serverTotal,
   };

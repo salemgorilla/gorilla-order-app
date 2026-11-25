@@ -3,8 +3,8 @@
  *
  * Found 2026-10-23 while adding paper printing: the sticker branch of the
  * customer's copy-to-clipboard record said "Setup: $22.50 ($25 first design +
- * $12.50 x 1)" for a two-design order, while the real fee is $15 for the first
- * design and $7.50 for each after (STICKER_SETUP_FEE and
+ * $12.50 x 1)" for a two-design order, while the real fee was $15 for the first
+ * design and $7.50 for each after (now $15.45 and $7.73, retail 2026-11-11; STICKER_SETUP_FEE and
  * STICKER_SETUP_FEE_ADDITIONAL in lib/pricing.ts, the same constants the order
  * summary reads). The customer keeps and forwards this text, so it was
  * stating a price breakdown the invoice does not carry.
@@ -33,7 +33,8 @@ test("no hardcoded setup figure survives in the page", () => {
   assert.doesNotMatch(page, /\$12\.50 x /);
 });
 
-test("and the constants are the $15 / $7.50 the invoice charges", () => {
-  assert.equal(STICKER_SETUP_FEE, 15);
-  assert.equal(STICKER_SETUP_FEE_ADDITIONAL, 7.5);
+test("and the constants are the $15.45 / $7.73 the invoice charges", () => {
+  // Retail, 2026-11-11: the old $15 / $7.50 plus 3%, each rounded to the cent.
+  assert.equal(STICKER_SETUP_FEE, 15.45);
+  assert.equal(STICKER_SETUP_FEE_ADDITIONAL, 7.73);
 });

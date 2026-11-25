@@ -75,6 +75,7 @@ PRINTAVO_TOKEN set. It reads only. Never pay a test quote; void it after.
 | _(none yet)_ | | stickers | #206 | **owed** — flagged by `npm run reconcile:debt` (2026-10-23). #206 touched `lib/pricing.ts` and `app/api/quote/route.ts`; the line-item naming it added changes what the Printavo invoice rows are CALLED, not what they cost. **The check is one ordinary sticker order: invoice lines named after the artwork, total unchanged to the cent** |
 | _(none yet)_ | | signs | #206 | **owed** — flagged by `npm run reconcile:debt` (2026-10-23). #206 touched `lib/signs-cart.ts`. One ordinary banner or yard sign, total unchanged to the cent |
 | _(none yet)_ | | all flows | #206 #207 #209 #210 #212 #213 | **owed** — flagged by `npm run reconcile:debt` (2026-10-23). These touched `lib/printavo.ts` and `app/api/quote/route.ts` for the press line, the newsletter store and the shop email, not for any rate. **Expected to be a no-op: one ordinary sticker order must still bill EXACTLY what it billed before** |
+| _(none yet)_ | | all flows | **the 3% retail uplift (2026-11-11)** | **owed — and the most important one on this table.** Every price moved +3% (stickers, signs, banners, apparel, shipping, fees). **The order to place:** one sticker order (100 x 3" gloss circle, pickup is **$87.55** pre-tax, **$92.06** with tax (tax on the $72.10 of stickers only)) — read the Printavo invoice and confirm (a) lines + tax match the screen to the cent, (b) the customer note carries `Pay by bank transfer (ACH) and save $2.55`, (c) the shop email has the `If paid by bank transfer` row. Then one over-the-ceiling order: the 50% deposit is judged on the RETAIL charge. Not yet reconciled — the Printavo token was expired until 2026-11-11. |
 
 **The three rows above were computed, not remembered** — 2026-09-25. The
 independent audit found this table's newest row covering #158 while `main`
@@ -108,6 +109,121 @@ the payload, the per-line `taxed` flags and Printavo's arithmetic all agree,
 to the cent. Nothing in #149 touched any of that. It did not prove the RATE
 — that is a business figure, and #149 changed it, so the row above it is
 owed and the merge rule points at the next sticker order.
+
+## Retail price, 2026-11-11: the 3% is in the price book (Gabe's decision, option A)
+
+> "We will not charge 3%, we will increase our retail price by 3% and discount
+> those who pay via ACH." Then: **A** — retail everywhere, refund the 3% after
+> an ACH payment. Printavo's payment page offers ACH. **Sales tax is always on
+> the retail (higher) price.** Test numbers change together with the prices.
+
+**What it is.** Every price the app shows or bills is the old price + 3%. There
+is NO card fee, surcharge or add-on at checkout, under any name —
+Massachusetts bans card surcharges and allows a discount for cash. A customer
+who pays by bank transfer is refunded the 3% afterwards; the shop issues it.
+
+**Where it lives.** One file, `lib/retail.ts` (`RETAIL_UPLIFT`, `retail2`,
+`retail4`, `engineTerms`, `achRefund`). It is applied AT THE SOURCE — each
+rate, fee and floor is a retail number where it is defined — so the screens,
+the email, the Printavo lines, the tax and the deposit ceiling all read retail
+without a change, and the invoice lines sum to the screen because they are the
+same numbers:
+
+- stickers: the per-sticker unit (to 4 dp, what Printavo stores), setup
+  (15.45 / 7.73), the minimum (46.35), shipping (tiers 8.24 / 12.36 / 18.54 /
+  25.75 and Ground Advantage rates);
+- signs & banners: every rate, fee and add-on in `lib/signs-pricing-config.ts`
+  (the config is written out field by field and `tests/retail-uplift.test.ts`
+  fails if a new PRICE is added without the uplift);
+- apparel (estimate only): every print cell, the screen fee
+  (`lib/apparel-pricing-config.ts`) and the blank (`lib/ss-activewear.ts`).
+
+**What deliberately did NOT inflate:** shipping tier THRESHOLDS ($75 / $200 /
+$500 of goods are old-book figures — a retail subtotal is converted back with
+`engineTerms` before comparing, so no order moves tier); percentages (rush 25%,
+discount codes) which scale by themselves; the 2/3 second-side ratio. The one
+retail threshold is `FULL_PAYMENT_CEILING` ($4,999.99), which Gabe set against
+"the amount charged (incl. tax)" — and that is retail now.
+
+**The refund** is `achRefund(preTaxRetail)` = retail − retail/1.03, to the cent
+(retail $327.13 → $9.53). Tax is NOT refunded. It is carried on `QuoteTotals`,
+shown on the review and confirmation screens (`features/BankTransferNote.tsx`),
+written on the shop email ("If paid by bank transfer") and on the Printavo
+customer note ("Pay by bank transfer (ACH) and save $X"). Whoever issues the
+refund reads it off the order.
+
+**Regenerated:** `tests/price-sheet.test.ts` (199 rows), `signs-price-sheet`
+(130), `apparel-price-sheet`. The regeneration refused any row further from
+(old × 1.03) than rate rounding allows — every row passed, so those diffs are
+the 3% and nothing else. `verification/independent-oracle.ts` was updated from
+the decision (1,731 configurations agree). `npm run audit:anchors` prints the
+retail figures; the health check reads that, not a copied table.
+
+**Still open:** (1) the reconciliation above; (2) the apparel estimate screens
+do not yet say a bank-transfer discount exists when the shop invoices (the
+skill's item 3) — they show the retail figure; (3) the unmerged customer quote
+link (`claude/customer-quote-link`) was converted off its 3% card fee locally
+and needs pushing; (4) embroidery pricing, when it ships, is ENGINE price —
+apply `retail2` to its cells.
+
+## 50 Hoodie Special button in apparel, 2026-11-23 — built, draft PR, not live
+
+Gabe, 2026-11-23: "a button in the apparel section, for the 50 hoody special.
+It should be a flat fee, nothing will change the end price ... as long as it's
+2 colors or under, there should be 2 pricing outcomes."
+
+- **Offer:** `lib/hoodie-special.ts` — $27 front, $33 front and back, XS-5XL
+  one price, up to 2 inks per side, setup included, 50 pieces or more, the
+  8 colours on his special art. All numbers in that one object.
+- **One blank, hard rule (Gabe, Nov 23):** Cutter & Buck's Clique Stockholm
+  Pullover Hoodie, MQK00107, colours under its own names (Black, Dark Navy,
+  Grey Melange, Anthracite Melange, Ash, White, Royal Blue, Red). No garment
+  picker. Bought from Cutter & Buck direct, so it is not in the S&S catalogue
+  and the preview draws a swatch, not a photo.
+- **2 inks per side, hard rule (Gabe, Nov 23):** menus stop at 2, one front
+  and at most one back, art that reads busier needs the customer's tick that
+  it prints in 2, and `app/api/quote` refuses a special that breaks any rule
+  or whose price isn't the flat rate. Underbase on dark hoodies is part of
+  the print, not one of the 2. The shop email and Printavo row say
+  "HARD LIMIT: 2 ink colors per side".
+- **Button:** a card at the top of the apparel step; while the special is on,
+  `features/apparel/HoodieSpecial.tsx` replaces the catalogue (colour, front
+  or front-and-back, placement, ink capped at 2 per side, size grid required).
+  "Switch to a regular quote" leaves it; only the size grid is reset.
+- **Price:** `quoteHoodieSpecial()` returns the normal `ApparelCartQuote` shape
+  with one garment line at the flat unit and zero printing, setup, underbase
+  and rush, so Printavo gets ONE row (printing/setup rows are only written
+  above zero) and the summary, review, email and copy text need no new shape.
+- **Shop sees it:** "*** PROMO ***" line and "Flat rate" in the shop email; the
+  Printavo row note and nickname name the special. Still `#Apparel`, still no
+  payment link (`isStickerOrder` false, pinned in tests).
+- **Ends:** the card disappears after Dec 1 on Salem's clock (not UTC); a quote
+  left open past midnight is refused with a line telling them to switch back.
+- **Regular apparel untouched:** minimums, colour order, placements and the
+  matrix only change behaviour when `promo === "hoodie-50"`.
+
+## The order page adapts to what customers order, 2026-11-21 — built, draft PR, not live
+
+Gabe, 2026-11-21: "Build both" — (1) the app re-sorts itself from what
+customers pick and order, Black/Navy/Sport Grey pinned on top; (2) a weekly
+review that only suggests changes. This is (1) plus the data (2) reads.
+Built on `claude/sort-garment-colors` (#222), whose hand-written order is now
+the starting point the learned order works from.
+
+- **Counted:** colour, garment, print location and size picks per page visit
+  (`lib/usage-beacon.ts` → `POST /api/usage`), the same four read off every
+  apparel quote that reaches the shop (`/api/quote`, server-side), and funnel
+  steps per product. No cookie, no id, nothing about the visitor; the
+  scheduled test identity is dropped. Blob store, `order-usage/` in
+  production, `order-usage-preview/` on previews.
+- **Sorting:** `lib/adaptive-color-order.ts`, applied in `/api/ss-catalog`.
+  Every knob and the pins are in `lib/order-adapt-config.ts`. Rebuilt once a
+  day after a catalogue response; a broken store means the hand-written order.
+- **Weekly read:** `GET /api/usage/report?days=7` with `USAGE_REPORT_KEY`
+  (read-only, `x-usage-key`) or `ADMIN_SECRET`. Needs `USAGE_REPORT_KEY` set
+  in Vercel Production to be readable without the admin secret.
+- **Not counted:** whether a quote was PAID — that is in Printavo; the report
+  lists the period's quote numbers to look up.
 
 ## Customer's due date in the shop email and the Printavo list, 2026-10-29
 
@@ -272,6 +388,35 @@ week and a page of old invoices look identical. Each uncached fetch now logs
 (dates and counts only). If "newest" is last year, the page is wrong and the
 fix is the sort argument — whose enum is still unconfirmed; if it is
 yesterday, the week really is quiet.
+
+## Press line, tenth finding, 2026-10-23 17:03 UTC: the sort WORKED; the check was too strict
+
+**Written 2026-10-23 from the production logs of `dpl_Hc6W16L9p2Q8N2nZVggk11Mcs8xu`
+(#213, `cb5767b`).** The evidence line did its job. The 25 dates, in the order
+Printavo returned them for `sortOn: VISUAL_ID, sortDescending: true`:
+
+    2025-07-21 2025-12-10 2025-07-23 2025-07-22 2025-07-21 2025-07-21 2025-06-12 2024-09-16 | 2026-10-22 2026-10-22 2026-10-20 2026-10-14 2026-10-07 2026-10-05 2026-10-05 2026-09-29 2026-09-28 2026-09-27 2026-09-24 2026-09-23 2026-09-22 2026-09-22 2026-09-17 2026-09-16 2026-09-16
+
+So the ninth finding was wrong about the cause. Eight OLD orders carry order
+numbers higher than anything current (hand-numbered or imported), and after
+them the page descends cleanly, newest first, down to mid-September. The sort
+works; #212's first-row-versus-last-row check refused exactly the page it was
+written to find. Nothing wrong was ever served.
+
+**Fix:** `pageTrendsNewestFirst` judges the trend (at least three quarters of
+dated steps not ascending: this page is 22 of 24; a page the wrong way round
+scores 0), and the stop rule for a proxy sort reads the LAST row, so the old
+stragglers at the top are not mistaken for "already past the window". The
+rows are then sorted by date in code as before. Expect, after deploy, a
+`PRESS ACTIVITY page:` line with newest 2026-10-22 and about 3 invoices inside
+the 7-day window (22 Oct x2, 20 Oct). Whether the hero then shows a count
+depends on the pieces in those (the line stays hidden under 50 pieces).
+
+Other facts from the same line: `Invoice` has `startAt`, `dueAt`,
+`customerDueAt`, `invoiceAt`, `timestamps`, `totalQuantity` and `status`;
+`inProductionAfter`/`inProductionBefore` are `ISO8601DateTime`. A
+production-window count remains possible later and is NOT being done: it
+would change what the hero means.
 
 ## Press line, ninth finding, 2026-10-22 17:04 UTC: the order number is not creation order
 

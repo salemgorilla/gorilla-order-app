@@ -2,6 +2,17 @@ import type { Metadata } from "next";
 import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
+import { seasonThemeScript, themeStylesheet } from "../lib/season";
+import { DecorDrift } from "../components/SeasonDecor";
+import { ThemeCursor } from "../components/ThemeCursor";
+import { THEME_CALENDAR } from "../lib/theme-calendar";
+
+// Which holiday brings which mouse character (decor.cursor). A few bytes;
+// the drawings themselves load only on a computer with a mouse, and only
+// while one of these holidays is on.
+const THEME_CURSORS: Record<string, string> = Object.fromEntries(
+  THEME_CALENDAR.flatMap((t) => (t.on && t.decor?.cursor ? [[t.id, t.decor.cursor]] : []))
+);
 
 // Order Desk type system: Space Grotesk for display + UI, JetBrains Mono for
 // spec furniture only (ticket numbers, timestamps, statuses, size grids).
@@ -32,9 +43,28 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      // The season script below sets data-theme on <html> before React
+      // hydrates, so the server's markup and the browser's differ by that
+      // one attribute on purpose.
+      suppressHydrationWarning
     >
+      <head>
+        {/* The theme calendar (lib/theme-calendar.ts). The script is inline
+            and first so the right inks are on before the first paint; the
+            page is static, so this is what makes each holiday arrive with
+            no deploy. The style holds every theme's colours and decor,
+            written at build time; only today's theme matches. */}
+        <script dangerouslySetInnerHTML={{ __html: seasonThemeScript() }} />
+        <style id="theme-calendar" dangerouslySetInnerHTML={{ __html: themeStylesheet() }} />
+      </head>
       <body className="min-h-full flex flex-col">
+        {/* Drifting decor (snow, leaves, hearts…): hidden unless today's
+            theme has some. */}
+        <DecorDrift />
         {children}
+        {/* The holiday mouse character, drawn above everything on a layer
+            that takes no clicks. */}
+        <ThemeCursor cursors={THEME_CURSORS} />
         {/**
          * SHIPS DARK.
          *

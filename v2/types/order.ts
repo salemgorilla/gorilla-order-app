@@ -21,17 +21,13 @@ export type Customer = {
    */
   heardAbout: string[];
   /**
-   * Newsletter opt-in. Ships PRE-CHECKED by decision (Gabe, 2026-08-10).
+   * Newsletter opt-in. Starts UNTICKED (Gabe, 2026-11-25: "Start unticked"),
+   * on the website and the kiosk alike.
    *
-   * Worth knowing what that means: pre-ticked is lawful under US CAN-SPAM,
-   * which is opt-out rather than opt-in. It is NOT valid consent under GDPR,
-   * and it sits awkwardly with Constant Contact's own permission-based-list
-   * policy — the practical risk is to the shop's CC account and sender
-   * reputation, not a fine.
-   *
-   * Two things follow, and both are load-bearing: the box must stay obvious
-   * and trivially clearable, and every submission records what the customer
-   * was actually shown (see newsletterConsent below).
+   * It shipped pre-ticked from 2026-08-10 until then. Records from that period
+   * carry preChecked: true, and the sticky-unsubscribe rule in
+   * lib/subscribers.ts still matters for them. Every submission still records
+   * what the customer was actually shown (see newsletterConsent below).
    */
   newsletterOptIn: boolean;
 };

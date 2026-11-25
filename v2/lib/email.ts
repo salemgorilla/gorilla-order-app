@@ -92,11 +92,11 @@ function line(label: string, value: string) {
  *
  * That record is the shop's evidence of what a customer was actually shown.
  * "The box was ticked by default and left ticked" is a materially different
- * answer from "the customer ticked it", and on the website the box arrives
- * pre-ticked while on the kiosk it starts empty — so on the kiosk "Declined"
- * would claim a decision nobody made. Two copies of that reasoning is two
- * chances for the HTML the shop reads to disagree with the text an archive
- * keeps.
+ * answer from "the customer ticked it". The box shipped pre-ticked on the
+ * website until 2026-11-25 and now starts empty everywhere, so an empty box
+ * is "Not opted in", never "Declined", a decision nobody made. Two copies
+ * of that reasoning is two chances for the HTML the shop reads to disagree
+ * with the text an archive keeps.
  *
  * The Zapier hook has been unset in production, so these lines are currently
  * the ONLY record that any opt-in happened at all, and the thing a backfill
@@ -181,20 +181,14 @@ export function buildCustomerLines(input: {
     line(
       "Newsletter",
       customer.newsletterOptIn === true
-        ? `${
-            input.kiosk
-              ? "Opted in (box started empty — ticked deliberately)"
-              : "Opted in (box shipped pre-ticked)"
-          }${
+        ? `Opted in (box started empty — ticked deliberately)${
             input.newsletterConfigured === false
               ? " — NOT added to any list: no newsletter hook is configured on this deployment. The consent is recorded, so the list can be backfilled."
               : input.newsletterNote
               ? ` — NOT added to any list: ${input.newsletterNote}. The consent is recorded, so the list can be backfilled.`
               : ""
           }`
-        : input.kiosk
-        ? "Not opted in (box started empty)"
-        : "Declined"
+        : "Not opted in (box started empty)"
     ),
   ];
 }

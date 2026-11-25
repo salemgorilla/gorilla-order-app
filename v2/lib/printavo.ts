@@ -9,7 +9,7 @@ import {
   signsFeeTotal,
   type SignsPricingLine,
 } from "./signs-pricing";
-import { DEPOSIT_FRACTION } from "./auto-bill";
+import { DEPOSIT_FRACTION, isDealOrder } from "./auto-bill";
 import { HOODIE_SPECIAL, hoodieSpecialInkRule } from "./hoodie-special";
 import { teeDealFor, teeDealNote } from "./tee-deal";
 import { getTrackUrl } from "./order-status";
@@ -1636,7 +1636,7 @@ export function buildPrintavoQuotePlan(input: {
      * never works it out; tax is on the retail price and is not refunded.
      * Omitted when nothing is priced (paper, hand quotes).
      */
-    ...(!paper && !needsHandPricing && achRefund(total) > 0
+    ...(!paper && !needsHandPricing && !isDealOrder(order) && achRefund(total) > 0
       ? [
           `Pay by bank transfer (ACH) and save $${achRefund(total).toFixed(2)}: refund the 3% after payment clears.`,
         ]

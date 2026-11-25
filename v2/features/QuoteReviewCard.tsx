@@ -483,7 +483,7 @@ export default function QuoteReviewCard({
                 ${stickerTotals.estimatedTotal.toFixed(2)}
               </span>
             </div>
-            <BankTransferNote refund={stickerTotals.achRefund} />
+            <BankTransferNote refund={order.deal ? 0 : stickerTotals.achRefund} />
           </>
         )}
 

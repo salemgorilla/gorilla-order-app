@@ -32,6 +32,7 @@ import { isApparelProduct, isPaperProduct, isSignsProduct } from "./order-flow";
 import { describePaperSpec, paperProductById, paperSpecFromProduct } from "./paper";
 import { needByLabel } from "./need-by";
 import { achRefund } from "./retail";
+import { isDealOrder } from "./auto-bill";
 import { HOODIE_SPECIAL, hoodieSpecialInkRule } from "./hoodie-special";
 import { STICKER_DEAL } from "./sticker-deal";
 import { teeDealFor, teeDealNote, type TeeDeal } from "./tee-deal";
@@ -620,7 +621,11 @@ export function buildQuoteEmail(input: {
    * rather than left to be worked out from the total (lib/retail.ts).
    */
   const bankRefund =
-    paper || primaryNeedsHandQuote || (signs && Boolean(pricing.quoteRequired))
+    paper ||
+    primaryNeedsHandQuote ||
+    (signs && Boolean(pricing.quoteRequired)) ||
+    // A deal's price is fixed and has no 3% in it (isDealOrder, lib/auto-bill).
+    isDealOrder(order)
       ? 0
       : achRefund(total);
   if (bankRefund > 0) {

@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { buildQuoteEmail } from "../lib/email";
 import { buildPrintavoQuotePlan } from "../lib/printavo";
 import { achRefund } from "../lib/retail";
+import { isDealOrder } from "../lib/auto-bill";
 import { repriceStickers } from "../lib/sticker-repricing";
 
 /**
@@ -153,9 +154,59 @@ describe("the screens", () => {
     const confirmation = read("../features/QuoteConfirmation.tsx");
     const review = read("../features/QuoteReviewCard.tsx");
 
-    assert.match(confirmation, /<BankTransferNote refund=\{stickerTotals\.achRefund\} \/>/);
+    assert.match(confirmation, /<BankTransferNote refund=\{order\.deal \? 0 : stickerTotals\.achRefund\} \/>/);
     assert.match(confirmation, /<BankTransferNote refund=\{signsTotals\.achRefund\} \/>/);
-    assert.match(review, /<BankTransferNote refund=\{stickerTotals\.achRefund\} \/>/);
+    assert.match(review, /<BankTransferNote refund=\{order\.deal \? 0 : stickerTotals\.achRefund\} \/>/);
     assert.match(review, /<BankTransferNote refund=\{signsTotals\.achRefund\} \/>/);
+  });
+});
+
+describe("a Black Friday deal carries no refund (its price never had the 3% in it)", () => {
+  const deal = () =>
+    repriceStickers({
+      ...stickerOrder(),
+      deal: "stickers-50-25",
+      items: [
+        {
+          id: "d1",
+          quantity: 50,
+          widthInches: 3,
+          heightInches: 3,
+          material: "Gloss White Vinyl",
+          shape: "Die Cut",
+          artwork: { file: { name: "a.png" } },
+        },
+      ],
+    } as never).order;
+
+  test("the sticker deal bills its advertised $25 and says nothing about a bank-transfer refund", () => {
+    const order = deal();
+
+    assert.equal((order.pricing as Record<string, number>).stickerPrice, 25);
+    assert.ok(isDealOrder(order as never));
+
+    const { text, html } = buildQuoteEmail({
+      quoteNumber: "GS-T3",
+      receivedAt: new Date().toISOString(),
+      order,
+      artworkAnalysis: null,
+    } as never);
+    const plan = buildPrintavoQuotePlan({ quoteNumber: "GS-T3", order, artworkAnalysis: null } as never);
+
+    assert.doesNotMatch(text, /bank transfer/i);
+    assert.doesNotMatch(html, /bank transfer/i);
+    assert.doesNotMatch(plan.customerNote, /bank transfer/i);
+  });
+
+  test("an ordinary sticker order is not a deal, and the screens hand the note a zero for a deal", () => {
+    assert.equal(isDealOrder(priced() as never), false);
+
+    for (const file of ["../features/QuoteConfirmation.tsx", "../features/QuoteReviewCard.tsx"]) {
+      assert.match(
+        readFileSync(new URL(file, import.meta.url), "utf8"),
+        /<BankTransferNote refund=\{order\.deal \? 0 : stickerTotals\.achRefund\} \/>/,
+        file
+      );
+    }
   });
 });

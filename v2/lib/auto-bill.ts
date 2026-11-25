@@ -428,6 +428,25 @@ export function dealServerTotal(order: Record<string, unknown>): number | null {
   return null;
 }
 
+/**
+ * ANY Black Friday deal — the sticker deal, a tee deal or the hoodie special.
+ *
+ * A deal's price is a figure Gabe set and advertised ("50 stickers for $25"),
+ * NOT a retail price with the 3% inside it (lib/retail.ts). So it carries no
+ * bank-transfer refund: refunding 3% of a price that never had the 3% added
+ * would hand back money that was never collected. Every surface that prints
+ * the refund asks this first.
+ */
+export function isDealOrder(order: Record<string, unknown>): boolean {
+  const pricing = (order.pricing || {}) as Record<string, unknown>;
+
+  return (
+    Boolean(order.deal) ||
+    Boolean(pricing.promo) ||
+    isFixedPriceDealOrder(order)
+  );
+}
+
 export function isFixedPriceDealOrder(order: Record<string, unknown>): boolean {
   const product = (order.product || {}) as Record<string, unknown>;
   const promo = String(product.promo ?? "");

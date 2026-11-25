@@ -59,13 +59,14 @@ describe("24 black tees, 1-colour front, no artwork uploaded", () => {
     assert.equal(spec.hasUnderbase, true);
   });
 
-  test("prices as 2 colours: $471.20, not the $394.60 it showed", () => {
+  test("prices as 2 colours: $477.50 (was $471.20 before the 3% retail uplift), not the 1-colour figure it showed", () => {
     // 24 × the 2-colour cell + two $25 screens + the blank.
-    const expected = 24 * row24.perPieceByColors[1] + 2 * 25 + 24 * BLANK;
-    assert.equal(expected.toFixed(2), "471.20");
-    assert.equal(cart.total.toFixed(2), "471.20");
-    assert.equal(cart.printTotal.toFixed(2), "159.60");
-    assert.equal(cart.setupTotal.toFixed(2), "50.00");
+    // Retail (+3%, 2026-11-11): the cell and the screen fee both carry the 3%.
+    const expected = 24 * row24.perPieceByColors[1] + 2 * apparelPricingConfig.setupFeePerColorPerLocation + 24 * BLANK;
+    assert.equal(expected.toFixed(2), "477.50");
+    assert.equal(cart.total.toFixed(2), "477.50");
+    assert.equal(cart.printTotal.toFixed(2), "164.40");
+    assert.equal(cart.setupTotal.toFixed(2), "51.50");
     assert.deepEqual(cart.colorsByLocation, [2]);
   });
 
@@ -91,13 +92,13 @@ describe("24 black tees, 1-colour front, no artwork uploaded", () => {
 });
 
 describe("a light shirt does not change", () => {
-  test("24 white tees, 1-colour front: still $394.60, one screen", () => {
+  test("24 white tees, 1-colour front: still the 1-colour figure, $398.71 retail, one screen", () => {
     const spec = apparelPrintSpec(quoteFor("White"), []);
     const cart = quoteApparelCart([tees("White")], spec);
 
     assert.equal(spec.hasUnderbase, false);
-    assert.equal(cart.total.toFixed(2), "394.60");
-    assert.equal(cart.setupTotal.toFixed(2), "25.00");
+    assert.equal(cart.total.toFixed(2), "398.71");
+    assert.equal(cart.setupTotal.toFixed(2), "25.75");
     assert.equal(screenPrintMinimum(designColorCount(spec)), 12);
   });
 
@@ -106,7 +107,7 @@ describe("a light shirt does not change", () => {
     const spec = apparelPrintSpec(quoteFor("Solid White Blend"), []);
     const cart = quoteApparelCart([tees("Solid White Blend")], spec);
     assert.equal(spec.hasUnderbase, false);
-    assert.equal(cart.total.toFixed(2), "394.60");
+    assert.equal(cart.total.toFixed(2), "398.71");
     assert.equal(screenPrintMinimum(designColorCount(spec)), 12);
   });
 
@@ -118,7 +119,7 @@ describe("a light shirt does not change", () => {
       const spec = apparelPrintSpec(quoteFor(name), []);
       const cart = quoteApparelCart([tees(name)], spec);
       assert.equal(spec.hasUnderbase, false, name);
-      assert.equal(cart.total.toFixed(2), "394.60", name);
+      assert.equal(cart.total.toFixed(2), "398.71", name);
       assert.equal(screenPrintMinimum(designColorCount(spec)), 12, name);
     }
   });
@@ -167,11 +168,11 @@ describe("a light shirt does not change", () => {
 });
 
 describe("Sport Grey prices as dark (Gabe, 23 Nov: \"Make Sport Grey dark\")", () => {
-  test("24 Sport Grey tees, 1-colour front: underbase, $471.20, 24 minimum", () => {
+  test("24 Sport Grey tees, 1-colour front: underbase, $477.50, 24 minimum", () => {
     const spec = apparelPrintSpec(quoteFor("Sport Grey"), []);
     const cart = quoteApparelCart([tees("Sport Grey")], spec);
     assert.equal(spec.hasUnderbase, true);
-    assert.equal(cart.total.toFixed(2), "471.20");
+    assert.equal(cart.total.toFixed(2), "477.50");
     assert.equal(screenPrintMinimum(designColorCount(spec)), 24);
   });
 });

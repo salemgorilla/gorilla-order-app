@@ -138,19 +138,19 @@ describe("an order that claims the deal but does not fit it", () => {
 });
 
 describe("a regular order", () => {
-  test("prices exactly as it did: 50 x 3 inch die cut is $42 plus $15 setup", () => {
+  test("prices exactly as it did, plus the 3% retail uplift: 50 x 3 inch die cut is $43.26 plus $15.45 setup", () => {
     const priced = repriceStickers(order());
     assert.equal(priced.dealProblem, null);
     const p = pricing(priced.order);
-    assert.equal(p.stickerPrice, 42);
-    assert.equal(p.setupPrice, 15);
-    assert.equal(p.total, 57);
+    assert.equal(p.stickerPrice, 43.26); // 42 x 1.03
+    assert.equal(p.setupPrice, 15.45); // 15 x 1.03
+    assert.equal(p.total, 58.71); // 57 x 1.03
     assert.equal(p.promo, undefined);
   });
 
   test("an unknown deal id is ignored, not refused", () => {
     const priced = repriceStickers(order({ deal: "stickers-1000-1" }));
     assert.equal(priced.dealProblem, null);
-    assert.equal(pricing(priced.order).total, 57);
+    assert.equal(pricing(priced.order).total, 58.71);
   });
 });

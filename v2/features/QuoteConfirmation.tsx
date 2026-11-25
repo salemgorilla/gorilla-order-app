@@ -769,7 +769,7 @@ export default function QuoteConfirmationScreen({
                       Includes estimated {SALES_TAX.label}
                     </p>
                   )}
-                  <BankTransferNote refund={stickerTotals.achRefund} />
+                  <BankTransferNote refund={order.deal ? 0 : stickerTotals.achRefund} />
                   {/**
                    * SAID OUT LOUD, ONCE.
                    *

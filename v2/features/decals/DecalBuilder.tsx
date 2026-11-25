@@ -47,6 +47,13 @@ type Props = {
   /** Only populated after a failed submit; undefined until then. */
   shipZipError?: string;
   onShipZipChange?: (shipZip: string) => void;
+  /**
+   * The Black Friday sticker deal (lib/sticker-deal.ts): a set count at a
+   * set price, so the count is shown, not asked, sizes stop at the deal's
+   * limit and only the deal's material is offered. Nothing on the card can
+   * take the order off the deal.
+   */
+  deal?: { quantity: number; maxInches: number; material: string } | null;
 };
 
 const deliveryOptions: {
@@ -83,7 +90,10 @@ export default function DecalBuilder({
   shipZip = "",
   shipZipError,
   onShipZipChange,
+  deal,
 }: Props) {
+  const maxInches = deal ? deal.maxInches : MAX_STICKER_SIZE_INCHES;
+  const fitSize = (inches: number) => (deal ? Math.min(inches, deal.maxInches) : inches);
   // useId, not the design's own id: `product` here is typed as Product,
   // which has no id — that lives on StickerItem — and React guarantees this
   // is unique per mounted card, which is what the label needs.
@@ -140,8 +150,17 @@ export default function DecalBuilder({
       <div className="border border-[var(--rule)] bg-[var(--shirt-blank)] p-5">
         <h3 className="text-lede font-bold">Size and quantity</h3>
         <p className="mt-1 text-fine text-[var(--ink-muted)]">
-          Any size up to {MAX_STICKER_SIZE_INCHES}&Prime;, any amount. Enter
-          the exact width and height you need.
+          {deal ? (
+            <>
+              Any size up to {deal.maxInches}&Prime; x {deal.maxInches}&Prime;.
+              The deal is exactly {deal.quantity}. Enter your width and height.
+            </>
+          ) : (
+            <>
+              Any size up to {MAX_STICKER_SIZE_INCHES}&Prime;, any amount. Enter
+              the exact width and height you need.
+            </>
+          )}
         </p>
 
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -150,14 +169,14 @@ export default function DecalBuilder({
             label="Width (in)"
             value={product.widthInches}
             min={0.01}
-            max={MAX_STICKER_SIZE_INCHES}
+            max={maxInches}
             // "any" rather than a fixed step: a step of 0.25 made the browser
             // reject 1.1 as invalid, which is exactly what we now allow.
             step="any"
             unit="in"
             snap={sanitizeSizeInches}
             error={fieldErrors?.width}
-            onChange={(widthInches) => onUpdate({ widthInches })}
+            onChange={(widthInches) => onUpdate({ widthInches: fitSize(widthInches) })}
           />
 
           <NumberField
@@ -165,16 +184,24 @@ export default function DecalBuilder({
             label="Height (in)"
             value={product.heightInches}
             min={0.01}
-            max={MAX_STICKER_SIZE_INCHES}
+            max={maxInches}
             // "any" rather than a fixed step: a step of 0.25 made the browser
             // reject 1.1 as invalid, which is exactly what we now allow.
             step="any"
             unit="in"
             snap={sanitizeSizeInches}
             error={fieldErrors?.height}
-            onChange={(heightInches) => onUpdate({ heightInches })}
+            onChange={(heightInches) => onUpdate({ heightInches: fitSize(heightInches) })}
           />
 
+          {deal ? (
+            <div className="col-span-2 sm:col-span-1" data-testid="deal-fixed-quantity">
+              <p className="text-fine font-bold text-[var(--ink-black)]">How many</p>
+              <p className="spec mt-2 flex h-12 items-center text-value font-bold text-[var(--ink-black)]">
+                Exactly {deal.quantity}
+              </p>
+            </div>
+          ) : (
           <NumberField
             id="sticker-quantity"
             label="How many"
@@ -186,6 +213,7 @@ export default function DecalBuilder({
             error={fieldErrors?.quantity}
             onChange={(quantity) => onUpdate({ quantity })}
           />
+          )}
         </div>
 
         <p className="mt-3 text-fine leading-5 text-[var(--ink-muted)]">
@@ -194,7 +222,9 @@ export default function DecalBuilder({
               both halves once a second design existed: a two-design order
               pays the first design's fee plus a smaller one for the second
               (getCartSetupFee), so no single figure is "the" setup. */}
-          {product.widthInches > 0 && product.heightInches > 0 ? (
+          {deal ? (
+            "One price for the set, setup included."
+          ) : product.widthInches > 0 && product.heightInches > 0 ? (
             <>
               {(product.widthInches * product.heightInches).toFixed(2)} sq in
               each. Setup for this design is split across its quantity, so the
@@ -228,7 +258,7 @@ export default function DecalBuilder({
 
       <OptionSelector
         title="Sticker Type"
-        options={stickerCatalog.materials}
+        options={deal ? [deal.material] : stickerCatalog.materials}
         selected={product.material}
         onSelect={(material) => onSelectMaterial(material)}
       />

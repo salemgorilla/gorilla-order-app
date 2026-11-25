@@ -1,4 +1,5 @@
 import { RETAIL_MULTIPLIER } from "./retail";
+import { sortColorsByPopularity } from "./garment-color-ranking";
 import {
   apparelPricingConfig,
   garmentMarkupKey,
@@ -270,7 +271,11 @@ function normalizeProducts(
       color.sizes.sort(sortSizes);
     }
 
+    // Alphabetical first, so every colour the ranking doesn't name keeps its
+    // old place; then the shop's most-ordered colours move to the top
+    // (lib/garment-color-ranking.ts).
     product.colors.sort((a, b) => a.colorName.localeCompare(b.colorName));
+    product.colors = sortColorsByPopularity(product.colors);
   }
 
   return normalizedProducts.sort((a, b) =>

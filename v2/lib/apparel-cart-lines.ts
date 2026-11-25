@@ -46,6 +46,7 @@ import type { SsCatalogColor, SsCatalogProduct } from "../features/types";
 import { blendedGarmentUnitPrice, garmentPriceByMarkup } from "./apparel-blend";
 import type { ApparelCartLine } from "./apparel-cart";
 import { pruneSizeQuantities } from "./size-quantities";
+import { isLightGarment } from "./light-garments";
 
 export type ExtraGarmentLine = {
   id: string;
@@ -369,9 +370,47 @@ export function anyGarmentNeedsUnderbase(
   primaryColorName: string,
   lines: ExtraGarmentLine[]
 ): boolean {
-  if (primaryColorName !== "White") return true;
+  if (!isLightGarment(primaryColorName)) return true;
 
-  return lines.some((line) => line.colorName && line.colorName !== "White");
+  return lines.some((line) => line.colorName && !isLightGarment(line.colorName));
+}
+
+/**
+ * THE print spec for a regular apparel quote: the one object the PRICE and
+ * the MINIMUM both read, so the two cannot count different colours.
+ *
+ * Gabe, 2026-11-21: "Under base counts as a colors." Until 23 Nov the
+ * minimum counted the underbase from the garment alone, while the price
+ * also waited for uploaded artwork to be read. With the apparel step
+ * opening on Black, 24 tees at 1 colour asked for the 2-colour minimum but
+ * priced at the 1-colour rate: $394.60 against the $471.20 a 2-colour run
+ * costs. A customer who emailed the file instead of uploading it never got
+ * the underbase in the estimate at all. The garment decides the screens,
+ * not the artwork.
+ *
+ * The 50 Hoodie Special does NOT go through this: it is flat priced and its
+ * underbase is not one of its 2 inks (Gabe, 23 Nov: "Leave it out").
+ */
+export function apparelPrintSpec(
+  quote: {
+    garmentColor: string;
+    printLocations: string[];
+    inkColors: string;
+    inkColorsByLocation?: Record<string, string>;
+  },
+  extraLines: ExtraGarmentLine[]
+): {
+  printLocations: string[];
+  inkColors: string;
+  inkColorsByLocation?: Record<string, string>;
+  hasUnderbase: boolean;
+} {
+  return {
+    printLocations: quote.printLocations,
+    inkColors: quote.inkColors,
+    inkColorsByLocation: quote.inkColorsByLocation,
+    hasUnderbase: anyGarmentNeedsUnderbase(quote.garmentColor, extraLines),
+  };
 }
 
 /**

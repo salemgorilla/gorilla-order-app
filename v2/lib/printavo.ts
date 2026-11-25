@@ -10,6 +10,8 @@ import {
   type SignsPricingLine,
 } from "./signs-pricing";
 import { DEPOSIT_FRACTION } from "./auto-bill";
+import { HOODIE_SPECIAL, hoodieSpecialInkRule } from "./hoodie-special";
+import { teeDealFor, teeDealNote } from "./tee-deal";
 import { getTrackUrl } from "./order-status";
 import {
   SKU,
@@ -728,7 +730,7 @@ export async function createCheckout(input: {
    * order has to be told that delivery is billed separately (lib/auto-bill.ts
    * says why that is safe). The AMOUNT is Printavo's in both cases.
    */
-  flow?: "stickers" | "signs";
+  flow?: "stickers" | "signs" | "deal";
   /** True when the customer chose shipping rather than pickup. */
   shipped?: boolean;
   /**
@@ -750,7 +752,8 @@ export async function createCheckout(input: {
   }
 
   const signs = input.flow === "signs";
-  const what = signs ? "order" : "sticker quote";
+  const deal = input.flow === "deal";
+  const what = signs || deal ? "order" : "sticker quote";
   const deposit = Boolean(input.deposit);
 
   try {
@@ -766,7 +769,7 @@ export async function createCheckout(input: {
         : `Your Gorilla Salem ${what} — ready to pay`,
       body:
         "Thanks for your order.\n\n" +
-        `Your ${signs ? "signs are" : "stickers are"} priced and ready to pay ` +
+        `Your ${signs ? "signs are" : deal ? "Black Friday deal is" : "stickers are"} priced and ready to pay ` +
         "using the link below. " +
         "Once you pay we'll send a proof before anything goes to print — if " +
         "we can't print your artwork, you get a full refund.\n\n" +
@@ -1264,6 +1267,8 @@ export function buildPrintavoQuotePlan(input: {
   const needsHandPricing =
     productNeedsHandPricing || addOns.some((a) => Boolean(a.quoteRequired));
   const isSpecialOrder = Boolean(product.specialOrder);
+  // A Black Friday tee deal (lib/tee-deal.ts), or null on every other quote.
+  const teeDeal = teeDealFor(product.promo);
 
   /**
    * The nickname is what the shop scans in the Printavo list, so a counter
@@ -1485,12 +1490,39 @@ export function buildPrintavoQuotePlan(input: {
         // email dropped them (Gabe, 31 Aug) because it is the surface the
         // shop replies to customers from, and these four facts price the
         // blank for anyone who sees them. The internal note is shop-only.
-        `S&S style: ${str(supplier.catalogStyle, "N/A")} / SKU ${str(
-          supplier.sku,
-          "N/A"
-        )} / sample ${str(supplier.sampleSize, "N/A")} @ $${num(
-          supplier.markedUpGarmentPrice
-        ).toFixed(2)}`,
+        // A flat-rate offer names its own blank and where it comes from:
+        // the 50 Hoodie Special's is ordered from Cutter & Buck, not S&S.
+        str(product.promo) === HOODIE_SPECIAL.id
+          ? `Blank: ${str(supplier.supplierProductName, "N/A")}, order from ${str(
+              supplier.source,
+              "N/A"
+            )}`
+          : `S&S style: ${str(supplier.catalogStyle, "N/A")} / SKU ${str(
+              supplier.sku,
+              "N/A"
+            )} / sample ${str(supplier.sampleSize, "N/A")} @ $${num(
+              supplier.markedUpGarmentPrice
+            ).toFixed(2)}`,
+        // A flat-rate offer (lib/hoodie-special.ts): the row is one price per
+        // piece with printing and screens inside it, and there are no
+        // printing or setup rows. Said here so nobody adds them back.
+        // A tee deal (lib/tee-deal.ts) is a flat price, like the hoodie
+        // special, on an S&S blank: the S&S block above stays.
+        ...(teeDeal
+          ? [
+              `*** ${str(product.promoName)}: flat $${num(pricing.unitPrice).toFixed(2)} each, printing and setup included ***`,
+              `*** ${teeDealNote(teeDeal)} ***`,
+            ]
+          : str(product.promoName)
+          ? [
+              `*** ${str(product.promoName)}: flat $${num(
+                pricing.unitPrice
+              ).toFixed(2)} each, printing and setup included ***`,
+              ...(str(product.promo) === HOODIE_SPECIAL.id
+                ? [`*** ${hoodieSpecialInkRule()} ***`]
+                : []),
+            ]
+          : []),
         // The whole point of a special order — what they actually asked for.
         ...(isSpecialOrder
           ? [

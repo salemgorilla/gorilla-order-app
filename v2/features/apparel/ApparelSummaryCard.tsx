@@ -8,6 +8,7 @@ import { apparelPricingConfig } from "../../lib/apparel-pricing-config";
 import type { ArtworkAnalysis } from "../../lib/artwork";
 import { shouldListGarments } from "../../lib/apparel-cart-lines";
 import ApparelMoney from "./ApparelMoney";
+import { DEAL_PAYMENT_TERMS } from "../../lib/deal-payment";
 import type { ApparelLineEach } from "../../lib/apparel-per-line";
 
 type Props = {
@@ -40,6 +41,28 @@ type Props = {
     /** "M-12, L-6" — this garment's own sizes, when it has them. */
     sizeBreakdown?: string;
   }>;
+  /**
+   * A flat-rate offer (lib/hoodie-special.ts). Its price is one figure per
+   * piece with printing and setup inside it, so the matrix breakdown —
+   * garments, printing, screens, the tier levers, the assumed size mix —
+   * describes nothing about it and gives way to the offer's own lines.
+   */
+  flatRate?: {
+    name: string;
+    unitPrice: number;
+    sides: string;
+    /** "hoodies" unless said: the 50 Hoodie Special came first. */
+    unit?: string;
+    /** The closing line. Defaults to the hoodie special's. */
+    note?: string;
+  };
+  /**
+   * The run prints a white underbase (apparelPrintSpec). The price already
+   * charges it as one more colour and screen; this says so beside the ink,
+   * so "1 color" over $50 of screens is not a puzzle. Never set for a
+   * flat-rate offer, whose price covers it.
+   */
+  underbase?: boolean;
 };
 
 /**
@@ -62,6 +85,8 @@ export default function ApparelSummaryCard({
   artworkAnalysis,
   apparelEach = [],
   garmentLines = [],
+  flatRate,
+  underbase = false,
 }: Props) {
   // See shouldListGarments: not simply "more than one line" — a quote
   // whose only priced garment is an ADDED one has to list it, or the card
@@ -134,7 +159,9 @@ export default function ApparelSummaryCard({
         </div>
         <div className="flex justify-between gap-4">
           <span>Ink</span>
-          <span className="text-right font-bold text-[var(--ink-black)]">{describeInkColors(apparelQuote)}</span>
+          <span className="text-right font-bold text-[var(--ink-black)]">{describeInkColors(apparelQuote)}
+            {underbase && !flatRate ? " + white underbase" : ""}
+          </span>
         </div>
 
         {!apparelQuote.specialOrder && (
@@ -155,14 +182,14 @@ export default function ApparelSummaryCard({
           </>
         )}
 
-        {artworkAnalysis?.estimatedColorCount && (
+        {/* The special covers the underbase, so "+ underbase" here would
+            read as a charge the customer is not paying. */}
+        {artworkAnalysis?.estimatedColorCount && !flatRate && (
           <div className="flex justify-between gap-4">
             <span>Auto Count</span>
             <span className="text-right font-bold text-[var(--ink-black)]">
               {artworkAnalysis.estimatedColorCount}
-              {apparelQuote.garmentColor === "White"
-                ? ""
-                : " + underbase"}
+              {underbase ? " + underbase" : ""}
             </span>
           </div>
         )}
@@ -189,7 +216,39 @@ export default function ApparelSummaryCard({
           the shop email files as SPECIAL ORDER - NEEDS A HAND QUOTE. Signs
           already show "Priced by hand" here; apparel was the sibling that
           did not. */}
-      {apparelQuote.specialOrder ? (
+      {flatRate ? (
+        <div
+          data-testid="hoodie-special-summary"
+          className="mt-5 bg-[var(--surface-ok)] p-4"
+        >
+          <p className="text-spec font-bold uppercase tracking-eyebrow text-[var(--gorilla-green)]">
+            {flatRate.name}
+          </p>
+
+          <div className="mt-4 space-y-2 text-fine font-medium text-[var(--ink-muted)]">
+            <div className="flex justify-between gap-4">
+              <span>
+                {runQuantity} {flatRate.unit ?? "hoodies"} × ${flatRate.unitPrice.toFixed(2)}{" "}
+                ({flatRate.sides})
+              </span>
+              <span className="text-right font-bold text-[var(--ink-black)]">
+                ${apparelPricing.total.toFixed(2)}
+              </span>
+            </div>
+
+            <div className="flex justify-between gap-4">
+              <span>Printing and setup</span>
+              <span className="text-right font-bold text-[var(--ink-black)]">
+                Included
+              </span>
+            </div>
+
+            <p className="mt-3 border-t border-[var(--rule-faint)] pt-3 text-fine font-bold leading-5 text-[var(--gorilla-green)]">
+              {flatRate.note ?? "Flat rate. Size, color and ink count don\u2019t change it."}
+            </p>
+          </div>
+        </div>
+      ) : apparelQuote.specialOrder ? (
         <div className="mt-5 bg-[var(--surface-warn)] p-4">
           <p className="text-fine font-bold text-[var(--ink-black)]">
             Priced by hand
@@ -292,9 +351,9 @@ export default function ApparelSummaryCard({
 
       <div className="mt-5 bg-[var(--surface-warn)] p-4">
         <p className="text-fine font-medium leading-6 text-[var(--ink-muted)]">
-          Apparel pricing is an estimate. Gorilla Salem will review
-          garment availability, artwork, print method, and timeline
-          before confirming the final price.
+          {flatRate
+            ? `A fixed deal price. ${DEAL_PAYMENT_TERMS} We send a proof before anything goes to print.`
+            : "Apparel pricing is an estimate. Gorilla Salem will review garment availability, artwork, print method, and timeline before confirming the final price."}
         </p>
       </div>
     </div>

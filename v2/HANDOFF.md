@@ -131,6 +131,65 @@ link (`claude/customer-quote-link`) was converted off its 3% card fee locally
 and needs pushing; (4) embroidery pricing, when it ships, is ENGINE price —
 apply `retail2` to its cells.
 
+## 50 Hoodie Special button in apparel, 2026-11-23 — built, draft PR, not live
+
+Gabe, 2026-11-23: "a button in the apparel section, for the 50 hoody special.
+It should be a flat fee, nothing will change the end price ... as long as it's
+2 colors or under, there should be 2 pricing outcomes."
+
+- **Offer:** `lib/hoodie-special.ts` — $27 front, $33 front and back, XS-5XL
+  one price, up to 2 inks per side, setup included, 50 pieces or more, the
+  8 colours on his special art. All numbers in that one object.
+- **One blank, hard rule (Gabe, Nov 23):** Cutter & Buck's Clique Stockholm
+  Pullover Hoodie, MQK00107, colours under its own names (Black, Dark Navy,
+  Grey Melange, Anthracite Melange, Ash, White, Royal Blue, Red). No garment
+  picker. Bought from Cutter & Buck direct, so it is not in the S&S catalogue
+  and the preview draws a swatch, not a photo.
+- **2 inks per side, hard rule (Gabe, Nov 23):** menus stop at 2, one front
+  and at most one back, art that reads busier needs the customer's tick that
+  it prints in 2, and `app/api/quote` refuses a special that breaks any rule
+  or whose price isn't the flat rate. Underbase on dark hoodies is part of
+  the print, not one of the 2. The shop email and Printavo row say
+  "HARD LIMIT: 2 ink colors per side".
+- **Button:** a card at the top of the apparel step; while the special is on,
+  `features/apparel/HoodieSpecial.tsx` replaces the catalogue (colour, front
+  or front-and-back, placement, ink capped at 2 per side, size grid required).
+  "Switch to a regular quote" leaves it; only the size grid is reset.
+- **Price:** `quoteHoodieSpecial()` returns the normal `ApparelCartQuote` shape
+  with one garment line at the flat unit and zero printing, setup, underbase
+  and rush, so Printavo gets ONE row (printing/setup rows are only written
+  above zero) and the summary, review, email and copy text need no new shape.
+- **Shop sees it:** "*** PROMO ***" line and "Flat rate" in the shop email; the
+  Printavo row note and nickname name the special. Still `#Apparel`, still no
+  payment link (`isStickerOrder` false, pinned in tests).
+- **Ends:** the card disappears after Dec 1 on Salem's clock (not UTC); a quote
+  left open past midnight is refused with a line telling them to switch back.
+- **Regular apparel untouched:** minimums, colour order, placements and the
+  matrix only change behaviour when `promo === "hoodie-50"`.
+
+## The order page adapts to what customers order, 2026-11-21 — built, draft PR, not live
+
+Gabe, 2026-11-21: "Build both" — (1) the app re-sorts itself from what
+customers pick and order, Black/Navy/Sport Grey pinned on top; (2) a weekly
+review that only suggests changes. This is (1) plus the data (2) reads.
+Built on `claude/sort-garment-colors` (#222), whose hand-written order is now
+the starting point the learned order works from.
+
+- **Counted:** colour, garment, print location and size picks per page visit
+  (`lib/usage-beacon.ts` → `POST /api/usage`), the same four read off every
+  apparel quote that reaches the shop (`/api/quote`, server-side), and funnel
+  steps per product. No cookie, no id, nothing about the visitor; the
+  scheduled test identity is dropped. Blob store, `order-usage/` in
+  production, `order-usage-preview/` on previews.
+- **Sorting:** `lib/adaptive-color-order.ts`, applied in `/api/ss-catalog`.
+  Every knob and the pins are in `lib/order-adapt-config.ts`. Rebuilt once a
+  day after a catalogue response; a broken store means the hand-written order.
+- **Weekly read:** `GET /api/usage/report?days=7` with `USAGE_REPORT_KEY`
+  (read-only, `x-usage-key`) or `ADMIN_SECRET`. Needs `USAGE_REPORT_KEY` set
+  in Vercel Production to be readable without the admin secret.
+- **Not counted:** whether a quote was PAID — that is in Printavo; the report
+  lists the period's quote numbers to look up.
+
 ## Customer's due date in the shop email and the Printavo list, 2026-10-29
 
 **Gabe: "I'm still not seeing it in the email I get confirming a quote has been

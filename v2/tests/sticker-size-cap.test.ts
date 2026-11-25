@@ -53,7 +53,9 @@ describe("the form", () => {
       "utf8"
     );
 
-    assert.match(builder, /max=\{MAX_STICKER_SIZE_INCHES\}/);
+    // The deal narrows it to 3"; every other design has the roll's limit.
+    assert.match(builder, /deal \? deal\.maxInches : MAX_STICKER_SIZE_INCHES/);
+    assert.match(builder, /max=\{maxInches\}/);
     assert.doesNotMatch(builder, /Any size, any amount/);
   });
 });

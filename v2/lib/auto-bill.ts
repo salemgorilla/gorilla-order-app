@@ -67,6 +67,13 @@
 import { isStickerOrder } from "./sticker-repricing";
 import { chargeableTotal } from "./tax";
 import { maySignsAutoBill } from "./order-flow";
+import { teeDealFor, teeDealSubmissionProblem, teeDealTotal } from "./tee-deal";
+import {
+  HOODIE_SPECIAL,
+  hoodieSpecialSubmissionProblem,
+  hoodieSpecialUnitPrice,
+  isHoodieSpecialOpen,
+} from "./hoodie-special";
 
 /**
  * THE CEILING GOVERNS WHAT THE CARD IS CHARGED, NOT THE PRE-TAX TOTAL.
@@ -377,6 +384,123 @@ export function decideStickersAutoBill(input: {
 }
 
 /**
+ * THE BLACK FRIDAY DEALS PAY IN FULL AT CHECKOUT — Gabe, 2026-11-23:
+ * "they can pay in full at checkout with any of these Black Friday deals.
+ * As well as the 50 hoody deal."
+ *
+ * Apparel otherwise waits for the shop, because its price is an estimate
+ * built from a supplier catalogue. A deal is not: its price is one figure in
+ * lib/tee-deal.ts or lib/hoodie-special.ts, fixed whatever colour or size the
+ * customer picks, and the quote endpoint has already refused any submission
+ * that does not fit the deal or carries another price. So the deal can take
+ * a card the way stickers do, on the same rules.
+ *
+ * The sticker deal needs nothing here: it is a sticker order, repriced and
+ * billed by decideStickersAutoBill like any other.
+ *
+ * Every clause re-asks what the route already checked, from the deal's own
+ * definition, because this is the line between the browser and a card:
+ *
+ *   deal          The promo names a tee deal or the 50 Hoodie Special.
+ *   open          The hoodie special closes after its last day.
+ *   fits          The deal's own submission check passes again here.
+ *   serverTotal   Worked out from the deal, never read from the browser,
+ *                 and the payload's total must be that figure.
+ *   kiosk, special order, Printavo, total > 0: as for stickers.
+ *   in full      Never a deposit, at any size (Gabe, 2026-11-24, below).
+ *
+ * Apparel is not taxed (lib/tax.ts), so Printavo's amount outstanding is the
+ * deal price itself.
+ */
+export function dealServerTotal(order: Record<string, unknown>): number | null {
+  const product = (order.product || {}) as Record<string, unknown>;
+  const promo = String(product.promo ?? "");
+  const teeDeal = teeDealFor(promo);
+  if (teeDeal) return teeDealTotal(teeDeal);
+  if (promo === HOODIE_SPECIAL.id) {
+    const locations = Array.isArray(product.printLocations)
+      ? product.printLocations.map(String)
+      : [];
+    const quantity = Number(product.quantity);
+    if (!(quantity > 0)) return null;
+    return Math.round(hoodieSpecialUnitPrice(locations) * quantity * 100) / 100;
+  }
+  return null;
+}
+
+export function isFixedPriceDealOrder(order: Record<string, unknown>): boolean {
+  const product = (order.product || {}) as Record<string, unknown>;
+  const promo = String(product.promo ?? "");
+  return Boolean(teeDealFor(promo)) || promo === HOODIE_SPECIAL.id;
+}
+
+export function decideDealAutoBill(input: {
+  order: Record<string, unknown>;
+  kioskSession: boolean;
+  printavoCreated: boolean;
+  /** The shop's today, for the hoodie special's last day. Injectable for tests. */
+  today?: string;
+}): AutoBillDecision {
+  const order = input.order;
+  if (!isFixedPriceDealOrder(order)) {
+    return { bill: false, deposit: false, reason: "not a fixed-price deal" };
+  }
+
+  const product = (order.product || {}) as Record<string, unknown>;
+  const pricing = (order.pricing || undefined) as Record<string, unknown> | undefined;
+  const hoodie = String(product.promo ?? "") === HOODIE_SPECIAL.id;
+
+  if (hoodie && !isHoodieSpecialOpen(input.today)) {
+    return { bill: false, deposit: false, reason: "the 50 Hoodie Special has closed" };
+  }
+
+  const problem = hoodie
+    ? hoodieSpecialSubmissionProblem(product, pricing)
+    : teeDealSubmissionProblem(product, pricing);
+  if (problem) {
+    return { bill: false, deposit: false, reason: `the order does not fit the deal: ${problem}` };
+  }
+
+  if (input.kioskSession) {
+    return { bill: false, deposit: false, reason: "kiosk order — payment is taken at the counter" };
+  }
+
+  if (isSpecialOrder(order)) {
+    return {
+      bill: false,
+      deposit: false,
+      reason:
+        "special order — the customer said what they need is not listed, so this is quoted by hand",
+    };
+  }
+
+  if (!input.printavoCreated) {
+    return { bill: false, deposit: false, reason: "no Printavo quote to bill against" };
+  }
+
+  const serverTotal = dealServerTotal(order);
+  if (serverTotal === null || !(serverTotal > 0)) {
+    return { bill: false, deposit: false, reason: `server total is ${serverTotal}` };
+  }
+  if (Math.abs(Number(pricing?.total) - serverTotal) > 0.005) {
+    return {
+      bill: false,
+      deposit: false,
+      reason: `the quote's total ${Number(pricing?.total)} is not the deal's ${serverTotal}`,
+    };
+  }
+
+  /**
+   * NO DEPOSIT ON A DEAL, at any size. Gabe, 2026-11-24: "I want the Black
+   * Friday deals to be pay in full as a policy rule" and "Same with the 50
+   * hoody deal: 100% paid in full, up front." The $4,999.99 ceiling guards
+   * against a total nobody checked; a deal's total is its own fixed price,
+   * re-derived and matched above, so it bills in full whatever it comes to.
+   */
+  return { bill: true, deposit: false, reason: "fixed deal price, paid in full up front" };
+}
+
+/**
  * What the SHOP's copy of the quote should say about payment.
  *
  * ── THE GAP THIS CLOSES ───────────────────────────────────────────────────
@@ -400,8 +524,13 @@ export function shopPaymentNote(input: {
   signs: AutoBillDecision | null;
   /** The stickers decision, for a sticker order. Ignored for other flows. */
   stickers: AutoBillDecision | null;
+  /** The deal decision, for a tee deal or the hoodie special. */
+  deal?: AutoBillDecision | null;
 }): string | null {
   if (input.signs && isSignsOrder(input.order)) return paymentNote(input.signs);
+
+  // A deal is new to paying online, so the shop hears either way.
+  if (input.deal && isFixedPriceDealOrder(input.order)) return paymentNote(input.deal);
 
   // Stickers get a line only when they are the EXCEPTION. They bill on every
   // ordinary order, so saying so each time is noise; saying nothing when one

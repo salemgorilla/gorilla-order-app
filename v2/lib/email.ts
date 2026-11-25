@@ -32,6 +32,9 @@ import { isApparelProduct, isPaperProduct, isSignsProduct } from "./order-flow";
 import { describePaperSpec, paperProductById, paperSpecFromProduct } from "./paper";
 import { needByLabel } from "./need-by";
 import { achRefund } from "./retail";
+import { HOODIE_SPECIAL, hoodieSpecialInkRule } from "./hoodie-special";
+import { STICKER_DEAL } from "./sticker-deal";
+import { teeDealFor, teeDealNote, type TeeDeal } from "./tee-deal";
 
 export type QuoteEmailResult = {
   sent: boolean;
@@ -411,6 +414,23 @@ export function buildQuoteEmail(input: {
       ...(str(product.garmentLines)
         ? []
         : [line("Size Breakdown", str(product.sizeBreakdown, "Not entered"))]),
+      // The flat-rate offer, said where the shop reads the garment, so a
+      // $27 hoodie is not mistaken for a mispriced regular quote.
+      ...(str(product.promoName)
+        ? [line("*** PROMO ***", str(product.promoName))]
+        : []),
+      ...(teeDealFor(product.promo)
+        ? [line("*** DEAL RULES ***", teeDealNote(teeDealFor(product.promo) as TeeDeal))]
+        : []),
+      ...(str(product.promo) === HOODIE_SPECIAL.id
+        ? [
+            line(
+              "Blank",
+              `${HOODIE_SPECIAL.supplierProductName}, order from ${HOODIE_SPECIAL.supplier}`
+            ),
+            line("*** INK LIMIT ***", hoodieSpecialInkRule()),
+          ]
+        : []),
       ...(product.specialOrder
         ? [
             line("*** SPECIAL ORDER ***", "Needs a hand quote"),
@@ -657,6 +677,24 @@ export function buildQuoteEmail(input: {
 
       estimateLines.push(line(label, value));
     }
+  } else if (
+    apparel &&
+    (str(pricing.promo) === HOODIE_SPECIAL.id || Boolean(teeDealFor(pricing.promo)))
+  ) {
+    // A flat-rate offer (lib/hoodie-special.ts): one price per piece with
+    // printing and screens inside it. "Printing $0.00" here would read as a
+    // missing charge rather than an included one.
+    estimateLines.push(
+      line(
+        "Flat rate",
+        `${quantity} x ${money(pricing.unitPrice)} = ${money(pricing.total)}`
+      ),
+      line("Printing / Setup", "Included in the flat rate")
+    );
+
+    if (pricing.note) {
+      estimateLines.push(line("Basis", str(pricing.note)));
+    }
   } else if (apparel) {
     estimateLines.push(
       line("Garments", money(pricing.garmentTotal)),
@@ -679,6 +717,11 @@ export function buildQuoteEmail(input: {
     }
   } else {
     estimateLines.push(
+      // The Black Friday sticker deal (lib/sticker-deal.ts) says so first, so
+      // a $0.00 setup below reads as included, not as a fee that failed.
+      ...(str(pricing.promo) === STICKER_DEAL.id && pricing.note
+        ? [line("Deal", str(pricing.note))]
+        : []),
       line("Stickers", money(pricing.stickerListPrice ?? pricing.stickerPrice)),
       /**
        * The setup fee, which this breakdown used to omit entirely.

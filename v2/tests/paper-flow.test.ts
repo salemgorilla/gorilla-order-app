@@ -345,8 +345,10 @@ describe("the route is wired shut around paper (text, because delivery cannot ru
   it("the payment-link branch refuses paper whatever the decisions above said", () => {
     assert.match(
       route,
-      /printavoReady &&\s*!isPaper &&\s*\(stickersAutoBill\.bill \|\| signsAutoBill\.bill\)/
+      /printavoReady &&\s*!isPaper &&\s*\(stickersAutoBill\.bill \|\| signsAutoBill\.bill \|\| \(isDeal && dealAutoBill\.bill\)\)/
     );
+    // And a deal is never paper in the first place.
+    assert.match(route, /const isDeal = !isStickers && !isPaper && isFixedPriceDealOrder/);
   });
 
   it("logs paper as paper, not as apparel", () => {

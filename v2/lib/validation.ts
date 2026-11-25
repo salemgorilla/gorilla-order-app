@@ -8,6 +8,9 @@ import { isNeedByRefused, needByRefusedError } from "./rush";
 import { orderProblemsByStep, type FieldProblem } from "./steps";
 import { Order, StickerItem } from "../types/order";
 import { validatePaperSpec, type PaperSpec } from "./paper";
+import { designColorCount, screenPrintMinimumMessage } from "./print-minimums";
+import { HOODIE_SPECIAL, hoodieSpecialFieldErrors } from "./hoodie-special";
+import { teeDealFor, teeDealProblem } from "./tee-deal";
 
 /**
  * The email rule, once, for all three flows.
@@ -557,12 +560,50 @@ export function getApparelFieldErrors(
     quantity: number;
     printLocations: string[];
     /**
+     * The print's ink colours, for the colour-based minimum (lib/print-
+     * minimums.ts). Optional so a caller that only checks the contact rules
+     * need not build a print spec; page.tsx always passes the real quote,
+     * so the live form always checks the minimum.
+     */
+    inkColors?: string;
+    inkColorsByLocation?: Record<string, string>;
+    /** A white underbase under the print: one more colour (Gabe, 2026-11-21). */
+    hasUnderbase?: boolean;
+    /**
+     * Pieces across EVERY garment line on the quote. The minimum is per
+     * design and a quote is one design, so 12 tees and 12 hoodies count as
+     * 24. Defaults to `quantity` (a quote of one garment).
+     */
+    totalQuantity?: number;
+    /**
      * The configured garment's customer-facing name, when the catalogue has
      * answered — "Premium Soft Tee". Optional: the fallback garment list and
      * the request flow have no catalogue label, and the message falls back
      * to the words it has always used.
      */
     garmentLabel?: string;
+    /**
+     * A flat-rate offer the customer chose — "hoodie-50" is the 50 Hoodie
+     * Special (lib/hoodie-special.ts). Its own rules replace the matrix's
+     * count, minimum and placement rules; contact, date and artwork are
+     * checked exactly as for any apparel quote.
+     */
+    promo?: string;
+    garmentColor?: string;
+    /**
+     * Salem's date for the offer's cut-off, when a caller pins it (tests).
+     * Left out, the special reads the shop's own clock — not `today` below,
+     * which is the UTC date and turns over at 7 PM in Salem.
+     */
+    promoToday?: string;
+    /** The special's art tick (lib/hoodie-special.ts). */
+    promoArtConfirmed?: boolean;
+    /** What the artwork reader counted, for the special's 2-colour rule. */
+    promoArtworkColorCount?: number | null;
+    /** The tee deals (lib/tee-deal.ts): the S&S style and added garments. */
+    catalogStyle?: string;
+    extraLineCount?: number;
+    sizeBreakdown?: string;
   },
   order: {
     customer: { customerName: string; email: string };
@@ -628,8 +669,56 @@ export function getApparelFieldErrors(
     errors.artwork = "Upload your artwork before submitting.";
   }
 
+  if (apparelQuote.promo === HOODIE_SPECIAL.id) {
+    const special = hoodieSpecialFieldErrors({
+      quantity: apparelQuote.quantity,
+      sizeQuantityTotal,
+      colorName: apparelQuote.garmentColor || "",
+      printLocations: apparelQuote.printLocations,
+      inkColors: apparelQuote.inkColors || "",
+      inkColorsByLocation: apparelQuote.inkColorsByLocation,
+      // NOT `today`: that is the UTC date, and the offer ends on Salem's
+      // clock — at 8 PM on Dec 1 in Salem it is already Dec 2 in UTC.
+      today: apparelQuote.promoToday,
+      artworkColorCount: apparelQuote.promoArtworkColorCount,
+      artConfirmed: apparelQuote.promoArtConfirmed,
+    });
+    return {
+      ...errors,
+      ...special,
+      // A missing file is the first thing to fix; the colour check reads it.
+      ...(errors.artwork || special.artwork
+        ? { artwork: errors.artwork || special.artwork }
+        : {}),
+    };
+  }
+
   if (apparelQuote.printLocations.length === 0) {
     errors.printLocations = "Choose at least one print location.";
+  }
+
+  /**
+   * A BLACK FRIDAY TEE DEAL (lib/tee-deal.ts): 24 tees, one front print,
+   * never more than 2 screens with the underbase. Said once, under the
+   * question it is about; the regular minimum below still runs and a deal
+   * that fits always meets it.
+   */
+  const teeDeal = teeDealFor(apparelQuote.promo);
+  if (teeDeal) {
+    const problem = teeDealProblem(teeDeal, {
+      sizeBreakdown: apparelQuote.sizeBreakdown || "",
+      catalogStyle: apparelQuote.catalogStyle,
+      garmentColor: apparelQuote.garmentColor || "",
+      printLocations: apparelQuote.printLocations,
+      inkColors: apparelQuote.inkColors || "",
+      inkColorsByLocation: apparelQuote.inkColorsByLocation,
+      extraLines: apparelQuote.extraLineCount,
+    });
+    if (problem) {
+      if (/sizes|tees\./i.test(problem) && /add up|cover sizes/.test(problem)) errors.quantity = problem;
+      else if (/added garment/.test(problem)) errors.garmentLines = problem;
+      else errors.printLocations = problem;
+    }
   }
 
   /**
@@ -657,6 +746,28 @@ export function getApparelFieldErrors(
     errors.quantity = apparelQuote.garmentLabel
       ? `Enter how many ${apparelQuote.garmentLabel} you need.`
       : "Enter roughly how many you need.";
+  }
+
+  /**
+   * THE MINIMUM, by ink colours — Gabe, 2026-11-21: 1 colour 12, 2 colours
+   * 24, 3 and up 48, per design, the white underbase counted as a colour
+   * (lib/print-minimums.ts). Checked only once
+   * there is a count, so an empty box still asks "how many" first. A
+   * special order returned above: it is priced by hand, embroidery and
+   * hats included, and the shop answers its minimum in the reply.
+   */
+  if (!errors.quantity && apparelQuote.quantity > 0 && apparelQuote.inkColors) {
+    const short = screenPrintMinimumMessage(
+      apparelQuote.totalQuantity ?? apparelQuote.quantity,
+      designColorCount({
+        printLocations: apparelQuote.printLocations,
+        inkColors: apparelQuote.inkColors,
+        inkColorsByLocation: apparelQuote.inkColorsByLocation,
+        hasUnderbase: apparelQuote.hasUnderbase,
+      }),
+      { underbase: apparelQuote.hasUnderbase }
+    );
+    if (short) errors.quantity = short;
   }
 
   // A blank or half-filled extra garment: the customer pressed "add" and

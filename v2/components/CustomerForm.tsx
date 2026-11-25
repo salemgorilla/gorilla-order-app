@@ -215,10 +215,8 @@ export default function CustomerForm({
           </div>
         </fieldset>
 
-        {/* Ships ticked. That default is only defensible while the box is
-            plainly visible, says what it signs you up for, and comes off in
-            one click — so it is full width, in the reading order, and not
-            tucked under the submit button where consent boxes go to hide. */}
+        {/* Starts empty (Gabe, 2026-11-25). Full width and in the reading
+            order, so it is seen, not tucked under the submit button. */}
         <label
           className={[
             "flex min-h-[44px] cursor-pointer items-start gap-3 sm:col-span-2",
@@ -242,12 +240,10 @@ export default function CustomerForm({
             <span className="block text-fine font-semibold text-[var(--ink-black)]">
               Email me occasional Gorilla Salem news and offers
             </span>
-            {/* Says what it actually is. "Untick to opt out" is stated
-                because the box arrives ticked, and someone skim-reading a
-                form should not discover that later from an inbox. */}
+            {/* Says what it actually is. */}
             <span className="mt-1 block text-fine text-[var(--ink-muted)]">
-              Shop news, seasonal offers and new products. Untick to opt out —
-              you will still get everything about this quote either way, and
+              Shop news, seasonal offers and new products. You will still get
+              everything about this quote either way, and
               you can unsubscribe from any email.
             </span>
           </span>

@@ -76,7 +76,7 @@ describe("the shop email tells the truth about the list", () => {
       buildCustomerLines({ customer: optedIn, newsletterConfigured: true })
     );
 
-    assert.match(row, /Opted in \(box shipped pre-ticked\)/);
+    assert.match(row, /Opted in \(box started empty — ticked deliberately\)/);
     assert.doesNotMatch(row, /NOT added/);
   });
 
@@ -113,7 +113,7 @@ describe("the shop email tells the truth about the list", () => {
       })
     );
 
-    assert.match(row, /Declined/);
+    assert.match(row, /Not opted in \(box started empty\)/);
     assert.doesNotMatch(row, /NOT added/);
   });
 

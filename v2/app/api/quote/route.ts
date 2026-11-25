@@ -1087,10 +1087,11 @@ export async function POST(request: Request) {
             source:
               describeKioskSource(kioskSession) ??
               "labs.gorillasalem.com quote builder",
-            // The box arrives ticked, so every record has to say so. This is
-            // the field that answers "did they choose this, or did we?" —
-            // which is the first question an ESP asks about a flagged list.
-            preChecked: true,
+            // The box starts empty (Gabe, 2026-11-25), so an opt-in here is a
+            // tick the customer made. This is the field that answers "did they
+            // choose this, or did we?", the first question an ESP asks about
+            // a flagged list.
+            preChecked: false,
           },
         })
       : { sent: false as const, skipped: true as const, reason: "Not opted in." };

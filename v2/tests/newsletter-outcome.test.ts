@@ -67,7 +67,7 @@ describe("the shop email reports what actually happened to the sign-up", () => {
       })
     );
 
-    assert.match(text, /Opted in \(box shipped pre-ticked\)/);
+    assert.match(text, /Opted in \(box started empty — ticked deliberately\)/);
     assert.match(text, /NOT added to any list: Vercel Blob: Failed to fetch blob: 400 Bad Request\./);
     assert.match(text, /backfilled/, "the consent is still recorded, and the row must say so");
   });
@@ -105,7 +105,7 @@ describe("the shop email reports what actually happened to the sign-up", () => {
       })
     );
 
-    assert.match(text, /Declined/);
+    assert.match(text, /Not opted in \(box started empty\)/);
     assert.doesNotMatch(text, /NOT added/);
   });
 

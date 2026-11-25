@@ -269,22 +269,22 @@ describe("the consent record says the same thing in both renderings", () => {
    * body saying "Opted in" beside a text body saying "Declined" is not a
    * cosmetic bug.
    *
-   * The distinction being preserved: on the website the box arrives ticked, so
-   * leaving it ticked is a weaker act than ticking it; on the kiosk it starts
-   * empty, so "Declined" would claim a decision nobody made.
+   * The box starts empty on the website and the kiosk alike (Gabe,
+   * 2026-11-25), so a tick is always deliberate and an empty box is not a
+   * "Declined": nobody made a decision.
    */
   const CONSENT_CASES: Array<[string, Record<string, unknown>, Record<string, unknown>, string]> = [
     [
       "website, ticked",
       { customerName: "A", email: "a@b.com", newsletterOptIn: true },
       {},
-      "Opted in (box shipped pre-ticked)",
+      "Opted in (box started empty — ticked deliberately)",
     ],
     [
       "website, un-ticked",
       { customerName: "A", email: "a@b.com", newsletterOptIn: false },
       {},
-      "Declined",
+      "Not opted in (box started empty)",
     ],
     [
       "kiosk, ticked",

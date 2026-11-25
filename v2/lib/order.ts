@@ -88,10 +88,9 @@ export const defaultOrder: Order = {
     phone: "",
     notes: "",
     heardAbout: [],
-    // Pre-checked by decision. See the note on Customer.newsletterOptIn —
-    // the box has to stay obvious and one click from off, which is what earns
-    // the default.
-    newsletterOptIn: true,
+    // Starts EMPTY (Gabe, 2026-11-25: "Start unticked"). A sign-up has to be
+    // something the customer chose. See the note on Customer.newsletterOptIn.
+    newsletterOptIn: false,
   },
   items: [createStickerItem()],
   artwork: {

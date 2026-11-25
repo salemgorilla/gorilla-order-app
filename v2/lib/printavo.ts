@@ -9,7 +9,7 @@ import {
   signsFeeTotal,
   type SignsPricingLine,
 } from "./signs-pricing";
-import { DEPOSIT_FRACTION } from "./auto-bill";
+import { DEPOSIT_FRACTION, isDealOrder } from "./auto-bill";
 import { HOODIE_SPECIAL, hoodieSpecialInkRule } from "./hoodie-special";
 import { teeDealFor, teeDealNote } from "./tee-deal";
 import { getTrackUrl } from "./order-status";
@@ -26,6 +26,7 @@ import { STICKER_ORDER_MINIMUM } from "./pricing";
 import { isApparelProduct, isPaperProduct, isSignsProduct } from "./order-flow";
 import { describePaperSpec, paperProductById, paperSpecFromProduct } from "./paper";
 import { needByLabel } from "./need-by";
+import { achRefund } from "./retail";
 import { WINDOW_DAYS } from "./press-activity";
 import {
   lineItemTitle,
@@ -1626,6 +1627,18 @@ export function buildPrintavoQuotePlan(input: {
       ? [
           `Tax (${SALES_TAX.ratePercent}% on $${quoteTotals.taxableSubtotal.toFixed(2)}): $${quoteTotals.estimatedTax.toFixed(2)}`,
           `Total incl. tax: $${quoteTotals.estimatedTotal.toFixed(2)}`,
+        ]
+      : []),
+    /**
+     * THE 3% (Gabe, 2026-11-11): the figures above are retail, and a customer
+     * who pays by bank transfer (ACH) is refunded the 3% in them afterwards.
+     * Written onto the quote so whoever issues the refund has the figure and
+     * never works it out; tax is on the retail price and is not refunded.
+     * Omitted when nothing is priced (paper, hand quotes).
+     */
+    ...(!paper && !needsHandPricing && !isDealOrder(order) && achRefund(total) > 0
+      ? [
+          `Pay by bank transfer (ACH) and save $${achRefund(total).toFixed(2)}: refund the 3% after payment clears.`,
         ]
       : []),
     // One "each" across three different stickers is a blended average of

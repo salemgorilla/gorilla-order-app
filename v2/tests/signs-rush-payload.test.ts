@@ -20,6 +20,12 @@
  * The invoice was the only place the disagreement existed, which is exactly
  * the shape AGENTS.md warns about — verified here by driving the real
  * payload builder and the real Printavo plan, not by reading them.
+ *
+ * The dollar figures in the history above are the OLD price book. RETAIL,
+ * 2026-11-11 (+3%): the one-design quote is $421.81 and the cart $843.63
+ * (25 signs x $12.88 + $15.45 setup = $337.45 a design, x 1.25 rush). Each
+ * rate rounds to the cent before it is multiplied by 25 signs, so these sit
+ * a few cents over old x 1.03 ($409.38 -> $421.66 -> $421.81).
  */
 import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
@@ -84,18 +90,18 @@ function invoiceSubtotal(plan: ReturnType<typeof planFor>["plan"]) {
 }
 
 describe("a rushed signs quote invoices for what it quoted", () => {
-  test("one design: $409.38 quoted, $409.38 invoiced", () => {
+  test("one design: $421.81 quoted, $421.81 invoiced (old book $409.38)", () => {
     const { pricing, plan } = planFor([YARD]);
 
-    assert.equal(pricing.total, 409.38);
-    assert.equal(invoiceSubtotal(plan), 409.38);
+    assert.equal(pricing.total, 421.81);
+    assert.equal(invoiceSubtotal(plan), 421.81);
   });
 
-  test("two designs: $818.75 quoted, $818.75 invoiced — was $655.00", () => {
+  test("two designs: $843.63 quoted, $843.63 invoiced — was $674.90 (old book $818.75 / $655.00)", () => {
     const { pricing, plan } = planFor([YARD, { ...YARD, id: "design-2" }]);
 
-    assert.equal(pricing.total, 818.75);
-    assert.equal(invoiceSubtotal(plan), 818.75);
+    assert.equal(pricing.total, 843.63);
+    assert.equal(invoiceSubtotal(plan), 843.63);
   });
 });
 
@@ -132,7 +138,7 @@ describe("rush is one line, one SKU, untaxed", () => {
     );
 
     assert.equal(setup.length, 1);
-    assert.equal(setup[0].price, 30);
+    assert.equal(setup[0].price, 30.9); // $30 old book
   });
 });
 

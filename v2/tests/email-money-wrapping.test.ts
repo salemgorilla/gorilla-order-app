@@ -139,7 +139,11 @@ describe("the money it has to hold", () => {
     // would be inspecting an empty table and passing.
     const { html, text } = twoDesignEmail();
 
-    for (const amount of ["$327.00", "$162.00", "$135.00", "$30.00"]) {
+    // RETAIL, 2026-11-11 (old book: $327.00 total, $162.00 banner, $135.00
+    // for ten yard signs, $30.00 setup — the figures in the defect history
+    // above). Ten yard signs are 10 x $13.91 ($13.50 + 3% rounded to the
+    // cent), so the total is a nickel over 327 x 1.03 = $336.81.
+    for (const amount of ["$336.86", "$166.86", "$139.10", "$30.90"]) {
       assert.ok(html.includes(amount), `${amount} missing from the HTML`);
       assert.ok(text.includes(amount), `${amount} missing from the plain text`);
     }

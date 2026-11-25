@@ -76,7 +76,8 @@ describe("setup is one SKU, whatever the design count", () => {
 
       assert.equal(setup.length, 1);
       assert.equal(setup[0].itemNumber, "GORILLA-SIGN-SETUP");
-      assert.equal(setup[0].price, 15 * count);
+      // $15.45 a design at retail (+3%, 2026-11-11; $15 old book).
+      assert.equal(setup[0].price, Math.round(15.45 * count * 100) / 100);
     });
   }
 
@@ -145,7 +146,7 @@ describe("an add-on is the same SKU at any quantity or price", () => {
 describe("an add-on is itemised whether or not the quote has one design", () => {
   /**
    * A cart used to fold finishing add-ons into the per-unit line price, so
-   * "Pole Pockets $30" was a visible, adjustable line on a one-design invoice
+   * "Pole Pockets $30" ($30.90 retail since 2026-11-11) was a visible, adjustable line on a one-design invoice
    * and invisible inside a $177 unit price on a two-design one. Same work,
    * same money, two different invoices — and the shop loses the ability to
    * waive one charge without recomputing a unit price by hand, which is the
@@ -158,7 +159,8 @@ describe("an add-on is itemised whether or not the quote has one design", () => 
     );
 
     assert.ok(pockets, "pole pockets are not on the invoice");
-    assert.equal(pockets.price, 30);
+    // $30.90 retail (+3%, 2026-11-11); $30 in the old book.
+    assert.equal(pockets.price, 30.9);
   });
 
   test("two designs: still its own fee line, and it says which design", () => {
@@ -172,7 +174,8 @@ describe("an add-on is itemised whether or not the quote has one design", () => 
     );
 
     assert.ok(pockets, "pole pockets vanished into the line item");
-    assert.equal(pockets.price, 30);
+    // $30.90 retail (+3%, 2026-11-11); $30 in the old book.
+    assert.equal(pockets.price, 30.9);
     assert.match(pockets.description, /Design 1/);
   });
 
@@ -192,7 +195,7 @@ describe("an add-on is itemised whether or not the quote has one design", () => 
     // ...and the difference between the two quotes is exactly the add-on.
     assert.equal(
       Math.round((withAddOn.cart.total - without.cart.total) * 100) / 100,
-      30
+      30.9 // $30 old book
     );
   });
 
@@ -207,7 +210,7 @@ describe("an add-on is itemised whether or not the quote has one design", () => 
       /WINDSLITS/.test(f.itemNumber)
     );
 
-    // Two designs bought wind slits; merging them into one $24 row would hide
+    // Two designs bought wind slits; merging them into one $24.72 row ($24 old book) would hide
     // which design is getting the work.
     assert.equal(slits.length, 2);
     assert.ok(slits.some((f) => /Design 1/.test(f.description)));

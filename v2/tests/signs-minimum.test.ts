@@ -3,6 +3,11 @@
  * orders at $45. Applied once to the whole quote, after designs and setup,
  * before rush and tax. lib/signs-cart.ts.
  *
+ * RETAIL, 2026-11-11: every price is the old price + 3% (lib/retail.ts), so
+ * the floors are now $61.80 for signs and $46.35 for banners, setup is
+ * $15.45, and the old-book figures in the titles below carry their retail
+ * value in the assertions: yard sign $31 -> $31.93, banner $18 -> $18.54.
+ *
  * What these pin: the floor lifts a small quote to the minimum and no
  * further; it is cart-level, so two small designs that add up clear it;
  * the top-up is its own line, TAXED as goods (it is the price of the
@@ -47,66 +52,67 @@ const BIG_BANNER: SignsDesign = {
 };
 
 describe("the minimums are the decision, as literal figures", () => {
-  test("$60 signs, $45 banners", () => {
-    assert.equal(signsPricingConfig.minimumOrder.signs, 60);
-    assert.equal(signsPricingConfig.minimumOrder.banners, 45);
+  test("$60 signs, $45 banners (old book) = $61.80 signs, $46.35 banners retail", () => {
+    assert.equal(signsPricingConfig.minimumOrder.signs, 61.8);
+    assert.equal(signsPricingConfig.minimumOrder.banners, 46.35);
   });
 });
 
 describe("a small order is lifted to the floor, and no further", () => {
-  test("one yard sign: $31 + $15 setup = $46, priced at $60", () => {
+  test("one yard sign: $31.93 + $15.45 setup = $47.38, priced at $61.80 (old book $31 + $15 = $46, $60)", () => {
     const quote = quoteSignsCart([ONE_YARD_SIGN]);
     const minimum = quote.lines.find((l) => l.kind === "minimum");
 
     assert.equal(quote.priceable, true);
-    assert.equal(quote.total, 60);
-    assert.equal(quote.minimumApplied, 60);
+    assert.equal(quote.total, 61.8);
+    assert.equal(quote.minimumApplied, 61.8);
     assert.ok(minimum, "the top-up must be its own line");
-    assert.equal(minimum.amount, 14);
+    assert.equal(minimum.amount, 14.42);
     assert.equal(minimum.code, "MINIMUM");
-    assert.match(minimum.label, /start at \$60/);
+    assert.match(minimum.label, /start at \$61\.8/);
   });
 
-  test("a 1' x 2' banner: $18 + $15 setup = $33, priced at $45", () => {
+  test("a 1' x 2' banner: $18.54 + $15.45 setup = $33.99, priced at $46.35 (old book $18 + $15 = $33, $45)", () => {
     const quote = quoteSignsCart([TINY_BANNER]);
 
     assert.equal(quote.priceable, true);
-    assert.equal(quote.total, 45);
-    assert.equal(quote.minimumApplied, 45);
-    assert.equal(quote.lines.find((l) => l.kind === "minimum")?.amount, 12);
+    assert.equal(quote.total, 46.35);
+    assert.equal(quote.minimumApplied, 46.35);
+    assert.equal(quote.lines.find((l) => l.kind === "minimum")?.amount, 12.36);
   });
 
   test("a 3' x 6' banner clears it on its own — no line, no field", () => {
     const quote = quoteSignsCart([BIG_BANNER]);
 
-    assert.ok(quote.total > 45);
+    assert.ok(quote.total > 46.35);
     assert.equal(quote.minimumApplied, undefined);
     assert.equal(quote.lines.some((l) => l.kind === "minimum"), false);
   });
 
   test("exactly at the minimum is not lifted", () => {
-    // Two yard signs are $51 + $15 = $66 — over. Build an at-the-line case
-    // from the config rather than hoping a real product lands on it.
+    // Two yard signs are $51 + $15 = $66 (old book) — over. Build an at-the-line
+    // case from the config rather than hoping a real product lands on it.
     const quote = quoteSignsCart([ONE_YARD_SIGN]);
     const own = quote.total - (quote.lines.find((l) => l.kind === "minimum")?.amount ?? 0);
+    const cents = (n: number) => Math.round(n * 100) / 100;
 
-    assert.equal(own, 46, "the fixture's own total");
-    assert.equal(quote.total - own, 14, "the lift is exactly the shortfall");
+    assert.equal(cents(own), 47.38, "the fixture's own total ($46 old book)");
+    assert.equal(cents(quote.total - own), 14.42, "the lift is exactly the shortfall");
   });
 });
 
 describe("it is one order, not one design", () => {
-  test("two $46 yard-sign designs are a $92 order — no minimum", () => {
+  test("two $47.38 yard-sign designs are a $94.76 order — no minimum (old book: two $46 = $92)", () => {
     const quote = quoteSignsCart([ONE_YARD_SIGN, { ...ONE_YARD_SIGN, id: "y2" }]);
 
-    assert.equal(quote.total, 92);
+    assert.equal(quote.total, 94.76);
     assert.equal(quote.minimumApplied, undefined);
   });
 
-  test("two tiny banners at $33 each are a $66 order — no minimum", () => {
+  test("two tiny banners at $33.99 each are a $67.98 order — no minimum (old book: $33 each, $66)", () => {
     const quote = quoteSignsCart([TINY_BANNER, { ...TINY_BANNER, id: "b3" }]);
 
-    assert.equal(quote.total, 66);
+    assert.equal(quote.total, 67.98);
     assert.equal(quote.minimumApplied, undefined);
   });
 
@@ -145,7 +151,7 @@ describe("the top-up is goods: taxed, and it rides on both Printavo paths", () =
     const line = plan.feeLineItems.find((f) => f.itemNumber === "GORILLA-SIGN-MINIMUM");
 
     assert.ok(line, "no minimum row on the invoice");
-    assert.equal(line.price, 14);
+    assert.equal(line.price, 14.42);
     assert.equal(line.taxed, true, "the top-up is goods, not a fee");
     assert.equal(invoice, pricing.total);
   });
@@ -157,24 +163,28 @@ describe("the top-up is goods: taxed, and it rides on both Printavo paths", () =
       plan.lineItems.reduce((s, l) => s + l.price * Math.max(1, l.quantity), 0) +
       plan.feeLineItems.filter((f) => f.taxed).reduce((s, f) => s + f.price, 0);
 
-    // $60 total, $15 of it setup (untaxed): $45 taxable, $31 sign + $14 lift.
-    assert.equal(estimate.taxableSubtotal, 45);
-    assert.equal(Math.round(invoiceBase * 100) / 100, 45);
+    // $61.80 total, $15.45 of it setup (untaxed): $46.35 taxable, $31.93 sign +
+    // $14.42 lift. (Old book: $60 total, $15 setup, $45 taxable, $31 + $14.)
+    assert.equal(estimate.taxableSubtotal, 46.35);
+    assert.equal(Math.round(invoiceBase * 100) / 100, 46.35);
   });
 
   test("a CART under the floor: the line rides the cart path to Printavo", () => {
-    // Two 6" x 6" banners: $2.25 of vinyl each, $15 setup each — $34.50,
-    // under the $45 floor. This is the shape that lost rush (#107): a
+    // Two 6" x 6" banners: $2.32 of vinyl each ($9.27/sqft x 0.25 sqft, rounded
+    // to the cent; $2.25 old book), $15.45 setup each — $35.54, under the
+    // $46.35 floor (old book: $34.50 under $45). This is the shape that lost rush (#107): a
     // cart-level line that no per-design sweep can see.
     const tiny6: SignsDesign = { ...TINY_BANNER, id: "b4", customWidthInches: 6, customHeightInches: 6 };
     const { pricing, plan, invoice } = planFor([tiny6, { ...tiny6, id: "b5" }], "banners");
 
-    assert.equal(pricing.minimumApplied, 45, "the fixture must actually be under the floor");
-    assert.equal(pricing.lines.find((l) => l.kind === "minimum")?.amount, 10.5);
+    assert.equal(pricing.minimumApplied, 46.35, "the fixture must actually be under the floor");
+    // $10.50 old book; $10.81 = $46.35 - $35.54 (10.50 x 1.03 = 10.815: the
+    // vinyl line is rounded to the cent before it is added up).
+    assert.equal(pricing.lines.find((l) => l.kind === "minimum")?.amount, 10.81);
 
     const line = plan.feeLineItems.find((f) => f.itemNumber === "GORILLA-SIGN-MINIMUM");
     assert.ok(line, "the cart path dropped the minimum line");
-    assert.equal(line.price, 10.5);
+    assert.equal(line.price, 10.81);
     assert.equal(line.taxed, true);
     assert.equal(invoice, pricing.total, "invoice and quote disagree");
   });
@@ -186,7 +196,7 @@ describe("the top-up is goods: taxed, and it rides on both Printavo paths", () =
       today: "2026-09-04",
     });
 
-    assert.equal(quote.rushFee, 15, "25% of $60");
-    assert.equal(quote.total, 75);
+    assert.equal(quote.rushFee, 15.45, "25% of $61.80 ($15 of $60 old book)");
+    assert.equal(quote.total, 77.25);
   });
 });

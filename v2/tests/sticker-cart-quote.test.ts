@@ -36,8 +36,10 @@ describe("the composition itself", () => {
     assert.equal(quote.stickerPrice, 60.8);
     assert.equal(quote.setupPrice, STICKER_SETUP_FEE + STICKER_SETUP_FEE_ADDITIONAL);
     assert.equal(quote.shippingPrice, DECAL_SHIPPING_PRICE);
-    // 60.80 material + (15 + 7.50) setup + 12 shipping.
-    assert.equal(quote.total, 95.3);
+    // 60.80 material (the inputs are taken as given) + (15.45 + 7.73) setup +
+    // 12.36 shipping. Retail, 2026-11-11: was 15 + 7.50 setup and 12 shipping,
+    // $95.30. The $60.80 of goods is the $75 tier or under either way.
+    assert.equal(quote.total, 96.34);
   });
 
   it("charges setup per DESIGN, not per dollar", () => {
@@ -60,10 +62,11 @@ describe("the composition itself", () => {
     });
 
     assert.equal(single.setupPrice, STICKER_SETUP_FEE);
-    // $28.80 + $15 is $43.80 — under the $45 order minimum (2026-09-12),
-    // so the minimum tops it up and the total is $45. The material and
-    // setup lines are still exactly what they were; the top-up is its own.
-    assert.equal(single.minimumPrice, 1.2);
+    // $28.80 + $15.45 is $44.25 — under the $46.35 order minimum (2026-09-12,
+    // retail 2026-11-11; it was $28.80 + $15 = $43.80 against $45), so the
+    // minimum tops it up and the total is $46.35. The material and setup
+    // lines are still exactly what they were; the top-up is its own.
+    assert.equal(single.minimumPrice, 2.1);
     assert.equal(single.total, STICKER_ORDER_MINIMUM);
   });
 
@@ -87,7 +90,7 @@ describe("the composition itself", () => {
 
     assert.equal(quote.stickerPrice, 0.3);
     // The rounding contract is on the STICKER line and the GOODS; the total
-    // here is the $45 minimum, because 30 cents of stickers is nowhere near
+    // here is the $46.35 minimum, because 30 cents of stickers is nowhere near
     // it. The top-up is exactly what closes the gap, to the cent.
     assert.equal(
       quote.minimumPrice,
@@ -105,8 +108,11 @@ describe("the composition itself", () => {
 
     assert.equal(quote.stickerPrice, 0);
     assert.equal(quote.setupPrice, STICKER_SETUP_FEE);
-    // And since 2026-09-12 the $45 order minimum sits on top of that.
-    assert.equal(quote.minimumPrice, STICKER_ORDER_MINIMUM - STICKER_SETUP_FEE);
+    // And since 2026-09-12 the order minimum ($45, $46.35 retail) sits on top of that.
+    assert.equal(
+      quote.minimumPrice,
+      Math.round((STICKER_ORDER_MINIMUM - STICKER_SETUP_FEE) * 100) / 100
+    );
     assert.equal(quote.total, STICKER_ORDER_MINIMUM);
   });
 });

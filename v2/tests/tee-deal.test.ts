@@ -1,6 +1,6 @@
 /**
- * BLACK FRIDAY TEE DEALS (lib/tee-deal.ts): exactly 12 Basic Tees or 24 Gildan
- * 5000s in any color, one front print, one fixed price: $50 or $100 off the full price, no setup fee.
+ * BLACK FRIDAY TEE DEALS (lib/tee-deal.ts): exactly 12 or 24 Gildan 5000s
+ * (Gabe, 2026-11-24: "Gildan 5000 for both"), one front print, one fixed price: $50 or $100 off the full price, no setup fee.
  *
  * Gabe, 2026-11-23: "everything will be canned pricing ... so it'll always be
  * the same price", "They can't add more, they can't add less", and "2 color
@@ -52,16 +52,19 @@ describe("the deals' numbers", () => {
     assert.equal(twoColor.dollarsOff, 100);
   });
 
-  test("the 12-tee deal is 1 color on a light Basic Tee", () => {
-    const basic = { catalogStyle: "39" };
-    assert.equal(teeDealProblem(twelve, spec({ ...basic, sizeBreakdown: "M-6, L-6" })), null);
-    assert.match(teeDealProblem(twelve, spec({ ...basic, sizeBreakdown: "M-6, L-6", garmentColor: "Black" }))!, /light tees/);
-    assert.match(teeDealProblem(twelve, spec({ ...basic, sizeBreakdown: "M-12, L-12" }))!, /exactly 12/);
-    assert.match(teeDealProblem(twelve, spec({ sizeBreakdown: "M-6, L-6" }))!, /Basic Tee/);
+  test("the 12-tee deal is 1 color on a light Gildan 5000", () => {
+    const heavy = { catalogStyle: "16" };
+    assert.equal(teeDealProblem(twelve, spec({ ...heavy, sizeBreakdown: "M-6, L-6" })), null);
+    assert.match(teeDealProblem(twelve, spec({ ...heavy, sizeBreakdown: "M-6, L-6", garmentColor: "Black" }))!, /light tees/);
+    assert.match(teeDealProblem(twelve, spec({ ...heavy, sizeBreakdown: "M-12, L-12" }))!, /exactly 12/);
+    assert.match(teeDealProblem(twelve, spec({ catalogStyle: "39", sizeBreakdown: "M-6, L-6" }))!, /Heavy Cotton Tee/);
+    // The price did not move with the blank.
+    assert.equal(teeDealTotal(twelve), 130.32);
   });
 
-  test("the 24-tee deals are on the Gildan 5000 (S&S style 16), the 12 on the Basic Tee", () => {
-    assert.deepEqual(TEE_DEALS.map((d) => d.style), ["39", "16", "16"]);
+  test("all three deals are on the Gildan 5000 (S&S style 16)", () => {
+    assert.deepEqual(TEE_DEALS.map((d) => d.style), ["16", "16", "16"]);
+    assert.equal(twelve.blank, "Gildan 5000");
     assert.equal(oneColor.garment, "Heavy Cotton Tee");
     assert.equal(twoColor.blank, "Gildan 5000");
     assert.equal(quoteTeeDeal(twoColor, { colorName: "Navy", sizeBreakdown: "M-24" }).lines[0].catalogStyle, "16");

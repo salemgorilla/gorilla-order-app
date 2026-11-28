@@ -584,8 +584,7 @@ export function HoodieSpecialArtConfirm({
         {/* One span: in a flex label each bare text run becomes its own
             item and loses its leading space ("2colors"). */}
         <span>
-          My art prints in {HOODIE_SPECIAL.maxInksPerSide} colors or fewer on
-          each side (a background color doesn&rsquo;t count).
+          {`My art prints in ${HOODIE_SPECIAL.maxInksPerSide} colors or fewer on each side (a background color doesn’t count).`}
         </span>
       </label>
       {error && !artConfirmed && (

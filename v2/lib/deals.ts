@@ -95,7 +95,7 @@ export const DEALS: readonly Deal[] = [
     title: "12 Tees, 1-Color Front",
     price: teeDealTotal(teeTwelve),
     regularPrice: teeTwelve.regularPrice,
-    item: "Gildan Basic Tee in a light color: white, off-white, Ash, Natural or Sand",
+    item: "Gildan 5000 Heavy Cotton tee in a light color: white, off-white, Ash, Natural or Sand",
     quantity: `Exactly 12, ${teeSizes}`,
     print: "Screen printed, 1 color, one front print. No setup fee",
     youAdd: "Artwork, tee color and sizes",

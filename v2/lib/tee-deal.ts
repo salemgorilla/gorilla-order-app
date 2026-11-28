@@ -27,6 +27,8 @@ import { isLightGarment } from "./light-garments";
  *
  *   12 Basic Tees (Gildan 2000), 1 color, white
  *     $83.40 + $72.00 + $25.00 = $180.40, less $50 = $130.40 -> $10.86, $130.32
+ *   (Priced on the Gildan 2000; the deal moved to the Gildan 5000 on
+ *   2026-11-24 at the same price, per Gabe.)
  *
  * The 24-tee deals are on the Gildan 5000 Heavy Cotton (S&S style 16), any
  * colour. Its S to XL cost the same in every colour; 2XL and 3XL cost less
@@ -54,16 +56,19 @@ export const TEE_DEAL_SIZES = ["S", "M", "L", "XL", "2XL", "3XL"] as const;
 /** One front print. The chart's front placements (lib/print-placements.ts). */
 export const TEE_DEAL_FRONTS = ["Left Chest", "Center Chest", "Front", "Oversize Front"];
 
-/** Gildan 2000 Ultra Cotton, the app's Basic Tee (S&S style 39). */
-const BASIC_TEE = { style: "39", garment: "Basic Tee", blank: "Gildan 2000" } as const;
-/** Gildan 5000 Heavy Cotton (S&S style 16), offered only on the 24-tee deals. */
+/**
+ * Gildan 5000 Heavy Cotton (S&S style 16), the blank for all three deals.
+ * The 12-tee deal began on the Gildan 2000 Basic Tee; Gabe, 2026-11-24:
+ * "Gildan 5000 for both." Its price was left as set.
+ */
 const HEAVY_COTTON_TEE = { style: "16", garment: "Heavy Cotton Tee", blank: "Gildan 5000" } as const;
 
 export const TEE_DEALS = [
   {
     id: "tees-12-1c",
     name: "12 Tees, 1-Color Front",
-    ...BASIC_TEE,
+    // Gabe, 2026-11-24: "Gildan 5000 for both." The price stays as set.
+    ...HEAVY_COTTON_TEE,
     /** Exactly this many. */
     quantity: 12,
     /** Per tee. quantity x this is the whole price. */

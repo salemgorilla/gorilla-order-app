@@ -236,24 +236,40 @@ describe("the ordering details are not deleted, only moved", () => {
    * dropping the data: the shop BUYS THE BLANKS off these three figures. If
    * they stop reaching the internal Printavo note, the leak is fixed and the
    * shop cannot place the order.
+   *
+   * The internal note is the PRODUCTION note. The customer note was thought
+   * shop-only, but Printavo prints it, and the row description, on the quote
+   * the customer opens to pay: the Nov 24 and Nov 28 test runs saw the blank
+   * cost there. Both are customer-reachable now and must carry none of it.
    */
   const plan = buildPrintavoQuotePlan({
     quoteNumber: "GS-20260909-AB12C",
     order: singleGarment,
     artworkAnalysis: null,
-  } as never) as never as { customerNote: string };
+  } as never) as never as {
+    customerNote: string;
+    productionNote: string;
+    lineItems: { description: string }[];
+  };
 
   it("style, SKU, sample size and blank cost all reach the internal note", () => {
-    assert.match(plan.customerNote, new RegExp(`S&S style: ${STYLE}`));
-    assert.match(plan.customerNote, new RegExp(`SKU ${SKU}`));
-    assert.match(plan.customerNote, /sample M @ \$7\.78/);
+    assert.match(plan.productionNote, new RegExp(`S&S style: ${STYLE}`));
+    assert.match(plan.productionNote, new RegExp(`SKU ${SKU}`));
+    assert.match(plan.productionNote, /sample M @ \$7\.78/);
   });
 
   it("the sweep would have caught it — the note trips every rule", () => {
     // A guard that cannot fail is not a guard. The internal note is the
     // positive control: the same patterns run over it must hit.
-    const hits = BANNED.filter((pattern) => pattern.test(plan.customerNote));
+    const hits = BANNED.filter((pattern) => pattern.test(plan.productionNote));
 
     assert.ok(hits.length >= 4, `only ${hits.length} of the rules can fire`);
+  });
+
+  it("none of it is on the quote the customer opens", () => {
+    const visible = [plan.customerNote, ...plan.lineItems.map((row) => row.description)];
+    for (const part of visible) {
+      assert.doesNotMatch(part, /S&S style|SKU |sample M @/);
+    }
   });
 });

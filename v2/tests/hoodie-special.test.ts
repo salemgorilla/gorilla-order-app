@@ -427,9 +427,12 @@ describe("what reaches the shop", () => {
       0
     );
     assert.match(plan.lineItems[0].description, /50 Hoodie Special: flat \$33\.00 each/);
-    assert.match(plan.lineItems[0].description, /HARD LIMIT: 2 ink colors per side/);
-    assert.match(plan.customerNote, /Blank: Clique Stockholm Pullover Hoodie .*order from Cutter & Buck/);
-    assert.doesNotMatch(plan.customerNote, /S&S style/);
+    // Shop-only lines ride in the production note: the customer note and the
+    // row description are both on the quote the customer opens to pay.
+    assert.match(plan.productionNote, /HARD LIMIT: 2 ink colors per side/);
+    assert.match(plan.productionNote, /Blank: Clique Stockholm Pullover Hoodie .*order from Cutter & Buck/);
+    assert.doesNotMatch(plan.customerNote, /S&S style|Blank: /);
+    assert.doesNotMatch(plan.lineItems[0].description, /S&S style|Blank: |HARD LIMIT/);
     assert.match(
       plan.nickname,
       /GS-20261123-TEST1 - 50 Hoodie Special \(Stockholm Pullover Hoodie\)/

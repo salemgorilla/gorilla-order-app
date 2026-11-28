@@ -83,6 +83,12 @@ type Props = {
     sizes: readonly string[];
     placements: readonly string[];
     inks: readonly string[];
+    /**
+     * Only light tees (lib/light-garments.ts). A 1-screen deal cannot take a
+     * dark tee, which needs a white underbase, so dark colours are not
+     * offered at all rather than refused three steps later at Review.
+     */
+    lightOnly?: boolean;
   } | null;
 };
 
@@ -138,7 +144,9 @@ export default function ApparelBuilder({
   // them all pushed sizes, print location and the price below the fold. A
   // chosen colour from the long tail is always shown, even when collapsed.
   const [showAllColors, setShowAllColors] = useState(false);
-  const allColors = selectedSsProduct?.colors ?? [];
+  const allColors = (selectedSsProduct?.colors ?? []).filter(
+    (color) => !fixedDeal?.lightOnly || isLightGarment(color.colorName)
+  );
   const hasMoreColors = allColors.length > POPULAR_COLOR_COUNT;
   const visibleColors =
     showAllColors || !hasMoreColors

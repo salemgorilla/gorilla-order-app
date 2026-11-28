@@ -1396,6 +1396,34 @@ export function buildPrintavoQuotePlan(input: {
     ].join("\n");
   };
 
+  /**
+   * What the shop buys the blank off, and the deal's screen rule: shop-only.
+   * The customer note and the row description are both printed on the quote
+   * the customer opens to pay, so these ride in the production note instead
+   * (Gabe's Nov 24 test-run fix 4: the customer saw the blank's cost).
+   */
+  const apparelShopLines: string[] = apparel
+    ? [
+        // A flat-rate offer names its own blank and where it comes from:
+        // the 50 Hoodie Special's is ordered from Cutter & Buck, not S&S.
+        str(product.promo) === HOODIE_SPECIAL.id
+          ? `Blank: ${str(supplier.supplierProductName, "N/A")}, order from ${str(
+              supplier.source,
+              "N/A"
+            )}`
+          : `S&S style: ${str(supplier.catalogStyle, "N/A")} / SKU ${str(
+              supplier.sku,
+              "N/A"
+            )} / sample ${str(supplier.sampleSize, "N/A")} @ $${num(
+              supplier.markedUpGarmentPrice
+            ).toFixed(2)}`,
+        ...(teeDeal ? [`*** ${teeDealNote(teeDeal)} ***`] : []),
+        ...(str(product.promo) === HOODIE_SPECIAL.id
+          ? [`*** ${hoodieSpecialInkRule()} ***`]
+          : []),
+      ]
+    : [];
+
   const description = paper
     ? [
         ...(paperSpec ? describePaperSpec(paperSpec) : [`${quantity}x ${paperLabel}`]),
@@ -1486,41 +1514,17 @@ export function buildPrintavoQuotePlan(input: {
         ...(str(product.garmentLines)
           ? []
           : [`Sizes: ${str(product.sizeBreakdown, "Not provided")}`]),
-        // The blank-ordering details live HERE and only here — the quote
-        // email dropped them (Gabe, 31 Aug) because it is the surface the
-        // shop replies to customers from, and these four facts price the
-        // blank for anyone who sees them. The internal note is shop-only.
-        // A flat-rate offer names its own blank and where it comes from:
-        // the 50 Hoodie Special's is ordered from Cutter & Buck, not S&S.
-        str(product.promo) === HOODIE_SPECIAL.id
-          ? `Blank: ${str(supplier.supplierProductName, "N/A")}, order from ${str(
-              supplier.source,
-              "N/A"
-            )}`
-          : `S&S style: ${str(supplier.catalogStyle, "N/A")} / SKU ${str(
-              supplier.sku,
-              "N/A"
-            )} / sample ${str(supplier.sampleSize, "N/A")} @ $${num(
-              supplier.markedUpGarmentPrice
-            ).toFixed(2)}`,
-        // A flat-rate offer (lib/hoodie-special.ts): the row is one price per
-        // piece with printing and screens inside it, and there are no
-        // printing or setup rows. Said here so nobody adds them back.
-        // A tee deal (lib/tee-deal.ts) is a flat price, like the hoodie
-        // special, on an S&S blank: the S&S block above stays.
-        ...(teeDeal
-          ? [
-              `*** ${str(product.promoName)}: flat $${num(pricing.unitPrice).toFixed(2)} each, printing and setup included ***`,
-              `*** ${teeDealNote(teeDeal)} ***`,
-            ]
-          : str(product.promoName)
+        // The blank-ordering details (S&S style, SKU, blank cost) and the
+        // deal's screen rule go in the PRODUCTION note, not here. This text
+        // is the customer note AND the row's description, and Printavo shows
+        // both on the quote the customer opens to pay: the Nov 24 and Nov 28
+        // test runs found "sample S @ $5.67" on the customer's page. See
+        // apparelShopLines below.
+        ...(teeDeal || str(product.promoName)
           ? [
               `*** ${str(product.promoName)}: flat $${num(
                 pricing.unitPrice
               ).toFixed(2)} each, printing and setup included ***`,
-              ...(str(product.promo) === HOODIE_SPECIAL.id
-                ? [`*** ${hoodieSpecialInkRule()} ***`]
-                : []),
             ]
           : []),
         // The whole point of a special order — what they actually asked for.
@@ -1736,6 +1740,9 @@ export function buildPrintavoQuotePlan(input: {
       : artworkLinks.length
       ? "Artwork links are in the customer note, under ARTWORK FILES. They are permanent — open them from here, no need to find the email."
       : "Artwork came in as an email attachment; there is no link to open. See the quote email.",
+    ...(apparelShopLines.length
+      ? ["", "BLANK AND DEAL (shop only)", ...apparelShopLines]
+      : []),
   ].join("\n");
 
   /**

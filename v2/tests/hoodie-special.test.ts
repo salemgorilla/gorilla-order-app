@@ -25,7 +25,7 @@ import {
   quoteHoodieSpecial,
   shopTodayIso,
 } from "../lib/hoodie-special";
-import { getApparelFieldErrors } from "../lib/validation";
+import { getApparelFieldErrors, getApparelValidationSummary } from "../lib/validation";
 import { buildPrintavoQuotePlan } from "../lib/printavo";
 import { buildQuoteEmail } from "../lib/email";
 import { isStickerOrder } from "../lib/sticker-repricing";
@@ -229,6 +229,76 @@ describe("the regular apparel rules are untouched", () => {
       "2026-11-23"
     );
     assert.deepEqual(errors, {});
+  });
+});
+
+describe("busy-reading art can still be sent (Nov 28 test run)", () => {
+  // Rhea, 50 black hoodies front and back: a plain 2-colour file read as
+  // 5 colours, the tick sat only on Details, and Review said "Upload your
+  // artwork" beside the uploaded file. Request Quote never appeared.
+  const order = {
+    customer: { customerName: "Test", email: "test@example.com" },
+    artwork: { file: {} },
+    production: { needBy: "2026-12-19" },
+  };
+  const rhea = {
+    specialOrder: false,
+    specialOrderNotes: "",
+    quantity: 50,
+    printLocations: ["Front", "Back"],
+    inkColors: "Front 2 colors · Back 1 color",
+    inkColorsByLocation: { Front: "2 colors", Back: "1 color" },
+    hasUnderbase: true,
+    promo: HOODIE_SPECIAL.id,
+    garmentColor: "Black",
+    promoToday: "2026-11-28",
+    promoArtworkColorCount: 5,
+  };
+
+  test("before the tick, Review names the colour check, not a missing upload", () => {
+    const summary = getApparelValidationSummary(
+      { ...rhea, promoArtConfirmed: false },
+      order,
+      50,
+      "2026-11-28"
+    );
+    const text = summary.join(" ");
+    assert.match(text, /about 5 colors/);
+    assert.doesNotMatch(text, /Upload your artwork/);
+  });
+
+  test("the customer's tick clears it, and nothing else blocks the order", () => {
+    const errors = getApparelFieldErrors(
+      { ...rhea, promoArtConfirmed: true },
+      order,
+      50,
+      "2026-11-28"
+    );
+    assert.deepEqual(errors, {});
+  });
+
+  test("with no file at all it still asks for the upload", () => {
+    const summary = getApparelValidationSummary(
+      { ...rhea, promoArtConfirmed: false },
+      { ...order, artwork: { file: null } },
+      50,
+      "2026-11-28"
+    );
+    assert.match(summary.join(" "), /Upload your artwork/);
+  });
+
+  test("the cap still holds: a third ink on a side is refused even with the tick", () => {
+    const errors = getApparelFieldErrors(
+      {
+        ...rhea,
+        promoArtConfirmed: true,
+        inkColorsByLocation: { Front: "3 colors", Back: "1 color" },
+      },
+      order,
+      50,
+      "2026-11-28"
+    );
+    assert.match(errors.printLocations ?? "", /up to 2 ink colors per side/);
   });
 });
 

@@ -15,11 +15,12 @@ import { TEE_DEALS, TEE_DEAL_SIZES, teeDealTotal } from "./tee-deal";
  * on 2026-11-23 he took it off this page: "Remove the 50 hoodie deal off of
  * the Black Friday page." It keeps its own badge on the order page.)
  *
- * Every word and figure here is shown to customers as written. A deal with
- * `price: null` has no number from Gabe yet: its card says the price is
- * coming and offers no button. Add a deal: copy a row. Retire one: delete
- * its row, or give it an `endsOn` and it hides itself after that day on the
- * shop's clock.
+ * Every word and figure here is shown to customers as written. Every deal
+ * on this list has a price: Gabe, 2026-11-28, "On the deals page, can you
+ * remove all the products that are without pricing?" So a deal goes on the
+ * list only once it has a number (tests/deals.test.ts fails otherwise). Add
+ * a deal: copy a row. Retire one: delete its row, or give it an `endsOn` and
+ * it hides itself after that day on the shop's clock.
  *
  * `how`:
  *   - "order": the button opens the order builder with the deal already set
@@ -160,72 +161,6 @@ export const DEALS: readonly Deal[] = [
     quantity: "Exactly 12",
     print: "Embroidered front",
     youAdd: "Artwork and hat color",
-    how: "soon",
-  },
-  {
-    id: "dtf-tees-12",
-    title: "12 Full-Color DTF Tees",
-    price: null,
-    regularPrice: null,
-    item: "Tee style to be announced",
-    quantity: "Exactly 12",
-    print: "Full color DTF transfer, one front print, no color limit",
-    youAdd: "Artwork, tee color and sizes",
-    how: "soon",
-  },
-  {
-    id: "totes-12",
-    title: "12 Tote Bags",
-    price: null,
-    regularPrice: null,
-    item: "Canvas tote, style to be announced",
-    quantity: "Exactly 12",
-    print: "Screen printed, 1 color, one side",
-    youAdd: "Artwork and tote color",
-    how: "soon",
-  },
-  {
-    id: "totes-24",
-    title: "24 Tote Bags",
-    price: null,
-    regularPrice: null,
-    item: "Canvas tote, style to be announced",
-    quantity: "Exactly 24",
-    print: "Screen printed, 1 color, one side",
-    youAdd: "Artwork and tote color",
-    how: "soon",
-  },
-  {
-    id: "banner-bundle",
-    title: "Banner Bundle",
-    price: null,
-    regularPrice: null,
-    item: "13 oz vinyl, hemmed with grommets; sizes to be announced",
-    quantity: "Set number of banners, to be announced",
-    print: "Full color, one side",
-    youAdd: "Artwork",
-    how: "soon",
-  },
-  {
-    id: "car-magnets",
-    title: "Car Door Magnets",
-    price: null,
-    regularPrice: null,
-    item: "Vehicle magnets, size to be announced",
-    quantity: "Exactly 2 (one pair)",
-    print: "Full color",
-    youAdd: "Artwork",
-    how: "soon",
-  },
-  {
-    id: "a-frame",
-    title: "A-Frame Sidewalk Sign",
-    price: null,
-    regularPrice: null,
-    item: "A-frame sign with printed panels, size to be announced",
-    quantity: "Exactly 1",
-    print: "Full color panels, sides to be announced",
-    youAdd: "Artwork",
     how: "soon",
   },
 ];

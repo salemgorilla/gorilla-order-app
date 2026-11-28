@@ -90,3 +90,13 @@ describe("every deal is paid in full up front (Gabe, 2026-11-24)", () => {
     assert.equal(hoodie.match(/\{DEAL_PAYMENT_TERMS\}/g)?.length, 2);
   });
 });
+
+describe("only deals with a price are listed (Gabe, 2026-11-28)", () => {
+  it("every deal on the page has a price and a regular price", async () => {
+    const { DEALS } = await import("../lib/deals");
+    for (const deal of DEALS) {
+      assert.equal(typeof deal.price, "number", `${deal.id} has no price`);
+      assert.equal(typeof deal.regularPrice, "number", `${deal.id} has no regular price`);
+    }
+  });
+});

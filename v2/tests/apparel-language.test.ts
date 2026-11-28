@@ -90,11 +90,14 @@ describe("the Printavo internal note carries what the email gave up", () => {
     quoteNumber: "GS-2001",
     order: apparelOrder,
     artworkAnalysis: null,
-  } as never) as never as { customerNote: string };
+  } as never) as never as { customerNote: string; productionNote: string };
 
+  // The production note: Printavo shows the customer note on the quote the
+  // customer opens to pay (Nov 24 and Nov 28 test runs).
   it("style, stock code, sample size and blank cost — shop-only", () => {
-    assert.match(plan.customerNote, /S&S style: 39/);
-    assert.match(plan.customerNote, /SKU B00760004/);
-    assert.match(plan.customerNote, /sample M @ \$3\.49/);
+    assert.match(plan.productionNote, /S&S style: 39/);
+    assert.match(plan.productionNote, /SKU B00760004/);
+    assert.match(plan.productionNote, /sample M @ \$3\.49/);
+    assert.doesNotMatch(plan.customerNote, /S&S style|SKU B00760004|sample M @/);
   });
 });

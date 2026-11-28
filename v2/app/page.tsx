@@ -2244,6 +2244,12 @@ export default function Home() {
                 ])
               ),
             }
+          : teeDealFor(prev.promo)
+          ? // A tee deal's ink count is the deal's, not the reader's guess.
+            // The count overreads (a plain 2-colour file reads as 5), and
+            // switching a 1-colour deal to "5+" sent the order to Review to
+            // be refused at the 48-piece minimum (Nov 24 and Nov 28 runs).
+            prev
           : { ...prev, inkColors: suggested };
       });
     }
@@ -5192,6 +5198,7 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                           sizes: TEE_DEAL_SIZES,
                           placements: TEE_DEAL_FRONTS,
                           inks: teeDeal.maxInks === 1 ? ["1 color"] : ["1 color", "2 colors"],
+                          lightOnly: teeDeal.maxScreens < 2,
                         }
                       : null
                   }

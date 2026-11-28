@@ -82,7 +82,7 @@ describe("a deal that fits pays in full", () => {
       { bill: decide(big).bill, deposit: decide(big).deposit },
       { bill: true, deposit: false }
     );
-    for (const order of [teeOrder(), teeOrder({ promo: "tees-12-1c", quantity: 12, garmentColor: "White", sizeBreakdown: "M-6, L-6", supplier: { catalogStyle: "39" } }, { promo: "tees-12-1c", unitPrice: 10.86, total: 130.32 }), hoodieOrder()]) {
+    for (const order of [teeOrder(), teeOrder({ promo: "tees-12-1c", quantity: 12, garmentColor: "White", sizeBreakdown: "M-6, L-6", supplier: { catalogStyle: "16" } }, { promo: "tees-12-1c", unitPrice: 10.86, total: 130.32 }), hoodieOrder()]) {
       assert.equal(decide(order).deposit, false);
     }
   });

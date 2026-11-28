@@ -527,7 +527,13 @@ export function getApparelValidationSummary(
     problems.push({ field: "customerEmail", message: fields.customerEmail });
   }
   if (fields.artwork) {
-    problems.push({ field: "artwork", message: "Upload your artwork." });
+    // With a file in, the artwork problem is about the file (the hoodie
+    // special's colour check), not a missing upload; saying "Upload your
+    // artwork" beside an uploaded file sends the customer in a circle.
+    problems.push({
+      field: "artwork",
+      message: order.artwork.file ? fields.artwork : "Upload your artwork.",
+    });
   }
   if (fields.needBy) {
     problems.push({ field: "needBy", message: fields.needBy });

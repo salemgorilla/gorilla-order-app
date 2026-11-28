@@ -205,6 +205,7 @@ import {
   HoodieSpecialAd,
   HOODIE_AD_PLACEMENT,
   DealsBurst,
+  HoodieSpecialArtConfirm,
   HoodieSpecialBuilder,
   HoodieSpecialEntry,
 } from "../features/apparel/HoodieSpecial";
@@ -491,6 +492,10 @@ export default function Home() {
     apparelQuoteState.promo === HOODIE_SPECIAL.id;
   /** Offered through the special's last day, on Salem's clock. */
   const hoodieSpecialOpen = isHoodieSpecialOpen();
+  /** The artwork reader counted more inks than the special allows a side. */
+  const hoodieSpecialArtTooBusy =
+    typeof artworkAnalysis?.estimatedColorCount === "number" &&
+    artworkAnalysis.estimatedColorCount > HOODIE_SPECIAL.maxInksPerSide;
   /**
    * A Black Friday tee deal (lib/tee-deal.ts), chosen from the deals page.
    * The regular builder at the deal's one fixed price; null on every
@@ -5447,8 +5452,27 @@ This is an estimate, not a final invoice. Gorilla Salem will confirm pricing, ti
                     fileSizeBytes={order.artwork.file?.size ?? null}
                     directUploadEnabled={directUploadEnabled}
                     previewUrl={artworkPreview}
-                    error={fieldErrors.artwork}
+                    error={
+                      isHoodieSpecial && hoodieSpecialArtTooBusy
+                        ? undefined
+                        : fieldErrors.artwork
+                    }
                   />
+
+                  {/* The special's colour tick belongs where the file is
+                      uploaded. Offered only on Details, a busy count left the
+                      order stuck here with no way to clear it. */}
+                  {isHoodieSpecial && hoodieSpecialArtTooBusy && (
+                    <HoodieSpecialArtConfirm
+                      artworkColorCount={artworkAnalysis?.estimatedColorCount ?? null}
+                      artConfirmed={Boolean(apparelQuote.promoArtConfirmed)}
+                      onConfirmArt={(promoArtConfirmed) =>
+                        updateApparelQuote({ promoArtConfirmed })
+                      }
+                      error={fieldErrors.artwork}
+                      testIdSuffix="-artwork-step"
+                    />
+                  )}
 
                   {/* Apparel is single-file, so no design id — the order-level
                       slot is the target, exactly as the box above uses. */}

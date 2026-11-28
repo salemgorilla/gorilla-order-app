@@ -341,34 +341,12 @@ export function HoodieSpecialBuilder({
       </p>
 
       {artTooBusy && (
-        <div
-          role="status"
-          data-testid="hoodie-special-art-warning"
-          className="border border-[var(--rule)] border-l-4 border-l-[var(--rush-red)] bg-[var(--surface-warn)] p-4 text-fine font-medium leading-6 text-[var(--ink-black)]"
-        >
-          <p>
-            Your artwork looks like it has about {artworkColorCount} colors.
-            The special prints {HOODIE_SPECIAL.maxInksPerSide} colors per side
-            at most, with no exceptions. If your art needs more, use a regular
-            quote.
-          </p>
-          <label className="mt-3 flex min-h-[44px] cursor-pointer items-center gap-3 font-bold">
-            <input
-              type="checkbox"
-              data-testid="hoodie-special-art-confirm"
-              checked={artConfirmed}
-              onChange={(event) => onConfirmArt(event.target.checked)}
-              className="h-5 w-5 shrink-0 accent-[var(--ink-black)]"
-            />
-            My art prints in {HOODIE_SPECIAL.maxInksPerSide} colors or fewer on
-            each side (a background color doesn&rsquo;t count).
-          </label>
-          {fieldErrors?.artwork && !artConfirmed && (
-            <p className="mt-2 font-bold text-[var(--rush-red)]">
-              {fieldErrors.artwork}
-            </p>
-          )}
-        </div>
+        <HoodieSpecialArtConfirm
+          artworkColorCount={artworkColorCount}
+          artConfirmed={artConfirmed}
+          onConfirmArt={onConfirmArt}
+          error={fieldErrors?.artwork}
+        />
       )}
 
       {/* Sizes ARE the count here: there is no rough quantity, because the
@@ -558,5 +536,57 @@ export function HoodieSpecialAd({
         </span>
       </span>
     </button>
+  );
+}
+
+/**
+ * The customer's own tick that their art prints in 2 colors a side.
+ *
+ * The artwork reader's count is an estimate (soft edges and a background
+ * read as extra colors), so it can only ask, never refuse. The file is
+ * uploaded on the Artwork step, after the customer has left Details, so the
+ * tick has to be offered there too: shown only on Details, a busy count left
+ * the order with an artwork error and no way to clear it.
+ */
+export function HoodieSpecialArtConfirm({
+  artworkColorCount,
+  artConfirmed,
+  onConfirmArt,
+  error,
+  testIdSuffix = "",
+}: {
+  artworkColorCount: number | null;
+  artConfirmed: boolean;
+  onConfirmArt: (confirmed: boolean) => void;
+  error?: string;
+  testIdSuffix?: string;
+}) {
+  return (
+    <div
+      role="status"
+      data-testid={`hoodie-special-art-warning${testIdSuffix}`}
+      className="border border-[var(--rule)] border-l-4 border-l-[var(--rush-red)] bg-[var(--surface-warn)] p-4 text-fine font-medium leading-6 text-[var(--ink-black)]"
+    >
+      <p>
+        Your artwork looks like it has about {artworkColorCount} colors.
+        The special prints {HOODIE_SPECIAL.maxInksPerSide} colors per side
+        at most, with no exceptions. If your art needs more, use a regular
+        quote.
+      </p>
+      <label className="mt-3 flex min-h-[44px] cursor-pointer items-center gap-3 font-bold">
+        <input
+          type="checkbox"
+          data-testid={`hoodie-special-art-confirm${testIdSuffix}`}
+          checked={artConfirmed}
+          onChange={(event) => onConfirmArt(event.target.checked)}
+          className="h-5 w-5 shrink-0 accent-[var(--ink-black)]"
+        />
+        My art prints in {HOODIE_SPECIAL.maxInksPerSide} colors or fewer on
+        each side (a background color doesn&rsquo;t count).
+      </label>
+      {error && !artConfirmed && (
+        <p className="mt-2 font-bold text-[var(--rush-red)]">{error}</p>
+      )}
+    </div>
   );
 }

@@ -581,8 +581,12 @@ export function HoodieSpecialArtConfirm({
           onChange={(event) => onConfirmArt(event.target.checked)}
           className="h-5 w-5 shrink-0 accent-[var(--ink-black)]"
         />
-        My art prints in {HOODIE_SPECIAL.maxInksPerSide} colors or fewer on
-        each side (a background color doesn&rsquo;t count).
+        {/* One span: in a flex label each bare text run becomes its own
+            item and loses its leading space ("2colors"). */}
+        <span>
+          My art prints in {HOODIE_SPECIAL.maxInksPerSide} colors or fewer on
+          each side (a background color doesn&rsquo;t count).
+        </span>
       </label>
       {error && !artConfirmed && (
         <p className="mt-2 font-bold text-[var(--rush-red)]">{error}</p>
